@@ -43,7 +43,7 @@ const state = vi.hoisted(() => ({
   /** What `.pvws/genesis.pvgen` answers in the vault's folder (R8 follow-up). */
   genesis: "none" as "none" | "found" | "error",
   /** A stored workspace status (a member) - with or without its keys. */
-  wsStatus: null as null | { phase: string },
+  wsStatus: null as null | { phase: string } | "unreadable",
   /** A decommission or lift that passed its gate and stopped (`mobileDecommissionUnfinished`). */
   decommissionUnfinished: null as null | "decommission" | "lift" | "unreadable",
   /** How often the genesis was read on its own. */
@@ -173,7 +173,10 @@ vi.mock("./mobileWorkspaceSecurity", () => ({
   decommissionMobileWorkspace: async (input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => { await r11.decomm!(input); },
   markMobileEncryptionLift: async () => { if (r11.liftMarkFails) throw new Error("lift mark failed"); },
   loadMobilePublicationRuntime: async () => null,
-  getMobileWorkspaceStatus: async () => state.wsStatus,
+  getMobileWorkspaceStatus: async () => {
+    if (state.wsStatus === "unreadable") throw new Error("preferences unreadable");
+    return state.wsStatus;
+  },
   mobileDecommissionUnfinished: async () => {
     if (state.decommissionUnfinished === "unreadable") throw new Error("preferences unreadable");
     return state.decommissionUnfinished;
@@ -732,13 +735,38 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     await vi.waitFor(() => expect(running().workers).toBe(1));
   });
 
-  it("a fact that cannot be read holds — it never lets a sync through (N11, review B2, round 11, MG-A)", async () => {
+  it("a fact that cannot be read leaves a vault without a workspace in memory to its folder's gate, as on main (review B2, round 12)", async () => {
     expect.hasAssertions();
     state.decommissionUnfinished = "unreadable";
     await startSyncIfConfigured(vault);
-    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
-    expect(getSyncStatus().status).toBe("error");
+    // THE DEFECT (round 12, question 1): every vault was held with "Sync error" while the settings store failed.
+    expect(running().workers).toBe(1);
   });
+
+  for (const what of ["the fact", "the status"] as const) {
+    it(`a store that cannot be read (${what}) holds a runtime with a workspace in memory, and asks again by itself once it answers (N11, MG-A; round 12, questions 1 and 2)`, async () => {
+      expect.hasAssertions();
+      vi.useFakeTimers();
+      try {
+        const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+        state.screen = ws;
+        state.wsStatus = what === "the status" ? "unreadable" : { phase: "active" };
+        state.decommissionUnfinished = what === "the fact" ? "unreadable" : null;
+        await startSyncIfConfigured(ws);
+        expect(running().workers, "held: no encrypted worker on what may be half gone").toBe(0);
+        // THE DEFECT (round 12, question 2): a status that could not be read counted as gone — silent, "Sync paused".
+        expect(getSyncStatus().status).toBe("error");
+        // The store answers again: the hold asks again by itself, without "Sync now".
+        state.wsStatus = { phase: "active" };
+        state.decommissionUnfinished = null;
+        await vi.advanceTimersByTimeAsync(10 * 60_000);
+        for (let i = 0; i < 50 && running().workers === 0; i++) await vi.advanceTimersByTimeAsync(100);
+        expect(running().workers).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  }
 
   it("MG-A: a step's question that fails after its failure counts as past the gate — the vault opens anew", async () => {
     expect.hasAssertions();

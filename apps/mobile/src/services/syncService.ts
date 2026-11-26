@@ -940,22 +940,36 @@ async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, raw
     // held, and said, until the person finishes it in the Security area. Asked first, before the workspace a runtime
     // still carries in memory: past the gate that runtime is no valid one any more, and its encrypted worker never
     // runs again on a workspace half gone. Only that fact holds it, never leftovers.
-    // A fact that cannot be read holds: it does not let through (review B2, round 11, MG-A).
     const leaving = await mobileDecommissionUnfinished(v.vaultId).catch(() => "unreadable" as const);
-    if (leaving === "unreadable") {
-      held = { vaultId: v.vaultId, attempt: 0 };
-      setState({ status: "error", message: null });
-      return true;
-    }
-    if (leaving) {
+    // Whether a runtime with a workspace in memory still has its status (`unreadable` where the store fails).
+    const carried = v.workspaceRuntime ? await getMobileWorkspaceStatus(v.vaultId).then((s) => s, () => "unreadable" as const) : null;
+    if (leaving === "unreadable" || carried === "unreadable") {
+      // The store does not answer (review B2, round 12). A runtime with a workspace in memory is held — its status or
+      // the fact of a gate may be gone, and the encrypted worker must not run on a workspace half gone — and asked
+      // again by itself, as a folder that waits is (`encryptedRemoteRetryDelay`), and at "Sync now", coming back and
+      // coming online. Any other vault is "nothing known", as before: its folder's own gate and the plain worker's
+      // listing guard what is beyond.
+      if (v.workspaceRuntime) {
+        const attempt = held?.vaultId === v.vaultId ? held.attempt : 0;
+        held = { vaultId: v.vaultId, attempt: attempt + 1 };
+        setState({ status: "error", message: null });
+        const delay = encryptedRemoteRetryDelay(attempt);
+        encryptedRemoteRetry = setTimeout(() => {
+          encryptedRemoteRetry = null;
+          if (generation === startGeneration) void restartSyncIfActive(v.vaultId);
+        }, delay);
+        return true;
+      }
+    } else if (leaving) {
       held = { vaultId: v.vaultId, attempt: 0 };
       setState({ status: "error", message: i18n.t(leaving === "lift" ? "workspaceSecurity.liftUnfinished" : "workspaceSecurity.decommissionUnfinished"), errorKind: "pair-required" });
       return true;
     }
     // A runtime that carries a workspace whose status went after it opened (the start loads the workspace only with
     // its status) is past a decommission's gate, finished or not (review B2, round 11, SP-A): never its encrypted
-    // worker, and never "joined" over the departure. Only the vault opened anew syncs, as its own state has it.
-    if (v.workspaceRuntime && !(await getMobileWorkspaceStatus(v.vaultId).catch(() => null))) {
+    // worker, and never "joined" over the departure. Only the vault opened anew syncs, as its own state has it — the
+    // step that took it past the gate opens it anew.
+    if (v.workspaceRuntime && carried === null) {
       held = { vaultId: v.vaultId, attempt: 0 };
       setState({ status: "off", message: null });
       return true;
