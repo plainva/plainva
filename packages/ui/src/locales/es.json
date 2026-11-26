@@ -5950,6 +5950,7 @@
     "alsoCreateAt": "Crear también en «{{list}}»",
     "providerCreateFailed": "La tarea se creó localmente, pero no en el proveedor.",
     "providerAnchorFailed": "La tarea se creó en el proveedor, pero no se pudo enlazar con la nota — si no, la próxima sincronización crea una segunda nota para la tarea.",
+    "providerKeptAsIs": "La tarea ya figura de otra forma en tu proveedor. Tu cambio no se aplicó allí.",
     "deletingWithUndo_one": "Tarea eliminada. También se eliminará en el proveedor en {{seconds}} s.",
     "deleteCancelled_one": "Eliminación deshecha: la nota ha vuelto.",
     "deletingWithUndo_many": "{{count}} tareas eliminadas. También se eliminarán en el proveedor en {{seconds}} s.",

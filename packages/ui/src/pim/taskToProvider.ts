@@ -1,4 +1,6 @@
 import { parseBaseConfig } from "../base/baseFormat";
+import i18n from "../i18n";
+import { toast } from "../services/toastStore";
 import { resolveTaskListName, resolveTaskListTarget } from "../lib/taskDatabase";
 import { createProviderTask, taskAnchorIdentity, type ProviderTaskAdapter, type ProviderTaskDraft } from "./providerTask";
 
@@ -50,7 +52,10 @@ export interface TaskListRuntime {
   createTaskFor(
     accountId: string
   ): Promise<
-    | ((listId: string, draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string; createAgain?: boolean }) => Promise<{ uid: string }>)
+    | ((
+        listId: string,
+        draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string; createBefore?: { title: string; due?: string; notes?: string; completed: boolean } },
+      ) => Promise<{ uid: string; notApplied?: true }>)
     | null
   >;
 }
@@ -136,6 +141,9 @@ export async function sendTaskToProviderList(opts: SendTaskOptions): Promise<Sen
       createTask,
     });
     if (!res.ok) return "createFailed";
+    // The task stood at the provider changed already (issue 119): said here,
+    // for every caller of both shells - the note was anchored all the same.
+    if (res.notApplied) toast.warning(i18n.t("tasks.providerKeptAsIs"));
     return res.anchored ? "created" : "notAnchored";
   } catch (e) {
     console.error("[taskToProvider] creating the task at the provider failed", e);

@@ -88,6 +88,19 @@ describe("the desktop watch of created events (issue 119)", () => {
     expect(drawn[drawn.length - 1]!.map((r: ShownEventRow) => r.uid)).toEqual(["plainva-w1"]);
   });
 
+  it("both forms count their tries with the shared helper, and every surface reloads when the overlay changes", () => {
+    expect.hasAssertions();
+    const read = (p: string) => readFileSync(join(__dirname, p), "utf8");
+    const calendarView = read("components/pimcal/CalendarView.tsx");
+    expect(calendarView).toContain("const nextTry = formCreateTries(draft);");
+    expect(calendarView).toContain("const attempt: PimEventCreate = nextTry();");
+    expect(read("../../mobile/src/components/useEventEditor.tsx")).toContain("void createPimEvent(values.calendarKey, nextTry())");
+    expect(read("components/CalendarWidget.tsx")).toContain("const offWrites = pendingEventWrites.subscribe(onChanged);");
+    expect(read("components/base/BaseCalendarView.tsx")).toMatch(/pendingEventWrites\.subscribe\(\(\) => setWritesTick[\s\S]*\[showEvents, pimRuntime, anchorDate, writesTick\]/);
+    expect(read("../../mobile/src/screens/base/BaseScreen.tsx")).toContain("[showEvents, calMonth, pimTick]");
+    expect(read("../../mobile/src/screens/TodayScreen.tsx")).toContain("[selectedIso, bump, pimTick, i18nInstance.language]");
+  });
+
   it("AppShell runs the hook with the vault, its runtime and the expansion it loads on demand", () => {
     expect.hasAssertions();
     const appShell = readFileSync(join(__dirname, "AppShell.tsx"), "utf8");

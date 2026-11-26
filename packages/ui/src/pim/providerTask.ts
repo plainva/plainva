@@ -146,11 +146,15 @@ export interface CreateProviderTaskOptions {
   draft: ProviderTaskDraft;
   /** The provider call. Injected so this module stays free of the PIM runtime
    * and can be tested without one. */
-  createTask(listId: string, draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string; createAgain?: boolean }): Promise<{ uid: string }>;
+  createTask(
+    listId: string,
+    draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string; createBefore?: { title: string; due?: string; notes?: string; completed: boolean } },
+  ): Promise<{ uid: string; notApplied?: true }>;
 }
 
 export type CreateProviderTaskResult =
-  | { ok: true; uid: string; accountId: string; listId: string; anchored: boolean }
+  /** `notApplied`: the task stood at the provider changed already, and this send did not write over it. */
+  | { ok: true; uid: string; accountId: string; listId: string; anchored: boolean; notApplied?: true }
   | { ok: false; reason: "createFailed" };
 
 /**
@@ -165,21 +169,23 @@ export async function createProviderTask(
   opts: CreateProviderTaskOptions
 ): Promise<CreateProviderTaskResult> {
   let uid: string;
+  let notApplied: boolean;
   // The task of this note in this list, the same uid for every try (issue 119).
   const where = `${opts.accountId} ${opts.listId}`;
   const what = { note: opts.notePath, title: opts.draft.title };
   try {
-    const res = await opts.createTask(opts.listId, {
-      // A later try (the due date may have changed since) writes over what an
-      // earlier one may have left: the server holds what the note says now.
-      ...createTryFor("provider-task", where, what),
+    const task = {
       title: opts.draft.title,
       ...(opts.draft.due ? { due: opts.draft.due } : {}),
       ...(opts.draft.notes ? { notes: opts.draft.notes } : {}),
       // A task created here is open by definition — nobody creates a task in
       // order to have it already done.
       completed: false,
-    });
+    };
+    // A later try names what the try before it sent: the provider compares,
+    // and writes over the task only where nobody changed it since.
+    const res = await opts.createTask(opts.listId, { ...task, ...createTryFor("provider-task", where, what, task) });
+    notApplied = res.notApplied === true;
     uid = res.uid;
     forgetCreateUid("provider-task", where, what);
   } catch {
@@ -202,7 +208,7 @@ export async function createProviderTask(
     anchored = false;
   }
 
-  return { ok: true, uid, accountId: opts.accountId, listId: opts.listId, anchored };
+  return { ok: true, uid, accountId: opts.accountId, listId: opts.listId, anchored, ...(notApplied ? { notApplied: true as const } : {}) };
 }
 
 /** The provider anchor of a note, or null when it carries none. Used to avoid

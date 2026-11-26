@@ -418,7 +418,7 @@ export interface ShownEventsCache {
  * desktop's sidebar calendar. A created event is drawn only where its
  * calendar is shown (as the cache query asks), a new series by its
  * occurrences in the range. Where the cache cannot say which calendars are
- * shown, created events are drawn as they are.
+ * shown, created events are not drawn.
  */
 export async function listShownEvents(cache: ShownEventsCache, rangeStartTs: number, rangeEndTs: number, store: PendingEventWrites = pendingEventWrites): Promise<ShownEventRow[]> {
   const cached = await cache.listEvents(rangeStartTs, rangeEndTs);
@@ -426,12 +426,15 @@ export async function listShownEvents(cache: ShownEventsCache, rangeStartTs: num
   if (writes.length === 0) return cached;
   const creates = writes.some((write) => write.kind === "create");
   const [accounts, calendars] = creates ? await Promise.all([cache.listAccounts(), cache.listCalendars()]).catch(() => [null, null] as const) : [null, null];
-  const shownCalendar =
-    accounts && calendars
-      ? (accountId: string, calendarId: string) =>
-          accounts.some((a) => a.id === accountId && a.enabled) && calendars.some((c) => c.accountId === accountId && c.id === calendarId && c.selected)
-      : undefined;
-  const shown = applyPendingEventWrites(cached, writes, { startTs: rangeStartTs, endTs: rangeEndTs }, shownCalendar);
+  // Where the cache cannot say which calendars are shown, created events are
+  // not drawn: a hidden calendar must never show (issue 119, review 5); they
+  // are drawn as soon as the cache can say it again.
+  const shownCalendar = (accountId: string, calendarId: string) =>
+    !!accounts &&
+    !!calendars &&
+    accounts.some((a) => a.id === accountId && a.enabled) &&
+    calendars.some((c) => c.accountId === accountId && c.id === calendarId && c.selected);
+  const shown = applyPendingEventWrites(cached, writes, { startTs: rangeStartTs, endTs: rangeEndTs }, creates ? shownCalendar : undefined);
   // A created event comes from the overlay, not from the range query.
   return shown === cached ? shown : shown.filter((row) => cached.includes(row) || (row.start.ts < rangeEndTs && row.end.ts >= rangeStartTs));
 }

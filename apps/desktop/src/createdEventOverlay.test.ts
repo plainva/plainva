@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CalDavPimTarget, expandEventDraft, expandIcsEvents, PimNotShownYetError, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventRow } from "@plainva/core";
+import { CalDavPimTarget, expandEventDraft, expandIcsEvents, NOT_SHOWN_YET_MS, PimNotShownYetError, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventRow } from "@plainva/core";
 
 const bus = vi.hoisted(() => ({ request: (() => Promise.reject(new Error("no bus"))) as unknown }));
 vi.mock("./services/windowBus", () => ({ getWindowBus: async () => bus }));
@@ -24,6 +24,8 @@ import {
   SETTLED_EVENT_WRITE_TTL_MS,
   writeEventOptimistically,
   eventWriteRefusalText,
+  errorText,
+  formCreateTries,
   listShownEvents,
   pendingEventWrites,
   type CreatedEventChange,
@@ -234,11 +236,13 @@ describe("a new event no sync lists yet (issue 119)", () => {
     const deps = { cache: cache(), targetFor, onGone: (c: CreatedEventChange) => gone.push(c) };
     await settleCreatedEvents(store, deps, ASK - 1);
     expect(asked).not.toHaveBeenCalled();
-    for (const t of [ASK, ASK + 1, 2 * ASK, 3 * ASK, 4 * ASK]) await settleCreatedEvents(store, deps, t);
-    // asked at ASK (no), 2·ASK (yes), 3·ASK (no), 4·ASK (no): two in a row, not three.
+    // From the end of the target's own patience on, every "no" counts.
+    const T = NOT_SHOWN_YET_MS;
+    for (const t of [T, T + 1, T + ASK, T + 2 * ASK, T + 3 * ASK]) await settleCreatedEvents(store, deps, t);
+    // asked at T (no), T+ASK (yes), T+2·ASK (no), T+3·ASK (no): two in a row, not three.
     expect(asked).toHaveBeenCalledTimes(4);
     expect(gone).toEqual([]);
-    await settleCreatedEvents(store, deps, 5 * ASK);
+    await settleCreatedEvents(store, deps, T + 4 * ASK);
     expect(gone.map((c) => [c.row.uid, c.draft?.createAs])).toEqual([["plainva-1", "plainva-1"]]);
     expect(shownNow(store)).toEqual([]);
   });
@@ -364,9 +368,9 @@ describe("a new event no sync lists yet (issue 119)", () => {
     const gone: CreatedEventChange[] = [];
     const asked: Array<{ uid: string }> = [];
     const targetFor = async () => ({ provider: "caldav", eventExists: async (ref: { uid: string }) => (asked.push(ref), false) }) as never;
-    for (const t of [ASK, 2 * ASK]) await settleCreatedEvents(store, { cache: cache(), targetFor, onGone: (c) => gone.push(c) }, write!.settledAt + t);
+    for (const t of [NOT_SHOWN_YET_MS, NOT_SHOWN_YET_MS + ASK]) await settleCreatedEvents(store, { cache: cache(), targetFor, onGone: (c) => gone.push(c) }, write!.settledAt + t);
     expect(gone).toEqual([]);
-    await settleCreatedEvents(store, { cache: cache(), targetFor, onGone: (c) => gone.push(c) }, write!.settledAt + 3 * ASK);
+    await settleCreatedEvents(store, { cache: cache(), targetFor, onGone: (c) => gone.push(c) }, write!.settledAt + NOT_SHOWN_YET_MS + 2 * ASK);
     expect(gone.map((c) => [c.what, c.row.uid])).toEqual([["moved", write!.row.uid]]);
     expect(asked.every((ref) => ref.uid === write!.row.uid)).toBe(true);
   });
@@ -551,6 +555,139 @@ describe("every surface reads the events on their way the same way (issue 119)",
     } finally {
       pendingEventWrites.clear();
     }
+  });
+});
+
+describe("review 5 of issue 119: one clock, nothing after leaving, nothing drawn in doubt", () => {
+  const single: PimEventCreate = { title: "Probe two", start: { ts: 1 }, end: { ts: 2 }, allDay: false, createAs: "plainva-r5" };
+  const created = { ...draftToRow("a1", CAL, "plainva-r5", single), href: `${CAL}plainva-r5.ics` };
+  const vault = () => ({
+    findEventsByUid: async () => [],
+    listAccounts: async () => [{ id: "a1", enabled: true } as PimAccountRow],
+    listCalendars: async () => [{ accountId: "a1", id: CAL, selected: true } as PimCalendar & { accountId: string; selected: boolean }],
+  });
+  const ASK = CREATED_EVENT_ASK_EVERY_MS;
+
+  it("a 'not there' counts only once the target no longer takes a 404 for 'not shown yet' - one clock for both", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    store.settle(store.begin(createChange(created, single)), undefined, 0);
+    const gone: CreatedEventChange[] = [];
+    const deps = { cache: vault(), targetFor: async () => ({ provider: "caldav", eventExists: async () => false }) as never, onGone: (c: CreatedEventChange) => gone.push(c) };
+    for (let t = ASK; t < NOT_SHOWN_YET_MS; t += ASK) await settleCreatedEvents(store, deps, t);
+    expect(store.settledCreates()[0]!.denials).toBe(0);
+    for (const t of [NOT_SHOWN_YET_MS, NOT_SHOWN_YET_MS + ASK]) await settleCreatedEvents(store, deps, t);
+    expect(gone).toEqual([]);
+    await settleCreatedEvents(store, deps, NOT_SHOWN_YET_MS + 2 * ASK);
+    expect(gone).toHaveLength(1);
+  });
+
+  it("a round that waits for the target when the vault is left does not ask the old provider", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    store.settle(store.begin(createChange(created, single)), undefined, 0);
+    let release!: () => void;
+    const built = new Promise<void>((resolve) => (release = resolve));
+    const asked = vi.fn(async () => false);
+    const round = settleCreatedEvents(store, { cache: vault(), targetFor: async () => (await built, { provider: "caldav", eventExists: asked }) as never, onGone: () => undefined }, NOT_SHOWN_YET_MS * 2);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    store.clear(); // the vault is left
+    release();
+    await round;
+    expect(asked).not.toHaveBeenCalled();
+  });
+
+  it("the watch takes its messages down with its stop: a button that can no longer act is not left standing", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ now: NOT_SHOWN_YET_MS * 4 });
+    const error = vi.spyOn(toast, "error").mockImplementation(() => 77);
+    const dismiss = vi.spyOn(toast, "dismiss").mockImplementation(() => undefined);
+    try {
+      const store = new PendingEventWrites();
+      store.settle(store.begin(createChange(created, single)), undefined, 0);
+      const id = store.settledCreates()[0]!.id;
+      store.markAsked(id, 1, true);
+      store.markAsked(id, 2, true);
+      const stop = watchCreatedEvents(store, { cache: vault(), targetFor: async () => ({ provider: "caldav", eventExists: async () => false }) as never });
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(error).toHaveBeenCalledTimes(1);
+      stop();
+      expect(dismiss).toHaveBeenCalledWith(77);
+    } finally {
+      error.mockRestore();
+      dismiss.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("where the cache cannot say which calendars are shown, a created event is not drawn", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    store.settle(store.begin({ kind: "create", row: { ...created, start: { ts: 10 }, end: { ts: 20 } } }), undefined, 0);
+    const cache = { listEvents: async () => [] as PimEventRow[], listAccounts: async () => [{ id: "a1", enabled: true }], listCalendars: async () => Promise.reject(new Error("locked")) };
+    expect(await listShownEvents(cache, 0, 100, store)).toEqual([]);
+  });
+
+  it("'Try again' names what the earlier try sent, and does nothing once the vault is left - also while the expansion loads", async () => {
+    expect.hasAssertions();
+    const error = vi.spyOn(toast, "error").mockImplementation(() => 0);
+    const createEvent = vi.fn(async (_c: string, d: PimEventCreate) => ({ uid: d.createAs, etag: '"x"' }));
+    let live = true;
+    let loaded!: (expand: undefined) => void;
+    const store = new PendingEventWrites();
+    reportCreatedEventGone(store, { targetFor: async () => ({ provider: "caldav", createEvent }) as never, current: () => live, expand: () => new Promise((resolve) => (loaded = resolve)) }, createChange(created, single));
+    error.mock.calls[0]![1]!.run();
+    live = false; // left while the expansion loads
+    loaded(undefined);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(createEvent).not.toHaveBeenCalled();
+    live = true;
+    reportCreatedEventGone(store, { targetFor: async () => ({ provider: "caldav", createEvent }) as never, current: () => live }, createChange(created, single));
+    error.mock.calls[1]![1]!.run();
+    await vi.waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
+    const { createAs: _a, ...sent } = single;
+    expect(createEvent.mock.calls[0]![1].createBefore).toEqual(sent);
+    error.mockRestore();
+  });
+
+  it("a 'Try again' that fails after the vault was left says nothing", async () => {
+    expect.hasAssertions();
+    const error = vi.spyOn(toast, "error").mockImplementation(() => 0);
+    let live = true;
+    let fail!: (e: Error) => void;
+    const createEvent = vi.fn(() => new Promise((_resolve, reject) => (fail = reject)));
+    const store = new PendingEventWrites();
+    reportCreatedEventGone(store, { targetFor: async () => ({ provider: "caldav", createEvent }) as never, current: () => live }, createChange(created, single));
+    error.mock.calls[0]![1]!.run();
+    await vi.waitFor(() => expect(createEvent).toHaveBeenCalled());
+    live = false;
+    fail(new Error("caldav create event: 500"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(error).toHaveBeenCalledTimes(1);
+    error.mockRestore();
+  });
+
+  it("errorText says 'not shown yet' in the reader's words too (a checkbox, a property)", () => {
+    expect.hasAssertions();
+    expect(errorText(new PimNotShownYetError("task", "change"))).toBe(i18n.t("pim.notShownYetTaskChange"));
+  });
+
+  it("a move whose source could not be deleted is no 'moved' event: its copy, if lost, costs nothing and is not reported", async () => {
+    expect.hasAssertions();
+    const source = { accountId: "a1", calendarId: "old", uid: "ev-src", etag: '"s"', title: "Planning", start: { ts: 1 }, end: { ts: 2 }, allDay: false } as PimEventRow;
+    const target = { provider: "caldav", createEvent: async (_c: string, d: PimEventCreate) => ({ uid: d.createAs, etag: '"c"' }), deleteEvent: async () => Promise.reject(new Error("locked")) } as never;
+    const store = new PendingEventWrites();
+    await updateEventWithBlockers({ targets: { targetFor: async () => target }, blockersOf: async () => [], eventsByUid: async () => [], busyLabel: "Busy", store }, source, { ...single, createAs: undefined } as never, { moveTo: { accountId: "a1", calendarId: CAL } });
+    expect(store.settledCreates().map((w) => w.what)).toEqual([undefined]);
+  });
+
+  it("the forms' tries: the first sends the draft, every later one names what the one before it sent", () => {
+    expect.hasAssertions();
+    const next = formCreateTries(single);
+    const { createAs: _a, ...sent } = single;
+    expect(next().createBefore).toBeUndefined();
+    expect(next().createBefore).toEqual(sent);
+    expect(next().createAs).toBe("plainva-r5");
   });
 });
 

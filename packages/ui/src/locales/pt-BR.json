@@ -5950,6 +5950,7 @@
     "alsoCreateAt": "Criar também em “{{list}}”",
     "providerCreateFailed": "A tarefa foi criada localmente, mas não no provedor.",
     "providerAnchorFailed": "A tarefa foi criada no provedor, mas não pôde ser vinculada à nota — senão, a próxima sincronização cria uma segunda nota para a tarefa.",
+    "providerKeptAsIs": "A tarefa já está diferente no seu provedor. Sua alteração não foi aplicada lá.",
     "deletingWithUndo_one": "Tarefa excluída. Também será excluída no provedor em {{seconds}} s.",
     "deleteCancelled_one": "Exclusão desfeita — a nota voltou.",
     "deletingWithUndo_many": "{{count}} tarefas excluídas. Também serão excluídas no provedor em {{seconds}} s.",

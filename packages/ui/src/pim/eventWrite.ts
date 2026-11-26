@@ -197,7 +197,7 @@ export async function updateCalendarEvent(
     // the move tried again finds the copy the first try left.
     const moved = { account: event.accountId, calendar: event.calendarId, uid: event.uid, etag: event.etag ?? null, draft };
     const where = `${moveTo!.accountId} ${moveTo!.calendarId}`;
-    const create: PimEventCreate = draft.createAs ? { ...draft, createAs: draft.createAs } : { ...draft, ...createTryFor("move", where, moved) };
+    const create: PimEventCreate = draft.createAs ? { ...draft, createAs: draft.createAs } : { ...draft, ...createTryFor("move", where, moved, draft) };
     const res = await timedWrite(targets, moveTo!.accountId, "move/create", (target) => target.createEvent(moveTo!.calendarId, create), "no writable target for the destination account");
     forgetCreateUid("move", where, moved);
     const rows = [{ ...draftToRow(moveTo!.accountId, moveTo!.calendarId, res.uid, draft), etag: res.etag, href: res.href }];

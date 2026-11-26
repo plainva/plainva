@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { IPimTarget, PimAccountRow, PimCalendar, PimEventRow } from "@plainva/core";
+import { NOT_SHOWN_YET_MS, type IPimTarget, type PimAccountRow, type PimCalendar, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import i18n from "../i18n";
 import { logDiagnostic } from "../services/diagnosticsLog";
 import { eventWriteRefusalText } from "../lib/errorText";
@@ -60,6 +60,8 @@ export interface CreatedEventWatchDeps {
   current?(): boolean;
   /** The series expansion, where it can be loaded, for "Try again" to draw a series by its occurrences. */
   expand?(): Promise<SeriesExpansion | undefined>;
+  /** Hands over every message the watch shows; `watchCreatedEvents` takes them down with its stop - a button that can no longer act is not left standing. */
+  track?(toastId: number): void;
 }
 
 /** The one check every step of a watch makes after a wait (see `current`). */
@@ -93,6 +95,11 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
     let held: boolean;
     try {
       const target = await deps.targetFor(row.accountId);
+      // The vault may have been left while the target was built: its provider is not asked any more.
+      if (!roundApplies(store, deps, created.id)) {
+        if (!stillCurrent(deps)) return;
+        continue;
+      }
       if (!target?.eventExists) {
         store.markAsked(created.id, now, null);
         continue;
@@ -106,8 +113,11 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
     // The vault may have been left while the provider was asked.
     if (!stillCurrent(deps)) return;
     if (!roundApplies(store, deps, created.id)) continue;
-    store.markAsked(created.id, now, !held);
-    if (held || created.denials + 1 < CREATED_EVENT_DENIALS) continue;
+    // One clock with the target (`NOT_SHOWN_YET_MS`): while it still takes a
+    // 404 for "not shown yet", a "not there" here does not count either.
+    const counts = now - created.settledAt >= NOT_SHOWN_YET_MS;
+    store.markAsked(created.id, now, held ? false : counts ? true : null);
+    if (held || !counts || created.denials + 1 < CREATED_EVENT_DENIALS) continue;
     store.dropCreated(row);
     (deps.onGone ?? ((gone) => reportCreatedEventGone(store, deps, gone)))(created);
   }
@@ -117,7 +127,15 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
 export function watchCreatedEvents(store: PendingEventWrites, deps: CreatedEventWatchDeps, everyMs = 60_000): () => void {
   let running = false;
   let live = true;
-  const scoped: CreatedEventWatchDeps = { ...deps, current: () => live && stillCurrent(deps) };
+  const shown = new Set<number>();
+  const scoped: CreatedEventWatchDeps = {
+    ...deps,
+    current: () => live && stillCurrent(deps),
+    track: (toastId) => {
+      shown.add(toastId);
+      deps.track?.(toastId);
+    },
+  };
   const run = () => {
     if (running || !live) return;
     running = true;
@@ -131,6 +149,8 @@ export function watchCreatedEvents(store: PendingEventWrites, deps: CreatedEvent
   return () => {
     live = false;
     clearInterval(timer);
+    for (const toastId of shown) toast.dismiss(toastId);
+    shown.clear();
   };
 }
 
@@ -140,27 +160,32 @@ export function watchCreatedEvents(store: PendingEventWrites, deps: CreatedEvent
  * exactly it again under the same uid. A blocker and the copy a move made say
  * so, without "Try again".
  */
-export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<CreatedEventWatchDeps, "targetFor" | "current" | "expand">, created: CreatedEventChange): void {
+export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<CreatedEventWatchDeps, "targetFor" | "current" | "expand" | "track">, created: CreatedEventChange): void {
   if (!stillCurrent(deps)) return;
   const { accountId, calendarId, title } = created.row;
   logDiagnostic("pim", `created ${created.what ?? "new"} event not held by the provider`);
+  const say = (text: string, action?: { label: string; run: () => void }) => {
+    const toastId = toast.error(text, action);
+    deps.track?.(toastId);
+  };
   if (created.what === "blocker") {
-    toast.error(i18n.t("pim.blockerCreateLost", { title }));
+    say(i18n.t("pim.blockerCreateLost", { title }));
     return;
   }
   // The copy a move made: after the move its source is deleted, so a copy the
   // provider does not have is, as a rule, an event lost. Said - nothing about
   // the source (its delete may have failed), and no "Try again".
   if (created.what === "moved") {
-    toast.error(i18n.t("pim.eventMoveLost", { title }));
+    say(i18n.t("pim.eventMoveLost", { title }));
     return;
   }
   const draft = created.draft;
   if (!draft?.createAs) return;
-  // A later try of the same create: the server holds what it sends now.
-  const create = { ...draft, createAs: draft.createAs, createAgain: true };
+  // A later try of the same create: the earlier one sent this same draft.
+  const { createAs: _as, createBefore: _before, ...sent } = draft as PimEventDraft & { createAs: string; createBefore?: unknown };
+  const create = { ...sent, createAs: draft.createAs, createBefore: sent };
   const fail = (error: unknown) => {
-    if (stillCurrent(deps)) toast.error(eventWriteRefusalText(error, "save"), { label: i18n.t("pim.eventWriteRetry"), run: again });
+    if (stillCurrent(deps)) say(eventWriteRefusalText(error, "save"), { label: i18n.t("pim.eventWriteRetry"), run: again });
   };
   const write = (expand: SeriesExpansion | undefined) => {
     if (!stillCurrent(deps)) return;
@@ -181,7 +206,7 @@ export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<Cre
     if (!deps.expand) return write(undefined);
     void deps.expand().catch(() => undefined).then(write);
   };
-  toast.error(i18n.t("pim.eventCreateLost", { title }), { label: i18n.t("pim.eventWriteRetry"), run: again });
+  say(i18n.t("pim.eventCreateLost", { title }), { label: i18n.t("pim.eventWriteRetry"), run: again });
 }
 
 /** What `useCreatedEventWatch` needs of a vault's calendar runtime. */

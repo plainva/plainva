@@ -348,12 +348,13 @@ export interface PimTaskDraft {
  * again" sends the same uid, and a provider that lets the client name the
  * event (CalDAV) finds the event the first try left instead of making a
  * second one. `newPimCreateUid` makes one; `createUidFor` keeps one per
- * action across tries. `createAgain` says a try is not the first of its
- * create: CalDAV then writes the create's own address without a
- * precondition, so the server holds what this try sends.
+ * action across tries. `createBefore` says a try is not the first of its
+ * create, and carries what the earlier try sent: CalDAV compares the object
+ * it meets at the address with it, and writes over it only where nobody has
+ * changed it since (`docs/engineering/Calendar_Create_Tries.md`).
  */
-export type PimEventCreate = PimEventDraft & { createAs: string; createAgain?: boolean };
-export type PimTaskCreate = PimTaskDraft & { createAs: string; createAgain?: boolean };
+export type PimEventCreate = PimEventDraft & { createAs: string; createBefore?: PimEventDraft };
+export type PimTaskCreate = PimTaskDraft & { createAs: string; createBefore?: PimTaskDraft };
 
 /**
  * What a task update reports back.
@@ -380,11 +381,14 @@ export interface PimWriteResult {
   uid: string;
   etag?: string;
   href?: string;
+  /**
+   * A later try of a create met the earlier try's object changed elsewhere
+   * (or not shown yet) and left it as it stands: what the person changed
+   * since the earlier try is not at the provider (issue 119).
+   */
+  notApplied?: true;
 }
 
-/** The remote object changed since we last saw it (HTTP 412 / etag mismatch).
- * Callers re-pull and re-reconcile instead of overwriting blindly — the same
- * philosophy as the file sync's remoteEtag guard. */
 /** The `PimNotShownYetError` an error is or carries in its message (over the bus only the message crosses). */
 export function notShownYetOf(error: unknown): { what: "event" | "task"; action: "change" | "delete" } | null {
   if (error instanceof PimNotShownYetError) return { what: error.what, action: error.action };
@@ -411,6 +415,9 @@ export class PimNotShownYetError extends Error {
   }
 }
 
+/** The remote object changed since we last saw it (HTTP 412 / etag mismatch).
+ * Callers re-pull and re-reconcile instead of overwriting blindly — the same
+ * philosophy as the file sync's remoteEtag guard. */
 export class PimConflictError extends Error {
   /**
    * The object's etag as the target read it back after the refusal, where it

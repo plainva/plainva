@@ -106,11 +106,12 @@ describe("the uid of a create survives its tries and ends with its landing", () 
     expect(p.uids[0]).toBe(p.uids[1]);
   });
 
-  it("a later try says so (`createAgain`): the provider then holds what it sends", () => {
+  it("a later try names what the try before it sent (`createBefore`), so the provider can compare", () => {
     expect.hasAssertions();
-    const first = createTryFor("probe-again", "acc cal", { title: "A" }, 0);
-    const second = createTryFor("probe-again", "acc cal", { title: "A" }, 1_000);
-    expect([first.createAgain, second.createAgain, second.createAs]).toEqual([false, true, first.createAs]);
+    const first = createTryFor("probe-again", "acc cal", { title: "A" }, { title: "A", due: "2026-12-01" }, 0);
+    const second = createTryFor("probe-again", "acc cal", { title: "A" }, { title: "A", due: "2026-12-09" }, 1_000);
+    const third = createTryFor("probe-again", "acc cal", { title: "A" }, { title: "A", due: "2026-12-10" }, 2_000);
+    expect([first.createBefore, second.createBefore, third.createBefore, second.createAs]).toEqual([undefined, { title: "A", due: "2026-12-01" }, { title: "A", due: "2026-12-09" }, first.createAs]);
   });
 
   it("a move that landed lets its uid go: the same move again is a new create", async () => {

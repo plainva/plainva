@@ -40,6 +40,7 @@ interface Stored {
   text: string;
   etag: string;
   visibleAt: number;
+  listedAt?: number;
 }
 
 function laggingServer(options: {
@@ -56,7 +57,7 @@ function laggingServer(options: {
   /** The answer to the second PUT: an error status, or a connection that breaks. */
   failSecondPut?: 503 | 409 | "network";
   /** A UID query answered with every object (the filter ignored), with the collection listed too, or with an object outside the calendar. */
-  report?: "ignoreFilter" | "collectionToo" | "outside";
+  report?: "ignoreFilter" | "collectionToo" | "outside" | "truncated";
   /** The UID the calendar's own entry, or the entry outside it, carries in its data. */
   carryUid?: string;
   /** Every GET answers with this status. */
@@ -65,6 +66,10 @@ function laggingServer(options: {
   listEarly?: boolean;
   /** No calendar-query at all (405). */
   noReport?: boolean;
+  /** A UID query lists a silently relocated object only this long after it was stored. */
+  listLagMs?: number;
+  /** Changes the object right after the first GET that shows it (another writer between a read and a write). */
+  changeAfterGet?: (text: string) => string;
   /** The first PUT is stored, but its answer never arrives. */
   loseFirstAnswer?: boolean;
 }) {
@@ -73,6 +78,7 @@ function laggingServer(options: {
   let drops = options.dropFirstPuts ?? 0;
   let refuseFirst = options.refuseFirst ?? false;
   let puts = 0;
+  let changed = false;
   const objects = new Map<string, Stored>();
   const requests: string[] = [];
   const fetchFn: FetchFn = async (input, init) => {
@@ -98,7 +104,7 @@ function laggingServer(options: {
       if (headerOf(init, "If-None-Match") === "*" && held && (!options.lateWrites || now >= held.visibleAt)) return new Response(null, { status: 412 });
       if (options.relocateSilently && headerOf(init, "If-None-Match") === "*") {
         revision += 1;
-        objects.set(`${CAL}server-${revision}.ics`, { text: String(init?.body), etag: `"r${revision}"`, visibleAt: now });
+        objects.set(`${CAL}server-${revision}.ics`, { text: String(init?.body), etag: `"r${revision}"`, visibleAt: now, listedAt: now + (options.listLagMs ?? 0) });
         return new Response(null, { status: 201 });
       }
       if (options.relocate) {
@@ -122,7 +128,13 @@ function laggingServer(options: {
     if (method === "GET") {
       if (options.getStatus) return new Response("no", { status: options.getStatus });
       if (!held || now < held.visibleAt) return new Response("Not Found", { status: 404 });
-      return new Response(held.text, { status: 200, headers: { ETag: held.etag } });
+      const shownText = held.text;
+      if (options.changeAfterGet && !changed) {
+        changed = true;
+        revision += 1;
+        objects.set(url, { ...held, text: options.changeAfterGet(held.text), etag: `"r${revision}"` });
+      }
+      return new Response(shownText, { status: 200, headers: { ETag: held.etag } });
     }
     if (method === "DELETE") {
       if (!held || now < held.visibleAt) return new Response(null, { status: 404 });
@@ -135,7 +147,7 @@ function laggingServer(options: {
     if (method === "REPORT") {
       // calendar-query on a UID: the shown objects that carry it.
       const uid = /<c:text-match[^>]*>([^<]*)</.exec(String(init?.body))?.[1] ?? "";
-      const found = [...objects.entries()].filter(([, o]) => (options.listEarly || now >= o.visibleAt) && (options.report === "ignoreFilter" || o.text.includes(`UID:${uid}`)));
+      const found = [...objects.entries()].filter(([, o]) => (options.listEarly || now >= Math.max(o.visibleAt, o.listedAt ?? 0)) && (options.report === "ignoreFilter" || o.text.includes(`UID:${uid}`)));
       const xml = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
       const rows = found.map(
         ([href, o]) =>
@@ -143,6 +155,7 @@ function laggingServer(options: {
       );
       const carried = options.carryUid ? `<c:calendar-data>${xml(["BEGIN:VCALENDAR", "BEGIN:VEVENT", `UID:${options.carryUid}`, "END:VEVENT", "END:VCALENDAR"].join("\r\n"))}</c:calendar-data>` : "";
       if (options.report === "collectionToo") rows.push(`<d:response><d:href>${new URL(CAL).pathname}</d:href><d:propstat><d:prop><d:getetag>"col"</d:getetag>${carried}</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>`);
+      if (options.report === "truncated") rows.push(`<d:response><d:href>${new URL(CAL).pathname}</d:href><d:status>HTTP/1.1 507 Insufficient Storage</d:status><d:error><d:number-of-matches-within-limits/></d:error></d:response>`);
       if (options.report === "outside") rows.push(`<d:response><d:href>/cal/home/other/stray.ics</d:href><d:propstat><d:prop><d:getetag>"x"</d:getetag>${carried}</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response>`);
       return new Response(`<?xml version="1.0"?><d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">${rows.join("")}</d:multistatus>`, { status: 207 });
     }
@@ -154,8 +167,14 @@ function laggingServer(options: {
     now += ms;
   };
   const preload = (href: string, text: string) => objects.set(href, { text, etag: '"pre"', visibleAt: 0 });
+  /** What an earlier try sent and the server kept (its answer lost): through a target of its own. */
+  const preloadSent = async (kind: "event" | "task", uid: string, draft: object) => {
+    const early = new CalDavPimTarget(creds, fetchFn, wait);
+    const sent = kind === "event" ? early.createEvent(CAL, { ...(draft as PimEventDraft), createAs: uid }) : early.createTask(CAL, { ...(draft as PimTaskDraft), createAs: uid });
+    await sent.catch(() => undefined);
+  };
   const advance = (ms: number) => void (now += ms);
-  return { objects, requests, waits, fetchFn, preload, advance, target: new CalDavPimTarget(creds, fetchFn, wait) };
+  return { objects, requests, waits, fetchFn, preload, preloadSent, advance, target: new CalDavPimTarget(creds, fetchFn, wait) };
 }
 
 const weekly: PimEventDraft = {
@@ -178,46 +197,50 @@ describe("CalDAV: a new event the server shows late", () => {
     expect(waits.length).toBeGreaterThan(0);
   });
 
-  it("a create the server dropped is sent once more - and lands once", async () => {
+  it("a create the server accepted and did not keep is held - never sent again in the same call (the screen asks later)", async () => {
     expect.hasAssertions();
     const { target, objects, requests } = laggingServer({ lagMs: 0, dropFirstPuts: 1 });
     const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-try-1" });
-    expect(created.etag).toBe('"r2"');
-    expect(objects.size).toBe(1);
-    expect(requests.filter((r) => r.startsWith("PUT"))).toHaveLength(2);
+    expect(created).toEqual({ uid: "plainva-try-1", href: `${CAL}plainva-try-1.ics` });
+    expect(objects.size).toBe(0);
+    expect(requests.filter((r) => r.startsWith("PUT"))).toHaveLength(1);
   });
 
-  it("a create the server holds but shows later than the read-back waits is written - once", async () => {
+  it("a create the server holds but shows later than the read-back waits is held - one send, one object", async () => {
     expect.hasAssertions();
-    const { target, objects } = laggingServer({ lagMs: 60_000 });
+    const { target, objects, requests } = laggingServer({ lagMs: 60_000 });
     const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-slow-1" });
-    // The second send was refused with 412: the server holds it.
-    expect(created).toEqual({ uid: "plainva-slow-1", etag: undefined, href: `${CAL}plainva-slow-1.ics` });
+    expect(created).toEqual({ uid: "plainva-slow-1", href: `${CAL}plainva-slow-1.ics` });
     expect(objects.size).toBe(1);
+    expect(requests.filter((r) => r.startsWith("PUT"))).toHaveLength(1);
   });
 
-  it("a create the server accepted twice and still does not show counts as held - not refused", async () => {
+  it("'Try again' after an accepted create the server did not keep: the later try finds nothing at the address and lands, once", async () => {
     expect.hasAssertions();
-    const { target, objects } = laggingServer({ lagMs: 0, dropFirstPuts: 2 });
+    const { target, objects } = laggingServer({ lagMs: 0, dropFirstPuts: 1 });
     const draft = { ...weekly, createAs: "plainva-try-2" };
-    // Accepted twice: nothing the server accepted is refused. Whether it holds
-    // it is asked later, by the screen (`watchCreatedEvents`).
-    await expect(target.createEvent(CAL, draft)).resolves.toEqual({ uid: "plainva-try-2", href: `${CAL}plainva-try-2.ics` });
+    await target.createEvent(CAL, draft);
     expect(objects.size).toBe(0);
     await expect(target.eventExists({ calendarId: CAL, uid: "plainva-try-2", href: `${CAL}plainva-try-2.ics` })).resolves.toBe(false);
-    // "Try again" is the same create, under the same uid: it lands now, once.
-    const again = await target.createEvent(CAL, draft);
+    const again = await target.createEvent(CAL, { ...draft, createBefore: weekly });
     expect(again.uid).toBe("plainva-try-2");
     expect(objects.size).toBe(1);
   });
 
-  it("a server whose write side is as late as its read side: held after the second send, one object, never 'not saved'", async () => {
+  it("a server whose write side is as late as its read side: one send, one object, never 'not saved'", async () => {
     expect.hasAssertions();
     const { target, objects, requests } = laggingServer({ lagMs: 15_000, lateWrites: true });
     const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-late-1" });
     expect(created).toEqual({ uid: "plainva-late-1", href: `${CAL}plainva-late-1.ics` });
     expect(objects.size).toBe(1);
-    expect(requests.filter((r) => r.startsWith("PUT"))).toHaveLength(2);
+    expect(requests.filter((r) => r.startsWith("PUT"))).toHaveLength(1);
+  });
+
+  it("a server that stores under an address of its own and lists it only later: one object - an accepted send is never repeated", async () => {
+    expect.hasAssertions();
+    const { target, objects } = laggingServer({ lagMs: 0, relocateSilently: true, listLagMs: 30_000 });
+    await target.createEvent(CAL, { ...weekly, createAs: "plainva-b2" });
+    expect(objects.size).toBe(1);
   });
 
   it("a server that puts the object under its own address is read there - one object per try, never sent twice", async () => {
@@ -243,16 +266,88 @@ describe("CalDAV: a new event the server shows late", () => {
     expect(objects.size).toBe(1);
   });
 
-  it("a later try writes over what an earlier one left: the server holds what this try sends (a task whose due date changed in between)", async () => {
+  it("later try - nothing at the address (the earlier try never landed): one send, lands", async () => {
     expect.hasAssertions();
-    const { target, objects } = laggingServer({ lagMs: 60_000, loseFirstAnswer: true });
-    const first = { title: "Buy paint", due: "2026-12-01", completed: false, createAs: "plainva-due-1" };
-    await expect(target.createTask(CAL, first)).rejects.toThrow("network connection was lost");
-    await target.createTask(CAL, { ...first, due: "2026-12-09", createAgain: true });
-    const text = objects.get(`${CAL}plainva-due-1.ics`)!.text;
+    const { target, objects, requests } = laggingServer({ lagMs: 0 });
+    const res = await target.createTask(CAL, { title: "Paint", due: "2026-12-09", completed: false, createAs: "plainva-t-none", createBefore: { title: "Paint", due: "2026-12-01", completed: false } });
+    expect(res.notApplied).toBeUndefined();
+    expect(objects.get(`${CAL}plainva-t-none.ics`)!.text).toContain("20261209");
+    expect(requests.filter((r) => r.startsWith("PUT"))).toHaveLength(1);
+  });
+
+  it("later try - what the earlier try sent stands, draft unchanged: left as it is, nothing written", async () => {
+    expect.hasAssertions();
+    const { target, objects, requests, preloadSent } = laggingServer({ lagMs: 0 });
+    const first = { title: "Paint", due: "2026-12-01", completed: false };
+    await preloadSent("task", "plainva-t-same", first);
+    const res = await target.createTask(CAL, { ...first, createAs: "plainva-t-same", createBefore: first });
+    expect(res.notApplied).toBeUndefined();
+    expect(requests.filter((r) => r.startsWith("PUT"))).toHaveLength(2); // the preload and the 412
+    expect(objects.size).toBe(1);
+  });
+
+  it("later try - what the earlier try sent stands, draft changed: written with If-Match, the server holds the new draft", async () => {
+    expect.hasAssertions();
+    const { target, objects, preloadSent } = laggingServer({ lagMs: 0 });
+    const first = { title: "Paint", due: "2026-12-01", completed: false };
+    await preloadSent("task", "plainva-t-ifmatch", first);
+    const res = await target.createTask(CAL, { ...first, due: "2026-12-09", createAs: "plainva-t-ifmatch", createBefore: first });
+    expect(res.notApplied).toBeUndefined();
+    const text = objects.get(`${CAL}plainva-t-ifmatch.ics`)!.text;
     expect(text).toContain("20261209");
     expect(text).not.toContain("20261201");
-    expect(objects.size).toBe(1);
+  });
+
+  it("later try - an event changed elsewhere since (title, a deleted occurrence, an attendee's answer): nothing of it is lost", async () => {
+    expect.hasAssertions();
+    const { target, objects, preloadSent } = laggingServer({ lagMs: 0 });
+    await preloadSent("event", "plainva-a1", weekly);
+    const at = `${CAL}plainva-a1.ics`;
+    const elsewhere = objects
+      .get(at)!
+      .text.replace("SUMMARY:Team sync", "SUMMARY:Team sync (moved to room 2)")
+      .replace("END:VEVENT", "EXDATE:20261208T090000Z\r\nATTENDEE;PARTSTAT=ACCEPTED:mailto:sam@example.org\r\nEND:VEVENT");
+    objects.set(at, { ...objects.get(at)!, text: elsewhere, etag: '"elsewhere"' });
+    for (const draft of [weekly, { ...weekly, title: "Team sync!" }]) {
+      const res = await target.createEvent(CAL, { ...draft, createAs: "plainva-a1", createBefore: weekly });
+      expect([draft.title, res.notApplied ?? false]).toEqual([draft.title, draft.title !== weekly.title]);
+      expect(objects.get(at)!.text).toBe(elsewhere);
+    }
+  });
+
+  it("later try - a task completed elsewhere since stays completed", async () => {
+    expect.hasAssertions();
+    const { target, objects, preloadSent } = laggingServer({ lagMs: 0 });
+    const first = { title: "Paint", completed: false };
+    await preloadSent("task", "plainva-a2", first);
+    const at = `${CAL}plainva-a2.ics`;
+    objects.set(at, { ...objects.get(at)!, text: objects.get(at)!.text.replace("END:VTODO", "STATUS:COMPLETED\r\nEND:VTODO"), etag: '"done"' });
+    await target.createTask(CAL, { ...first, createAs: "plainva-a2", createBefore: first });
+    expect(objects.get(at)!.text).toContain("STATUS:COMPLETED");
+  });
+
+  it("later try - not readable yet: held, nothing written; a changed draft is said not to be taken over", async () => {
+    expect.hasAssertions();
+    const { target, objects, preloadSent } = laggingServer({ lagMs: 60_000 });
+    const first = { title: "Paint", due: "2026-12-01", completed: false };
+    await preloadSent("task", "plainva-t-hidden", first);
+    const same = await target.createTask(CAL, { ...first, createAs: "plainva-t-hidden", createBefore: first });
+    expect(same.notApplied).toBeUndefined();
+    const changed = await target.createTask(CAL, { ...first, due: "2026-12-09", createAs: "plainva-t-hidden", createBefore: first });
+    expect(changed.notApplied).toBe(true);
+    expect(objects.get(`${CAL}plainva-t-hidden.ics`)!.text).toContain("20261201");
+  });
+
+  it("later try - changed by another writer between the read and the write: the If-Match write is refused and nothing is lost", async () => {
+    expect.hasAssertions();
+    const { target, objects, preloadSent } = laggingServer({ lagMs: 0, changeAfterGet: (t) => t.replace("END:VTODO", "STATUS:COMPLETED\r\nEND:VTODO") });
+    const first = { title: "Paint", due: "2026-12-01", completed: false };
+    await preloadSent("task", "plainva-t-race", first);
+    const res = await target.createTask(CAL, { ...first, due: "2026-12-09", createAs: "plainva-t-race", createBefore: first });
+    expect(res.notApplied).toBe(true);
+    const text = objects.get(`${CAL}plainva-t-race.ics`)!.text;
+    expect(text).toContain("STATUS:COMPLETED");
+    expect(text).toContain("20261201");
   });
 
   it("a server that stores under an address of its own without saying so: found by its UID before a second send - one object, held there", async () => {
@@ -288,8 +383,8 @@ describe("CalDAV: a new event the server shows late", () => {
     const draft = { ...weekly, createAs: "plainva-lost-1" };
     await expect(flaky.createEvent(CAL, draft)).rejects.toThrow("network connection was lost");
     expect(objects.size).toBe(1);
-    // "Try again" is a later try of the same create: it writes the same address.
-    await expect(flaky.createEvent(CAL, { ...draft, createAgain: true })).resolves.toEqual({ uid: "plainva-lost-1", etag: '"r2"', href: `${CAL}plainva-lost-1.ics` });
+    // "Try again" is a later try of the same create: it finds the earlier try's event, the same, and leaves it.
+    await expect(flaky.createEvent(CAL, { ...draft, createBefore: weekly })).resolves.toEqual({ uid: "plainva-lost-1", etag: '"r1"', href: `${CAL}plainva-lost-1.ics` });
     expect(objects.size).toBe(1);
   });
 
@@ -320,14 +415,11 @@ describe("CalDAV: a new event the server shows late", () => {
     await expect(target.eventExists({ calendarId: CAL, uid: "x", href: `${CAL}x.ics` })).resolves.toBe(false);
   });
 
-  it("an error on the second send does not make an accepted create 'not saved' (503, 409, a broken connection)", async () => {
+  it("an accepted create is sent once: a 404 at the address and a 'not there' from the calendar never make a second send", async () => {
     expect.hasAssertions();
-    for (const failSecondPut of [503, 409, "network"] as const) {
-      const { target, objects } = laggingServer({ lagMs: 60_000, failSecondPut });
-      const uid = `plainva-2nd-${failSecondPut}`;
-      await expect(target.createEvent(CAL, { ...weekly, createAs: uid })).resolves.toEqual({ uid, href: `${CAL}${uid}.ics` });
-      expect([failSecondPut, objects.size]).toEqual([failSecondPut, 1]);
-    }
+    const { target, requests } = laggingServer({ lagMs: 60_000 });
+    await target.createEvent(CAL, { ...weekly, createAs: "plainva-once" });
+    expect(requests.filter((r) => r.startsWith("PUT"))).toEqual(["PUT plainva-once.ics"]);
   });
 
   it("'Try again' after a lost answer, while the server holds the object but does not show it yet: held, one object", async () => {
@@ -335,8 +427,8 @@ describe("CalDAV: a new event the server shows late", () => {
     const { target, objects } = laggingServer({ lagMs: 60_000, loseFirstAnswer: true });
     const draft = { ...weekly, createAs: "plainva-lost-answer" };
     await expect(target.createEvent(CAL, draft)).rejects.toThrow("network connection was lost");
-    // The later try writes the address again; this server shows what it was just sent.
-    await expect(target.createEvent(CAL, { ...draft, createAgain: true })).resolves.toEqual({ uid: "plainva-lost-answer", etag: '"r2"', href: `${CAL}plainva-lost-answer.ics` });
+    // The later try meets the earlier try's object, not shown yet: held, nothing written.
+    await expect(target.createEvent(CAL, { ...draft, createBefore: weekly })).resolves.toEqual({ uid: "plainva-lost-answer", href: `${CAL}plainva-lost-answer.ics` });
     expect(objects.size).toBe(1);
   });
 
@@ -368,12 +460,18 @@ describe("CalDAV: a new event the server shows late", () => {
     await expect(target.eventExists({ calendarId: CAL, uid: "plainva-x", href: `${CAL}plainva-x.ics` })).rejects.toThrow("cannot be read");
   });
 
-  it("the calendar itself and an object outside the calendar are no hit, even where they carry our UID", async () => {
+  it("asked whether it has an event, any object the calendar answers with that carries our UID counts - the calendar itself never does", async () => {
     expect.hasAssertions();
-    for (const report of ["collectionToo", "outside"] as const) {
-      const { target } = laggingServer({ lagMs: 0, report, carryUid: "plainva-ours" });
-      await expect([report, await target.eventExists({ calendarId: CAL, uid: "plainva-ours", href: `${CAL}plainva-ours.ics` })]).toEqual([report, false]);
-    }
+    const collection = laggingServer({ lagMs: 0, report: "collectionToo", carryUid: "plainva-ours" });
+    await expect(collection.target.eventExists({ calendarId: CAL, uid: "plainva-ours", href: `${CAL}plainva-ours.ics` })).resolves.toBe(false);
+    const outside = laggingServer({ lagMs: 0, report: "outside", carryUid: "plainva-ours" });
+    await expect(outside.target.eventExists({ calendarId: CAL, uid: "plainva-ours", href: `${CAL}plainva-ours.ics` })).resolves.toBe(true);
+  });
+
+  it("an answer the server says it cut short is no answer", async () => {
+    expect.hasAssertions();
+    const { target } = laggingServer({ lagMs: 0, report: "truncated" });
+    await expect(target.eventExists({ calendarId: CAL, uid: "plainva-cut", href: `${CAL}plainva-cut.ics` })).rejects.toThrow("cut its answer");
   });
 
   it("a read that fails (sign-in, server error) is no answer, never 'not there'", async () => {

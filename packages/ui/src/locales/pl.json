@@ -6074,6 +6074,7 @@
     "alsoCreateAt": "Twórz też w „{{list}}”",
     "providerCreateFailed": "Zadanie zostało utworzone lokalnie, ale nie u dostawcy.",
     "providerAnchorFailed": "Zadanie zostało utworzone u dostawcy, ale nie udało się połączyć go z notatką — w przeciwnym razie następna synchronizacja utworzy dla niego drugą notatkę.",
+    "providerKeptAsIs": "Zadanie u Twojego dostawcy wygląda już inaczej. Twoja zmiana nie została tam przeniesiona.",
     "deletingWithUndo_one": "Zadanie usunięte. Za {{seconds}} s zostanie usunięte także u dostawcy.",
     "deleteCancelled_one": "Cofnięto usunięcie — notatka wróciła.",
     "deletingWithUndo_few": "Usunięto {{count}} zadania. Za {{seconds}} s zostaną usunięte także u dostawcy.",

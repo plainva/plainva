@@ -5702,6 +5702,7 @@
     "alsoCreateAt": "同时添加到“{{list}}”",
     "providerCreateFailed": "任务已在本地创建，但未在服务商处创建。",
     "providerAnchorFailed": "任务已在服务商处创建，但无法关联笔记 — 否则下次同步会为该任务创建第二个笔记。",
+    "providerKeptAsIs": "服务商那里的任务已是另一个样子。你的更改未在那里生效。",
     "deletingWithUndo_other": "已删除 {{count}} 个任务。将在 {{seconds}} 秒后同时从提供商处删除。",
     "deleteCancelled_other": "已撤销删除 — {{count}} 个笔记已恢复。",
     "metadata": {

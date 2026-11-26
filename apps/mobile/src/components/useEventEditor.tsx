@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AreaBoundary, applyEventChanges, eventWriteRefusalText, refusalReason, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
+import { AreaBoundary, applyEventChanges, eventWriteRefusalText, formCreateTries, refusalReason, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
 import { newPimCreateUid, parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventCreate, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -464,10 +464,10 @@ export function useEventEditor({
     // One uid for this create, kept by "Try again": a create that did land
     // after all is found under it, never made twice (issue 119).
     const draft: PimEventCreate = { ...values.draft, createAs: newPimCreateUid() };
-    // "Try again" is a later try of the same create: the server then holds what this try sends.
-    let tries = 0;
+    // "Try again" is a later try of the same create: it names what the try before it sent.
+    const nextTry = formCreateTries(draft);
     const create = () => {
-      void createPimEvent(values.calendarKey, { ...draft, createAgain: tries++ > 0 }).then(
+      void createPimEvent(values.calendarKey, nextTry()).then(
         () => seeded?.(),
         (err) => reportRefused(err, create),
       );
