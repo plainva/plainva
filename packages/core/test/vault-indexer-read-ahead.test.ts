@@ -94,6 +94,15 @@ class SlowVault extends MemoryVaultAdapter {
 const NOTES = 60;
 const names = Array.from({ length: NOTES }, (_, i) => `notes/n${String(i).padStart(2, "0")}.md`);
 
+/**
+ * The time of a test that indexes notes of megabytes, one line each: every
+ * note is parsed, however long its lines (a note with a line over 10 000
+ * characters once lost its links, its tags and its properties to the index);
+ * the 94 MB of the first such test take the index 39 s on this machine, the
+ * 72 MB of each of the next two 30 s (2026-11-26), three times that the limit.
+ */
+const LARGE_NOTES_MS = 120_000;
+
 async function fill(vault: MemoryVaultAdapter): Promise<void> {
   await vault.initialize();
   for (const [i, name] of names.entries()) {
@@ -299,7 +308,7 @@ describe("a full scan that reads ahead", () => {
     }
     expect(Math.max(...held.map((t) => t.reduce((a, b) => a + b, 0)))).toBeLessThan(19 * MB);
     expect((await db.query(`SELECT path FROM files`)).length).toBe(46);
-  });
+  }, LARGE_NOTES_MS);
 
   it.each([
     ["listed at 1 MB, 3 MB read", 1],
@@ -355,7 +364,7 @@ describe("a full scan that reads ahead", () => {
       expect(texts.reduce((a, b) => a + b, 0), `a transaction of ${texts.length} notes`).toBeLessThanOrEqual(16 * MB + 8 * 3 * MB + 64 * 1024);
     }
     expect((await db.query(`SELECT path FROM files`)).length).toBe(24);
-  });
+  }, LARGE_NOTES_MS);
 
   it("reads in groups where the host reads many files in one call, with the same index, and sends the rest the ordinary way", async () => {
     const reference = await oneAtATime(await (async () => { const v = new MemoryVaultAdapter(1_700_000_000_000); await fill(v); return v; })());
