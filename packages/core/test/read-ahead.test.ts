@@ -246,4 +246,19 @@ describe("createReadAhead", () => {
     // Item 0 was taken before its 50 MB came in: they count, and nothing more starts.
     expect(reader.pending).toEqual([]);
   });
+
+  it("never runs more than groups × groupSize readings ahead of the caller, however fast they come in", async () => {
+    const started: number[] = [];
+    const ahead = createReadAhead(Array.from({ length: 40 }, (_, i) => i), async (group) => {
+      started.push(...group);
+      return group.map(String);
+    }, { groups: 4 });
+    await ahead.take(0);
+    for (let i = 0; i < 20; i++) await flush();
+    // Item 0 taken: at most four more read ahead of the caller, though each came in at once.
+    expect(Math.max(...started)).toBeLessThanOrEqual(4);
+    await ahead.take(1);
+    for (let i = 0; i < 20; i++) await flush();
+    expect(Math.max(...started)).toBeLessThanOrEqual(5);
+  });
 });

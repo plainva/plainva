@@ -395,7 +395,8 @@ files a transaction of the scan writes are read ahead of the loop that indexes t
 (`packages/core/src/vault/readAhead.ts`, `VaultIndexer.readScanGroup`):
 
 - **Which files, when.** Up to eight reads at a time — single files, or where the adapter reads
-  many files in one call (`readFilesForIndex`, the desktop) two calls of eight files each. One
+  many files in one call (`readFilesForIndex`, the desktop) two calls of eight files each — and never
+  more readings ahead of the loop than that, in or not (8, on the desktop 16). One
   bound holds what a transaction has, in characters of text: its readings taken and those still
   ahead together at most the 16 M characters a transaction holds (`SCAN_TRANSACTION_TEXT`). A
   reading counts by its text once it is in, taken or not; until then by the listing's size in

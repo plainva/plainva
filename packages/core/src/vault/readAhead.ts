@@ -12,7 +12,8 @@
  * hold what is ahead:
  *
  * - `groups` reads at a time, of up to `groupSize` items each (a host that
- *   reads many files in one call takes groups; every other one single files);
+ *   reads many files in one call takes groups; every other one single files),
+ *   and never more than `groups × groupSize` readings ahead of the caller;
  * - `maxWeight`: the weight of what is read or being read and not yet taken
  *   (a file's size). A group never takes an item past it, and nothing new
  *   starts while it is reached — except where nothing is ahead at all, so a
@@ -103,7 +104,10 @@ export function createReadAhead<T, R>(
   const startGroup = (forced: boolean): boolean => {
     if (issued >= items.length) return false;
     const first = Math.max(0, weightOf(items[issued]));
-    if (!forced && (inFlight >= groups || (weightAhead > 0 && weightAhead + first > maxWeight))) return false;
+    // Bounded by count twice: reads in flight (`groups`), and readings ahead of
+    // the caller, in or not (`groups × groupSize`) — small files read faster
+    // than they are taken would otherwise run as far ahead as the weight lets them.
+    if (!forced && (inFlight >= groups || issued - taken >= groups * groupSize || (weightAhead > 0 && weightAhead + first > maxWeight))) return false;
     const from = issued;
     let to = from + 1;
     let weight = first;
