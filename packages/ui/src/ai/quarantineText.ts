@@ -68,10 +68,10 @@ export const UNREADABLE_BODY = "[Plainva could not display this message safely a
  * F23): words that only the place of other boxes hides — run out of their box and painted over, or off the frame's
  * edge — are not read. What the assistant reads of a mail comes from here.
  */
-export async function readableBodyInEngine(input: { html?: string | null; text?: string | null }, max: number): Promise<ReadableBody> {
+export async function readableBodyInEngine(input: { html?: string | null; text?: string | null }, max: number, widths?: readonly number[]): Promise<ReadableBody> {
   const view = mailBodyView({ html: input.html ?? null, text: input.text ?? null });
   if (!view || view.unreadable) return readableBody(input, max);
-  const shown = await view.engineDocument();
+  const shown = await view.engineDocument(widths);
   const body = cut(shown.text.trim(), max);
   return { text: body.text, links: checkedLinks(shown.links), truncated: body.truncated };
 }

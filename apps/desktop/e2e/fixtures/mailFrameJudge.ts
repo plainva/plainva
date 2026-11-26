@@ -180,6 +180,25 @@ export function measureFrame(frame: HTMLIFrameElement): Measured[] {
   return out;
 }
 
+/**
+ * Why a word of the frame is not seen (B7), or null where it is — or where it stands in no single text and cannot be
+ * judged here (the pixels are the case test's): its first occurrence in a text of the body, judged as a marker word is.
+ */
+export function wordUnseen(frame: HTMLIFrameElement, word: string): string | null {
+  const doc = frame.contentDocument!;
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node as Text;
+    const at = text.data.indexOf(word);
+    if (at < 0 || !text.parentElement) continue;
+    const range = doc.createRange();
+    range.setStart(text, at);
+    range.setEnd(text, at + word.length);
+    return unseen(frame, range, text.parentElement);
+  }
+  return null;
+}
+
 /** What a person sees in a fitted reader frame. */
 export function judgeFrame(frame: HTMLIFrameElement): FrameSeen {
   const doc = frame.contentDocument!;

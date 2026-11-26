@@ -1,4 +1,4 @@
-import { inkCounts, judgeFrame, markMode, markWords, MARKER, measureFrame, scrollToWord, type FrameSeen, type MarkedWord, type Measured, type PageBox } from "./mailFrameJudge";
+import { inkCounts, judgeFrame, wordUnseen, markMode, markWords, MARKER, measureFrame, scrollToWord, type FrameSeen, type MarkedWord, type Measured, type PageBox } from "./mailFrameJudge";
 
 /** The parts of the mail code the run needs — the branch's, or another version's for the expectations. */
 export interface MailFrameApi {
@@ -8,7 +8,7 @@ export interface MailFrameApi {
   buildMailFrameDoc: (html: string, options?: object) => string;
   applyFrameFit: (frame: HTMLIFrameElement, options?: { growHeight?: boolean }) => unknown;
   /** What the assistant reads: this checkout's judges it in the engine too (B7, F23). */
-  readableBody: (input: { html?: string | null; text?: string | null }, max: number) => Readable | Promise<Readable>;
+  readableBody: (input: { html?: string | null; text?: string | null }, max: number, widths?: readonly number[]) => Readable | Promise<Readable>;
   /** The walk's reading alone, without the engine: what ordinary mails must read alike. */
   readableModel?: (input: { html?: string | null; text?: string | null }, max: number) => Readable;
 }
@@ -143,6 +143,13 @@ export async function runMailCorpus(api: MailFrameApi, cases: readonly MailFrame
     const frame = await openFrame(api, api.buildMailFrameDoc(shown, options), width);
     const seen = judgeFrame(frame);
     const measured = measureFrame(frame);
+    // What the engine takes away of the walk's reading at this frame's width, kept where this frame shows it (B7):
+    // a word the frame does not show either — past its edge, clipped, without a box — is rightly not read.
+    const walk = api.readableModel?.({ html }, 100_000) ?? null;
+    const words = (text: string) => new Set(text.split(/\s+/).filter(Boolean));
+    const here = await api.readableBody({ html }, 100_000, [width]);
+    const kept = words(here.text);
+    const dropped = walk ? [...words(walk.text)].filter((word) => !kept.has(word) && wordUnseen(frame, word) === null) : [];
     frame.remove();
     let mainMeasured: Measured[] | null = null;
     if (mainDocs?.[name] !== undefined) {
@@ -151,10 +158,6 @@ export async function runMailCorpus(api: MailFrameApi, cases: readonly MailFrame
       before.remove();
     }
     const read = await api.readableBody({ html }, 100_000);
-    const walk = api.readableModel?.({ html }, 100_000) ?? null;
-    const words = (text: string) => new Set(text.split(/\s+/).filter(Boolean));
-    const kept = words(read.text);
-    const dropped = walk ? [...words(walk.text)].filter((word) => !kept.has(word)) : [];
     results.push({ name, measured, mainMeasured, ai: [...new Set(Array.from(read.text.matchAll(MARKER), (m) => m[0]))].sort(), seen: seen.seen, sameAsWalk: walk ? dropped.length === 0 : null, dropped });
   }
   return results;

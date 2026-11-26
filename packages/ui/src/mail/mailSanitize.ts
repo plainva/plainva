@@ -1,6 +1,6 @@
 import createDOMPurify from "dompurify";
 import { keptMailStyle, MailShaper, ownsLineHeight, visibleDocumentOf, WHITE_SHEET, type MarkupReader, type ShapeState, type VisibleDocument } from "@plainva/core";
-import { blanked, engineHiddenWords, type EngineHidden } from "./engineVisibility";
+import { blanked, ENGINE_WIDTHS, engineHiddenWords, type EngineHidden } from "./engineVisibility";
 import { domReader, treeAccess, type TreeAccess } from "./mailTree";
 
 // The package's default export is a FACTORY in module environments — bind it
@@ -79,7 +79,7 @@ export interface MailHtmlView extends SanitizedEmail {
    * and painted over, or off the frame's edge (`engineVisibility.ts`). The assistant reads this. Where there is no
    * engine to ask (a test runner's DOM), `document()`.
    */
-  engineDocument(): Promise<VisibleDocument>;
+  engineDocument(widths?: readonly number[]): Promise<VisibleDocument>;
   /**
    * Set where the pass could not make the HTML part safe — it threw, or the
    * parse left no body (a `<frameset>`): nothing of the part is given to
@@ -309,7 +309,8 @@ function makePass(raw: string): Pass {
   };
   let document: VisibleDocument | undefined;
   let shows: boolean | undefined;
-  let engine: Promise<VisibleDocument> | undefined;
+  /** The engine's readings, per set of widths (the readers' by default). */
+  const engine = new Map<string, Promise<VisibleDocument>>();
   const view = (withPictures: boolean): MailHtmlView => {
     let html: string | undefined;
     const shown = () => (html ??= markup(withPictures));
@@ -326,14 +327,21 @@ function makePass(raw: string): Pass {
       // may not show makes no link visible, so the assistant reads no more than either shows.
       document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false }),
       // One reading for both views too: the one without pictures, laid out as its frame is (F23).
-      engineDocument: () =>
-        (engine ??= (async () => {
-          const walked = (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false });
-          if (!body || !walked.shows) return walked;
-          const hidden = await engineHiddenWords(buildMailFrameDoc(markup(false), { canvas: null })).catch(() => null);
-          if (!hidden || hidden.parents.size === 0) return walked;
-          return visibleDocumentOf(body, withoutHiddenWords(read, reader, body, hidden), { canvas: canvas() });
-        })()),
+      engineDocument: (widths = ENGINE_WIDTHS) => {
+        const key = widths.join(",");
+        let reading = engine.get(key);
+        if (!reading) {
+          reading = (async () => {
+            const walked = (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false });
+            if (!body || !walked.shows) return walked;
+            const hidden = await engineHiddenWords(buildMailFrameDoc(markup(false), { canvas: null }), widths).catch(() => null);
+            if (!hidden || hidden.parents.size === 0) return walked;
+            return visibleDocumentOf(body, withoutHiddenWords(read, reader, body, hidden), { canvas: canvas() });
+          })();
+          engine.set(key, reading);
+        }
+        return reading;
+      },
       shows: () => (shows ??= document ? document.shows : body ? visibleDocumentOf(body, reader, { canvas: canvas(), untilShown: true }).shows : false),
     };
   };
