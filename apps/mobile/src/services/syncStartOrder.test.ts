@@ -209,7 +209,8 @@ const vault = {
 import { retireWorkspaceRuntime } from "./syncService";
 import { leaveWorkspaceStep } from "./workspaceLeaving";
 import { holdVaultSync } from "./syncHolds";
-import { connectProvider, detachSync, foregroundSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep, withRuntimeStep, withVaultSyncStopped } from "./syncService";
+import { armLeaveGuard, disarmLeaveGuard, foreignInputArmed } from "./leaveGuard";
+import { connectProvider, detachSync, foregroundSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSync, stopSyncForStep, withRuntimeStep, withVaultSyncStopped } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -574,7 +575,7 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     state.wsStatus = null;
     state.decommissionUnfinished = null;
     state.settings.set("encryptedRemote_v", { v: 2, state: "released", workspace: "ws-1" });
-    retireWorkspaceRuntime(ws, "security-area");
+    retireWorkspaceRuntime(ws);
     await startSyncIfConfigured(ws).catch(() => undefined);
     await restartSyncIfActive("v");
     // THE DEFECT: the encrypted worker started on the runtime with the workspace in memory, and wrote "joined".
@@ -714,7 +715,8 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
       try {
         // THE DEFECT (MG-3): none of the three did anything — the old runtime sat on "Sync paused" until a switch.
         expect(await pokes()).toEqual([1, 1, 1]);
-        expect(vi.mocked(reloadActiveMobileVault).mock.calls.every((c) => c[0] === "security-area" && (c[1] as { runtime?: unknown }).runtime === ws)).toBe(true);
+        // No surface of its own (round 13, SP-1): input on any surface, the Security area's too, puts the reload off.
+        expect(vi.mocked(reloadActiveMobileVault).mock.calls.every((c) => c[0] === undefined && (c[1] as { runtime?: unknown }).runtime === ws)).toBe(true);
       } finally { vi.mocked(reloadActiveMobileVault).mockImplementation(async () => true); }
       expect(running(), "never the sync on the old runtime").toEqual({ workers: 0, settingsOnly: 0 });
       // The next try succeeds: the vault opened anew, its status still there — a whole workspace, its encrypted worker runs.
@@ -736,9 +738,35 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
       await new Promise((r) => setTimeout(r, 50));
       vi.mocked(reloadActiveMobileVault).mockClear();
       expect(await pokes()).toEqual([1, 1, 1]);
-      expect(reloadActiveMobileVault).toHaveBeenCalledWith("security-area", { runtime: ws });
+      expect(reloadActiveMobileVault).toHaveBeenCalledWith(undefined, { runtime: ws });
       expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
       expect(state.settings.get(KEY)).toMatchObject({ state: "left", peers: "others" });
+    });
+
+    it("SP-1 (round 13): input in the Security area puts off the reload a trigger asks for — a trigger is no surface that typed", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("left");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      await leaveWorkspaceStep(ws, "decommission").catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 50));
+      // The reload as it decides at its turn: put off behind input on a surface that is not its own (`vaultService`).
+      const decided: string[] = [];
+      vi.mocked(reloadActiveMobileVault).mockClear();
+      vi.mocked(reloadActiveMobileVault).mockImplementation(async (own) => { decided.push(foreignInputArmed(own) ? "put off" : "reloaded"); return !foreignInputArmed(own); });
+      armLeaveGuard({ id: "security-area", message: "the recovery code" });
+      try {
+        // Typed the recovery code, went to the password manager and came back.
+        foregroundSync();
+        await new Promise((r) => setTimeout(r, 10));
+        // THE DEFECT (SP-1): asked for the Security area's own surface, the reload went over the code without a question.
+        expect(decided).toEqual(["put off"]);
+      } finally {
+        disarmLeaveGuard("security-area");
+        vi.mocked(reloadActiveMobileVault).mockImplementation(async () => true);
+      }
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
     });
 
     it("MG-3: while something holds the vault's sync (a step at work, a reload waiting behind input), the triggers reload nothing — theirs is the reload", async () => {
@@ -777,7 +805,7 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
     state.screen = ws;
     state.wsStatus = { phase: "active" };
-    retireWorkspaceRuntime(ws, "security-area");
+    retireWorkspaceRuntime(ws);
     await startSyncIfConfigured(ws).catch(() => undefined);
     expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
   });
@@ -861,6 +889,43 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
       }
     });
   }
+
+  it("Y12 (round 13): a runtime held because the store could not be read is asked again at once by \"Sync now\", before its timer", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    state.wsStatus = { phase: "active" };
+    state.decommissionUnfinished = "unreadable";
+    await startSyncIfConfigured(ws);
+    expect(running().workers).toBe(0);
+    state.decommissionUnfinished = null;
+    syncNow();
+    for (let i = 0; i < 50 && running().workers === 0; i++) await new Promise((r) => setTimeout(r, 5));
+    // THE DEFECT (Y12): not held, "Sync now" asked nothing — only the timer, a minute later.
+    expect(running().workers).toBe(1);
+  });
+
+  it("Y17 (round 13): a timer of that hold left behind by a later start does nothing once the sync was stopped", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    try {
+      const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+      state.screen = ws;
+      state.wsStatus = { phase: "active" };
+      state.decommissionUnfinished = "unreadable";
+      await startSyncIfConfigured(ws);
+      // A second start while held sets its own timer; the first one is left behind (H-2 of round 13).
+      await startSyncIfConfigured(ws);
+      expect(running().workers).toBe(0);
+      stopSync();
+      state.decommissionUnfinished = null;
+      await vi.advanceTimersByTimeAsync(30 * 60_000);
+      // THE DEFECT (Y17): the timer left behind restarted the sync that was stopped.
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it("MG-A: a step's question that fails after its failure counts as past the gate — the vault opens anew", async () => {
     expect.hasAssertions();

@@ -432,18 +432,18 @@ function inStartChain(step: () => Promise<void>): Promise<void> {
 let startGeneration = 0;
 
 /**
- * Runtimes a decommission or lift has taken past its gate (`retireWorkspaceRuntime`), each with its step's own
- * surface (the reload's `own`): whatever follows — the step failing, its reload put off or failing — none of them
- * gets a sync again (review B2, round 11). The workspace they carry in memory is half or wholly gone; their
- * encrypted worker would write "joined" over the departure and work on it. Only the vault opened anew syncs, as its
- * own state has it. Where such a runtime stays on screen — its step's reload failed — "Sync now", coming back and
- * coming online try that reload again, never the sync on it (review B2, round 12, MG-3; `askHeldAgain`).
+ * Runtimes a decommission or lift has taken past its gate (`retireWorkspaceRuntime`): whatever follows — the step
+ * failing, its reload put off or failing — none of them gets a sync again (review B2, round 11). The workspace they
+ * carry in memory is half or wholly gone; their encrypted worker would write "joined" over the departure and work
+ * on it. Only the vault opened anew syncs, as its own state has it. Where such a runtime stays on screen — its
+ * step's reload failed — "Sync now", coming back and coming online open it anew, never the sync on it (review B2,
+ * round 12, MG-3; `askHeldAgain`).
  */
-const retiredWorkspaceRuntimes = new WeakMap<MobileVault, string>();
+const retiredWorkspaceRuntimes = new WeakSet<MobileVault>();
 
-/** A decommission's gate opened on this runtime: it never gets a sync again (`retiredWorkspaceRuntimes`); `own` is its step's surface. */
-export function retireWorkspaceRuntime(runtime: MobileVault, own: string): void {
-  retiredWorkspaceRuntimes.set(runtime, own);
+/** A decommission's gate opened on this runtime: it never gets a sync again (`retiredWorkspaceRuntimes`). */
+export function retireWorkspaceRuntime(runtime: MobileVault): void {
+  retiredWorkspaceRuntimes.add(runtime);
 }
 
 async function startSyncDecided(v: MobileVault): Promise<void> {
@@ -455,7 +455,7 @@ async function startSyncDecided(v: MobileVault): Promise<void> {
     // Its sync stays off until the vault opens anew; the status says so (paused), never the last word of its worker.
     // Held, so that the triggers that ask a held vault again open it anew (`askHeldAgain`).
     if (!worker && !settingsOnlySync) {
-      held = { vaultId: v.vaultId, attempt: 0, reopen: { runtime: v, own: retiredWorkspaceRuntimes.get(v) } };
+      held = { vaultId: v.vaultId, attempt: 0, reopen: v };
       setState({ status: "off", message: null });
     }
     return;
@@ -920,15 +920,16 @@ async function mobileSettingsOnlyCheck(v: MobileVault, p: MobileSyncProvider, ta
  * The vault the start is held for, and how often in a row (R8, review point 5):
  * per vault, and forgotten on every stop and switch. `reopen`: the runtime is
  * no valid one any more (past a decommission's gate) — asked again, it is
- * opened anew, by its step's surface where a step retired it.
+ * opened anew.
  */
-let held: { vaultId: string; attempt: number; reopen?: { runtime: MobileVault; own?: string } } | null = null;
+let held: { vaultId: string; attempt: number; reopen?: MobileVault } | null = null;
 
 /**
  * A held vault is asked again at once: "Sync now", the foreground sync, coming online. A runtime past a
- * decommission's gate still on screen (its step's reload failed) is not given a sync: that reload is tried again
- * (review B2, round 12, MG-3) — unless something holds the vault's sync, a step still at work or a reload that waits
- * behind someone's input: theirs is the reload.
+ * decommission's gate still on screen (its step's reload failed) is not given a sync: it is opened anew (review B2,
+ * round 12, MG-3) — unless something holds the vault's sync, a step still at work or a reload that waits behind
+ * someone's input: theirs is the reload. A trigger is no surface that typed: input on any surface, the Security
+ * area's recovery or invite code included, puts the reload off behind its notice (review B2, round 13, SP-1).
  */
 function askHeldAgain(): boolean {
   if (worker || settingsOnlySync || !held) return false;
@@ -937,7 +938,7 @@ function askHeldAgain(): boolean {
   if (reopen) {
     // Only that very runtime is reloaded, checked at the reload's turn (`reloadActiveMobileVault` with `runtime`).
     if (!vaultSyncHeld(vaultId)) {
-      void reloadActiveMobileVault(reopen.own, { runtime: reopen.runtime }).catch((e: unknown) => console.error("[sync] opening the vault anew failed", e));
+      void reloadActiveMobileVault(undefined, { runtime: reopen }).catch((e: unknown) => console.error("[sync] opening the vault anew failed", e));
     }
     return true;
   }
@@ -993,7 +994,7 @@ async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, raw
     // step that took it past the gate opens it anew.
     if (v.workspaceRuntime && carried === null) {
       // Asked again, it is opened anew (`askHeldAgain`), also where no step retired it (review B2, round 12, H-3).
-      held = { vaultId: v.vaultId, attempt: 0, reopen: { runtime: v } };
+      held = { vaultId: v.vaultId, attempt: 0, reopen: v };
       setState({ status: "off", message: null });
       return true;
     }

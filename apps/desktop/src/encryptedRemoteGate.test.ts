@@ -165,6 +165,8 @@ describe("a held folder (R8)", () => {
       { workspace: "w1", sole: "unknown" },
       { workspace: undefined, sole: "unknown" },
       { workspace: undefined, sole: true },
+      // Another workspace's release (Y15 of round 13): an older "released" is no release of this one.
+      { workspace: "w2", sole: true },
     ] as const;
     for (const departure of departures) {
       const m = memory();

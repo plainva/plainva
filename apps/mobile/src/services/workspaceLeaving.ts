@@ -62,7 +62,7 @@ export async function leaveWorkspaceStep(vault: MobileVault, intent: MobileLeavi
         intent,
         passedGate: () => {
           pastGate = true;
-          retireWorkspaceRuntime(on, OWN);
+          retireWorkspaceRuntime(on);
         },
       });
       if (intent === "lift") {
