@@ -157,7 +157,15 @@ describe("original desktop save completion", () => {
 
   it("plans a retry of a failed save that reads the pane's text when it comes, and only while the pane holds the note (decided 2026-11-17)", async () => {
     const h = harness(); h.edit("my draft");
-    vi.spyOn(raw, "writeTextFile").mockRejectedValueOnce(new Error("disk full"));
+    // The retry's write lands on the disk before the disk answers (a slow drive): the file shows the text while the
+    // save has not come back yet — the window run 45737384014 failed in.
+    const write = raw.writeTextFile.bind(raw);
+    vi.spyOn(raw, "writeTextFile")
+      .mockRejectedValueOnce(new Error("disk full"))
+      .mockImplementationOnce(async (...args: Parameters<typeof write>) => {
+        await write(...args);
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      });
     await expect(h.persist("my draft")).rejects.toThrow("disk full");
     expect(h.saveRetry.starting).toHaveBeenCalledTimes(1);
     expect(h.saveRetry.failed).toHaveBeenCalledTimes(1);
@@ -168,7 +176,8 @@ describe("original desktop save completion", () => {
     h.edit("my draft, longer");
     retry();
     await vi.waitFor(async () => expect(await raw.readTextFile("Note.md")).toBe("my draft, longer"));
-    expect(h.saveRetry.reset).toHaveBeenCalled();
+    // The disk shows the text before the save comes back: the reset follows the save's end, so wait for it too.
+    await vi.waitFor(() => expect(h.saveRetry.reset).toHaveBeenCalled());
     // The pane shows another note: a retry still to come does nothing.
     h.edit("more");
     h.loadedPathRef.current = "Other.md";
