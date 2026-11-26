@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ACTIVE_MEMORY_FILE, AGENTS_FILE, LONG_MEMORY_FILE, MEMORY_LIMITS, WRITE_REFUSALS, WRITE_RESULTS } from "@plainva/core/ai";
 import { LOCAL, SEARCH, answering, body, chat, connect, results, toolNames, tracker, turn, viaDispatch } from "./mcpSessionHarness";
 import { memorySession, memoryVault } from "./memorySessionHarness";
+import { leaksOf } from "../../../../packages/core/test/helpers/leaks";
 
 /**
  * The vault's memory in the session (plan KI-Harness P6, ADR 0032): what a
@@ -190,7 +191,8 @@ describe("looking something up in the memory", () => {
     const { s } = await memorySession(ask("What does Yard 7 owe?"), memoryVault(files()));
     await s.send("What does Yard 7 owe me?");
     expect(lastResult(s).content).toContain("The memory holds nothing that matches.");
-    expect(JSON.stringify(s.getState().active)).not.toContain("4200");
+    // Looked for in every value of the conversation, not in its text: its own timestamps and ids can hold "4200".
+    expect(leaksOf(s.getState().active, { numbers: [4200] })).toEqual([]);
   });
 
   it("a model on this device finds it, and what is made of the answer inherits the entry's rule", async () => {
