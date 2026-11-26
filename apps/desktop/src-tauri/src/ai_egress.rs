@@ -547,10 +547,16 @@ fn error_chain(e: &reqwest::Error) -> String {
 /// handshake the device did not accept, a connect that ran out of time. Each request has a client of its own, so no
 /// pooled connection can have carried part of it before a new one failed.
 pub(crate) fn send_failure_code(e: &reqwest::Error) -> &'static str {
-    if !e.is_connect() || e.is_timeout() {
+    classify_send_failure(e.is_connect(), e.is_timeout(), std::error::Error::source(e))
+}
+
+/// The rule of `send_failure_code` over the parts of an error (B7, review M5): a connect error that is no time-out,
+/// with a refused connection, no route, no address or a failed lookup somewhere in its causes. Anything else —
+/// a time-out, a TLS failure, a reset or a broken pipe, an error after the connection stood — is "network".
+pub(crate) fn classify_send_failure(is_connect: bool, is_timeout: bool, mut source: Option<&(dyn std::error::Error + 'static)>) -> &'static str {
+    if !is_connect || is_timeout {
         return "network";
     }
-    let mut source: Option<&(dyn std::error::Error + 'static)> = std::error::Error::source(e);
     while let Some(err) = source {
         if let Some(io) = err.downcast_ref::<std::io::Error>() {
             use std::io::ErrorKind;
@@ -697,6 +703,78 @@ mod tests {
         // `.invalid` never resolves (RFC 2606); a machine without DNS fails at the same step.
         let error = send_to("http://plainva-egress-test.invalid/v1/messages").await;
         assert_eq!(send_failure_code(&error), "unreachable", "{error:?}");
+    }
+
+    /// An error with one cause, as the connector wraps an io error.
+    #[derive(Debug)]
+    struct Wrapped(std::io::Error);
+    impl std::fmt::Display for Wrapped {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("tcp connect error")
+        }
+    }
+    impl std::error::Error for Wrapped {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            Some(&self.0)
+        }
+    }
+
+    fn classify(is_connect: bool, is_timeout: bool, kind: std::io::ErrorKind) -> &'static str {
+        let err = Wrapped(std::io::Error::new(kind, "x"));
+        classify_send_failure(is_connect, is_timeout, Some(&err))
+    }
+
+    #[test]
+    fn only_a_connection_that_never_stood_is_unreachable() {
+        use std::io::ErrorKind;
+        for kind in [ErrorKind::ConnectionRefused, ErrorKind::HostUnreachable, ErrorKind::NetworkUnreachable, ErrorKind::AddrNotAvailable] {
+            assert_eq!(classify(true, false, kind), "unreachable", "{kind:?}");
+        }
+        // A connect that ran out of time, also on a refused-looking cause: it may have reached the TLS handshake.
+        assert_eq!(classify(true, true, ErrorKind::ConnectionRefused), "network");
+        assert_eq!(classify(true, true, ErrorKind::TimedOut), "network");
+        // Not a connect error: whatever the cause says, the request may have gone.
+        assert_eq!(classify(false, false, ErrorKind::ConnectionRefused), "network");
+        // A reset or a broken pipe: the connection stood.
+        assert_eq!(classify(true, false, ErrorKind::ConnectionReset), "network");
+        assert_eq!(classify(true, false, ErrorKind::BrokenPipe), "network");
+        // A TLS failure (rustls reports invalid data or an other error inside the connect): the connection stood.
+        assert_eq!(classify(true, false, ErrorKind::InvalidData), "network");
+        assert_eq!(classify(true, false, ErrorKind::Other), "network");
+        // A connect error without any cause says nothing: in doubt, it may have gone.
+        assert_eq!(classify_send_failure(true, false, None), "network");
+    }
+
+    #[tokio::test]
+    async fn a_tls_handshake_that_fails_may_have_carried_it() {
+        use tokio::io::AsyncWriteExt;
+        // A server that answers the TLS hello with plain text: the handshake fails after the connection stood.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let _ = socket.write_all(b"HTTP/1.1 400 Bad Request\r\n\r\n").await;
+        });
+        let error = send_to(&format!("https://127.0.0.1:{port}/v1/messages")).await;
+        let _ = server.await;
+        assert_eq!(send_failure_code(&error), "network", "{error:?}");
+    }
+
+    #[tokio::test]
+    async fn a_connect_that_runs_out_of_time_may_have_carried_it() {
+        // A server that takes the connection and says nothing: the TLS handshake waits until the connect time-out.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+            drop(socket);
+        });
+        let client = reqwest::Client::builder().connect_timeout(std::time::Duration::from_millis(300)).redirect(reqwest::redirect::Policy::none()).build().unwrap();
+        let error = client.post(format!("https://127.0.0.1:{port}/v1/messages")).body("{}").send().await.expect_err("the request must fail");
+        server.abort();
+        assert!(error.is_timeout() || !error.is_connect(), "{error:?}");
+        assert_eq!(send_failure_code(&error), "network", "{error:?}");
     }
 
     #[tokio::test]

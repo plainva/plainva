@@ -147,6 +147,8 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         var retryAfter = ""
         var errorBody = Data()
         var pending = Data()
+        /// The task's transactions, collected before it completes (B7, review H5).
+        var metrics: URLSessionTaskMetrics?
         init(call: CAPPluginCall, key: String?) { self.call = call; self.key = key }
     }
 
@@ -303,6 +305,12 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         stream.call.resolve(["type": "data", "text": text])
     }
 
+    public func urlSession(_ session: URLSession, task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
+        streamLock.lock()
+        streams[task.taskIdentifier]?.metrics = metrics
+        streamLock.unlock()
+    }
+
     public func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         streamLock.lock()
         let stream = streams.removeValue(forKey: task.taskIdentifier)
@@ -313,7 +321,8 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
             if error.code == NSURLErrorCancelled {
                 stream.call.resolve(["type": "cancelled"])
             } else {
-                let code = AiNetPlugin.failureCode(error, answered: stream.status != 0, bytesSent: task.countOfBytesSent)
+                let code = AiNetPlugin.failureCode(error, answered: stream.status != 0, bytesSent: task.countOfBytesSent,
+                                                   requestBegun: AiNetPlugin.requestBegun(stream.metrics))
                 stream.call.resolve(["type": "failed", "code": code, "message": AiNetPlugin.redact(error.localizedDescription, stream.key)])
             }
         } else if stream.status >= 300 {
@@ -334,11 +343,13 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
     /// nothing came back and no byte of the body went. A certificate the device did not accept is named in the codes the
     /// sync speaks (`connectionFailure.ts`); the time running out is the provider that did not answer. Everything else
     /// is "network": it may have arrived.
-    static func failureCode(_ error: NSError, answered: Bool, bytesSent: Int64) -> String {
+    static func failureCode(_ error: NSError, answered: Bool, bytesSent: Int64, requestBegun: Bool?) -> String {
         guard error.domain == NSURLErrorDomain else { return "network" }
         switch error.code {
         case NSURLErrorNotConnectedToInternet, NSURLErrorCannotFindHost, NSURLErrorCannotConnectToHost, NSURLErrorDNSLookupFailed:
-            return !answered && bytesSent == 0 ? "unreachable" : "network"
+            // Only where the task's own record shows that no transaction began to send a request (a reused connection
+            // and a silent second try of the system included); without that record, in doubt, it may have gone.
+            return !answered && bytesSent == 0 && requestBegun == false ? "unreachable" : "network"
         case NSURLErrorServerCertificateHasBadDate:
             return "TLS_CERTIFICATE_EXPIRED"
         case NSURLErrorServerCertificateNotYetValid:
@@ -352,6 +363,13 @@ public class AiNetPlugin: CAPPlugin, CAPBridgedPlugin, URLSessionDataDelegate {
         default:
             return "network"
         }
+    }
+
+    /// Whether any transaction of the task began to send its request (B7, review H5): `requestStartDate` is set the
+    /// moment the request starts to go out, on a fresh connection or a reused one. Nil where no record was collected.
+    static func requestBegun(_ metrics: URLSessionTaskMetrics?) -> Bool? {
+        guard let metrics = metrics else { return nil }
+        return metrics.transactionMetrics.contains { $0.requestStartDate != nil }
     }
 
     // MARK: user endpoints
