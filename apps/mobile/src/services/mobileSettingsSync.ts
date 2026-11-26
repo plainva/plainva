@@ -104,6 +104,9 @@ import {
   writeProfileJournal,
 } from "./profileImportJournal";
 import { createMobileSecretsPort, noteCalDavSecretLeftWithProfile, noteImapSecretLeftWithProfile } from "./mobileSecretsPort";
+// "Remove account" of a mailbox, for the shared mail code (`main.tsx`): through this module, whose chunk the
+// neighbouring account services load anyway, so the start entry names no chunk more.
+export { retireImapSecret } from "./mobileSecretsPort";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";

@@ -123,6 +123,9 @@ import type { PimRuntime } from "./pim/pimRuntime";
 import { credentialManager } from "./CredentialManager";
 import { legacyMailSecretKey, mailAccountKind, mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
 import { createDesktopSecretsPort, noteCalDavSecretLeftWithProfile, noteImapSecretLeftWithProfile } from "./settingsSecrets";
+// "Remove account" of a mailbox, for the shared mail code (`main.tsx`): through this module, whose chunk the
+// neighbouring account services load anyway, so the start entry names no chunk more.
+export { retireImapSecret } from "./settingsSecrets";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { adoptNewBarAreas, BAR_LAYOUT_CHANGED_EVENT, barLayoutKey, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 import { weekStartKey } from "./weekStartVault";

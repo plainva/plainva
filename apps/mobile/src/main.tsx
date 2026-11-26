@@ -97,6 +97,9 @@ installBridgeMeter();
 // First: no plugin call leaves the page with more than the bridge can take (release list F51).
 installBridgeLimit();
 
+// One loader for the account services below: each lazy import of its own put another copy of the
+// import wrapper into the start entry (bundle budget, `scripts/perf/bundle-gate.mjs`).
+const accountServices = () => import("./services/mobileSettingsSync");
 setPlatformServices({
   loadSettings: async () => capacitorSettingsStore,
   credentials: secureCredentialStore,
@@ -109,11 +112,11 @@ setPlatformServices({
   // Names this device's own files under `.plainva/` (map pins, recently opened):
   // the id the sync sidebands use, so devices sharing a vault folder never
   // write one file (decision E7, Sammelplan § 3.127 Nr. 3).
-  deviceId: () => import("./services/mobileSettingsSync").then((m) => m.mobileSyncDeviceId()),
+  deviceId: () => accountServices().then((m) => m.mobileSyncDeviceId()),
   // A removed mailbox stays removed on the other devices too (review of plan "Verbinden", finding 1).
-  noteAccountRemoved: (vaultKey, kind, localId) => import("./services/mobileSettingsSync").then((m) => m.noteAccountRemovedLocally(vaultKey, kind, localId)),
-  retireMailSecret: (vaultKey, mailbox, remove) => import("./services/mobileSecretsPort").then((m) => m.retireImapSecret(vaultKey, mailbox, remove)),
-  noteAccountAdded: (vaultKey, kind, localId) => import("./services/mobileSettingsSync").then((m) => m.noteAccountAddedLocally(vaultKey, kind, localId)),
+  noteAccountRemoved: (vaultKey, kind, localId) => accountServices().then((m) => m.noteAccountRemovedLocally(vaultKey, kind, localId)),
+  retireMailSecret: (vaultKey, mailbox, remove) => accountServices().then((m) => m.retireImapSecret(vaultKey, mailbox, remove)),
+  noteAccountAdded: (vaultKey, kind, localId) => accountServices().then((m) => m.noteAccountAddedLocally(vaultKey, kind, localId)),
   // Small panels opened by shared code (the info button of a setting) open as
   // this shell's sheet rather than as a popover (settings plan 2026-10-29).
   Sheet: PlatformSheet,
