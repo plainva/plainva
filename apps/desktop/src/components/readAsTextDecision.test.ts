@@ -146,12 +146,11 @@ describe("what of a note is read as text (L14)", () => {
       readAsTextParts(text, undefined, previous).ranges.filter((range) => range.block).map((range) => `${text.slice(range.from, range.from + 9)}… ${range.to - range.from}`);
     const first = readAsTextParts(two(""));
     const typed = two("[[x]] [[y]] [[z]] ");
-    // From the text alone, the heavier block is read as text; held, the one read so far stays it.
+    // From the text alone, the heavier block is read as text; held, the one read so far stays it, and it alone.
     expect(chosen(typed)).not.toEqual(chosen(two("")));
     const shift = typed.length - two("").length;
     const moved = first.ranges.map((range) => (range.from > typed.indexOf("- item b7") ? { ...range, from: range.from + shift, to: range.to + shift } : range));
     expect(chosen(typed, moved)).toEqual(chosen(two("")));
-    // Held, the other block is not read as text besides it: the held one is chosen first, and it is enough.
     expect(chosen(typed, moved)).toHaveLength(1);
   });
 

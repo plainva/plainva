@@ -323,10 +323,11 @@ describe("a stretch read as text with many callout markers", () => {
   it("reads pieces side by side that refer to the same many definitions as one, and as the note read whole", () => {
     expect.hasAssertions();
     // 2 000 definitions every paragraph refers to were read again behind every piece: 3 MB took the index 25 s (review
-    // of L14, 2026-11-26, M3). Read together, the pieces are parsed fewer times than there are pieces.
+    // of L14, 2026-11-26, M3). Read together, the pieces are parsed fewer times than there are pieces. A piece is given
+    // the definitions of labels that run into a `(` alone (`[x][s1](u)`: defined, a reference and text; not, a link).
     setNoteBudget(NOTE_BUDGET);
-    const defs = Array.from({ length: 2000 }, (_, i) => `[s${i}]: T${i}.md`).join("\n");
-    const para = Array.from({ length: 2000 }, (_, i) => `[s${i}]`).join(" ");
+    const defs = Array.from({ length: 500 }, (_, i) => `[s${i}]: T${i}.md`).join("\n");
+    const para = Array.from({ length: 500 }, (_, i) => `[x][s${i}](u${i}.md)`).join(" ");
     const note = `# Shared\n\n${defs}\n\n${Array.from({ length: 100 }, (_, k) => `${para} [[Link ${k}]]`).join("\n\n")}\n`;
     const parts = readAsTextParts(note);
     expect(parts.pieces.length).toBeGreaterThan(20);

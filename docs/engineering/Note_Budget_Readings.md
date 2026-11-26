@@ -21,7 +21,7 @@ stands.
 
 | Fact from outside | Where it may stand | The note's tree (formatted blocks) | Each piece | A row of a table over its budget | The reading view's tree | Text not read (`unread`) |
 |---|---|---|---|---|---|---|
-| Link reference definitions `[label]: dest` | anywhere in the note, also in a quote, a list item, a footnote | its own; and for each label its text refers to that is defined only in a block read as text or not read, a line `[label]: #` given behind the properties block (`givenDefinitions`), its node taken out again | a line `[label]: #` behind it for each label in brackets in it (`appendixFor`), from every definition of the note | as a piece | as the note's tree, from the original's definitions | none: no reading |
+| Link reference definitions `[label]: dest` | anywhere in the note, also in a quote, a list item, a footnote | its own; and for each label its text refers to that is defined only in a block read as text or not read, a line `[label]: #` given behind the properties block (`givenDefinitions`), its node taken out again | a line `[label]: #` behind it for each label of brackets in it that run into a `(` (`appendixFor`: only there does a definition change a link), and read for the note's source for each label on a line that may be a heading's content (a heading's text is its reference's text: `forEachHeadingLine`), from every definition of the note outside the piece; the piece weighs them (`pieceWeight`) | as a piece | as the note's tree, from the original's definitions | none: no reading |
 | Footnote definitions `[^label]: …` | as above | as above, the line `[^label]: .` | as above, `[^label]: .` | as a piece | as the note's tree | none |
 | A label's key | — | the parser's own: micromark's `normalizeIdentifier` over the label as written, lower case (mdast's `identifier`: `ß` is `ss`, `[b\]c]` is `b\]c`) | the same, over the label in brackets as written | the same | the same | — |
 | Whether the note begins with a `---` nothing closes | the note's first line | the parser reads no blocks within blocks anywhere | read behind a `---` of its own, with the properties block's reading (`pieceLead`): the same mode; the note has no line that would close it | the same | the reading view reads no properties block, and opens blocks within blocks there | — |
@@ -80,6 +80,16 @@ at least `SMALLEST_UNREAD_CHARS` characters (a file's size in bytes is never
 less), reads each and counts what its parts not read name; it writes nothing
 there. No new index format: the cost is a query a name and the reading of the
 large notes that hold it.
+
+A part not read is read for its definitions only where one may begin, on a
+line of at most 4 096 characters and with the short lines behind it
+(`readAsTextDefinitions`): beside a definition may stand the paragraph the
+parser may not read. A definition on a longer line there is not seen. The
+notes the performance workflow's hunt found on 2026-11-26 ran the phone's
+index out of 128 MB on each of these: a piece weighed without its
+definitions, a piece of 2 000 definitions read with them again behind it, a
+piece read with the definitions of every label in brackets, a definition read
+with a paragraph of megabytes (`note-budget-given.test.ts`).
 
 Both shells read alike but by their own budget (the desktop four times the
 phone's): a unit heavy enough to be not read on the phone may be read on the

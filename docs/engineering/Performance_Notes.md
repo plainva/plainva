@@ -1033,7 +1033,7 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | tables of 50 rows of sixteen cells | 26 | 22 | 1.18 |
 | lines of links run together | 69 787 | 58 472 | 1.19 |
 | one line of `x x …` (words) | 161 408 | 135 286 | 1.19 |
-| references `[x][d]` with their link definitions | 5 742 | 4 837 | 1.19 |
+| references `[x][d]` with their link definitions | 5 742 | 4 829 | 1.19 |
 | footnote definitions | 5 953 | 5 014 | 1.19 |
 | lines of fenced code | 78 694 | 65 103 | 1.21 |
 | lines of embeds run together | 68 916 | 57 046 | 1.21 |
@@ -1160,16 +1160,27 @@ of the budget: the tree of a list is built in a pass per list that grows faster 
 (`prepareList`; 50 000 linked items took 7.4 s in pieces of half the budget and 3.4 s in pieces of
 a fiftieth, with a third of the heap). Each piece is parsed alone behind a blank line (no properties
 block opens there; in a note that begins with a `---` nothing closes, behind a `---` of its own, so
-that the parser reads it in the mode it reads that note in) with the definitions it refers to after
-it — the note's link and footnote definitions whose label stands in brackets in it, wherever they
-stand, matched by the parser's own key (behind every piece every definition, a note of 5 000
-footnotes was quadratic) —, its places moved onto the note, its facts kept — the index's links and
+that the parser reads it in the mode it reads that note in; a piece that begins with that `---`
+holds it) with the definitions it refers to after it — the note's link and footnote definitions
+whose label stands in brackets in it that run into a `(` (only there does a definition change a
+link; elsewhere a label without its definition is text, and a reference is no link of the index),
+and, read for the note's source, on a line that may be a heading's content (its text is the
+reference's),
+wherever they stand outside it, matched by the parser's own key (behind every piece every
+definition, a note of 5 000 footnotes was quadratic) —, weighed with them (`pieceWeight`), its places moved onto the note, its facts kept — the index's links and
 tags, a rename's links, headings and block ids, "copy link to line" — and its tree let go before the
 next. Pieces side by side that carry a long appendix are read as one, up to what a piece may weigh:
 2 000 definitions that every paragraph refers to took the index 25 s at 3 MB, now 9.4 s at 2.4 MB
 and 18.3 s at 4.8 MB, linear (2026-11-26). The note's tree is given the definitions of blocks read
 as text that its own text refers to (`givenDefinitions`), and so is the reading view: every reading
 knows the note's definitions (`Note_Budget_Readings.md`, table A).
+
+The hunt of 2026-11-26 found four notes of 0.9 to 9.3 MB that ran the phone's index out of 128 MB:
+a piece weighed without the definitions it is read with, a piece of 2 000 definitions read with
+them a second time behind it, pieces read with the definitions of every label in brackets, and a
+definition in a part not read, parsed with the paragraph of megabytes beside it (a part not read is
+now read for definitions only where one may begin, on a line of at most 4 096 characters); a note
+of 9.7 MB took the desktop's index 429 s under 512 MB, at its heap's end, and takes 36 s.
 
 Every block read as text is read in pieces, the whole note: there is no cap (2026-11-26). A cap of
 four budgets left half the links of 1 MB of mixed blocks unread on the phone, and saved no time

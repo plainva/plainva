@@ -7,7 +7,7 @@ import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified, type Processor } from "unified";
 import { normalizeIdentifier } from "micromark-util-normalize-identifier";
 import { frontmatterSpan, opensUnclosedProperties } from "./frontmatter-block.ts";
-import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, onlyBlanksBetween, pieceLimit, readAsTextParts, restoreBoundedTree, type BoundedMarkdown, type BoundedRange, type MarkdownReading, type ReadAsTextParts, type ReadPiece } from "./inlineParseBudget.ts";
+import { boundMarkdownForParse, COMMONMARK_READING, forEachHeadingLine, mayBeginDefinition, NOTE_READING, onlyBlanksBetween, pieceLimit, pieceWeight, readAsTextParts, restoreBoundedTree, type BoundedMarkdown, type BoundedRange, type MarkdownReading, type ReadAsTextParts, type ReadPiece } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
   preserveObsidianSyntax?: boolean;
@@ -533,21 +533,67 @@ function definitionsOf(tree: PieceNode, into: Map<string, NoteDefinition>, shift
 const BRACKETED = /\[((?:[^[\]\\]|\\.){1,999})\]/g;
 
 /**
- * The lines of `definitions` a piece may refer to: those whose label stands in
- * brackets in it. A label it does not hold cannot be one of its references;
- * one it holds and does not refer to is given and changes nothing. Every
- * definition behind every piece made a note of 5 000 footnotes quadratic.
+ * Labels in brackets side by side that run into a `(`: `[t][l](x)`,
+ * `[l][](x)`, `![a][l](x)`, `[^n](x)`. Only there does a definition change
+ * what the index and a rename read of the brackets — defined, a reference and
+ * the text `(x)`; not, a link to `x` —: anywhere else a label without its
+ * definition is text, and a reference is no link. Read for them, a piece is
+ * given the definitions of these labels alone. Read for the note's source, also
+ * those of the labels on a line that may be a heading's content
+ * (`forEachHeadingLine`): the text of a heading is a reference's text where its
+ * label is defined (a setext heading `[use [[R]]][ref]` reads "use [[R]]").
+ * The note's budget weighs a piece with as many (`pieceWeight`).
  */
-function appendixFor(piece: string, definitions: ReadonlyMap<string, NoteDefinition>): string {
+function labelsRunningIntoLink(piece: string): string[] {
+  const labels: string[] = [];
+  const escaped = (at: number): boolean => {
+    let backslashes = 0;
+    while (at - 1 - backslashes >= 0 && piece.charCodeAt(at - 1 - backslashes) === 0x5c) backslashes++;
+    return backslashes % 2 === 1;
+  };
+  // From each `](` back over the groups of brackets side by side: each group is read once, in one run.
+  for (let at = piece.indexOf("]("); at >= 0; at = piece.indexOf("](", at + 2)) {
+    let close = at;
+    while (close >= 0 && piece.charCodeAt(close) === 0x5d && !escaped(close)) {
+      let open = close - 1;
+      while (open >= 0 && close - open <= 1000) {
+        const code = piece.charCodeAt(open);
+        if ((code === 0x5b || code === 0x5d) && !escaped(open)) break;
+        open--;
+      }
+      if (open < 0 || piece.charCodeAt(open) !== 0x5b || close - open > 1000) break;
+      if (close - open > 1) labels.push(piece.slice(open + 1, close));
+      close = open - 1;
+    }
+  }
+  return labels;
+}
+
+/**
+ * The lines of `definitions` a piece may refer to: those whose label stands in
+ * brackets in it that run into a `(` (`labelsRunningIntoLink`). A label it does not
+ * hold cannot be one of its references; one it holds and does not refer to is
+ * given and changes nothing. Every definition behind every piece made a note
+ * of 5 000 footnotes quadratic; every label in brackets, 100 paragraphs that
+ * refer to the same 2 000 definitions.
+ */
+function appendixFor(piece: string, definitions: ReadonlyMap<string, NoteDefinition>, from = -1, headings = false): string {
   if (definitions.size === 0) return "";
+  // A definition that stands in the piece itself is read there: behind it again, a piece of 2 000 definitions was read
+  // with 4 000, and ran the index out of 128 MB (review of L14, 2026-11-26, the hunt's note `gen:936455:27`).
+  const to = from + piece.length;
   const lines: string[] = [];
   const seen = new Set<string>();
-  for (const match of piece.matchAll(BRACKETED)) {
-    for (const key of keysOf(match[1])) {
+  const labels = labelsRunningIntoLink(piece);
+  if (headings) forEachHeadingLine(piece, 0, piece.length, (lineFrom, lineTo) => {
+    for (const match of piece.slice(lineFrom, lineTo).matchAll(BRACKETED)) labels.push(match[1]);
+  });
+  for (const label of labels) {
+    for (const key of keysOf(label)) {
       if (seen.has(key)) continue;
       seen.add(key);
       const definition = definitions.get(key);
-      if (definition) lines.push(definition.line);
+      if (definition && !(from <= definition.at && definition.at < to)) lines.push(definition.line);
     }
   }
   // A blank line between them: behind a footnote's definition the next line would be its text.
@@ -556,6 +602,8 @@ function appendixFor(piece: string, definitions: ReadonlyMap<string, NoteDefinit
 
 /** How many lines of a stretch read as text, around one that may hold a definition, are read with it for it (`readAsTextDefinitions`). */
 const DEFINITION_WINDOW_LINES = 400;
+/** The longest line of a part not read that is read for a definition: a label of 999 characters, a long address, a title. */
+const DEFINITION_LINE_MOST = 4_096;
 
 /**
  * The definitions that stand in what the note's budget reads as text, by key
@@ -600,6 +648,11 @@ function readAsTextDefinitions(text: string, reading: MarkdownReading): Map<stri
       if (window) readFor(starts[window[0]], starts[window[1] + 1]);
       window = null;
     };
+    // A line read for its definitions is short: a part is not read because the parser may not read it, and a window
+    // around a definition beside a paragraph of megabytes ran the index out of 128 MB (review of L14, 2026-11-26, the
+    // hunt's note `gen:382803:4`). A definition on a longer line is not seen there.
+    const short = (line: number) => starts[line + 1] - starts[line] <= DEFINITION_LINE_MOST;
+    const opens = (line: number) => short(line) && mayBeginDefinition(text, starts[line], starts[line + 1] - 1);
     for (let k = 0; k + 1 < starts.length; k++) {
       const from = starts[k];
       const marker = text.indexOf("]:", from);
@@ -611,10 +664,14 @@ function readAsTextDefinitions(text: string, reading: MarkdownReading): Map<stri
         if (line > k + 1) k = line - 1;
         continue;
       }
-      const first = Math.max(0, k - 1);
-      const last = Math.min(starts.length - 2, k + 1);
+      // Where a definition may begin: this line, or the line before (a label over two lines).
+      const first = opens(k) ? k : k > 0 && opens(k - 1) ? k - 1 : -1;
+      if (first < 0) continue;
+      // With the short lines behind it that may hold its title.
+      let last = first;
+      while (last < first + 2 && last + 1 < starts.length - 1 && short(last + 1)) last++;
       const open = window as [number, number] | null;
-      if (open && first <= open[1] + 1 && last - open[0] < DEFINITION_WINDOW_LINES) open[1] = last;
+      if (open && first <= open[1] + 1 && last - open[0] < DEFINITION_WINDOW_LINES) open[1] = Math.max(open[1], last);
       else {
         flush();
         window = [first, last];
@@ -641,16 +698,21 @@ const SHARED_APPENDIX_LINES = 64;
  * read as they stand in the note, and each run of pieces once with its
  * appendix.
  */
-function withSharedAppendix(text: string, pieces: readonly ReadPiece[], definitions: ReadonlyMap<string, NoteDefinition>): ReadPiece[] {
+function withSharedAppendix(text: string, pieces: readonly ReadPiece[], definitions: ReadonlyMap<string, NoteDefinition>, definitionsCount: number, headings: boolean): ReadPiece[] {
   if (definitions.size < SHARED_APPENDIX_LINES) return pieces as ReadPiece[];
   const limit = pieceLimit();
   const read: ReadPiece[] = [];
   for (const piece of pieces) {
     const last = read[read.length - 1];
-    const long = () => appendixFor(text.slice(piece.from, piece.to), definitions).split("\n\n").length > SHARED_APPENDIX_LINES;
-    if (last && (last.weight ?? 0) + (piece.weight ?? 0) <= limit && onlyBlanksBetween(text, last.to, piece.from) && long()) {
+    const long = () => appendixFor(text.slice(piece.from, piece.to), definitions, piece.from, headings).split("\n\n").length > SHARED_APPENDIX_LINES;
+    // Read as one, the two share their definitions: what they weigh together is their own weight and the definitions
+    // of their references once (`pieceWeight`).
+    const together = () => pieceWeight((last!.own ?? last!.weight ?? 0) + (piece.own ?? piece.weight ?? 0), (last!.references ?? 0) + (piece.references ?? 0), definitionsCount);
+    if (last && together() <= limit && onlyBlanksBetween(text, last.to, piece.from) && long()) {
       last.to = piece.to;
-      last.weight = (last.weight ?? 0) + (piece.weight ?? 0);
+      last.own = (last.own ?? last.weight ?? 0) + (piece.own ?? piece.weight ?? 0);
+      last.references = (last.references ?? 0) + (piece.references ?? 0);
+      last.weight = pieceWeight(last.own, last.references, definitionsCount);
     } else read.push({ ...piece });
   }
   return read;
@@ -671,23 +733,29 @@ function withSharedAppendix(text: string, pieces: readonly ReadPiece[], definiti
  */
 export function forEachReadPiece(text: string, parts: ReadAsTextParts, tree: unknown, options: { preserveObsidianSyntax?: boolean; places?: boolean; reading?: MarkdownReading }, visit: (tree: MarkdownTreeNode, piece: ReadPiece) => void): void {
   if (parts.pieces.length === 0) return;
-  const { lead, reading } = pieceLead(parts);
+  const { lead: behind, reading } = pieceLead(parts);
+  // A piece that begins with the note's own unclosed `---` holds it: behind a `---` of its own, the two would close a
+  // properties block, and the rest would be read in the other mode (review of L14, 2026-11-26).
+  const leadOf = (from: number): string => (parts.behindUnclosedProperties && (from === 0 || (from === 1 && text.charCodeAt(0) === BYTE_ORDER_MARK)) ? "" : behind);
   const read = (piece: string): MarkdownTreeNode =>
     (options.places ? parseMarkdownTree(piece, reading) : parseMarkdownAst(piece, { preserveObsidianSyntax: options.preserveObsidianSyntax, reading })) as unknown as MarkdownTreeNode;
-  const leadLines = lead.split("\n").length - 1;
   // Every definition of the note, wherever it stands: those of the note's tree, and those of what is read as text.
   const definitions = noteDefinitions(text, tree, options.reading ?? NOTE_READING);
   // The places of the note's lines, counted as the parser counts them, from piece to piece.
   let line = 1;
   let counted = 0;
-  for (const piece of withSharedAppendix(text, parts.pieces, definitions)) {
+  // Read for its headings (`places`, the note's source), a piece is given the definitions of its headings' labels too.
+  const headings = options.places === true;
+  for (const piece of withSharedAppendix(text, parts.pieces, definitions, parts.definitions ?? definitions.size, headings)) {
     for (; counted < piece.from; counted++) {
       const code = text.charCodeAt(counted);
       if (code === 0x0a || (code === 0x0d && text.charCodeAt(counted + 1) !== 0x0a)) line++;
     }
     const length = piece.to - piece.from;
     const body = text.slice(piece.from, piece.to);
-    const own = read(`${lead}${body}${appendixFor(body, definitions)}`) as unknown as PieceNode;
+    const lead = leadOf(piece.from);
+    const leadLines = lead.split("\n").length - 1;
+    const own = read(`${lead}${body}${appendixFor(body, definitions, piece.from, headings)}`) as unknown as PieceNode;
     // What stands before the piece is its lead, behind it the appendix: none of it is the note's.
     own.children = (own.children ?? []).filter((child) => {
       const at = child.position?.start?.offset ?? 0;

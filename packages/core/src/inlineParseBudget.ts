@@ -1211,6 +1211,12 @@ export interface NoteScan {
   containers: boolean;
   /** The paragraphs over the inline budget, read as written by their own budget. */
   inline: BoundedRange[];
+  /** The references each line holds (`noteLineCost`; a table's stand on its header). */
+  references: Float64Array;
+  /** The labels each line holds whose definitions a piece is given (`appendixFor`): at most its references. */
+  pieceLabels: Float64Array;
+  /** How many lines of the note begin with a definition. */
+  definitions: number;
 }
 
 /** A line whose only block markers are `>`, each with at most one blank behind it, and no blank before its text. */
@@ -1555,8 +1561,11 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   // Then the note's budget, over the blocks the stretches above leave: the heaviest are read as text until the note is in it.
   if (reading.notes !== false && text.length > NOTE_SCAN_FROM) {
     const weights = new Float64Array(lines.length);
-    const blocks = noteBudgetRanges(text, lines, lineKinds, tablesRead, ranges, reading, weights, observe, previous);
-    observe?.blocks?.({ blocks, lines, kinds: lineKinds, weights, containers, inline: ranges.filter((range) => !range.table) });
+    const references = new Float64Array(lines.length);
+    const pieceLabels = new Float64Array(lines.length);
+    const counted = { definitions: 0 };
+    const blocks = noteBudgetRanges(text, lines, lineKinds, tablesRead, ranges, reading, weights, references, pieceLabels, counted, observe, previous);
+    observe?.blocks?.({ blocks, lines, kinds: lineKinds, weights, containers, inline: ranges.filter((range) => !range.table), references, pieceLabels, definitions: counted.definitions });
     if (blocks.length > 0) {
       ranges.push(...blocks);
       ranges.sort((x, y) => x.from - y.from);
@@ -1832,6 +1841,17 @@ function beginsWithDefinition(text: string, at: number, to: number): boolean {
 }
 
 /**
+ * Whether the line `text[from, to)` may begin a definition behind its quote
+ * and list markers — its label may run on over the line's end, as the
+ * parser's may (`readAsTextDefinitions` reads a part that is not read only
+ * where one may stand).
+ */
+export function mayBeginDefinition(text: string, from: number, to: number): boolean {
+  const kept = keptPrefix(text, from, to);
+  return beginsWithDefinition(text, from + kept, Math.min(text.length, from + kept + 1002));
+}
+
+/**
  * What an ASCII character is to `noteLineCost`, by its code: a blank, a
  * character of inline syntax (`TABLE_SYNTAX`), one that may begin a link
  * literal (`@`, `:`, `w`, `m`, `x`), or nothing more (0) — a lookup for the
@@ -1870,6 +1890,39 @@ function isThematicBreak(text: string, from: number, to: number): boolean {
  * is inline syntax, nothing more). One pass over character codes: it reads every line of a long
  * note, where the scan otherwise asks most lines nothing.
  */
+/**
+ * Each line of `text[from, to)` that may be a heading's content, by its start
+ * and end: one that opens with `#` behind its quote and list markers, and each
+ * line of a paragraph a setext underline (`===`, `---`) stands behind. A
+ * heading's text is a reference's text where its label is defined, so the
+ * note's source is given the definitions of the labels on these lines
+ * (`appendixFor`); more lines than the parser takes for headings, never fewer.
+ */
+export function forEachHeadingLine(text: string, from: number, to: number, visit: (lineFrom: number, lineTo: number) => void): void {
+  let paragraph: number[] = [];
+  for (let at = from; at < to; ) {
+    let end = text.indexOf("\n", at);
+    if (end < 0 || end > to) end = to;
+    const lineEnd = end > at && text.charCodeAt(end - 1) === 0x0d ? end - 1 : end;
+    const kept = keptPrefix(text, at, lineEnd);
+    const content = text.slice(at + kept, lineEnd);
+    if (/^\s*$/.test(content)) paragraph = [];
+    else if (/^ {0,3}(?:=+|-+)[ \t]*$/.test(content) && paragraph.length > 0) {
+      for (let k = 0; k < paragraph.length; k += 2) visit(paragraph[k], paragraph[k + 1]);
+      paragraph = [];
+    } else if (/^#{1,6}(?:[ \t]|$)/.test(content)) {
+      visit(at, lineEnd);
+      paragraph = [];
+    } else paragraph.push(at, lineEnd);
+    at = end + 1;
+  }
+}
+
+/** The most a given definition's line weighs: `[label]: #`, its label at most 999 characters. */
+function givenLineMost(): number {
+  return W.line + W.definition + 1003 + 2 * W.word + 3 * W.syntax + W.open;
+}
+
 /** The closing brackets of `text[from, to)` that may end a reference: no link's (`](`), no wiki link's, no definition's label (`]:`). */
 function closingBrackets(text: string, from: number, to: number): number {
   let count = 0;
@@ -1882,13 +1935,18 @@ function closingBrackets(text: string, from: number, to: number): number {
   return count;
 }
 
-/** What the last `noteLineCost` read: whether its line begins with a definition, and how many references it holds. */
+/**
+ * What the last `noteLineCost` read: whether its line begins with a definition, how many references it holds, and how
+ * many labels in brackets it holds that run into a `(` (`runsIntoLink`).
+ */
 let lineDefinition = false;
 let lineReferences = 0;
+let lineRunsIntoLink = 0;
 
 function noteLineCost(text: string, from: number, to: number): number {
   lineDefinition = false;
   lineReferences = 0;
+  lineRunsIntoLink = 0;
   const kept = keptPrefix(text, from, to);
   let cost = W.line;
   if (kept > 0) {
@@ -1921,6 +1979,9 @@ function noteLineCost(text: string, from: number, to: number): number {
   let plainAt = -1;
   let footnoteOpen = false;
   let labelOpen = false;
+  // Groups of brackets side by side so far, and the labels of those that ran into a `(`.
+  let groups = 0;
+  let runsIntoLink = 0;
   const content = from + kept;
   for (let i = from + kept; i < to; i++) {
     const code = text.charCodeAt(i);
@@ -1964,6 +2025,11 @@ function noteLineCost(text: string, from: number, to: number): number {
         if (inWord && wordStart !== i && before !== 0x5b && !(wordStart === i - 1 && before === 0x21)) words++;
       } else if (code === 0x5d) {
         const next = text.charCodeAt(i + 1);
+        if (next === 0x5b) groups++;
+        else if (next === 0x28) {
+          runsIntoLink += groups + 1;
+          groups = 0;
+        } else groups = 0;
         if (next === 0x28) {
           links++;
           if (labelOpen) labelOpen = false;
@@ -1978,7 +2044,7 @@ function noteLineCost(text: string, from: number, to: number): number {
           // holds, and its definition, read as text elsewhere, is given back to the tree (`givenDefinitions`). Not the
           // label of a definition, a task's box or a callout's type at the line's start.
           const opener = plainAt === content;
-          const box = opener && i === content + 2 && /[ xX]/.test(text[content + 1]);
+          const box = opener && i === content + 2 && /[ xX]/.test(text[content + 1]) && (next === 0x20 || next === 0x09 || i + 1 >= to);
           const callout = opener && text.charCodeAt(content + 1) === 0x21;
           if (next !== 0x3a && !box && !callout) references++;
         }
@@ -2000,6 +2066,7 @@ function noteLineCost(text: string, from: number, to: number): number {
   }
   // A footnote's definition is no reference to it.
   lineReferences = lineDefinition && text.charCodeAt(content + 1) === 0x5e ? references - 1 : references;
+  lineRunsIntoLink = runsIntoLink;
   return (
     cost +
     (to - from - kept) +
@@ -2028,7 +2095,7 @@ function noteLineCost(text: string, from: number, to: number): number {
  * already reads as written, its stretches, by what text costs. The choice
  * depends on the text alone, so every device makes the same.
  */
-function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number }>, ranges: BoundedRange[], reading: MarkdownReading, weights: Float64Array, observe?: InlineScanObserver, previous?: readonly BoundedRange[]): BoundedRange[] {
+function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number }>, ranges: BoundedRange[], reading: MarkdownReading, weights: Float64Array, references: Float64Array, pieceLabels: Float64Array, counted: { definitions: number }, observe?: InlineScanObserver, previous?: readonly BoundedRange[]): BoundedRange[] {
   const properties = reading.properties ? frontmatterSpan(text) : null;
   const propertiesEnd = properties ? properties.end : 0;
   // `definitions`: what the block's lines that begin with a definition weigh; `references`: the references it holds.
@@ -2038,12 +2105,20 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
   // What the line `add` is given holds of definitions and references (`noteLineCost`).
   let lineDefinitions = 0;
   let lineRefs = 0;
+  let lineRuns = 0;
+  // Which lines may be a heading's content: their references' definitions are given to a piece (`appendixFor`).
+  const headingLine = new Uint8Array(lines.length);
+  forEachHeadingLine(text, 0, text.length, (from) => {
+    headingLine[lineAt(lines, from)] = 1;
+  });
   // What the definitions of what the paragraph and table budgets read as written weigh: read as text from the start.
   let writtenDefinitions = 0;
   const weighLine = (from: number, to: number): number => {
     const cost = noteLineCost(text, from, to);
     lineDefinitions = lineDefinition ? cost : 0;
+    if (lineDefinition) counted.definitions++;
     lineRefs = lineReferences;
+    lineRuns = lineRunsIntoLink;
     return cost;
   };
   let total = 0;
@@ -2081,8 +2156,11 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
     }
     block.definitions += lineDefinitions;
     block.references += lineRefs;
+    references[index] += lineRefs;
+    pieceLabels[index] += headingLine[index] ? lineRefs : lineRuns;
     lineDefinitions = 0;
     lineRefs = 0;
+    lineRuns = 0;
     total += weight;
     weights[index] += weight;
     deepBefore = indentOf(lines[lastIndex].text) >= 4;
@@ -2116,7 +2194,7 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
       const written = end - line.from + W.textLine * (table.last - index + 1);
       if (table.cost >= 0) heaviestTable = Math.max(heaviestTable, table.peak);
       // A table's references, by its closing brackets that are no link's and no wiki link's: more than it holds, never fewer.
-      if (table.cost >= 0) lineRefs = closingBrackets(text, line.from, end);
+      if (table.cost >= 0) lineRuns = lineRefs = closingBrackets(text, line.from, end);
       add(index, line.from, end, table.cost < 0 ? written : table.cost, end - line.from + 1, false, table.last);
       index = table.last;
       continue;
@@ -2125,7 +2203,10 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
       // Read as written already: what text costs, its line end kept. A definition in it is read as text from the start
       // (a block of 30 000 definitions is one paragraph over the paragraph's budget on the desktop).
       const kept = keptPrefix(text, line.from, line.to);
-      if (beginsWithDefinition(text, line.from + kept, line.to)) writtenDefinitions += W.line + W.definition + (line.to - line.from);
+      if (beginsWithDefinition(text, line.from + kept, line.to)) {
+        writtenDefinitions += W.line + W.definition + (line.to - line.from);
+        counted.definitions++;
+      }
       add(index, line.from, line.to, line.to - line.from + W.textLine, asText);
       continue;
     }
@@ -2145,9 +2226,7 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
   let givenFrom = writtenDefinitions;
   let formattedReferences = 0;
   for (const each of blocks) formattedReferences += each.references;
-  // The most a given line weighs: `[label]: #`, its label at most 999 characters.
-  const givenLineMost = W.line + W.definition + 1003 + 2 * W.word + 3 * W.syntax + W.open;
-  const given = (): number => Math.min(givenFrom, formattedReferences * givenLineMost);
+  const given = (): number => Math.min(givenFrom, formattedReferences * givenLineMost());
   const held = (previous ?? []).filter((range) => range.block);
   if (total + given() <= noteBudget && (held.length === 0 || total + given() <= noteBudget * (1 - NOTE_HYSTERESIS))) return [];
   const isHeld = (i: number): boolean => {
@@ -2245,8 +2324,20 @@ let piecesApart = false;
 export interface ReadPiece {
   from: number;
   to: number;
-  /** What it weighs to the note's budget: pieces that stand side by side may be read as one up to `pieceLimit`. */
+  /** What it weighs to the note's budget, with the definitions it is read with: pieces that stand side by side may be read as one up to `pieceLimit`. */
   weight?: number;
+  /** What it weighs without them, and the references it holds (`pieceWeight`). */
+  own?: number;
+  references?: number;
+}
+
+/**
+ * What a piece of `own` weight weighs with the definitions it is read with: at
+ * most one a reference of its `references`, never more than the note's
+ * `definitions` — pieces read as one share theirs.
+ */
+export function pieceWeight(own: number, references: number, definitions: number): number {
+  return own + Math.min(references, definitions) * givenLineMost();
 }
 
 /** What a piece read at once may weigh: the share of the note's budget a piece may take (`PIECE_SHARE`). */
@@ -2268,6 +2359,8 @@ export interface ReadAsTextParts {
   ranges: BoundedRange[];
   pieces: ReadPiece[];
   unread: BoundedRange[];
+  /** How many lines of the note begin with a definition: what a piece's definitions weigh at most (`pieceWeight`). */
+  definitions?: number;
   /**
    * Whether the note begins with a `---` that nothing closes: the parser then
    * reads no blocks within blocks anywhere in it, and the note has no `---`
@@ -2429,8 +2522,13 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
   // the inline budget are unread as well, and join it at the end.
   const unread: BoundedRange[] = [];
   const pieces: ReadPiece[] = [];
-  const { lines, kinds, weights } = found;
+  const { lines, kinds, weights, pieceLabels: references } = found;
   const limit = pieceShare * noteBudget;
+  // A piece is read with a definition behind it for each label in brackets in it that the note defines
+  // (`forEachReadPiece`): at most one a reference, never more than the note has. It weighs them, so that a piece and its
+  // definitions stay within a piece's share (review of L14, 2026-11-26: a paragraph of 9 000 references, read with
+  // their definitions behind it, ran the index out of 128 MB at half the note's budget).
+  const appendix = (refs: number): number => pieceWeight(0, refs, found.definitions);
   const gather = Math.min(limit, PIECE_GATHER_SHARE * noteBudget);
   const leaveUnread = (from: number, to: number) => {
     const last = unread[unread.length - 1];
@@ -2443,8 +2541,8 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
     const first = lineAt(lines, block.from);
     let last = first;
     while (last + 1 < lines.length && lines[last + 1].from < block.to) last++;
-    // The units: [first line, last line, weight].
-    const units: Array<[number, number, number]> = [];
+    // The units: [first line, last line, weight, references].
+    const units: Array<[number, number, number, number]> = [];
     const indented = (at: number) => lines[at].text.charCodeAt(0) === 0x20 || lines[at].text.charCodeAt(0) === 0x09;
     const heading = (at: number) => kinds[at] === LINE_HEADING && !indented(at);
     // As `noteBudgetRanges` reads it: behind a line that may be indented code, the next block is part of the one before.
@@ -2453,31 +2551,35 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
       if (isBlank(lines[at].text) && kinds[at] !== LINE_CODE) continue;
       const starts = units.length === 0 || (kinds[at - 1] === LINE_BREAK && !indented(at) && !deep) || heading(at - 1) || heading(at);
       deep = indentOf(lines[at].text) >= 4;
-      if (starts) units.push([at, at, weights[at]]);
+      if (starts) units.push([at, at, weights[at], references[at]]);
       else {
         const unit = units[units.length - 1];
         unit[1] = at;
         unit[2] += weights[at];
+        unit[3] += references[at];
       }
     }
-    let piece: { from: number; to: number; weight: number } | null = null;
+    type Gathered = { from: number; to: number; own: number; references: number };
+    let piece: Gathered | null = null;
     const flush = () => {
-      if (piece) pieces.push({ from: piece.from, to: piece.to, weight: piece.weight });
+      if (piece) pieces.push({ from: piece.from, to: piece.to, weight: pieceWeight(piece.own, piece.references, found.definitions), own: piece.own, references: piece.references });
       piece = null;
     };
-    const take = (from: number, to: number, weight: number) => {
-      const current = piece as { from: number; to: number; weight: number } | null;
-      if (current && !piecesApart && current.weight + weight <= gather) {
+    const take = (from: number, to: number, own: number, refs: number) => {
+      const current = piece as Gathered | null;
+      if (current && !piecesApart && pieceWeight(current.own + own, current.references + refs, found.definitions) <= gather) {
         current.to = lines[to].to;
-        current.weight += weight;
+        current.own += own;
+        current.references += refs;
       } else {
         flush();
-        piece = { from: lines[from].from, to: lines[to].to, weight };
+        piece = { from: lines[from].from, to: lines[to].to, own, references: refs };
       }
     };
-    for (const [from, to, weight] of units) {
+    for (const [from, to, own, refs] of units) {
+      const weight = own + appendix(refs);
       if (weight <= limit && !(piecesApart && cutsOf(from, to)?.length)) {
-        take(from, to, weight);
+        take(from, to, own, refs);
         continue;
       }
       const cuts = cutsOf(from, to);
@@ -2491,8 +2593,12 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
         let end = bounds[k + 1] - 1;
         while (end > bounds[k] && isBlank(lines[end].text)) end--;
         let part = 0;
-        for (let at = bounds[k]; at <= end; at++) part += weights[at];
-        if (part <= limit || piecesApart) take(bounds[k], end, part);
+        let partRefs = 0;
+        for (let at = bounds[k]; at <= end; at++) {
+          part += weights[at];
+          partRefs += references[at];
+        }
+        if (part + appendix(partRefs) <= limit || piecesApart) take(bounds[k], end, part, partRefs);
         else {
           flush();
           leaveUnread(lines[bounds[k]].from, lines[end].to);
@@ -2501,7 +2607,7 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
     }
     flush();
   }
-  return { ranges, pieces, unread: unitedRanges(unread, found.inline).map(({ from, to }) => ({ from, to })), ...(found.containers ? {} : { behindUnclosedProperties: true }) };
+  return { ranges, pieces, unread: unitedRanges(unread, found.inline).map(({ from, to }) => ({ from, to })), definitions: found.definitions, ...(found.containers ? {} : { behindUnclosedProperties: true }) };
 }
 
 /** Whether the place `at` lies in one of `ranges` (in text order, apart), found by halving. */
