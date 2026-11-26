@@ -10,6 +10,7 @@ import { initializeSchema } from "../src/db/Schema.ts";
 import { withinAsync } from "./helpers/timeBudget.ts";
 import { MemoryVaultAdapter } from "./helpers/memoryVault.ts";
 import { BLOCK_READS } from "../src/vault/propertiesInView.ts";
+import { leaksOf } from "./helpers/leaks.ts";
 
 /**
  * A database read by someone who may not see the whole vault — an assistant run that keeps a folder from the cloud,
@@ -96,11 +97,13 @@ describe("queryDatabaseFiles: what a narrower reader may see (reach)", () => {
 
       const narrow = await query.queryDatabaseFiles(BASE(), { reach: visible });
       const offer = narrow.find((r: any) => r["file.name"] === "Offer");
+      // Nothing of the notes out of reach in any column: their name, the hours, the sum, the revenue — looked
+      // for in every value of the row, not in its text, where the row's own timestamp or hash can hold "9000".
+      expect(leaksOf(offer, { words: ["Salary"], numbers: [9000, 9003, 50000] })).toEqual([]);
       expect(offer.count).toBe(1);
       expect(offer.hours).toBe(3);
       expect(offer.tasks).toHaveLength(1);
       expect(offer.tasks[0]).toContain("Task");
-      expect(JSON.stringify(offer)).not.toMatch(/Salary|9000|9003|50000/);
       // A relation into a note out of reach is no relation: nothing to measure, as for a project without one.
       expect(offer.revenue).toBeNull();
     });
