@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, type VaultWalkOptions, indexReadsOf } from "./IVaultAdapter.js";
 import { contentSha256Of } from "./localText.js";
 import { SyncQueue } from "../sync/SyncQueue.js";
 import { isSystemJunkPath } from "./systemJunk.js";
@@ -47,6 +47,8 @@ export type QueueingVaultAdapterOptions = OwedQueueEntriesOptions;
  * bringing the file back.
  */
 export class QueueingVaultAdapter implements IVaultAdapter {
+  /** Handed on from the inner adapter where it has one (`indexReadsOf`). */
+  readonly readFilesForIndex?: IVaultAdapter["readFilesForIndex"];
   private readonly owed: OwedQueueEntries;
   private readonly detach: () => void;
 
@@ -55,6 +57,7 @@ export class QueueingVaultAdapter implements IVaultAdapter {
     private readonly syncQueue: SyncQueue,
     options: QueueingVaultAdapterOptions = {}
   ) {
+    this.readFilesForIndex = indexReadsOf(inner);
     this.owed = new OwedQueueEntries(options);
     // Every shell builds the chain on the queue its sync worker reads: told
     // here, the worker knows what is owed without a shell having to say so.

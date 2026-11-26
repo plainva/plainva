@@ -1,5 +1,5 @@
 import { checkedPathExists, checkedReadTextFile, checkedReadDirectory, type CheckedDirEntry } from "./checkedFilesystem";
-import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, VaultListing, VaultWalkSkip, type VaultWalkOptions, isInternalPath, INTERNAL_PATH_RULES, createYielder, trimEndChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
+import { IVaultAdapter, VaultFileInfo, VaultFileNotFoundError, VaultFileExistsError, type IndexReadRequest, type IndexReadResult, VaultListing, VaultWalkSkip, type VaultWalkOptions, isInternalPath, INTERNAL_PATH_RULES, createYielder, trimEndChars, PathSpellings, withStoredSpelling, type SpellingSource } from "@plainva/core";
 import { readFile, stat, remove, rename, mkdir, exists } from "@tauri-apps/plugin-fs";
 import { join, normalize, sep } from "@tauri-apps/api/path";
 import { Channel, invoke } from "@tauri-apps/api/core";
@@ -204,6 +204,32 @@ export class TauriVaultAdapter implements IVaultAdapter {
       const text = await checkedReadTextFile(await this.rootId(), raw);
       if (text === null) throw new VaultFileNotFoundError(path);
       return text;
+    });
+  }
+
+  /**
+   * Many files for a pass of the index in one bridge call: Rust reads them a
+   * few at a time, hashes their bytes and hands back a note's text with its
+   * hash and an attachment's hash alone (`src-tauri/src/index_read.rs`).
+   * Each `readTextFile` is three calls (two path calls and the read), each
+   * attachment its whole bytes over the bridge only to be hashed here.
+   *
+   * Only the plain case is answered there; every other file comes back as
+   * `fallback` and the index reads it the ordinary way — so does the whole
+   * group where the answer is not one this method can trust (another build
+   * of the Rust side, a test double).
+   */
+  async readFilesForIndex(requests: readonly IndexReadRequest[]): Promise<IndexReadResult[]> {
+    if (requests.length === 0) return [];
+    const files = await Promise.all(requests.map(async (request) => ({ relPath: await this.realPath(request.path), text: request.text })));
+    const answer = await invoke<unknown>("read_files_for_index", { rootId: await this.rootId(), files });
+    if (!Array.isArray(answer) || answer.length !== requests.length) return requests.map(() => ({ kind: "fallback" }));
+    return answer.map((value: unknown, i): IndexReadResult => {
+      const one = value as { kind?: unknown; text?: unknown; sha256?: unknown } | null;
+      const hash = typeof one?.sha256 === "string" && /^[0-9a-f]{64}$/.test(one.sha256) ? one.sha256 : null;
+      if (one?.kind === "text" && requests[i].text && typeof one.text === "string" && hash) return { kind: "text", text: one.text, sha256: hash };
+      if (one?.kind === "bytes" && !requests[i].text && hash) return { kind: "bytes", sha256: hash };
+      return { kind: "fallback" };
     });
   }
 
