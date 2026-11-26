@@ -32,7 +32,11 @@ const PICTURE_HOST = "https://img.example";
 async function loadProbe(page: Page) {
   await page.route("**/__mail_frames", (route) => route.fulfill({ contentType: "text/html", body: `<!doctype html><html><body><script type="module">
     await import('/e2e/fixtures/mailFrameProbe.ts');</script></body></html>` }));
-  await page.route(`${PICTURE_HOST}/**`, (route) => route.fulfill({ contentType: "image/png", body: Buffer.from(TALL_PICTURE, "base64") }));
+  await page.route(`${PICTURE_HOST}/**`, (route) =>
+    route.request().url().endsWith("/logo.svg")
+      ? route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="40"><rect width="100" height="40" fill="#c00"/></svg>' })
+      : route.fulfill({ contentType: "image/png", body: Buffer.from(TALL_PICTURE, "base64") }),
+  );
   await openProbePage(page, "/__mail_frames", () => !!(window as unknown as MailFrameProbeWindow).mailFrameProbe);
 }
 
@@ -189,6 +193,12 @@ const DIRECTION = {
     { name: "U+2067 isolate with a mark between two Latin words", html: `<p>VISIBLEd4 &#x2067;SECRETd4a &#x200F; SECRETd4b&#x2069; end</p>` },
     { name: "dir=rtl paragraph with a mark between two Latin words", html: `<p>VISIBLEd5</p><p dir="rtl">SECRETd5a &#x200F; SECRETd5b</p>` },
     { name: "U+202B embedding with a mark between two Latin words", html: `<p>VISIBLEd6 &#x202B;SECRETd6a &#x200F; SECRETd6b&#x202C; end</p>` },
+    // Across elements of one line (review B7-3, M13): bold, a span, a link, two isolating boxes.
+    { name: "o1 isolate across <b>", html: `<p>VISIBLEo1 &#x2067;<b>SECRETo1a</b> &#x200F; <b>SECRETo1b</b>&#x2069; end</p>` },
+    { name: "o2 isolate across <span>", html: `<p>VISIBLEo2 &#x2067;<span>SECRETo2a</span> &#x200F; SECRETo2b&#x2069; end</p>` },
+    { name: "o3 dir=rtl with a mark across a link", html: `<p>VISIBLEo3</p><p dir="rtl"><a href="https://x.example">SECRETo3a</a> &#x200F; SECRETo3b</p>` },
+    { name: "o4 dir=rtl paragraph, two spans", html: `<p>VISIBLEo4</p><p dir="rtl"><span>SECRETo4a</span> &#x200F; <span>SECRETo4b</span></p>` },
+    { name: "o5 bdi beside bdi", html: `<p>VISIBLEo5</p><p dir="rtl"><bdi>SECRETo5a</bdi> <bdi>SECRETo5b</bdi></p>` },
   ],
   kept: [
     { name: "dir=rtl paragraph with Latin words", html: `<p dir="rtl">VISIBLEr1 שלום עולם VISIBLEr1b</p>` },
@@ -366,6 +376,52 @@ test("pictures from the network: the assistant reads only what the reader shows 
   expect(wrong).toEqual([]);
 });
 
+/**
+ * What the rule for pictures from the network costs (review B7-3, M16): it takes the largest the reader allows, so a
+ * word a smaller real picture leaves visible can be left out — the safe way, never a hidden word read. These forms do
+ * it; each may lose at most the words named, and how many it did is reported.
+ */
+const KNOWN_COSTS = [
+  { name: "g1 a logo without width beside a line running out of its box", html: `<div style="height:16px">VISIBLEOVA line<br><span style="padding-left:150px">VISIBLEOVB right</span></div><img src="${PICTURE_HOST}/logo.svg" style="height:auto"><p>VISIBLEOVC</p>`, may: ["VISIBLEOVB"] },
+  { name: "q10 a float with a negative margin", html: `<div style="height:0;white-space:nowrap">VISIBLEFLOAT here</div><img src="${SRC}" style="float:left;margin-top:-10px"><p>VISIBLEFLOATB</p>`, may: ["VISIBLEFLOAT"] },
+  { name: "q11 two pictures side by side", html: `<div style="height:0;white-space:nowrap">SECRETTWO here <span style="padding-left:300px">SECRETTWOB</span></div><div style="white-space:nowrap"><img src="${SRC}" width="200"><img src="${SRC}" style="height:auto"></div><p>VISIBLETWO</p>`, may: ["SECRETTWO", "SECRETTWOB"] },
+];
+
+test("the known costs of the rule for pictures: no hidden word read, no visible word lost beyond those named", async ({ page }) => {
+  test.setTimeout(300_000);
+  await page.setViewportSize({ width: 1800, height: 1400 });
+  await loadProbe(page);
+  const wrong: string[] = [];
+  const lost: string[] = [];
+  for (const entry of KNOWN_COSTS) {
+    for (const width of [343, 760, 1200]) {
+      await page.evaluate((w) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.readerWidth(w), width);
+      const shown = new Map<string, number>();
+      let ai: string[] = [];
+      for (const pictures of [false, true]) {
+        const open = await page.evaluate(([h, w, p]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w, undefined, p), [entry.html, width, pictures] as const);
+        ai = open.ai;
+        const shares = await inkShares(page, open);
+        for (const word of Array.from(entry.html.matchAll(/(?:SECRET|VISIBLE)[A-Z0-9a-z]+/g), (m) => m[0])) {
+          const share = open.frame.seen.includes(word) ? (shares.get(word) ?? 0) : 0;
+          shown.set(word, Math.min(shown.get(word) ?? 1, share));
+        }
+      }
+      for (const [word, share] of shown) {
+        const read = ai.includes(word);
+        if (read && share < MIN_INK_SHARE) wrong.push(`${entry.name}: at ${width} px the assistant reads ${word}, the reader does not show it`);
+        if (!read && share >= MIN_INK_SHARE) {
+          lost.push(`${entry.name} · ${width} px · ${word}`);
+          if (!entry.may.includes(word)) wrong.push(`${entry.name}: at ${width} px the assistant leaves out ${word} as well, which is not among its known costs`);
+        }
+      }
+    }
+  }
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
+  test.info().annotations.push({ type: "visible words the rule takes away", description: `${lost.length}: ${lost.join("; ")}` });
+  expect(wrong).toEqual([]);
+});
+
 test("a mail too long to check in time: the assistant reads none of it, and is told why (review B7-2, F3)", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1000, height: 900 });
@@ -399,20 +455,25 @@ test("the engine pass keeps its pace with many painting boxes and in a hidden wi
   let made = 0;
   const measure = (html: string) =>
     page.evaluate(async ([h]) => {
+      // The longest the interface waited between two of its tasks, in either engine (WebKit has no long-task entries,
+      // review B7-3): a message handed on again and again while the pass runs, the widest gap between two of them.
       const longest = { ms: 0 };
-      const observer = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) longest.ms = Math.max(longest.ms, entry.duration);
-      });
-      try {
-        observer.observe({ type: "longtask", buffered: false });
-      } catch {
-        /* silent: an engine without long-task entries reports 0 */
-      }
+      let running = true;
+      let last = performance.now();
+      const meter = new MessageChannel();
+      meter.port1.onmessage = () => {
+        const at = performance.now();
+        longest.ms = Math.max(longest.ms, at - last);
+        last = at;
+        if (running) meter.port2.postMessage(0);
+      };
+      meter.port2.postMessage(0);
       // The product's way alone: what the assistant reads, timed without the judge's frames.
       const started = performance.now();
       const read = await (window as unknown as MailFrameProbeWindow).mailFrameProbe.read(h);
       const took = performance.now() - started;
-      observer.disconnect();
+      running = false;
+      meter.port1.close();
       return { took, longest: longest.ms, ai: Array.from(read.text.matchAll(/\b(?:SECRET|VISIBLE)[A-Za-z0-9_]*/g), (m) => m[0]), tooLong: read.text.includes("too long for Plainva to check in time") };
     }, [`${html}<!-- mail ${++made} -->`] as const);
   // Once to warm the engine and the modules up; the second is what a person meets.

@@ -448,47 +448,67 @@ const LTR_LETTER = /[A-Za-z\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF]/;
 /** What can turn the order of words around without an override: marks, embeddings, isolates, a right-to-left box. */
 const REORDERING = /[\u200F\u061C\u202B\u2067\u2068]/;
 
-/** Whether the order of a text's words on screen can differ from their order in the text (a cheap check first). */
-function mayReorder(text: Text, win: Window): boolean {
-  if (REORDERING.test(text.data)) return true;
-  // Not `unicode-bidi` itself: the engine's own sheet makes every block an isolate, and a block of left-to-right text
-  // turns nothing around.
-  for (let at = text.parentElement; at; at = at.parentElement) {
-    if (at.localName === "bdi" || at.hasAttribute("dir")) return true;
-    if (win.getComputedStyle(at).direction === "rtl") return true;
-  }
-  return false;
+/**
+ * The block a text is laid out in: the nearest ancestor that is not inline (review B7-3, M13). Words turned around by
+ * direction marks stand on one line of one block, whatever elements (`<b>`, `<span>`, `<a>`, `<bdi>`) lie between them.
+ */
+function blockOf(text: Text, win: Window, blocks: Map<Element, Element>): Element | null {
+  const parent = text.parentElement;
+  if (!parent) return null;
+  const known = blocks.get(parent);
+  if (known) return known;
+  let at: Element = parent;
+  while (at.parentElement && /^(inline|contents)/.test(win.getComputedStyle(at).display)) at = at.parentElement;
+  blocks.set(parent, at);
+  return at;
 }
 
 /**
- * Words a person reads in another order than they stand in the text, without an override (review B7-2, M11): two words
- * of a left-to-right script on one line, with no letter of a right-to-left script between them, the later one drawn
- * before the earlier — only invisible marks, embeddings or isolates turn them so. Both are left out, as under an
- * override. Right-to-left text, and a left-to-right name inside it, keep their order and are read.
+ * Whether the order of a block's words on screen can differ from their order in the text (a cheap check first): it
+ * holds a mark, an embedding or an isolate, or it or something in it has a direction of its own. Not `unicode-bidi`
+ * itself: the engine's own sheet makes every block an isolate, and a block of left-to-right text turns nothing around.
  */
-function reorderedWords(words: ReadonlyArray<{ index: number; word: string; box: Box | null }>, data: string): Array<[number, number]> {
-  const out: Array<[number, number]> = [];
-  // The last word of a left-to-right script before this one, with no right-to-left letter since: marks, spaces and
-  // punctuation between them are skipped, a word of a right-to-left script starts over.
-  let last: { index: number; word: string; box: Box } | null = null;
-  for (const word of words) {
-    if (RTL_LETTER.test(word.word)) {
-      last = null;
-      continue;
+function mayReorder(block: Element, win: Window, known: Map<Element, boolean>): boolean {
+  let may = known.get(block);
+  if (may !== undefined) return may;
+  may = REORDERING.test(block.textContent ?? "") || block.closest("[dir],bdi") !== null || block.querySelector("[dir],bdi") !== null || win.getComputedStyle(block).direction === "rtl";
+  known.set(block, may);
+  return may;
+}
+
+/**
+ * Words a person reads in another order than they stand in the text, without an override (review B7-2, M11; review
+ * B7-3, M13): two words of a left-to-right script on one line of one block, with no letter of a right-to-left script
+ * between them, the later one drawn before the earlier — only invisible marks, embeddings or isolates turn them so,
+ * across the elements between them too. Both are left out, as under an override. Right-to-left text, and a
+ * left-to-right name inside it, keep their order and are read. Fed the block's words in the order of the text.
+ */
+class WordOrder {
+  private block: Element | null = null;
+  private last: { box: Box; hide: () => void } | null = null;
+
+  next(block: Element, word: string, box: Box | null, hide: () => void): void {
+    if (block !== this.block) {
+      this.block = block;
+      this.last = null;
     }
-    if (!LTR_LETTER.test(word.word) || !word.box) continue;
-    const a = last;
-    last = { index: word.index, word: word.word, box: word.box };
-    if (!a || RTL_LETTER.test(data.slice(a.index + a.word.length, word.index))) continue;
+    // A word of a right-to-left script starts over; marks, spaces and punctuation between two words are passed by.
+    if (RTL_LETTER.test(word)) {
+      this.last = null;
+      return;
+    }
+    if (!LTR_LETTER.test(word) || !box) return;
+    const a = this.last;
+    this.last = { box, hide };
+    if (!a) return;
     // One line: the same top within a fifth of the word's height — lines laid over each other are not one line.
-    const height = Math.min(a.box.bottom - a.box.top, word.box.bottom - word.box.top);
-    const oneLine = Math.abs(a.box.top - word.box.top) < 0.2 * height && Math.abs(a.box.bottom - word.box.bottom) < 0.2 * height;
-    if (oneLine && word.box.right <= a.box.left + 0.5) {
-      out.push([a.index, a.index + a.word.length]);
-      out.push([word.index, word.index + word.word.length]);
+    const height = Math.min(a.box.bottom - a.box.top, box.bottom - box.top);
+    const oneLine = Math.abs(a.box.top - box.top) < 0.2 * height && Math.abs(a.box.bottom - box.bottom) < 0.2 * height;
+    if (oneLine && box.right <= a.box.left + 0.5) {
+      a.hide();
+      hide();
     }
   }
-  return out;
 }
 
 /** The pass ran out of its budget (B7, review M4): the mail is too long to check in time, not unsafe. */
@@ -557,26 +577,28 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
       for (const line of lines) laterText.add(k, line);
       await pace.step();
     }
+    // Word order across a block (review B7-3, M13): the blocks the texts lie in, which of them may turn words around.
+    const blocks = new Map<Element, Element>();
+    const reorderable = new Map<Element, boolean>();
+    const order = new WordOrder();
     for (let k = 0; k < texts.length; k++) {
       const { text, path, offset, lines } = texts[k]!;
       // Under a direction override a person sees the letters mirrored: none of it is read (B7, review H7).
       const overridden = overriddenRanges(text, win);
       for (const [from, to] of overridden) hide(path, offset + from, offset + to);
       // Words turned around without one (review B7-2, M11): left out the same way.
-      if (mayReorder(text, win)) {
-        const all: Array<{ index: number; word: string; box: Box | null }> = [];
+      const block = blockOf(text, win, blocks);
+      if (block && mayReorder(block, win, reorderable)) {
         for (const { index, word } of wordsOf(text.data)) {
           const range = doc.createRange();
           range.setStart(text, index);
           range.setEnd(text, index + word.length);
-          all.push({ index, word, box: boxesOf(range, win)[0] ?? null });
+          order.next(block, word, boxesOf(range, win)[0] ?? null, () => {
+            hide(path, offset + index, offset + index + word.length);
+            overridden.push([index, index + word.length]);
+          });
           await pace.step();
         }
-        for (const [from, to] of reorderedWords(all, text.data)) {
-          hide(path, offset + from, offset + to);
-          overridden.push([from, to]);
-        }
-        await pace.step();
       }
       // Its own later lines over its earlier ones (lines laid on top of each other) count as well.
       const own = new LaterWords();
