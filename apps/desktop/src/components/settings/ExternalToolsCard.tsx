@@ -1,8 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { mcpServerStanding } from "@plainva/core";
-import { Button, externalStatusText, ICON, SettingCard, SettingCardNote, SettingRow, Switch } from "@plainva/ui";
+import { mcpServerStanding } from "@plainva/core/ai";
+import { Button, ICON, SettingCard, SettingCardNote, SettingRow, Switch } from "@plainva/ui";
+import { externalStatusText } from "@plainva/ui/ai";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 import { ExternalAddDialog, ExternalReviewDialog } from "./ExternalToolsDialogs";
 

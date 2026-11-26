@@ -1,5 +1,6 @@
-import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings, type AiEgress, type DirectWriteFiles, type EgressChunk, type HttpRequestSpec, type InstructionIO, type ModelChoice, type RoutineDraft } from "@plainva/core";
-import { AI_POLICY_FILE, AiSession, captureVocabularyOf, createAiVaultHost, createVaultPolicy, folderLogHost, writeCapturedNote, type VaultWriteDeps } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings, type AiEgress, type DirectWriteFiles, type EgressChunk, type HttpRequestSpec, type InstructionIO, type ModelChoice, type RoutineDraft } from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
+import { AI_POLICY_FILE, AiSession, createAiVaultHost, createVaultPolicy, folderLogHost, writeCapturedNote, type VaultWriteDeps } from "@plainva/ui/ai";
 import { CLOUD, LOCAL } from "./mcpSessionHarness";
 import { memoryFiles } from "./mcpTestHost";
 

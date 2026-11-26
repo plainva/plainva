@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { noteHash, type EgressManifest } from "@plainva/core";
+import { noteHash, type EgressManifest } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiSendOverview, type RunSnapshotView } from "@plainva/ui";
+import { AiSendOverview, type RunSnapshotView } from "@plainva/ui/ai";
 
 /**
  * A past run's line, opened (plan KI-Harness P9-2): the send overview with

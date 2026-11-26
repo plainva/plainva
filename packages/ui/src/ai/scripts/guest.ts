@@ -1,4 +1,4 @@
-import type { SandboxEnd, SandboxJob, SandboxKill, SandboxLogLevel, SandboxUsage } from "@plainva/core";
+import type { SandboxEnd, SandboxJob, SandboxKill, SandboxLogLevel, SandboxUsage } from "@plainva/core/ai";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSRuntime, QuickJSWASMModule } from "quickjs-emscripten-core";
 
 /**

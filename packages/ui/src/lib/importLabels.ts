@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { DEFAULT_IMPORT_LABELS, type ImportLabels } from '@plainva/core';
+import { DEFAULT_IMPORT_LABELS, type ImportLabels } from '@plainva/core/import';
 
 /**
  * Builds the strings the import engine writes into the user's vault.

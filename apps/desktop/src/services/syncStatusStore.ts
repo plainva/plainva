@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, NameCollisionCase, WorkspaceSyncFailureKind, ListingIncompleteInfo } from "@plainva/core";
+import type { SyncStatus, SyncProgress, SyncErrorReason, NameCollision, NameCollisionCase, ListingIncompleteInfo } from "@plainva/core";
+import type { WorkspaceSyncFailureKind } from "@plainva/core/workspace";
 import type { SyncProviderId } from "../contexts/VaultContext";
 import { connectionErrorText, logDiagnostic } from "@plainva/ui";
 import { firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";

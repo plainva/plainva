@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { WorkspaceCommentsColumn } from "./components/workspace/WorkspaceCommentsColumn";
 import { CommentsSheet } from "../../mobile/src/components/CommentsSheet";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { buildCommentThreads, groupSuggestionRounds, planCommentNotifications, renderNoteExport } from "@plainva/ui";
 import en from "../../../packages/ui/src/locales/en.json";
 

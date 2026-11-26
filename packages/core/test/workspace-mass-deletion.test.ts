@@ -8,7 +8,7 @@ import {
   SqlWorkspaceStateStore,
   WorkspaceQueueingVaultAdapter,
   type WorkspaceStateStore,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 import { chainPermissions, live, ownerSecondDevice, queued, synced, workspaceMember } from "./helpers/workspaceReconcile.ts";
 
 /**

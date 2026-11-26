@@ -4,7 +4,7 @@ import { Check, Copy, ShieldCheck, Upload } from "lucide-react";
 import { Button, ICON, TextInput, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, stepFailureSaid, toast } from "@plainva/ui";
 import { vaultEntryName } from "../services/vaultEntryName";
 import { getVaultEntry } from "../services/vaultRegistry";
-import { SqlWorkspaceStateStore } from "@plainva/core";
+import { SqlWorkspaceStateStore } from "@plainva/core/workspace";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { saveRecoveryFile } from "../services/recoveryFile";

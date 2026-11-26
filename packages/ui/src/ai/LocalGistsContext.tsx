@@ -1,28 +1,6 @@
-import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
-import type { LocalEmbeddings } from "./localEmbeddings";
-import type { LocalGists, LocalGistsState } from "./localGists";
-import { LocalEmbeddingsContext } from "./SemanticSearch";
+import type { LocalGistsState } from "./localGists";
 
-/** The vault's gists (plan KI-Harness P2b-3), for the settings of both shells. */
-export const LocalGistsContext = createContext<LocalGists | null>(null);
-
-const NOOP_SUBSCRIBE = () => () => undefined;
-const NO_STATE = (): LocalGistsState | null => null;
-
-export function useLocalGists(): { controller: LocalGists | null; state: LocalGistsState | null } {
-  const controller = useContext(LocalGistsContext);
-  const state = useSyncExternalStore(controller ? controller.subscribe : NOOP_SUBSCRIBE, controller ? controller.snapshot : NO_STATE, controller ? controller.snapshot : NO_STATE);
-  return { controller, state };
-}
-
-/** What the models on this device do for the open vault — search by meaning and gists — for every surface of the window. */
-export function LocalModelsProvider({ embeddings, gists, children }: { embeddings: LocalEmbeddings | null; gists: LocalGists | null; children: ReactNode }) {
-  return (
-    <LocalEmbeddingsContext.Provider value={embeddings}>
-      <LocalGistsContext.Provider value={gists}>{children}</LocalGistsContext.Provider>
-    </LocalEmbeddingsContext.Provider>
-  );
-}
+export { LocalGistsContext, useLocalGists, LocalModelsProvider } from "../aiPorts/localModels";
 
 type T = (key: string, options?: Record<string, unknown>) => string;
 

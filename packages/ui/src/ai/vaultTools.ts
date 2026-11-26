@@ -1,4 +1,12 @@
 import {
+  contentPathRefusal,
+  VaultQueryService,
+  viewMatchesSearch,
+  viewSearchSnippet,
+  frontmatterSpan,
+  withoutExcludedSearchTerms,
+} from "@plainva/core";
+import {
   AI_POLICY_DIMENSIONS,
   fenceUntrusted,
   findTools,
@@ -40,21 +48,15 @@ import {
   ReaderView,
   redactSensitiveIn,
   sectionOf,
-  contentPathRefusal,
   sensitiveFindings,
   SITUATION_SOURCE,
   toolByName,
   toolInputJsonSchema,
-  VaultQueryService,
   MOOD_PROPERTY_NAMES,
   type LinkRule,
   type LinkVerdicts,
-  viewMatchesSearch,
-  viewSearchSnippet,
   withholdDeniedLinksIn,
-  frontmatterSpan,
   withholdPlacesIn,
-  withoutExcludedSearchTerms,
   withoutSensitiveProperties,
   WRITE_REFUSALS,
   type AiPolicyDimension,
@@ -65,7 +67,7 @@ import {
   type ToolExecutor,
   type ToolManifest,
   type ToolOutcome,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { parseBaseConfig } from "../base/baseFormat";
 import { combineFilters, migrateFiltersToPerView } from "../base/filterExpr";
 import { backlinkContexts, contextChain, groupBacklinks, type BacklinkOccurrence } from "../lib/backlinks";
@@ -401,7 +403,7 @@ export function safeRelPath(path: string): string | null {
 
 // The section helpers moved into core (one definition for the tools and the
 // context package); re-exported so existing callers keep their import.
-export { outlineOf, sectionOf, type OutlineHeading } from "@plainva/core";
+export { outlineOf, sectionOf, type OutlineHeading } from "@plainva/core/ai";
 
 function offsetOf(cursor: unknown): number {
   return typeof cursor === "string" ? Math.max(0, Number.parseInt(cursor, 10) || 0) : 0;

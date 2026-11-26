@@ -2,12 +2,9 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plug } from "lucide-react";
 import {
-  AiExternalReview,
   Banner,
   Button,
   Checkbox,
-  externalStatusText,
-  externalTopFolders,
   ICON,
   Modal,
   Segmented,
@@ -15,12 +12,17 @@ import {
   TextInput,
   toast,
   useDiscardGuard,
+} from "@plainva/ui";
+import {
+  AiExternalReview,
+  externalStatusText,
+  externalTopFolders,
   useExternalAdd,
   useExternalReview,
   type AiMcpServer,
   type AiSession,
   type ExternalKind,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { useVault } from "../../contexts/VaultContext";
 import { appConfirm } from "../../services/appDialogs";
 

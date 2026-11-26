@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { AiExternalReview, Banner, Button, externalStatusText, externalTopFolders, TextInput, toast, useExternalAdd, useExternalReview } from "@plainva/ui";
+import { Banner, Button, TextInput, toast } from "@plainva/ui";
+import { AiExternalReview, externalStatusText, externalTopFolders, useExternalAdd, useExternalReview } from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";

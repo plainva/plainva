@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, Info, ListChecks, MoreHorizontal, Pause, Play, Unlink } from "lucide-react";
 import { Button } from "../components/ui/Button";
@@ -18,44 +18,7 @@ import { routineClock } from "./routineView";
  * sheet; the same list in both shells, in the grammar of the related notes.
  */
 
-/** Waits this long after the last change of the text before asking: typing asks once it rests. */
-const SETTLE_MS = 150;
-const NOOP = () => () => {};
-
-/**
- * The hints of the open note, asked again when its text changes, when what is
- * hidden or paused changes, and when one of the two switches they stand
- * behind — the AI, the hints — is turned: switched off, a section that showed
- * hints kept them.
- */
-export function useNoteHints(session: AiSession | null, path: string | null, content: string | null): NoteHintsAnswer | null {
-  const version = useSyncExternalStore(session ? session.subscribe : NOOP, () => {
-    if (!session) return "";
-    const { hints, settings } = session.getState();
-    return `${hints.version}:${settings.enabled ? 1 : 0}:${settings.noteHints ? 1 : 0}`;
-  });
-  const [answer, setAnswer] = useState<{ path: string; answer: NoteHintsAnswer } | null>(null);
-  useEffect(() => {
-    if (!session || !path || content === null || !/\.md$/i.test(path)) return;
-    let alive = true;
-    const timer = setTimeout(() => {
-      void session.noteHints(path, content).then(
-        (found) => alive && setAnswer({ path, answer: found }),
-        () => alive && setAnswer({ path, answer: { kind: "off" } }),
-      );
-    }, SETTLE_MS);
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
-  }, [session, path, content, version]);
-  return answer && answer.path === path ? answer.answer : null;
-}
-
-/** How many hints a surface shows (the section's count, whether it has content). */
-export function noteHintsCount(answer: NoteHintsAnswer | null): number {
-  return answer?.kind === "hints" ? answer.items.length : 0;
-}
+export { useNoteHints, noteHintsCount } from "../aiPorts/noteAnswers";
 
 function hintTitle(t: (key: string, vars?: Record<string, unknown>) => string, item: NoteHintItem, locale: string): string {
   if (item.kind === "link") return t("ai.hints.link", { link: item.subject });

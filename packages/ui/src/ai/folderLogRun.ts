@@ -22,7 +22,7 @@ import {
   type EgressRecipient,
   type LogItem,
   type LogWords,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { defuseNewAddresses } from "./aiWriteLint";
 
 /**

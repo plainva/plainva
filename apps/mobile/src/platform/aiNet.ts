@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { AiEgress, EgressChunk, EndpointConfirmText, HttpRequestSpec } from "@plainva/core";
+import type { AiEgress, EgressChunk, EndpointConfirmText, HttpRequestSpec } from "@plainva/core/ai";
 import { isPlatformRequest, PlatformModel } from "./platformModel";
 
 /**

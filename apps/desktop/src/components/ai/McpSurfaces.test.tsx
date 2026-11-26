@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
-import type { AiSession, PlanQuestion } from "@plainva/ui";
+import type { AiSession, PlanQuestion } from "@plainva/ui/ai";
 
 /**
  * The three surfaces of Plainva's MCP server, stage 2 (plan KI-Harness

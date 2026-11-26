@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVE_MEMORY_FILE, AGENTS_FILE, LEARN_LOG_FILE, LONG_MEMORY_FILE, OBSERVED_RUNS, parseSkillFile, skillGrant, skillNamesWeb, TOOL_MANIFESTS, type EgressChunk, type InstructionApprovals, type WriteDraft } from "@plainva/core";
-import { readStrangersText, skillsUsedBy, type AiSession, type LearnOutcome } from "@plainva/ui";
+import { ACTIVE_MEMORY_FILE, AGENTS_FILE, LEARN_LOG_FILE, LONG_MEMORY_FILE, OBSERVED_RUNS, parseSkillFile, skillGrant, skillNamesWeb, TOOL_MANIFESTS, type EgressChunk, type InstructionApprovals, type WriteDraft } from "@plainva/core/ai";
+import { readStrangersText, skillsUsedBy, type AiSession, type LearnOutcome } from "@plainva/ui/ai";
 import { LOCAL, body, chat, toolNames, turn } from "./mcpSessionHarness";
 import { memorySession, memoryVault, type MemoryVault } from "./memorySessionHarness";
 

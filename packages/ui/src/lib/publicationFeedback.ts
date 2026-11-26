@@ -1,4 +1,4 @@
-import type { PublicationComment, WorkspaceCommentRecord } from "@plainva/core";
+import type { PublicationComment, WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { buildCommentThreads, isCommentThreadOpen } from "./commentThreads";
 
 export function publicationFeedbackCounts(entries: readonly PublicationComment[]): { comments: number; suggestions: number } {

@@ -4,18 +4,20 @@ import {
   aeadEncrypt,
   aeadNonce,
   canonicalJson,
+  utf8Decode,
+  wipeBytes,
+  type KdfParams,
+} from "@plainva/core";
+import {
   deserializePersonalWorkspaceRuntime,
   fromBase64,
   serializePersonalWorkspaceRuntime,
   toBase64,
-  utf8Decode,
   utf8Encode,
-  wipeBytes,
   wipeWorkspaceRuntimeSecrets,
-  type KdfParams,
   type PersonalWorkspaceRuntime,
   type SerializedPersonalWorkspaceRuntime,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import { credentialManager } from "../CredentialManager";
 import { getSettingsStore } from "../settingsStore";
 import { deriveKekOffThread } from "./deriveKekOffThread";

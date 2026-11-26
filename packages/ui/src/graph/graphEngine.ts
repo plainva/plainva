@@ -2,7 +2,7 @@ import { quadtree, type Quadtree } from "d3-quadtree";
 import { getGraphThemeTokens, subscribeGraphThemeTokens, toRgba, type GraphThemeTokens } from "./themeTokens";
 import type { NodePointerEvent, SceneEdge, SceneNode, SceneTransform } from "./graphTypes";
 import { drawLucideIcon, isLucideIconRef, lucideIconPaths, lucideIconSvg } from "../components/lucideIconDraw";
-import { isRenderableDocIcon } from "../components/DocIcon";
+import { isRenderableDocIcon, parseDocIcon } from "../components/DocIcon";
 
 /**
  * Canvas-2D graph scene — one instance per view, living OUTSIDE React (the
@@ -1549,9 +1549,9 @@ function sceneToSVG(
       // as a giant label (report 2026-07-29).
       const shapes = lucideIconSvg(n.icon, n.cx, n.cy, n.size * 1.25, n.color ?? stroke, opacity);
       if (shapes) parts.push(shapes);
-      else if (isRenderableDocIcon(n.icon)) {
+      else if (parseDocIcon(n.icon).kind === "emoji") {
         // Emoji only: an unknown icon-set name leaves the circle plain rather
-        // than writing "lucide:<name>" into the file.
+        // than writing "lucide:<name>" into the file — also while the document icons' set is still loading.
         parts.push(
           `<text x="${n.cx}" y="${n.cy}" font-size="${n.size * 1.05}" text-anchor="middle" dominant-baseline="central" opacity="${opacity}">${escapeXml(
             n.icon

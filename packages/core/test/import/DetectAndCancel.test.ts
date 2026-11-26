@@ -3,7 +3,7 @@ import {
   GoogleKeepImporter,
   ImportAbortedError,
   defaultImportRegistry,
-} from '../../src/index.js';
+} from '../../src/import/index.js';
 
 /**
  * Auto-detection and cancelling: the two things the wizard needs from the core

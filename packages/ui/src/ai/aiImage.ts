@@ -1,5 +1,6 @@
-import { useSyncExternalStore } from "react";
-import { embedFileName, fileNameSpellings, IMAGE_JPEG_QUALITIES, IMAGE_MAX_BYTES, IMAGE_PNG_MAX_BYTES, mimeTypeForPath, prefersPng, scaledImageSize, toBase64, type ImageMediaType } from "@plainva/core";
+import { mimeTypeForPath } from "@plainva/core";
+import { embedFileName, fileNameSpellings, IMAGE_JPEG_QUALITIES, IMAGE_MAX_BYTES, IMAGE_PNG_MAX_BYTES, prefersPng, scaledImageSize, type ImageMediaType } from "@plainva/core/ai";
+import { toBase64 } from "@plainva/core/workspace";
 import { findMediaEmbeds } from "../lib/imageTarget";
 import { toast } from "../services/toastStore";
 import type { AiSession, ImageOutcome } from "./aiSession";
@@ -14,41 +15,8 @@ import { megabytes } from "./aiTranscribe";
  * exactly while the AI is on, like "Transcribe" at a voice note.
  */
 
-/** Where a picture stands: its vault path, and the note it is embedded in where the door stood on an embed. */
-export interface ImagePlace {
-  path: string;
-  notePath?: string;
-}
-
-/** What is asked at a picture: what it shows, or a note of it (plan KI-Harness P7). */
-export type ImagePurpose = "explain" | "note";
-
-export type ImageExplainer = (place: ImagePlace, purpose?: ImagePurpose) => Promise<void>;
-
-let current: ImageExplainer | null = null;
-const listeners = new Set<() => void>();
-
-/** The shell's explainer while the AI is on; `null` takes the door away again. */
-export function setImageExplainer(explainer: ImageExplainer | null): void {
-  current = explainer;
-  for (const listener of listeners) listener();
-}
-
-export function imageExplainer(): ImageExplainer | null {
-  return current;
-}
-
-export function onImageExplainerChange(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-/** The explainer for a component: null while the AI is off, so the door is not drawn. */
-export function useImageExplainer(): ImageExplainer | null {
-  return useSyncExternalStore(onImageExplainerChange, imageExplainer, imageExplainer);
-}
+export { setImageExplainer, imageExplainer, onImageExplainerChange, useImageExplainer, type ImagePlace, type ImagePurpose, type ImageExplainer } from "../aiPorts/slots";
+import type { ImageExplainer } from "../aiPorts/slots";
 
 export interface EmbedderLookup {
   /** The notes whose text contains one of these spellings (the index's own scan); `truncated` when there were more than it returns. */

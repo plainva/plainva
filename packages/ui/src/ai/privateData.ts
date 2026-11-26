@@ -1,4 +1,4 @@
-import { EFFECT_DECLINED, extractLines, runDocumentProcessor, type AiEgress, type ProviderEndpoint, type RunReading, type ToolCallPart, type ToolExecutor, type ToolManifest } from "@plainva/core";
+import { EFFECT_DECLINED, extractLines, runDocumentProcessor, type AiEgress, type ProviderEndpoint, type RunReading, type ToolCallPart, type ToolExecutor, type ToolManifest } from "@plainva/core/ai";
 
 /**
  * What stands between a conversation and the texts other people wrote for

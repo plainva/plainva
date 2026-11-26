@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
@@ -58,6 +58,8 @@ const m = vi.hoisted(() => ({
   wait: (async () => {}) as (label: string) => Promise<void>,
   /** Whether the close's deadline can run out in this run (`waitWithDeadline`). */
   deadlineGivesUp: false,
+  /** Whether a retired start answers within its 2 s (their mark goes last) or late (it goes first). */
+  retiredLate: false,
   active: "notes",
   /** Someone's input on another surface (`foreignInputArmed`). */
   foreignInput: false,
@@ -189,7 +191,6 @@ function harness() {
       return last && !last.retired && !last.leaving && last.disposed === 0 ? last : null;
     },
   };
-  // eslint-disable-next-line prefer-const
   let api: Api;
   const opened = () => {
     void api.getMobileVault().then(async (v) => {
@@ -198,11 +199,24 @@ function harness() {
     }, () => {});
   };
   const deps = {
-    // The 2 s a retired start is given end at a held wait: the start answers before it, or is closed late.
+    // The 2 s a retired start is given end at a held wait, never at a real timer: whether the start answered by then
+    // is the model's to choose (`retiredLate`), and what follows is `bootRetirement.ts` as written — answered: closed,
+    // and its end parked; late: closed once it answers, its end parked all the same.
     retiredBoot: (pending: Promise<Runtime>, settled: boolean, callOff: () => void, _ms: number, leaving: (left: Promise<Runtime>) => void) => {
       if (settled) return retiredBoot(pending, settled, callOff, 0, leaving);
       callOff();
-      return m.wait("2 s for a retired start").then(() => retiredBoot(pending, settled, () => {}, 0, leaving));
+      let answered: { v: Runtime | null } | null = null;
+      pending.then((v) => { answered = { v }; }, () => { answered = { v: null }; });
+      return m.wait("2 s for a retired start").then(async () => {
+        // Answered within the 2 s: the function as written, the answer already there.
+        if (answered) return retiredBoot(Promise.resolve(answered.v as Runtime), !answered.v, () => {}, 10_000, leaving);
+        // Late (its branch of `bootRetirement.ts`, taken here without the real timer the function races): closed once
+        // it answers, and its end parked.
+        const left = pending.then(async (vault) => { await vault.dispose().catch(() => {}); return vault; });
+        left.catch(() => {});
+        leaving(left);
+        return null;
+      });
     },
     waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, vaultEntryName, closeWaitNoteName, toast, book,
     wait: (label: string) => m.wait(label),
@@ -275,12 +289,18 @@ function harness() {
     drain: async (until: () => boolean): Promise<boolean> => {
       for (let quiet = 0; quiet < 40;) {
         watchBuilt();
-        // Where the deadline can run out, it does: its wait goes first, before the work it races (the drain).
-        const first = m.deadlineGivesUp ? held.findIndex((w) => w.label === "deadline") : -1;
-        const next = first >= 0 ? held.splice(first, 1)[0] : held.shift();
+        // Where the deadline can run out, it does: its wait goes first, before the work it races (the drain). A retired
+        // start's 2 s go first where it is late, and last where it answers in time.
+        const first = held.findIndex((w) => (m.deadlineGivesUp && w.label === "deadline") || (m.retiredLate && w.label === "2 s for a retired start"));
+        const others = held.findIndex((w) => m.retiredLate || w.label !== "2 s for a retired start");
+        const at = first >= 0 ? first : others >= 0 ? others : 0;
+        const next = held.length ? held.splice(at, 1)[0] : undefined;
         if (next) { quiet = 0; next.go(); await tick(); continue; }
         await tick();
         quiet += 1;
+        // Rest is nothing held for a while — and, where `until` does not hold yet, a real moment too: a module the
+        // sync loads on demand answers on the clock, not on the next turn.
+        if (!until() && quiet % 10 === 0) await new Promise((r) => setTimeout(r, 5));
         if (until() && quiet > 4) { watchBuilt(); return true; }
       }
       watchBuilt();
@@ -355,6 +375,13 @@ async function run(a: Kind, b: Kind | null, at: number | null): Promise<string[]
   return problems;
 }
 
+// The sync loads its classes on demand (`syncModules`, performance plan L5): loaded once before the model runs, so a
+// run's rest is never a module still loading on a busy machine — the first start found no worker in time otherwise.
+beforeAll(async () => {
+  await import("./syncModules");
+  await import("@plainva/core/workspace");
+});
+
 /** Between runs: nothing held any more, and what the last run left of the sync drained. */
 async function settleSync(): Promise<void> {
   m.wait = async () => {};
@@ -363,6 +390,7 @@ async function settleSync(): Promise<void> {
 
 afterEach(async () => {
   m.deadlineGivesUp = false;
+  m.retiredLate = false;
   m.foreignInput = false;
   m.failActive = false;
   m.failOpen = null;
@@ -371,12 +399,13 @@ afterEach(async () => {
 });
 
 describe("the runtime on screen and its sync, every participant against every other", () => {
-  for (const gives of [false, true]) {
+  for (const [gives, late] of [[false, false], [true, false], [false, true], [true, true]] as const) {
     for (const a of KINDS) {
-      it(`hold the six rules with ${a} first and every participant second, begun at every wait of it (the deadline ${gives ? "can run out" : "kept"})`, async () => {
+      it(`hold the six rules with ${a} first and every participant second, begun at every wait of it (the deadline ${gives ? "can run out" : "kept"}; a retired start ${late ? "late" : "in time"})`, async () => {
         expect.hasAssertions();
         const failures: string[] = [];
         m.deadlineGivesUp = gives;
+        m.retiredLate = late;
         // How many waits the first has on its own.
         const alone = harness();
         await openFirst(alone);

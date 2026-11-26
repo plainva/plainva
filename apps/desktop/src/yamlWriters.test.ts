@@ -93,7 +93,7 @@ const KNOWN = new Map<string, { takes: string[]; why: string }>([
     { takes: ["parse", "stringify"], why: "the head of a NEW skill's `SKILL.md` (`serializeSkillFile`), from its model; the head of a skill that is there is kept byte for byte (`rewriteSkillBody`)" },
   ],
   [
-    "packages/core/src/ai/writes/properties.ts",
+    "packages/core/src/proposals/properties.ts",
     {
       takes: ["Document", "isMap", "isScalar", "parseDocument"],
       why: "a value the assistant proposes for one property: reads the note's block to find the entry, and prints only the lines of the NEW entry (`entryLines`) — what the suggestion would put in its place; the note is written by the one writer once the suggestion is accepted",

@@ -1,4 +1,4 @@
-import type { SandboxEnd, SandboxJob, SandboxKill, SandboxLogLevel, SandboxUsage } from "@plainva/core";
+import type { SandboxEnd, SandboxJob, SandboxKill, SandboxLogLevel, SandboxUsage } from "@plainva/core/ai";
 
 /**
  * What the app and the script worker say to each other (plan KI-Harness

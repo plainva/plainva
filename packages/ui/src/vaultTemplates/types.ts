@@ -145,3 +145,11 @@ export function welcomeBody(
     });
   return [`# ${title}`, intro, bullets, ...blocks, outro].join("\n\n") + "\n";
 }
+
+/**
+ * The template the first start leads with (plan Oberfläche, O8 / E5): the
+ * tour shows what Plainva can do instead of explaining it, so it is the main
+ * way in on the desktop's welcome and the recommended entry of the phone's
+ * template sheet. One id for both shells.
+ */
+export const TOUR_TEMPLATE_ID = "plainva" as const;

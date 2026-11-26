@@ -1,4 +1,4 @@
-import type { AnswerGrounding, RunMeta } from "@plainva/core";
+import type { AnswerGrounding, RunMeta } from "@plainva/core/ai";
 
 /** How many notes the calm line under an answer names before it counts the rest (plan Oberfläche O7, M6). */
 export const GROUNDS_NAMED = 2;

@@ -36,7 +36,7 @@ const HANDOFFS: Record<string, Owner> = {
   "exists: (p) => tauriVaultAdapter.exists(p),": "read",
   // The accounts of a rebuilt index database: it only reads the settings profile's copy in the vault.
   'await restoreDesktopAccountsAfterRebuild(path, dbAdapter, tauriVaultAdapter).catch(reportingTo("accounts:restore-after-rebuild"));': "read",
-  "const deletionJournal = new DeletionJournal(backupVaultAdapter, await getDeviceId());": "background",
+  "const deletionJournal = new sync.DeletionJournal(backupVaultAdapter, await getDeviceId());": "background",
   // The task sync: the next start runs it again.
   "readTextFile: (p) => vaultAdapter.readTextFile(p),": "background",
   "writeTextFile: (p, c) => vaultAdapter.writeTextFile(p, c),": "background",
@@ -51,16 +51,16 @@ const HANDOFFS: Record<string, Owner> = {
   // The encrypted workspace's sync, settings sync and reconcile at opening.
   "const remotePorts = encryptedRemoteFilePorts(backupVaultAdapter);": "background",
   "const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });": "background",
-  "const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {": "background",
+  "const settingsOnly = new sync.SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {": "background",
   "vault: backupVaultAdapter,": "background",
   "const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId, allows: callOff.allows })) ?? undefined;": "background",
-  "const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {": "background",
+  "const worker = new workspace.EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {": "background",
   "sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,": "background",
   // The file sync.
   "vaultAdapter,": "background",
   "createContentRefResolver(path, tauriVaultAdapter),": "read",
   "const settingsSync = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows })) ?? undefined;": "background",
-  "const fileWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });": "background",
+  "const fileWorker = new sync.SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });": "background",
   "if (!(await syncRepo.hasConfirmedRemoteFiles().catch(() => true))) holdBackStartersAtFirstListing(fileWorker, backupVaultAdapter, syncRepo);": "background",
   // What the surfaces, the owner bus and every other window get.
   "vaultAdapter: personVaultAdapter,": "person",

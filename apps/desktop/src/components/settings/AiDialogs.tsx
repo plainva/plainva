@@ -1,26 +1,29 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { customEndpointId, normalizeBaseUrl, providerById, sameStoredValue, type ProviderInfo, AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, type AiProfileSlot } from "@plainva/core";
+import { sameStoredValue } from "@plainva/core";
+import { customEndpointId, normalizeBaseUrl, providerById, type ProviderInfo, AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, type AiProfileSlot } from "@plainva/core/ai";
 import {
-  addableProviders,
   Banner,
   Button,
-  describesItself,
   getPlatformServices,
   Modal,
-  readStatedWindow,
   Row,
   RowList,
   Select,
-  statedChoice,
-  STATED_WINDOW_BOUNDS,
   Switch,
   TextInput,
   toast,
   useDiscardGuard,
+} from "@plainva/ui";
+import {
+  addableProviders,
+  describesItself,
+  readStatedWindow,
+  statedChoice,
+  STATED_WINDOW_BOUNDS,
   type AiSession,
   type AiState,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * The three dialogs of "AI & automation" on the desktop (plan KI-Harness

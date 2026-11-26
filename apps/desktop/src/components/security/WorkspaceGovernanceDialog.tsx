@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Banner, Button, capitalize, Modal, Select, SettingCardNote, SettingRow, TextInput, publicationPreviewNotices, useDiscardGuard } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
-import type { PublishedProjectionPreview, WorkspaceSliceObject } from "@plainva/core";
+import type { PublishedProjectionPreview, WorkspaceSliceObject } from "@plainva/core/workspace";
 import { isSliceDefinitionReady, providerOptions, roleOptions, sliceRuleRowsFromDefinition, type Governance, type GovernanceForm, type SliceRuleRow } from "./securityForms";
 import { MemberPicker, ObjectPicker, RuleBuilder } from "./securityPickers";
 import { SyncFolderPickerModal } from "../SyncFolderPickerModal";

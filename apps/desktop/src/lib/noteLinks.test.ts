@@ -391,7 +391,8 @@ describe("F2 review: what a link may reach, how long it waits, how often it asks
   });
 
   it("embeds of real files with unusual names load again; only the app's folders and spellings the listing does not hold are refused", async () => {
-    const { resolveVaultRelative, imageCandidates, imageBasename, readContentBinary, safeRelPath } = await import("@plainva/ui");
+    const { resolveVaultRelative, imageCandidates, imageBasename, readContentBinary } = await import("@plainva/ui");
+    const { safeRelPath } = await import("@plainva/ui/ai");
     for (const target of ["IMG~1.JPG", "scans/scan~2.pdf", "Plan~1.png", "draft~3", "Meeting 10:30.png", "Re: offer.pdf", "aux.png", "con.jpg", "nul.png", "COM1.png", "con.tagion.png", "Aux/x.png"]) {
       expect(resolveVaultRelative(target), target).toBe(target);
     }

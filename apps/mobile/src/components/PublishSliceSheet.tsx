@@ -5,7 +5,7 @@ import {
   type PublishedProjectionPreview,
   type PublishedSliceMode,
   type PublishedSliceProvider,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import { Banner, Button, publicationErrorText, publicationInstructionText, publicationPreviewNotices, Segmented, TextInput } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";

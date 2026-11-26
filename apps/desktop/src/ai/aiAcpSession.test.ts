@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { readFrontmatterPath, type ScriptedAcpStep } from "@plainva/core";
-import type { AcpSessionEvent, AcpThreadItem } from "@plainva/ui";
+import { readFrontmatterPath } from "@plainva/core";
+import { type ScriptedAcpStep } from "@plainva/core/ai";
+import type { AcpSessionEvent, AcpThreadItem } from "@plainva/ui/ai";
 import { acpHarness, AGENT_NOTES, decideAcpDraft, lastOf, memoryAcpVault, ROOT, type AcpScript } from "./acpTestHost";
 
 /**

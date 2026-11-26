@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
-import { reportingTo } from "@plainva/ui";
+import { reportingTo, suggestionRoundEnds, suggestionToSend, type SuggestionToSend } from "@plainva/ui";
 import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, Link2, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, FolderInput, MessageSquare, PenLine } from "lucide-react";
 import { printElement } from "../services/printView";
 
@@ -36,12 +36,14 @@ import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from 
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState, checkedContentPath } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, frontmatterKeys, readFrontmatterPath, type VaultFileInfo, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState, checkedContentPath } from "@plainva/core";
+import { insertAnchorMarkers, removeAnchorMarkers, buildCommentAnchor, buildPropertyCommentAnchor, mintAnchorMarkerId, propertyAnchorKey, resolveCommentAnchor, resolvePropertyAnchor, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core/workspace";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
 import { Button as UiButton, TextInput } from "@plainva/ui";
-import { IconButton, isCommentThreadOpen, suggestedProperties, useAiSession, useCommentThreadAi } from "@plainva/ui";
+import { IconButton, isCommentThreadOpen, suggestedProperties } from "@plainva/ui";
+import { useAiSession, useCommentThreadAi } from "@plainva/ui/ai";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -3288,11 +3290,19 @@ export const Editor: React.FC<{
   const finishCommentRound = useStableHandler((operation: CommentOperation) => {
     const session = sessionRef.current;
     if (!session || !activePath || !suggestingRef.current || !saveState.isActive()) return;
-    const { base, chunks } = session.suggestion();
-    if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(activePath, base, chunks, currentSuggestNote.current))) return;
-    suggestParkRef.current.delete(activePath);
-    forgetPark(activePath);
-    stopSuggesting();
+    const notePath = activePath;
+    void suggestionRoundEnds({
+      session,
+      operation,
+      notePath,
+      note: () => currentSuggestNote.current,
+      current: () => sessionRef.current === session && suggestingRef.current && saveState.isActive(),
+    }).then((ends) => {
+      if (!ends) return;
+      suggestParkRef.current.delete(notePath);
+      forgetPark(notePath);
+      stopSuggesting();
+    }, reportingTo("suggestion:round"));
   });
   useEffect(() => {
     if (!commentOperations || !vaultPath || !activePath) return;
@@ -3301,10 +3311,12 @@ export const Editor: React.FC<{
   const sendSuggestions = useStableHandler(async () => {
     const session = sessionRef.current;
     if (!session || !activePath || !commentOperations) return;
-    const { base, chunks } = session.suggestion();
-    if (base === null || chunks.length === 0) { toast.info(t("comments.suggestNothing")); return; }
-    if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
-    const copy = session.view.state.doc.toString();
+    // The proposal of this moment, from the word diff — waited for, never a coarser stand-in (review of L5).
+    let planned: SuggestionToSend;
+    try { planned = await suggestionToSend(session, MAX_ANCHOR_QUOTE_BYTES); } catch (error) { reportCommentFailure(error); return; }
+    if (planned.kind === "nothing") { toast.info(t("comments.suggestNothing")); return; }
+    if (planned.kind === "tooLarge") { toast.warning(t("comments.suggestTooLarge")); return; }
+    const { copy, base, chunks } = planned;
     const capturedNote = suggestNote;
     const current = () => saveState.isActive() && sessionRef.current === session && suggestingRef.current
       && session.view.state.doc.toString() === copy && currentSuggestNote.current === capturedNote;

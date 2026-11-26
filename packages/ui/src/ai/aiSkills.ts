@@ -1,4 +1,4 @@
-import { nameOf, type InstructionEntry } from "@plainva/core";
+import { nameOf, type InstructionEntry } from "@plainva/core/ai";
 import { ScrollText, type LucideIcon } from "lucide-react";
 import { APP_SKILL_SOURCES, APP_SKILLS, appSkillOf, takesArgument } from "./appSkills";
 

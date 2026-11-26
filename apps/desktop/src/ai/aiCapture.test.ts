@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { within } from "../../../../packages/core/test/helpers/timeBudget";
 import { parseOkfTrustSignals, readFrontmatterPath } from "@plainva/core";
-import { captureNote, captureStamp, flattenInertLinks, writeCapturedNote, type AnswerToCapture } from "@plainva/ui";
+import { captureNote, captureStamp, flattenInertLinks, writeCapturedNote, type AnswerToCapture } from "@plainva/ui/ai";
 
 /**
  * "Keep as a note" (plan KI-Harness P4-6): the note an answer becomes. It

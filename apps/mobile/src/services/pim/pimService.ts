@@ -1,11 +1,9 @@
 import { confirmedAccessOf, sameStoredValue, withOwnConfirmedAccess, CONFIRMED_ACCESS_KEY } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import type { TaskListRuntime } from "@plainva/ui";
+// The targets load when a calendar is built or checked (performance plan L5).
+const pimTargets = () => import("./pimTargets");
 import {
-  CalDavPimTarget,
-  DevicePimTarget,
-  GooglePimTarget,
-  GraphPimTarget,
   type IPimTarget,
   type PimAccountRow,
   type PimBlockRef,
@@ -111,7 +109,7 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
   // timed into the diagnostics log (plan Befunde 2026-10-06, T4): what the
   // system answered and how long it took - no title, no list name.
   if (account.provider === "device") {
-    return isDevicePimSupported() ? new DevicePimTarget(timedDevicePimPort(devicePimPort(), (line) => logDiagnostic("device", line))) : null;
+    return isDevicePimSupported() ? new (await pimTargets()).DevicePimTarget(timedDevicePimPort(devicePimPort(), (line) => logDiagnostic("device", line))) : null;
   }
   // None for an account signed out on this phone (review finding 3), nor for
   // a CalDAV address it has not confirmed (F57): `pimTargetCredentials`.
@@ -119,10 +117,10 @@ async function buildTargetFor(vaultId: string, account: PimAccountRow): Promise<
   if (!creds) return null;
   if (creds.kind === "caldav") {
     void allowHttpOrigin(creds.url);
-    return new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, webdavFetch);
+    return new (await pimTargets()).CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, webdavFetch);
   }
   const auth = buildPimAuthProvider(vaultId, account.id, creds);
-  return creds.kind === "google" ? new GooglePimTarget(auth, webdavFetch) : new GraphPimTarget(auth, webdavFetch);
+  return creds.kind === "google" ? new (await pimTargets()).GooglePimTarget(auth, webdavFetch) : new (await pimTargets()).GraphPimTarget(auth, webdavFetch);
 }
 
 /** Boots the PIM runtime for the active vault (pimRuntime.ts) with the phone's
@@ -409,7 +407,7 @@ async function fetchVerifiedProfile(
  */
 export async function probeCalDav(creds: { url: string; user: string; pass: string }): Promise<number> {
   await allowHttpOrigin(creds.url);
-  const calendars = await new CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, webdavFetch).listCalendars();
+  const calendars = await new (await pimTargets()).CalDavPimTarget({ url: creds.url, user: creds.user, pass: creds.pass }, webdavFetch).listCalendars();
   if (!calendars.length) throw new Error("No calendars found on this server.");
   return calendars.length;
 }
@@ -463,8 +461,8 @@ async function addPimAccountInVault(
     assertConnectionIdentity(context?.expectedIdentity ?? source?.verifiedProviderIdentity, profile?.identity ?? null);
     if (!source?.verifiedProviderIdentity && source?.label.includes("@") && source.label.trim().toLowerCase() !== profile?.label?.trim().toLowerCase()) throw new ServiceConnectionError("wrongAccount");
     const target = creds.kind === "google"
-      ? new GooglePimTarget(auth, webdavFetch)
-      : new GraphPimTarget(auth, webdavFetch);
+      ? new (await pimTargets()).GooglePimTarget(auth, webdavFetch)
+      : new (await pimTargets()).GraphPimTarget(auth, webdavFetch);
     validatedCalendars = await target.listCalendars();
     validatedLists = await target.listTaskLists();
     if (profile) {
@@ -476,7 +474,7 @@ async function addPimAccountInVault(
     await confirmEndpointsIn(owner.vaultId, [confirmationEndpoint(creds.url)]);
     await allowHttpOrigin(creds.url);
     assertCurrent();
-    const target = new CalDavPimTarget(creds, webdavFetch);
+    const target = new (await pimTargets()).CalDavPimTarget(creds, webdavFetch);
     validatedCalendars = await target.listCalendars();
     validatedLists = await target.listTaskLists();
     if (!validatedCalendars.length) throw new Error("No calendars found on this server.");
@@ -632,7 +630,7 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
     profile = await fetchVerifiedProfile(auth, creds.kind);
     assertCurrent();
     assertConnectionIdentity(context?.expectedIdentity ?? verifiedProviderIdentityOf(existing) ?? undefined, profile?.identity ?? null);
-    const providerTarget = creds.kind === "google" ? new GooglePimTarget(auth, webdavFetch) : new GraphPimTarget(auth, webdavFetch);
+    const providerTarget = creds.kind === "google" ? new (await pimTargets()).GooglePimTarget(auth, webdavFetch) : new (await pimTargets()).GraphPimTarget(auth, webdavFetch);
     await providerTarget.listCalendars();
     await providerTarget.listTaskLists();
   } else {
@@ -642,7 +640,7 @@ async function reauthorizePimAccountInVault(accountId: string, creds: PimStoredC
     // empty or an endpoint other than the one it came with).
     await confirmTypedEndpointsIn(target.vaultId, [confirmationEndpoint(creds.url)], []);
     await allowHttpOrigin(creds.url);
-    const caldav = new CalDavPimTarget(creds, webdavFetch);
+    const caldav = new (await pimTargets()).CalDavPimTarget(creds, webdavFetch);
     if (!(await caldav.listCalendars()).length) throw new Error("No calendars found on this server.");
     // The repair form can change the server and the user: the row names what
     // it now signs in to, or a later connect of the old access would adopt

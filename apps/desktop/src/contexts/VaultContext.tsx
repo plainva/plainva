@@ -6,7 +6,7 @@ import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseReb
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
 import { announceCredentials } from "../services/credentialsAnnouncement";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
-import { MANUAL_REFRESH_TRIGGER, projectPublicationFeedbackForOwner, readFullTextDamage, sameStoredValue, updateVaultText, vaultFolderIsThere } from "@plainva/core";
+import { MANUAL_REFRESH_TRIGGER, readFullTextDamage, sameStoredValue, updateVaultText, vaultFolderIsThere } from "@plainva/core";
 import { perfMeasure } from "../services/perfMetrics";
 import { relocateDrafts } from "../services/draftJournal";
 import { desktopChainPorts } from "../services/vaultChainPorts";
@@ -14,7 +14,25 @@ import React, { createContext, useContext, useState, useEffect, useLayoutEffect,
 import { useApp } from "./AppContext";
 import { TauriVaultAdapter } from "../adapters/TauriVaultAdapter";
 import { TauriDatabaseAdapter } from "../adapters/TauriDatabaseAdapter";
-import { VaultIndexer, VaultQueryService, GraphService, type BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, SyncQueue, SyncWorker, DeletionJournal, OwnDeletionRegister, SyncEngine, WebDavSyncTarget, DriveSyncTarget, S3SyncTarget, OneDriveSyncTarget, DropboxSyncTarget, ISyncTarget, formatFullScan, formatFullScanFailure, SqlWorkspaceStateStore, EncryptedWorkspaceWorker, WorkspaceRevisionHistoryService, WorkspaceQuarantineService, type QuarantineRetryOutcome, createProviderWorkspaceObjectStore, initializePersonalWorkspaceMigration, evaluateWorkspaceAccess, loadWorkspaceSliceObjects, refreshWorkspaceSliceMaterialization, listBrokenWorkspaceSlices, createWorkspaceObjectId, approveWorkspacePairing, findWorkspacePairingRequest, pairingFingerprint, parseWorkspacePairingRequest, publishWorkspacePairingApproval, publishWorkspaceGovernanceUpdate, applyWorkspaceGovernanceUpdate, revokeWorkspaceDeviceAndRotate, revokeWorkspaceMemberAndRotate, inviteWorkspaceMember, createWorkspaceGroup, createWorkspaceSlice, createWorkspaceSliceDefinition, previewWorkspaceSlice, createPublication, invitePublicationRecipient as mintPublicationRecipient, publicationRecipients, publicationRecipientGroupId, revokePublicationRecipient as revokeRecipientAndRotate, planPublicationTeardown, runPublicationRefresh, pendingPublicationChanges, publishableObjects, previewPublishedProjection, defaultPublishedPropertyPolicy, type PublishedProjectionPreview, type PublishedSliceMode, emptyPublicationManifest, publicationStoreFor, collectPublicationComments, type PublicationComment, restoreWorkspaceFromRecoveryPackage, rotateWorkspaceRecoveryPackage, publishWorkspaceRecoveryRotation, transferWorkspaceOwnership, workspaceDocumentHash, startWorkspaceRekey, type WorkspaceRekeyMode, type RotatedWorkspaceRecovery, type WorkspaceRevisionRecord, type WorkspaceCommentRecord, type WorkspaceCommentAnchor, type WorkspacePolicyMember, type WorkspaceCapability, type WorkspaceGovernanceUpdate, type WorkspaceRole, type WorkspaceDynamicSliceDefinition, type WorkspaceSliceObject, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta, type WorkspacePublicationRecord, type PublicationRecipient, type PublishedSliceProvider } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, GraphService, type BackupVaultAdapter, type BackupVaultAdapterOptions, type VaultVersionsControl, buildVaultChain, IVaultAdapter, ISyncTarget, formatFullScan, formatFullScanFailure } from "@plainva/core";
+import type { SqlWorkspaceStateStore, EncryptedWorkspaceWorker, QuarantineRetryOutcome, listBrokenWorkspaceSlices, PublishedProjectionPreview, PublishedSliceMode, PublicationComment, WorkspaceRekeyMode, RotatedWorkspaceRecovery, WorkspaceRevisionRecord, WorkspaceCommentRecord, WorkspaceCommentAnchor, WorkspacePolicyMember, WorkspaceCapability, WorkspaceGovernanceUpdate, WorkspaceRole, WorkspaceDynamicSliceDefinition, WorkspaceSliceObject, PersonalWorkspaceRuntime, WorkspaceRuntimeMeta, WorkspacePublicationRecord, PublicationRecipient, PublishedSliceProvider } from "@plainva/core/workspace";
+import type { SettingsOnlySync, SyncWorker } from "../services/syncModules";
+// The sync loads with the first vault that syncs (performance plan L5).
+let syncModulesLoaded: typeof import("../services/syncModules") | null = null;
+const syncModules = async () => (syncModulesLoaded ??= await import("../services/syncModules"));
+// The encrypted workspace loads with the first vault that is one, or with the first step towards one (pairing,
+// joining, recovery), not with the start (performance plan L5).
+let workspaceModuleLoaded: typeof import("@plainva/core/workspace") | null = null;
+const workspaceModule = async () => (workspaceModuleLoaded ??= await import("@plainva/core/workspace"));
+/**
+ * The workspace's module where a workspace is open on this device — its runtime exists only after the load (the vault
+ * open loads it with the workspace's status). Only for code behind a runtime check (`workspaceControlPlane`);
+ * everything else awaits `workspaceModule()` (held by vaultContextWorkspaceModule.test.ts).
+ */
+const workspaceModuleNow = () => {
+  if (!workspaceModuleLoaded) throw new Error("workspace-unavailable-or-locked");
+  return workspaceModuleLoaded;
+};
 import { credentialManager } from "../services/CredentialManager";
 import { rotateLegacyFileGrant } from "../services/accountGrantMigration";
 import { migrateVaultKeychainSlots } from "../services/keychainSlots";
@@ -56,7 +74,7 @@ import { keptDeletionsDiagnostic, keptDeletionsText, refusedChangesText, workspa
 import { loadBackupRetentionSettings } from "../services/backupPolicy";
 import { buildSettingsSyncStep, getActiveConnectionId, getDeviceId, restoreDesktopAccountsAfterRebuild } from "../services/settingsProfile";
 import { createDesktopCommentStore } from "../services/workspaceCommentStore";
-import { adoptOwnRemovals, createVaultCallOff, type VaultCallOff, CommentStoreLockedError, SettingsOnlySync, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
+import { adoptOwnRemovals, createVaultCallOff, type VaultCallOff, CommentStoreLockedError, commentSignedByPerson, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, type OwedSweepReport } from "@plainva/core";
 import type { JournalCheckResult, NameCollisionAction, NameTwinResolution } from "@plainva/core";
 import { desktopCommentOperations } from "../services/commentOperations";
 import { clientCommentOperations } from "../services/clientCommentOperations";
@@ -65,7 +83,9 @@ import type { CommentOperationInput, CommentOperationService, CommentPostInput, 
 import type { FileOp } from "@plainva/ui";
 import { saveConnectionState } from "../services/encryptionManifest";
 import { workspaceActivationStore } from "../services/workspaceActivationStore";
-import { activatePreparedPersonalWorkspace, listLegacyRemotePlaintext, preparePersonalWorkspace, removeLegacyRemotePlaintext, resumePersonalWorkspaceSetup, workspaceProviderName, type PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
+import type { PreparedPersonalWorkspace } from "../services/workspaceSecurity/workspaceLifecycle";
+import { workspaceProviderName } from "../services/workspaceSecurity/workspaceProvider";
+const workspaceLifecycle = () => import("../services/workspaceSecurity/workspaceLifecycle");
 import { WORKSPACE_MINIMUM_CLIENT_VERSION, changeWorkspaceFallbackPassphrase, clearPublicationRuntimes, clearWorkspaceRuntime, persistPublicationRuntime, readPublicationRuntime, describeWorkspaceKeyStorage, getWorkspaceSecurityStatus, readWorkspaceRuntime, beginWorkspaceLock, lockWorkspaceRuntime, persistWorkspaceRuntime, saveWorkspaceSecurityStatus, unlockWorkspaceRuntime, updateWorkspaceRuntime, type WorkspaceKeyStorage, type WorkspaceSecurityPublicStatus } from "../services/workspaceSecurity/workspaceKeychain";
 import { WORKSPACE_KEY_BUNDLE_MISSING } from "../services/workspaceSecurity/workspaceClosed";
 import { beginWorkspaceJoin as beginWorkspaceJoinFlow, cancelWorkspaceJoin, completeWorkspaceJoin, detectRemoteWorkspace, hasPendingWorkspaceJoin, type PendingJoin, type WorkspaceInvite } from "../services/workspaceSecurity/workspacePairing";
@@ -92,7 +112,7 @@ import { IndexDatabaseOpenError, indexDatabaseWasRebuilt, openIndexDatabase, res
 import { createIncrementalIndexQueue, IncrementalIndexQueue } from "../services/incrementalIndexQueue";
 import { createWatchBatchCollector, toEnqueueArgs } from "../services/watchBatch";
 import { AUTO_REFRESH_LIMITS, buildRefreshToast, planAutoRefresh, runVaultRefresh, type VaultRefreshResult } from "@plainva/ui";
-import { createPimRuntime, type PimRuntime } from "../services/pim/pimRuntime";
+import type { PimRuntime } from "../services/pim/pimRuntime";
 import { runTaskSync } from "../services/pim/taskSync";
 import {
   initTaskDeletion,
@@ -922,16 +942,21 @@ export const VaultProvider: React.FC<{
         await restoreDesktopAccountsAfterRebuild(path, dbAdapter, tauriVaultAdapter).catch(reportingTo("accounts:restore-after-rebuild"));
       }
 
-      const syncQueue = new SyncQueue(dbAdapter);
+      // The sync's modules load once, here (review of L5, 2026-11-25): no check of the open's abort below waits on
+      // a module's load between the check and what it guards.
+      const sync = await syncModules();
+      const syncQueue = new sync.SyncQueue(dbAdapter);
       const workspaceSecurityStatus = await perfMeasure("vault open: workspace status", () => getWorkspaceSecurityStatus(path));
       // "Locked" and "no key bundle here" are different answers and need different offers
       // (finding 2026-08-25, B6). They used to arrive as the same null.
       const workspaceAccess = workspaceSecurityStatus ? await readWorkspaceRuntime(path) : null;
       const workspaceRuntime = workspaceAccess?.state === "unlocked" ? workspaceAccess.runtime : null;
+      // The module before the runtime: whatever reads the runtime from here on finds the module loaded.
+      if (workspaceSecurityStatus) await workspaceModule();
       workspacePlaneVaultRef.current = path;
       workspaceRuntimeRef.current = workspaceRuntime;
       let resolvedWorkspaceSecurityStatus = workspaceSecurityStatus;
-      const workspaceStateStore = workspaceSecurityStatus ? new SqlWorkspaceStateStore(dbAdapter) : null;
+      const workspaceStateStore = workspaceSecurityStatus ? new (await workspaceModule()).SqlWorkspaceStateStore(dbAdapter) : null;
       workspaceStateRef.current = workspaceStateStore;
       // With the workspace's state: what the worker brought from another
       // device is nothing the index reports for this one (finding 2026-10-12).
@@ -1101,7 +1126,7 @@ export const VaultProvider: React.FC<{
       // 2026-09-20): the worker marks a path before it mirrors a remote deletion,
       // and `onLocalFileDeleted` below asks once and then queues nothing. Without
       // this, 898 wrongly mirrored files went back up as 898 remote deletions.
-      const ownDeletions = new OwnDeletionRegister();
+      const ownDeletions = new sync.OwnDeletionRegister();
       // What a runtime that ended (a crash, a close) left removed and not recorded stays the sync's: taken over before the index looks.
       await adoptOwnRemovals(dbAdapter, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(tauriVaultAdapter).then((there) => there === true), exists: (p) => tauriVaultAdapter.exists(p) }).catch(reportingTo("sync:own-removals"));
       // Which notes are templates, by this vault's settings (B26): the index
@@ -1236,7 +1261,7 @@ export const VaultProvider: React.FC<{
       // confirmed here, so the other devices mirror them instead of guarding
       // against them — and vice versa. Written through the raw adapter (it is a
       // sideband file, not a note); the sync worker merges it every cycle.
-      const deletionJournal = new DeletionJournal(backupVaultAdapter, await getDeviceId());
+      const deletionJournal = new sync.DeletionJournal(backupVaultAdapter, await getDeviceId());
       const runTaskSyncNow = async () => {
         if (currentAbortSignal.aborted) return;
         if (taskSyncRunning) {
@@ -1352,6 +1377,8 @@ export const VaultProvider: React.FC<{
       await perfMeasure("vault open: account grants", () => migrateVaultGrants(path)).catch((e) =>
         console.error("[VaultContext] moving sign-ins to their accounts failed", e),
       );
+      // The calendars, mailboxes and task lists load with the first vault, not with the start (performance plan L5).
+      const { createPimRuntime } = await import("../services/pim/pimRuntime");
       const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
       try {
         if ((await pimRuntime.cache.listAccounts()).length > 0) loadStarts.start(pimRuntime, () => pimRuntime.worker.start());
@@ -1455,7 +1482,7 @@ export const VaultProvider: React.FC<{
         if (driveReady && driveCreds && (driveCreds.refreshToken || driveTokenProvider)) {
           syncProvider = "drive";
           const driveDestination = await readDriveDestination(path);
-          const driveTarget = new DriveSyncTarget(
+          const driveTarget = new sync.DriveSyncTarget(
             {
               clientId: driveCreds.clientId,
               clientSecret: driveCreds.clientSecret,
@@ -1482,7 +1509,7 @@ export const VaultProvider: React.FC<{
           target = driveTarget;
         } else if (oneDriveReady && oneDriveCreds && (oneDriveCreds.refreshToken || oneDriveTokenProvider)) {
           syncProvider = "onedrive";
-          const oneDriveTarget = new OneDriveSyncTarget(
+          const oneDriveTarget = new sync.OneDriveSyncTarget(
             {
               clientId: oneDriveCreds.clientId,
               // Empty for broker-backed accounts: the provider below supplies
@@ -1512,7 +1539,7 @@ export const VaultProvider: React.FC<{
           target = oneDriveTarget;
         } else if (dropboxReady && dropboxCreds && dropboxCreds.refreshToken) {
           syncProvider = "dropbox";
-          const dropboxTarget = new DropboxSyncTarget(
+          const dropboxTarget = new sync.DropboxSyncTarget(
             {
               appKey: dropboxCreds.appKey,
               refreshToken: dropboxCreds.refreshToken,
@@ -1533,12 +1560,12 @@ export const VaultProvider: React.FC<{
           target = dropboxTarget;
         } else if (s3Ready && s3Creds) {
           syncProvider = "s3";
-          target = new S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
+          target = new sync.S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
         } else if (webdavReady && webdavCreds && webdavCreds.url) {
           syncProvider = "webdav";
           // The fourth argument makes large writes stream from disk instead of
           // travelling through the webview (issue #48).
-          const webdavTarget = new WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
+          const webdavTarget = new sync.WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
           webdavTarget.allowRootCreation = !hasSyncedBefore;
           target = webdavTarget;
         }
@@ -1593,7 +1620,7 @@ export const VaultProvider: React.FC<{
             const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });
             if (runner) {
               const sessionCheck = workspaceRuntime ? undefined : settingsOnlyFolderCheck({ ports: remotePorts, binding, provider: syncProvider!, target });
-              const settingsOnly = new SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {
+              const settingsOnly = new sync.SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {
                 syncStatusStore.set(path, { status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), provider: syncProvider, reason: "encrypted-workspace" });
               });
               loadStarts.start(
@@ -1632,7 +1659,8 @@ export const VaultProvider: React.FC<{
               if (runtime.workspaceId !== workspaceSecurityStatus.workspaceId) {
                 throw new Error("The stored workspace key bundle does not match this vault.");
               }
-              const objectStore = createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), target);
+              const workspace = await workspaceModule();
+              const objectStore = workspace.createProviderWorkspaceObjectStore(workspaceProviderName(syncProvider!), target);
               const activeSecurityStatus = workspaceSecurityStatus;
               // The open-time reconcile sweep (A1 mtime-skip) is O(changed files),
               // but on a network mount the listDir alone can be slow. When the
@@ -1643,7 +1671,7 @@ export const VaultProvider: React.FC<{
               const startEncryptedWorkspace = async (signal: AbortSignal = currentAbortSignal): Promise<EncryptedWorkspaceWorker | null> => {
                 const { perfMeasure } = await import("../services/perfMetrics");
                 await perfMeasure("encrypted workspace reconcile (open)", () =>
-                  initializePersonalWorkspaceMigration({
+                  workspace.initializePersonalWorkspaceMigration({
                     store: objectStore,
                     state: workspaceStateStore,
                     vault: backupVaultAdapter,
@@ -1661,7 +1689,7 @@ export const VaultProvider: React.FC<{
                   }));
                 if (signal.aborted || currentAbortSignal.aborted) return null;
                 const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId, allows: callOff.allows })) ?? undefined;
-                const worker = new EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
+                const worker = new workspace.EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {
                   intervalMs,
                   ownDeletions,
                   sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,
@@ -1761,7 +1789,7 @@ export const VaultProvider: React.FC<{
             // IPC boundary as a number array (issue #48). The resolver only
             // answers for files past the threshold, and only targets that can
             // stream ever get asked — everything else keeps the buffer path.
-            const engine = new SyncEngine(
+            const engine = new sync.SyncEngine(
               syncQueue,
               target,
               vaultAdapter,
@@ -1778,7 +1806,7 @@ export const VaultProvider: React.FC<{
             // The worker writes pulled content through the raw backup adapter (not
             // the queueing/conflict-aware one): it does its own merge and manages
             // sync_state, so routing through the queue would re-enqueue every pull.
-            const fileWorker = new SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });
+            const fileWorker = new sync.SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });
             // Bound to this folder now (no file confirmed with it yet): where the
             // folder already holds notes, the starter content nobody changed stays
             // here - the one rule the phone's copy follows too (third review 2026-10-27).
@@ -2517,7 +2545,8 @@ export const VaultProvider: React.FC<{
       // once. With no worker (no cloud sync configured), nothing to do.
       if (!state.vaultPath || !state.syncWorker) return;
       const worker = state.syncWorker;
-      if (!(worker instanceof SyncWorker)) {
+      // A worker of this window's own sync exists only once the sync's module is loaded.
+      if (!(syncModulesLoaded && worker instanceof syncModulesLoaded.SyncWorker)) {
         void loadVault(state.vaultPath);
         return;
       }
@@ -2850,7 +2879,7 @@ export const VaultProvider: React.FC<{
   // separate, recovery-confirmed step in the Security Center.
   const prepareWorkspace = async (input: { ownerDisplayName: string; deviceDisplayName: string; fallbackPassphrase?: string }) => {
     if (!state.vaultPath || !syncTargetRef.current) throw new Error("workspace-no-connection");
-    return preparePersonalWorkspace({ vaultPath: state.vaultPath, ...input });
+    return (await workspaceLifecycle()).preparePersonalWorkspace({ vaultPath: state.vaultPath, ...input });
   };
 
   /**
@@ -2998,12 +3027,14 @@ export const VaultProvider: React.FC<{
     }
     const vaultPath = state.vaultPath;
     const provider = workspaceProviderName(syncProviderRef.current);
+    // The workspace's module loads before the step takes the sync (performance plan L5): nothing the step writes waits for it.
+    const workspace = await workspaceModule();
     return underActivationOverlay(vaultPath, "activate", onProgress, (report) => withSyncStopped(stepPorts(vaultPath), async (on) => {
       // Every handle from the runtime on screen now (`workspaceSteps.ts`).
       if (!on.db || !on.belowChain || !on.target) throw new Error("workspace-no-connection");
-      const workspaceState = new SqlWorkspaceStateStore(on.db);
+      const workspaceState = new workspace.SqlWorkspaceStateStore(on.db);
       workspaceStateRef.current = workspaceState;
-      const result = await activatePreparedPersonalWorkspace({
+      const result = await (await workspaceLifecycle()).activatePreparedPersonalWorkspace({
         draftId,
         vaultPath,
         provider,
@@ -3024,7 +3055,7 @@ export const VaultProvider: React.FC<{
   const unlockWorkspace = async (passphrase?: string): Promise<void> => {
     if (!state.vaultPath || !state.dbAdapter || !state.workspaceSecurityStatus) throw new Error("workspace-not-configured");
     await unlockWorkspaceRuntime(state.vaultPath, passphrase);
-    const workspaceState = workspaceStateRef.current ?? new SqlWorkspaceStateStore(state.dbAdapter);
+    const workspaceState = workspaceStateRef.current ?? new (await workspaceModule()).SqlWorkspaceStateStore(state.dbAdapter);
     const meta = await workspaceState.loadMeta();
     await saveWorkspaceSecurityStatus(state.vaultPath, {
       ...state.workspaceSecurityStatus,
@@ -3052,7 +3083,7 @@ export const VaultProvider: React.FC<{
 
   const cleanupRemotePlaintext = async (onProgress?: (done: number, total: number) => void): Promise<number> => {
     if (!syncTargetRef.current) throw new Error("workspace-no-connection");
-    return removeLegacyRemotePlaintext(syncTargetRef.current, onProgress);
+    return (await workspaceLifecycle()).removeLegacyRemotePlaintext(syncTargetRef.current, onProgress);
   };
 
   /** Picks an interrupted conversion back up; the key bundle is already on this device. */
@@ -3062,13 +3093,15 @@ export const VaultProvider: React.FC<{
     }
     const vaultPath = state.vaultPath;
     const provider = workspaceProviderName(syncProviderRef.current);
+    // The workspace's module loads before the step takes the sync (performance plan L5).
+    const workspace = await workspaceModule();
     return underActivationOverlay(vaultPath, "resume", onProgress, (report) => withSyncStopped(stepPorts(vaultPath), async (on) => {
       // Every handle from the runtime on screen now (`workspaceSteps.ts`).
       if (!on.db || !on.belowChain || !on.target) throw new Error("workspace-no-connection");
       // The state store of the step's own runtime (`on`).
-      const workspaceState = on.workspaceState ?? new SqlWorkspaceStateStore(on.db);
+      const workspaceState = on.workspaceState ?? new workspace.SqlWorkspaceStateStore(on.db);
       workspaceStateRef.current = workspaceState;
-      const result = await resumePersonalWorkspaceSetup({
+      const result = await (await workspaceLifecycle()).resumePersonalWorkspaceSetup({
         vaultPath,
         provider,
         rawTarget: on.target,
@@ -3096,7 +3129,7 @@ export const VaultProvider: React.FC<{
     const [meta, queuedMutations, quarantine, localForks] = workspaceState
       ? await Promise.all([workspaceState.loadMeta(), workspaceState.listQueue().then((entries) => entries.length), workspaceState.listQuarantine("pending").then((entries) => entries.length), workspaceState.listLocalForks().then((entries) => entries.length)])
       : [null, 0, 0, 0];
-    const legacyPlaintextPaths = syncTargetRef.current ? (await listLegacyRemotePlaintext(syncTargetRef.current)).length : 0;
+    const legacyPlaintextPaths = syncTargetRef.current ? (await (await workspaceLifecycle()).listLegacyRemotePlaintext(syncTargetRef.current)).length : 0;
     return { meta, queuedMutations, legacyPlaintextPaths, quarantine, localForks };
   };
 
@@ -3106,16 +3139,16 @@ export const VaultProvider: React.FC<{
     const target = syncTargetRef.current;
     const provider = syncProviderRef.current;
     if (!state.vaultPath || workspacePlaneVaultRef.current !== state.vaultPath || !runtime || !workspaceState || !target || !provider) throw new Error("workspace-unavailable-or-locked");
-    return { runtime, workspaceState, store: createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath: state.vaultPath };
+    return { runtime, workspaceState, store: workspaceModuleNow().createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath: state.vaultPath };
   };
 
   const commitGovernance = async (update: WorkspaceGovernanceUpdate): Promise<void> => {
     const { runtime, workspaceState, store, vaultPath } = workspaceControlPlane();
-    await publishWorkspaceGovernanceUpdate(store, update);
-    applyWorkspaceGovernanceUpdate(runtime, update);
+    await (await workspaceModule()).publishWorkspaceGovernanceUpdate(store, update);
+    (await workspaceModule()).applyWorkspaceGovernanceUpdate(runtime, update);
     await updateWorkspaceRuntime(vaultPath, runtime);
     const meta = await workspaceState.loadMeta();
-    if (meta) { meta.policyHash = workspaceDocumentHash(update.policy); meta.needsPublication = true; await workspaceState.saveMeta(meta); }
+    if (meta) { meta.policyHash = (await workspaceModule()).workspaceDocumentHash(update.policy); meta.needsPublication = true; await workspaceState.saveMeta(meta); }
     state.syncWorker?.triggerImmediate();
     window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
   };
@@ -3131,7 +3164,7 @@ export const VaultProvider: React.FC<{
       groups: runtime.policy.payload.groups,
       assignments: runtime.policy.payload.assignments,
       slices: runtime.policy.payload.slices,
-      brokenSlices: listBrokenWorkspaceSlices(runtime.policy.payload),
+      brokenSlices: (await workspaceModule()).listBrokenWorkspaceSlices(runtime.policy.payload),
       quarantine: await workspaceState.listQuarantine(),
       localForks: await workspaceState.listLocalForks(),
     };
@@ -3139,40 +3172,43 @@ export const VaultProvider: React.FC<{
 
   const approveWorkspaceDevice = async (tokenOrCode: string): Promise<string> => {
     const control = workspaceControlPlane();
-    const token = tokenOrCode.trim().startsWith("PVPAIR1.") ? tokenOrCode.trim() : await findWorkspacePairingRequest(control.store, tokenOrCode.trim());
+    const token = tokenOrCode.trim().startsWith("PVPAIR1.") ? tokenOrCode.trim() : await (await workspaceModule()).findWorkspacePairingRequest(control.store, tokenOrCode.trim());
     if (!token) throw new Error("workspace-pairing-request-not-found");
     const previousPolicy = control.runtime.policy;
-    const approval = await approveWorkspacePairing({ token, runtime: control.runtime });
+    const approval = await (await workspaceModule()).approveWorkspacePairing({ token, runtime: control.runtime });
     const update: WorkspaceGovernanceUpdate = { policy: approval.policy, grants: approval.grants, groupKeys: control.runtime.groupKeys };
     await commitGovernance(update);
-    await publishWorkspacePairingApproval(control.store, { version: 1, genesis: control.runtime.genesis, previousPolicy, approval });
+    await (await workspaceModule()).publishWorkspacePairingApproval(control.store, { version: 1, genesis: control.runtime.genesis, previousPolicy, approval });
     return approval.request.payload.device.deviceId;
   };
 
   // Device-JOIN (pairing request) — the counterpart to approve (package C1). A
   // joining device has a sync connection but no workspace runtime yet, so the
   // object store is built directly from the raw target (no control plane).
-  const joinObjectStore = () => {
+  // It loads the workspace's module itself (review of L5, 2026-11-25): a vault with a plain sync has none loaded,
+  // and the check for a workspace to join found none for it — the module was asked for synchronously and threw.
+  const joinObjectStore = async () => {
     const target = syncTargetRef.current;
     const provider = syncProviderRef.current;
     if (!state.vaultPath || !target || !provider) throw new Error("workspace-no-connection");
-    return { store: createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath: state.vaultPath };
+    const vaultPath = state.vaultPath;
+    return { store: (await workspaceModule()).createProviderWorkspaceObjectStore(workspaceProviderName(provider), target), vaultPath };
   };
 
   const detectJoinableWorkspace = async (): Promise<{ workspaceId: string; fingerprint: string } | null> => {
     if (!syncTargetRef.current || !syncProviderRef.current || state.workspaceSecurityStatus) return null;
-    try { return await detectRemoteWorkspace(joinObjectStore().store); }
+    try { return await detectRemoteWorkspace((await joinObjectStore()).store); }
     catch (error) { console.warn("[VaultContext] detectJoinableWorkspace failed", error); return null; }
   };
 
   const beginWorkspaceJoin = async (invite: WorkspaceInvite, deviceName: string): Promise<PendingJoin> => {
-    const { store, vaultPath } = joinObjectStore();
+    const { store, vaultPath } = await joinObjectStore();
     const result = await beginWorkspaceJoinFlow({ vaultPath, store, invite, deviceName });
     return { shortCode: result.shortCode, fingerprint: result.fingerprint, expiresAt: result.expiresAt };
   };
 
   const pollWorkspaceJoin = async (fallbackPassphrase?: string): Promise<boolean> => {
-    const { store, vaultPath } = joinObjectStore();
+    const { store, vaultPath } = await joinObjectStore();
     const runtime = await completeWorkspaceJoin({ vaultPath, store, fallbackPassphrase });
     if (!runtime) return false;
     await loadVault(vaultPath);
@@ -3184,46 +3220,46 @@ export const VaultProvider: React.FC<{
 
   const inspectWorkspacePairingRequest = async (tokenOrCode: string) => {
     const control = workspaceControlPlane();
-    const token = tokenOrCode.trim().startsWith("PVPAIR1.") ? tokenOrCode.trim() : await findWorkspacePairingRequest(control.store, tokenOrCode.trim());
+    const token = tokenOrCode.trim().startsWith("PVPAIR1.") ? tokenOrCode.trim() : await (await workspaceModule()).findWorkspacePairingRequest(control.store, tokenOrCode.trim());
     if (!token) throw new Error("workspace-pairing-request-not-found");
-    const request = parseWorkspacePairingRequest(token);
-    if (request.payload.workspaceId !== control.runtime.workspaceId || request.payload.workspaceFingerprint !== workspaceDocumentHash(control.runtime.genesis)) throw new Error("workspace-pairing-request-mismatch");
-    return { token, deviceName: request.payload.device.displayName, platform: request.payload.device.platform, memberId: request.payload.memberId, fingerprint: pairingFingerprint(request), expiresAt: request.payload.expiresAt };
+    const request = (await workspaceModule()).parseWorkspacePairingRequest(token);
+    if (request.payload.workspaceId !== control.runtime.workspaceId || request.payload.workspaceFingerprint !== (await workspaceModule()).workspaceDocumentHash(control.runtime.genesis)) throw new Error("workspace-pairing-request-mismatch");
+    return { token, deviceName: request.payload.device.displayName, platform: request.payload.device.platform, memberId: request.payload.memberId, fingerprint: (await workspaceModule()).pairingFingerprint(request), expiresAt: request.payload.expiresAt };
   };
 
   const removeWorkspaceDevice = async (deviceId: string, reason: string, mode: WorkspaceRekeyMode = "future"): Promise<void> => {
     const { runtime, workspaceState } = workspaceControlPlane();
     if (deviceId === runtime.device.publicIdentity.deviceId) throw new Error("workspace-cannot-revoke-current-device");
-    await commitGovernance(await revokeWorkspaceDeviceAndRotate({ runtime, deviceId, reason }));
-    await startWorkspaceRekey({ state: workspaceState, mode, subjectKind: "device", subjectId: deviceId });
+    await commitGovernance(await (await workspaceModule()).revokeWorkspaceDeviceAndRotate({ runtime, deviceId, reason }));
+    await (await workspaceModule()).startWorkspaceRekey({ state: workspaceState, mode, subjectKind: "device", subjectId: deviceId });
     state.syncWorker?.triggerImmediate();
   };
 
   const removeWorkspaceMember = async (memberId: string, reason: string, mode: WorkspaceRekeyMode = "future"): Promise<void> => {
     const { runtime, workspaceState } = workspaceControlPlane();
     if (memberId === runtime.memberId) throw new Error("workspace-cannot-revoke-current-member");
-    await commitGovernance(await revokeWorkspaceMemberAndRotate({ runtime, memberId, reason }));
-    await startWorkspaceRekey({ state: workspaceState, mode, subjectKind: "member", subjectId: memberId });
+    await commitGovernance(await (await workspaceModule()).revokeWorkspaceMemberAndRotate({ runtime, memberId, reason }));
+    await (await workspaceModule()).startWorkspaceRekey({ state: workspaceState, mode, subjectKind: "member", subjectId: memberId });
     state.syncWorker?.triggerImmediate();
   };
 
   const addWorkspaceMember = async (displayName: string, role: WorkspaceRole, scopeKind: "workspace" | "slice" | "object" = "workspace", scopeId: string | null = null): Promise<string> => {
     const { runtime } = workspaceControlPlane();
-    const result = await inviteWorkspaceMember({ runtime, displayName, role, scopeKind, scopeId });
+    const result = await (await workspaceModule()).inviteWorkspaceMember({ runtime, displayName, role, scopeKind, scopeId });
     await commitGovernance(result);
     return result.memberId;
   };
 
   const addWorkspaceGroup = async (input: { name: string; memberIds: string[]; role: WorkspaceRole; scopeKind?: "workspace" | "slice" | "object"; scopeId?: string | null }): Promise<string> => {
     const { runtime } = workspaceControlPlane();
-    const result = await createWorkspaceGroup({ runtime, ...input });
+    const result = await (await workspaceModule()).createWorkspaceGroup({ runtime, ...input });
     await commitGovernance(result);
     return result.groupId;
   };
 
   const addWorkspaceSlice = async (input: { name: string; definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }; materializedObjectIds: string[]; publication?: { mode: "exact" | "sanitized"; access: "read" | "comment" | "suggest"; provider: "google-drive" | "onedrive" | "nextcloud" | "dropbox" | "webdav" | "s3"; propertyAllowlist?: string[] | null; privateProperties?: string[] } }): Promise<string> => {
     const { runtime } = workspaceControlPlane();
-    const result = createWorkspaceSlice({ runtime, ...input });
+    const result = (await workspaceModule()).createWorkspaceSlice({ runtime, ...input });
     await commitGovernance({ policy: result.policy, grants: [], groupKeys: runtime.groupKeys });
     return result.sliceId;
   };
@@ -3250,7 +3286,7 @@ export const VaultProvider: React.FC<{
     if (access.state === "locked") throw new Error("publication-locked");
     if (access.state !== "unlocked") throw new Error("publication-key-missing");
     const publicationRuntime = access.runtime;
-    const publicationStore = publicationStoreFor(store, runtime.workspaceId, record.config.sliceId);
+    const publicationStore = (await workspaceModule()).publicationStoreFor(store, runtime.workspaceId, record.config.sliceId);
     return { vaultPath, workspaceState, record, publicationRuntime, publicationStore };
   };
 
@@ -3263,9 +3299,9 @@ export const VaultProvider: React.FC<{
    */
   const addSlicePublication = async (input: { sliceId: string; name: string; mode: "exact" | "sanitized"; access: "read" | "comment" | "suggest"; provider: PublishedSliceProvider; propertyAllowlist?: string[] | null; privateProperties?: string[] }): Promise<string> => {
     const { runtime, workspaceState, store, vaultPath } = workspaceControlPlane();
-    if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "members.invite" }).allowed) throw new Error("workspace-publication-not-permitted");
+    if (!(await workspaceModule()).evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "members.invite" }).allowed) throw new Error("workspace-publication-not-permitted");
     const deviceDisplayName = runtime.policy.payload.devices.find((device) => device.deviceId === runtime.device.publicIdentity.deviceId)?.displayName ?? "Desktop";
-    const handle = await createPublication({
+    const handle = await (await workspaceModule()).createPublication({
       runtime,
       store,
       config: {
@@ -3288,7 +3324,7 @@ export const VaultProvider: React.FC<{
       publicationId: handle.publicationId,
       sliceId: handle.config.sliceId,
       config: handle.config,
-      manifest: emptyPublicationManifest(handle.publicationId),
+      manifest: (await workspaceModule()).emptyPublicationManifest(handle.publicationId),
       lastError: null,
       lastRefreshedAt: null,
       createdAt: handle.config.createdAt,
@@ -3326,7 +3362,7 @@ export const VaultProvider: React.FC<{
     const slices = new Map(runtime.policy.payload.slices.map((slice) => [slice.sliceId, slice]));
     const pending: Record<string, number> = {};
     for (const record of records) {
-      pending[record.publicationId] = pendingPublicationChanges({ slice: slices.get(record.sliceId), objects, manifest: record.manifest, mode: record.config.mode });
+      pending[record.publicationId] = (await workspaceModule()).pendingPublicationChanges({ slice: slices.get(record.sliceId), objects, manifest: record.manifest, mode: record.config.mode });
     }
     return pending;
   };
@@ -3341,11 +3377,11 @@ export const VaultProvider: React.FC<{
    */
   const addPublicationRecipient = async (input: { publicationId: string; displayName: string }): Promise<{ memberId: string; invite: string }> => {
     const { vaultPath, publicationRuntime, publicationStore } = await publicationControlPlane(input.publicationId);
-    const recipientGroupId = publicationRecipientGroupId(publicationRuntime.policy.payload);
+    const recipientGroupId = (await workspaceModule()).publicationRecipientGroupId(publicationRuntime.policy.payload);
     if (!recipientGroupId) throw new Error("publication-recipient-group-missing");
-    const update = await mintPublicationRecipient({ runtime: publicationRuntime, recipientGroupId, displayName: input.displayName });
-    await publishWorkspaceGovernanceUpdate(publicationStore, update);
-    applyWorkspaceGovernanceUpdate(publicationRuntime, update);
+    const update = await (await workspaceModule()).invitePublicationRecipient({ runtime: publicationRuntime, recipientGroupId, displayName: input.displayName });
+    await (await workspaceModule()).publishWorkspaceGovernanceUpdate(publicationStore, update);
+    (await workspaceModule()).applyWorkspaceGovernanceUpdate(publicationRuntime, update);
     await persistPublicationRuntime(vaultPath, input.publicationId, publicationRuntime);
     window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
     return { memberId: update.memberId, invite: update.invite };
@@ -3353,9 +3389,9 @@ export const VaultProvider: React.FC<{
 
   const publicationRecipientList = async (publicationId: string): Promise<PublicationRecipient[]> => {
     const { publicationRuntime } = await publicationControlPlane(publicationId);
-    const recipientGroupId = publicationRecipientGroupId(publicationRuntime.policy.payload);
+    const recipientGroupId = (await workspaceModule()).publicationRecipientGroupId(publicationRuntime.policy.payload);
     if (!recipientGroupId) return [];
-    return publicationRecipients(publicationRuntime.policy.payload, recipientGroupId);
+    return (await workspaceModule()).publicationRecipients(publicationRuntime.policy.payload, recipientGroupId);
   };
 
   /**
@@ -3375,9 +3411,9 @@ export const VaultProvider: React.FC<{
    */
   const revokePublicationRecipientById = async (input: { publicationId: string; memberId: string; reason: string }): Promise<void> => {
     const { vaultPath, publicationRuntime, publicationStore } = await publicationControlPlane(input.publicationId);
-    const update = await revokeRecipientAndRotate({ runtime: publicationRuntime, memberId: input.memberId, reason: input.reason });
-    await publishWorkspaceGovernanceUpdate(publicationStore, update);
-    applyWorkspaceGovernanceUpdate(publicationRuntime, update);
+    const update = await (await workspaceModule()).revokePublicationRecipient({ runtime: publicationRuntime, memberId: input.memberId, reason: input.reason });
+    await (await workspaceModule()).publishWorkspaceGovernanceUpdate(publicationStore, update);
+    (await workspaceModule()).applyWorkspaceGovernanceUpdate(publicationRuntime, update);
     await persistPublicationRuntime(vaultPath, input.publicationId, publicationRuntime);
     window.dispatchEvent(new CustomEvent("plainva-workspace-governance-changed"));
   };
@@ -3402,12 +3438,12 @@ export const VaultProvider: React.FC<{
    */
   const removePublication = async (publicationId: string): Promise<{ retracted: number; error: string | null }> => {
     const { vaultPath, workspaceState, record, publicationRuntime, publicationStore } = await publicationControlPlane(publicationId);
-    const plan = planPublicationTeardown(record.manifest);
+    const plan = (await workspaceModule()).planPublicationTeardown(record.manifest);
     let manifest = record.manifest;
     let retracted = 0;
 
     if (plan.length > 0) {
-      const result = await runPublicationRefresh({
+      const result = await (await workspaceModule()).runPublicationRefresh({
         handle: { publicationId, runtime: publicationRuntime, store: publicationStore },
         manifest,
         plan,
@@ -3439,12 +3475,12 @@ export const VaultProvider: React.FC<{
   /** Every workspace object with the tags and properties a dynamic slice rule can ask about. */
   const workspaceSliceObjects = async () => {
     const { workspaceState } = workspaceControlPlane();
-    return loadWorkspaceSliceObjects(await workspaceState.listObjects(), state.dbAdapter);
+    return (await workspaceModule()).loadWorkspaceSliceObjects(await workspaceState.listObjects(), state.dbAdapter);
   };
 
   const previewSlice = async (definition: { kind: "folder"; folder: string } | { kind: "selection"; objectIds: string[] } | { kind: "dynamic"; definition: WorkspaceDynamicSliceDefinition }): Promise<Array<{ objectId: string; path: string }>> => {
     const previewObjects = await workspaceSliceObjects();
-    const preview = previewWorkspaceSlice({ sliceId: createWorkspaceObjectId(), name: "Preview", kind: definition.kind, definition: createWorkspaceSliceDefinition(definition), materializedObjectIds: definition.kind === "selection" ? [...definition.objectIds].sort() : [] }, previewObjects);
+    const preview = (await workspaceModule()).previewWorkspaceSlice({ sliceId: (await workspaceModule()).createWorkspaceObjectId(), name: "Preview", kind: definition.kind, definition: (await workspaceModule()).createWorkspaceSliceDefinition(definition), materializedObjectIds: definition.kind === "selection" ? [...definition.objectIds].sort() : [] }, previewObjects);
     const matched = new Set(preview.matchedObjectIds);
     return previewObjects.filter((object) => matched.has(object.objectId)).map(({ objectId, path }) => ({ objectId, path }));
   };
@@ -3472,12 +3508,12 @@ export const VaultProvider: React.FC<{
     const { workspaceState } = workspaceControlPlane();
     const vaultAdapter = state.vaultAdapter;
     if (!vaultAdapter) throw new Error("workspace-no-connection");
-    const records = publishableObjects(input.objectIds, await workspaceState.listObjects());
+    const records = (await workspaceModule()).publishableObjects(input.objectIds, await workspaceState.listObjects());
     const limiter = createLimiter(8);
     const objects = await Promise.all(
       records.map((record) => limiter.run(async () => ({ path: record.path, markdown: await vaultAdapter.readTextFile(record.path) }))),
     );
-    return previewPublishedProjection({ mode: input.mode, objects, ...defaultPublishedPropertyPolicy() });
+    return (await workspaceModule()).previewPublishedProjection({ mode: input.mode, objects, ...(await workspaceModule()).defaultPublishedPropertyPolicy() });
   };
 
   /**
@@ -3489,7 +3525,7 @@ export const VaultProvider: React.FC<{
   const refreshWorkspaceSliceCounts = async (): Promise<void> => {
     const { runtime } = workspaceControlPlane();
     if (runtime.policy.payload.slices.length === 0) return;
-    const refreshed = refreshWorkspaceSliceMaterialization({ runtime, objects: await workspaceSliceObjects() });
+    const refreshed = (await workspaceModule()).refreshWorkspaceSliceMaterialization({ runtime, objects: await workspaceSliceObjects() });
     if (!refreshed) return;
     await commitGovernance({ policy: refreshed.policy, grants: [], groupKeys: runtime.groupKeys });
   };
@@ -3497,45 +3533,47 @@ export const VaultProvider: React.FC<{
   const restoreWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string; deviceDisplayName: string; fallbackPassphrase?: string; revokeOtherDevices?: boolean }): Promise<void> => {
     if (!state.vaultPath || !state.dbAdapter || !state.belowChainAdapter || !syncTargetRef.current || !syncProviderRef.current) throw new Error("workspace-no-connection");
     const vaultPath = state.vaultPath;
+    // The workspace's module loads before the step takes the sync (performance plan L5).
+    const workspace = await workspaceModule();
     await withSyncStopped(stepPorts(vaultPath), async (on) => {
       // Every handle from the runtime on screen now (`workspaceSteps.ts`).
       if (!on.db || !on.belowChain || !on.target || !on.provider) throw new Error("workspace-no-connection");
-      const store = createProviderWorkspaceObjectStore(workspaceProviderName(on.provider), on.target);
-      const restored = await restoreWorkspaceFromRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, deviceDisplayName: input.deviceDisplayName, platform: "desktop", revokeOtherDevices: input.revokeOtherDevices, store });
-      await publishWorkspaceGovernanceUpdate(store, restored);
-      await persistWorkspaceRuntime({ vaultPath, runtime: restored.runtime, fingerprint: workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
+      const store = workspace.createProviderWorkspaceObjectStore(workspaceProviderName(on.provider), on.target);
+      const restored = await workspace.restoreWorkspaceFromRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, deviceDisplayName: input.deviceDisplayName, platform: "desktop", revokeOtherDevices: input.revokeOtherDevices, store });
+      await workspace.publishWorkspaceGovernanceUpdate(store, restored);
+      await persistWorkspaceRuntime({ vaultPath, runtime: restored.runtime, fingerprint: workspace.workspaceDocumentHash(restored.runtime.genesis), recoveryConfirmedAt: new Date().toISOString(), fallbackPassphrase: input.fallbackPassphrase });
       // The state store of the step's own runtime (`on`), never the one a load opened meanwhile.
-      const workspaceState = on.workspaceState ?? new SqlWorkspaceStateStore(on.db);
-      await initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: on.belowChain, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
+      const workspaceState = on.workspaceState ?? new workspace.SqlWorkspaceStateStore(on.db);
+      await workspace.initializePersonalWorkspaceMigration({ store, state: workspaceState, vault: on.belowChain, runtime: restored.runtime, recoveryConfirmedAt: new Date().toISOString() });
       await reopenAfterStep(vaultPath);
     });
   };
 
   const rotateWorkspaceRecovery = async (input: { bytes: Uint8Array; recoveryCode: string }): Promise<{ bytes: Uint8Array; recoveryCode: string; activation: RotatedWorkspaceRecovery["anchor"] }> => {
     const { runtime, store } = workspaceControlPlane();
-    if (!evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "recovery.manage" }).allowed) throw new Error("workspace-recovery-manage-not-permitted");
-    const rotated = await rotateWorkspaceRecoveryPackage({ ...input, runtime, store });
+    if (!(await workspaceModule()).evaluateWorkspaceAccess(runtime.policy.payload, { memberId: runtime.memberId, deviceId: runtime.device.publicIdentity.deviceId, capability: "recovery.manage" }).allowed) throw new Error("workspace-recovery-manage-not-permitted");
+    const rotated = await (await workspaceModule()).rotateWorkspaceRecoveryPackage({ ...input, runtime, store });
     return { bytes: rotated.bytes, recoveryCode: rotated.recoveryCode, activation: rotated.anchor };
   };
 
   const activateWorkspaceRecovery = async (activation: RotatedWorkspaceRecovery["anchor"]): Promise<void> => {
     const { runtime, store } = workspaceControlPlane();
-    await publishWorkspaceRecoveryRotation({ runtime, store, anchor: activation });
+    await (await workspaceModule()).publishWorkspaceRecoveryRotation({ runtime, store, anchor: activation });
     state.syncWorker?.triggerImmediate();
   };
 
   const prepareWorkspaceOwnerTransfer = async (input: { targetMemberId: string; bytes: Uint8Array; recoveryCode: string }) => {
     const { runtime, store } = workspaceControlPlane();
-    const transfer = await transferWorkspaceOwnership({ runtime, targetMemberId: input.targetMemberId });
-    const rotated = await rotateWorkspaceRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, runtime, store, replacement: { ownerMemberId: transfer.ownerMemberId, ownerGroup: transfer.ownerGroup, policy: transfer.policy, grants: [...runtime.grants, ...transfer.grants] } });
+    const transfer = await (await workspaceModule()).transferWorkspaceOwnership({ runtime, targetMemberId: input.targetMemberId });
+    const rotated = await (await workspaceModule()).rotateWorkspaceRecoveryPackage({ bytes: input.bytes, recoveryCode: input.recoveryCode, runtime, store, replacement: { ownerMemberId: transfer.ownerMemberId, ownerGroup: transfer.ownerGroup, policy: transfer.policy, grants: [...runtime.grants, ...transfer.grants] } });
     return { bytes: rotated.bytes, recoveryCode: rotated.recoveryCode, activation: { anchor: rotated.anchor, update: transfer, ownerMemberId: transfer.ownerMemberId } };
   };
 
   const activateWorkspaceOwnerTransfer = async (activation: { anchor: RotatedWorkspaceRecovery["anchor"]; update: WorkspaceGovernanceUpdate; ownerMemberId: string }): Promise<void> => {
     const { runtime, store, vaultPath } = workspaceControlPlane();
-    await publishWorkspaceRecoveryRotation({ runtime, store, anchor: activation.anchor });
-    await publishWorkspaceGovernanceUpdate(store, activation.update);
-    applyWorkspaceGovernanceUpdate(runtime, activation.update);
+    await (await workspaceModule()).publishWorkspaceRecoveryRotation({ runtime, store, anchor: activation.anchor });
+    await (await workspaceModule()).publishWorkspaceGovernanceUpdate(store, activation.update);
+    (await workspaceModule()).applyWorkspaceGovernanceUpdate(runtime, activation.update);
     runtime.ownerMemberId = activation.ownerMemberId;
     await updateWorkspaceRuntime(vaultPath, runtime);
     state.syncWorker?.triggerImmediate();
@@ -3550,7 +3588,7 @@ export const VaultProvider: React.FC<{
     const { workspaceState } = workspaceControlPlane();
     const worker = state.syncWorker;
     const runNow = worker && "runNow" in worker ? (worker as { runNow?: () => Promise<void> }).runNow : undefined;
-    return new WorkspaceQuarantineService(workspaceState, {
+    return new (workspaceModuleNow().WorkspaceQuarantineService)(workspaceState, {
       trigger: () => worker?.triggerImmediate(),
       runNow: typeof runNow === "function" ? () => runNow.call(worker) : undefined,
     });
@@ -3701,7 +3739,7 @@ export const VaultProvider: React.FC<{
       if (!record.manifest.objects.some((entry) => entry.sourceObjectId === object.objectId)) continue;
       try {
         const { publicationRuntime, publicationStore } = await publicationControlPlane(record.publicationId);
-        const found = await collectPublicationComments({
+        const found = await (await workspaceModule()).collectPublicationComments({
           publicationId: record.publicationId,
           runtime: publicationRuntime,
           store: publicationStore,
@@ -3714,7 +3752,7 @@ export const VaultProvider: React.FC<{
         continue;
       }
     }
-    return projectPublicationFeedbackForOwner(collected, await workspaceState.listRawComments());
+    return (await workspaceModule()).projectPublicationFeedbackForOwner(collected, await workspaceState.listRawComments());
   };
 
   /** Every note that carries comments, for the vault-wide overview (D9). */
@@ -3748,7 +3786,7 @@ export const VaultProvider: React.FC<{
       if (sourceObjectIds.length === 0) continue;
       try {
         const { publicationRuntime, publicationStore } = await publicationControlPlane(record.publicationId);
-        const found = await collectPublicationComments({
+        const found = await (await workspaceModule()).collectPublicationComments({
           publicationId: record.publicationId,
           runtime: publicationRuntime,
           store: publicationStore,
@@ -3756,7 +3794,7 @@ export const VaultProvider: React.FC<{
           mode: record.config.mode,
           sourceObjectIds,
         });
-        for (const entry of projectPublicationFeedbackForOwner(found, localDecisions)) {
+        for (const entry of (await workspaceModule()).projectPublicationFeedbackForOwner(found, localDecisions)) {
           // `path` is the publisher's own path, filled by core - no second
           // lookup, and no chance of disagreeing with the column's grouping.
           const path = pathOf.get(entry.comment.targetObjectId)!;
@@ -3896,7 +3934,7 @@ export const VaultProvider: React.FC<{
 
   const readWorkspaceRevision = async (revisionId: string): Promise<Uint8Array> => {
     const { runtime, workspaceState, store } = workspaceControlPlane();
-    return new WorkspaceRevisionHistoryService(store, workspaceState, runtime.groupKeys).read(revisionId);
+    return new (await workspaceModule()).WorkspaceRevisionHistoryService(store, workspaceState, runtime.groupKeys).read(revisionId);
   };
 
   const resetConnectionEncryption = async (): Promise<void> => {

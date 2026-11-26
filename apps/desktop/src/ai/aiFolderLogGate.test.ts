@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FOLDER_LOG_LIMITS, FOLDER_LOG_REQUEST_TOKENS, type RoutineDraft } from "@plainva/core";
+import { FOLDER_LOG_LIMITS, FOLDER_LOG_REQUEST_TOKENS, type RoutineDraft } from "@plainva/core/ai";
 import { CLOUD, LOCAL, chat, turn } from "./mcpSessionHarness";
 import { at, routineSession, routineVault, toolNames } from "./routineSessionHarness";
 

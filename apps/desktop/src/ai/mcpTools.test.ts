@@ -11,8 +11,8 @@ import {
   type McpServerState,
   type ToolExecutor,
   type ToolManifest,
-} from "@plainva/core";
-import { createMcpExecutor, MCP_ARGUMENTS_LIMIT, MCP_BLOCKED, newRunMcp, type McpCallQuestion, type McpCheck, type McpToolsHost } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { createMcpExecutor, MCP_ARGUMENTS_LIMIT, MCP_BLOCKED, newRunMcp, type McpCallQuestion, type McpCheck, type McpToolsHost } from "@plainva/ui/ai";
 
 /**
  * One call to a foreign server, decided (plan KI-Harness P4.5). The order is

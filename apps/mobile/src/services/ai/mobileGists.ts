@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { App as CapApp } from "@capacitor/app";
-import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings } from "@plainva/core";
-import { aiVaultKey, createAiVaultStores, createVaultPolicy, LocalGists, type AiFileStore, type AiSession } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings } from "@plainva/core/ai";
+import { aiVaultKey, createAiVaultStores, createVaultPolicy, LocalGists, type AiFileStore, type AiSession } from "@plainva/ui/ai";
 import { NOTE_INDEXED_EVENT, vaultOps, type MobileVault } from "../vaultService";
 
 /** One step, then the web view's turn: the model runs on the computer it was named for. */

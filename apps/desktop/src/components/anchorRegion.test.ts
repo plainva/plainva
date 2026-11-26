@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeRegionRect, regionStyle, type RegionBox } from "@plainva/ui";
-import { assertWorkspaceCommentAnchor } from "@plainva/core";
+import { assertWorkspaceCommentAnchor } from "@plainva/core/workspace";
 
 // A picture the reader can point at. Round numbers so the expected fractions in
 // the tests are readable rather than derived.

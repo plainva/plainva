@@ -7,7 +7,7 @@ import {
   toast,
   type CommentExportMode,
 } from "@plainva/ui";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import i18n from "@plainva/ui/i18n";
 import { appTemplateAnswers } from "./appDialogs";
 

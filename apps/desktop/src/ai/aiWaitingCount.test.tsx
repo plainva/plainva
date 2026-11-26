@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { AiOpenWrites, useAiAttention, useAiWaitingCount, useOpenProposals, type AiSession, type AiState } from "@plainva/ui";
+import { AiOpenWrites, useAiAttention, useAiWaitingCount, useOpenProposals, type AiSession, type AiState } from "@plainva/ui/ai";
 
 /**
  * The AI's waiting dot after a change of vault (C11 of release 0.9.0): the

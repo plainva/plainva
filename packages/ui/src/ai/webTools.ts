@@ -12,7 +12,7 @@ import {
   type RunWeb,
   type ToolExecutor,
   type WebFetcher,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 
 /**
  * The two tools that reach the internet, for a conversation that was started

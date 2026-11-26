@@ -1,12 +1,14 @@
 import {
   SyncQueue,
-  MemoryWorkspaceStateStore,
   VaultPermissionDeniedError,
   buildVaultChain,
   isNotTextFileError,
   type VaultChainKind,
-  type WorkspaceMutationAuthorizer,
 } from "@plainva/core";
+import {
+  MemoryWorkspaceStateStore,
+  type WorkspaceMutationAuthorizer,
+} from "@plainva/core/workspace";
 import { MemoryVaultAdapter } from "../../core/test/helpers/memoryVault";
 import { realSqlite } from "../../core/test/helpers/realSqlite";
 import { writeEditorSave, KeepBesideFailedError, type EditorSaveInput } from "../src/lib/editorSave";

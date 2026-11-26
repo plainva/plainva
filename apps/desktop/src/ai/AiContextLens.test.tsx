@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { DEFAULT_AI_APP_SETTINGS, effectivePolicy, naiveComparison, notePolicyFrom, readConversationRecord, utf8Length, type AiEgress, type Candidate, type ConversationRecord, type LedgerEntry } from "@plainva/core";
+import { DEFAULT_AI_APP_SETTINGS, effectivePolicy, naiveComparison, notePolicyFrom, readConversationRecord, utf8Length, type AiEgress, type Candidate, type ConversationRecord, type LedgerEntry } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiContextLens, AiSession, AiSessionContext, type AiVaultHost } from "@plainva/ui";
+import { AiContextLens, AiSession, AiSessionContext, type AiVaultHost } from "@plainva/ui/ai";
 
 /**
  * "View context" against sending every proposed note whole (plan KI-Harness

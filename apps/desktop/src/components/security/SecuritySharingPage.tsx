@@ -5,7 +5,7 @@ import { InfoTip, Banner, Button, ICON, Modal, dismissEncryptedRemote, encrypted
 import { useTranslation } from "react-i18next";
 import { isStepNoticeError, useForeignLegacyComments } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
-import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedProjectionPreview, type PublishedSliceMode, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core";
+import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedProjectionPreview, type PublishedSliceMode, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core/workspace";
 import { appConfirm } from "../../services/appDialogs";
 import { AreaHead } from "../settings/AppPages";
 import { ChevronRight, Laptop, ShieldCheck, Users } from "lucide-react";

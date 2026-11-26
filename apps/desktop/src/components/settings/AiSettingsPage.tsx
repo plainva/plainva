@@ -1,35 +1,37 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, MoreHorizontal, Plus } from "lucide-react";
-import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, type AiProfileSlot, type ProviderInfo } from "@plainva/core";
+import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, type AiProfileSlot, type ProviderInfo } from "@plainva/core/ai";
 import {
-  AI_FEEDBACK_URL,
-  aiSetupStep,
-  profilesInOrder,
   Button,
-  configuredProviders,
   getPlatformServices,
-  HISTORY_DAY_CHOICES,
   ICON,
   IconButton,
   MenuItem,
   MenuSeparator,
   MenuSurface,
-  profileFacts,
-  providerStatus,
-  savingsLine,
   Select,
   SettingCard,
   SettingCardNote,
   SettingRow,
   Switch,
+} from "@plainva/ui";
+import {
+  AI_FEEDBACK_URL,
+  aiSetupStep,
+  profilesInOrder,
+  configuredProviders,
+  HISTORY_DAY_CHOICES,
+  profileFacts,
+  providerStatus,
+  savingsLine,
   takeAiSettingsIntent,
   usageRowLine,
   useAiState,
   AiSessionContext,
   type AiSession,
   type ProviderRowModel,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { appConfirm } from "../../services/appDialogs";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";

@@ -2,11 +2,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, createElement, useEffect } from "react";
 import { createRoot } from "react-dom/client";
-import { machineAuthorId, machineAuthorKind, type CommentOperation, type CommentOperationInput, type CommentOperationService, type MachineWriter, type WorkspaceCommentRecord } from "@plainva/core";
+import { type CommentOperation, type CommentOperationInput, type CommentOperationService } from "@plainva/core";
+import { machineAuthorId, machineAuthorKind, type MachineWriter } from "@plainva/core/ai";
+import { type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import i18n from "@plainva/ui/i18n";
 import {
   AI_MENTION_ID,
-  addressesAi,
   composerNames,
   isAiAuthorId,
   isAiMentionId,
@@ -14,6 +15,9 @@ import {
   mentionQuery,
   namesWithAi,
   parseCommentMentions,
+} from "@plainva/ui";
+import {
+  addressesAi,
   postThreadReply,
   THREAD_REMARK_MAX_CHARS,
   THREAD_REMARKS_MAX,
@@ -22,7 +26,7 @@ import {
   withoutAiMention,
   type AiSession,
   type AiState,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /** Plan KI-Harness P3-6: "@AI" in a comment thread — who is addressed, and what the assistant is told. */
 

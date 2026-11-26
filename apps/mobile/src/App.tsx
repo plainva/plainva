@@ -87,7 +87,7 @@ import { buildMobileCommands } from "./services/mobileCommands";
 import { getWindowClass, isRailClass, subscribeWindowClass } from "./services/windowClass";
 import { useAdaptiveSplit } from "./hooks/useAdaptiveSplit";
 import { FabMenu } from "./components/FabMenu";
-import { aiShellRoutes, MobileAiShell, ShellProviders, useMobileAi, withoutAiArea } from "./components/MobileAiShell";
+import { aiShellRoutes, MobileAiShell, ShellProviders, useMobileAiHosted, withoutAiArea } from "./components/MobileAiEntry";
 import { vaultEntryName } from "./services/vaultEntryName";
 import { useNavFollowsDeletions } from "./hooks/useNavFollowsDeletions";
 
@@ -377,7 +377,7 @@ export default function App() {
   const { splitPossible, twoColumn, navCollapsed, toggleNav } = useAdaptiveSplit(onboarded);
 
   useCommentShell(vault, useCallback((entry) => leaveThen(() => setNav((s) => pushEntry(s, entry))), []));
-  const ai = useMobileAi(vault, () => commandNotePath(nav));
+  const [ai, aiHost] = useMobileAiHosted(vault, () => commandNotePath(nav));
   if (!vault) return <VaultBootSurface boot={boot} />;
 
   const top = navTop(nav);
@@ -734,7 +734,7 @@ export default function App() {
           vault={vault}
         /></AreaBoundary>
       )}
-      <AreaBoundary area="sheet:ai" size="dialog"><MobileAiShell ai={ai} {...aiShellRoutes({ ai, vault, openNote, push, setNav, commands, aiInBar: slots.includes("ai") })} /></AreaBoundary>
+      {aiHost}<AreaBoundary area="sheet:ai" size="dialog"><MobileAiShell ai={ai} {...aiShellRoutes({ ai, vault, openNote, push, setNav, commands, aiInBar: slots.includes("ai") })} /></AreaBoundary>
       {fromTemplate && (
         <AreaBoundary area="sheet:template" size="dialog" exit={{ label: t("common.close"), onExit: () => setFromTemplate(false) }}><TemplatePickSheet
           onClose={() => setFromTemplate(false)}

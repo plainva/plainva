@@ -1,38 +1,44 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import i18n from "@plainva/ui/i18n";
-import { MCP_OAUTH_CLIENT_DOCUMENT, withTodoAsTask } from "@plainva/core";
+import { MCP_OAUTH_CLIENT_DOCUMENT, withTodoAsTask } from "@plainva/core/ai";
+import {
+  calendarDay,
+  createBrokenLinkTarget,
+  dailyNotePathFor,
+  eventStartDayKey,
+  flushPendingSave,
+  getPlatformServices,
+  journalToday,
+  noteDisplayName,
+  parseRecentsFile,
+  plannerRowsFromTasks,
+  profileDefault,
+  toast,
+  useStableHandler,
+  type AppCommand,
+  GRAPH_TRAIL_EVENT,
+} from "@plainva/ui";
 import {
   aiDefaultSettings,
   aiNavigationCommands,
   AiSession,
   aiVaultKey,
-  calendarDay,
   adapterInstructionIO,
   adapterInstructionVersions,
   adapterInstructionWriter,
   brokenLinksIn,
   createAiVaultHost,
-  createBrokenLinkTarget,
   createMcpDeviceStore,
   createVaultPolicy,
   createWorkerSandbox,
-  dailyNotePathFor,
   databaseTaskRows,
-  eventStartDayKey,
-  flushPendingSave,
   folderLogHost,
   noteHistorySource,
-  getPlatformServices,
-  journalToday,
   meetingsWithoutNote,
-  noteDisplayName,
-  parseRecentsFile,
-  plannerRowsFromTasks,
   postThreadReply,
   proposeSuggestionRound,
   createAudioTranscriber,
   createImageExplainer,
-  profileDefault,
   resolveAudioPath,
   setAudioTranscriber,
   setImageExplainer,
@@ -43,17 +49,13 @@ import {
   startableSkills,
   startRoutineScheduler,
   styleOutcomeText,
-  toast,
   vaultMailSource,
   watchRoutineReady,
   withCloudDenied,
   type AiFileStore,
   type DatabaseReach,
-  type AppCommand,
-  type AreaOrder,
   type VaultPolicyHost,
-  GRAPH_TRAIL_EVENT,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { atomicWriteInternalText, readTextAt } from "../../platform/atomicFile";
 import { internalPlace } from "../../platform/internalFiles";
 import { removeInternalFile, removeInternalFolder } from "../../platform/dataFiles";
@@ -62,7 +64,6 @@ import { createMobileAiEgress, setMobileLocalOnly } from "../../platform/aiNet";
 import { createMobileWebFetcher } from "../../platform/aiWeb";
 import { createMobileMcpHost } from "../../platform/aiMcp";
 import { createMobileMcpBrowser, openMobileMcpPage } from "./mobileMcpBrowser";
-import { openLink } from "../openLink";
 import { vaultOps, type MobileVault } from "../vaultService";
 import { readEditorSelection } from "../editorSelection";
 import { getMobileSettings } from "../mobileSettings";
@@ -74,6 +75,11 @@ import { mobileDraftCreator, mobileProposals, mobileWriteDeps, type MobileDraftN
 import { mobileScriptKeys } from "./mobileScriptKeys";
 import { requestNoteHistory } from "../noteHistoryRequest";
 import { syncSoon } from "../syncService";
+import { AI_SETTINGS_KEY } from "@plainva/ui";
+import { mobileAiLoader } from "./mobileAiLoader";
+import { AI_PICK_EVENT, AI_SHEET_EVENT, aiSheetNote, openAiSheet, setAiSheetNote, type AiNotePick } from "./mobileAiPorts";
+// The AI's state the start bundle shares lives with its ports (performance plan L5); this module hands it on.
+export { aiEnabled, focusAiNote, MobileAiNavigation, openAiNoteTarget, openAiNotePick, openAiSettings, openAiSheet, openAiSkills, requestSkillReview, takeSkillReview, useMobileAiEnabled, withoutAiArea, type AiNotePick } from "./mobileAiPorts";
 
 /**
  * The phone's AI session (plan KI-Harness P1a). The same store as on the
@@ -82,7 +88,7 @@ import { syncSoon } from "../syncService";
  * vault, never in the vault.
  */
 
-const SETTINGS_KEY = "ai";
+const SETTINGS_KEY = AI_SETTINGS_KEY;
 const ROOT = "ai";
 
 export const mobileAiFiles: AiFileStore = {
@@ -167,6 +173,8 @@ export function getMobileAiSession(): AiSession {
       scripts: { sandbox: createWorkerSandbox(spawnScriptWorker), keys: mobileScriptKeys() },
     });
     void session.load();
+    // The start bundle's readers (the loader) learn of it, however it was made.
+    mobileAiLoader.adopt(session);
   }
   return session;
 }
@@ -178,49 +186,12 @@ export function currentMobileAiPolicy(): VaultPolicyHost | null {
   return currentPolicy;
 }
 
-/** The note the KI sheet was opened over — the context chip and the host's active note. */
-let sheetNote: string | null = null;
-const SHEET_EVENT = "plainva-ai-sheet";
-
-/** Makes a note the AI's open note without opening the sheet (the AI segment of the note's context). */
-export function focusAiNote(path: string | null): void {
-  sheetNote = path;
-}
-
-/**
- * A review the vault's AI settings ask for on the way into the workshop (plan
- * KI-Harness P3-5): taken once by the AI screen's skills segment.
- */
-let pendingSkillReview: string | null = null;
-
-export function requestSkillReview(id: string | null): void {
-  pendingSkillReview = id;
-}
-
-export function takeSkillReview(): string | null {
-  const id = pendingSkillReview;
-  pendingSkillReview = null;
-  return id;
-}
-
 /** Starts a skill (plan KI-Harness P3) in a new conversation bound to it; the caller shows it. */
 export function runMobileAiSkill(id: string): void {
   const session = getMobileAiSession();
   if (session.getState().live) return;
   const skill = startableSkills((key, vars) => i18n.t(key, vars), session.getState().skills.entries).find((s) => s.id === id);
   if (skill) void session.runSkill(skill.id, skill.start);
-}
-
-/**
- * What a note is picked for when the AI asks for one (plan KI-Harness P9-3): to pin it to the conversation, or as an
- * example of the writing style. The phone's form of the desktop's quick switcher: one sheet, opened by an event from
- * wherever a conversation or the memory shows, rendered once in the AI shell.
- */
-export type AiNotePick = "pin" | "style";
-const PICK_EVENT = "plainva-ai-pick";
-
-export function openAiNotePick(purpose: AiNotePick): void {
-  window.dispatchEvent(new CustomEvent(PICK_EVENT, { detail: { purpose } }));
 }
 
 /** A note was picked: pinned, or chosen as an example — why one was not taken is said; a taken one shows in the memory. */
@@ -234,12 +205,6 @@ export function pickedForAi(purpose: AiNotePick, path: string): void {
     const refused = styleOutcomeText((key, vars) => i18n.t(key, vars), outcome);
     if (refused) toast.error(refused);
   });
-}
-
-/** Opens the KI sheet over a note (the note's ⋮ menu, the palette). */
-export function openAiSheet(path: string | null): void {
-  sheetNote = path;
-  window.dispatchEvent(new CustomEvent(SHEET_EVENT, { detail: { path } }));
 }
 
 /**
@@ -277,27 +242,6 @@ ${i18n.t("ai.openLinkBuilt")}` : url;
 }
 
 /** A wikilink in an answer names a note as written; the vault's resolver finds its path. */
-/**
- * A link in an answer opens as every link of the app does (`planLinkOpen` through `openLink`), by the way it is
- * written — the same function the source check under the answer asks (review O7, fifth round). A missing note is
- * not created: the answer is not the user's own text.
- */
-export function openAiNoteTarget(vault: MobileVault, target: string, openNote: (path: string) => void, kind?: "wiki" | "markdown"): void {
-  void openLink({ text: target, kind: kind ?? "wiki" }, { vault, onOpenNote: openNote, createMissing: false });
-}
-
-/** The areas without the KI screen while the switch is off: no entry leads to a surface that is off. */
-export function withoutAiArea(order: AreaOrder, enabled: boolean): AreaOrder {
-  const index = order.order.indexOf("ai");
-  if (enabled || index < 0) return order;
-  return { order: order.order.filter((id) => id !== "ai"), visibleCount: index < order.visibleCount ? order.visibleCount - 1 : order.visibleCount };
-}
-
-/** True while the per-device switch is on: entries that lead to the AI exist only then. */
-export function aiEnabled(): boolean {
-  const state = session?.getState();
-  return Boolean(state?.loaded && state.settings.enabled);
-}
 
 export interface MobileAiNavigation extends MobileDraftNavigation {
   openNote: (path: string) => void;
@@ -342,22 +286,22 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
 
   useEffect(() => {
     const onSheet = (event: Event) => setSheet({ path: (event as CustomEvent<{ path: string | null }>).detail?.path ?? null });
-    window.addEventListener(SHEET_EVENT, onSheet);
-    return () => window.removeEventListener(SHEET_EVENT, onSheet);
+    window.addEventListener(AI_SHEET_EVENT, onSheet);
+    return () => window.removeEventListener(AI_SHEET_EVENT, onSheet);
   }, []);
   useEffect(() => {
     const onPick = (event: Event) => {
       const purpose = (event as CustomEvent<{ purpose?: unknown }>).detail?.purpose;
       if (purpose === "pin" || purpose === "style") setPick(purpose);
     };
-    window.addEventListener(PICK_EVENT, onPick);
-    return () => window.removeEventListener(PICK_EVENT, onPick);
+    window.addEventListener(AI_PICK_EVENT, onPick);
+    return () => window.removeEventListener(AI_PICK_EVENT, onPick);
   }, []);
   // A door outside the conversation ("Transcribe" at a voice note, "@AI" in a
   // comment thread) may need the send overview while no conversation shows:
   // then the sheet opens over the note the AI was last pointed at.
   useEffect(() => {
-    s.setReveal(() => openAiSheet(sheetNote));
+    s.setReveal(() => openAiSheet(aiSheetNote()));
     return () => s.setReveal(null);
   }, [s]);
 
@@ -495,7 +439,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
         },
       },
       policy: vaultPolicy,
-      activeNote: async () => (sheetNote ? note(sheetNote) : null),
+      activeNote: async () => { const open = aiSheetNote(); return open ? note(open) : null; },
       readNote: note,
       async propose(round) {
         await proposeSuggestionRound(mobileCommentOperations(vault), round);
@@ -523,7 +467,7 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
       // time, no tabs), due tasks, the next appointments, today's daily note.
       async situation(run) {
         const now = new Date();
-        const path = sheetNote;
+        const path = aiSheetNote();
         const text = path ? ((await note(path))?.text ?? null) : null;
         const settings = getMobileSettings();
         const dailyPath = dailyNotePathFor(journalToday(now), { folder: settings.dailyFolder, format: settings.dailyFormat });
@@ -639,48 +583,20 @@ export function useMobileAi(vault: MobileVault | null, paletteNote: () => string
     setImageExplainer(createImageExplainer(s, (key, vars) => i18n.t(key, vars), { readBinary: (path) => vault.adapter.readBinaryFile(path) }));
     return () => setImageExplainer(null);
   }, [s, enabled, vault]);
-  const closeSheet = () => {
-    sheetNote = null;
+  // Every value handed out keeps its identity until what it stands for changes: the shell takes it from the AI's
+  // host after each render and re-renders only on a change (performance plan L5).
+  const closeSheet = useCallback(() => {
+    setAiSheetNote(null);
     setSheet(null);
-  };
+  }, []);
   // The skills a person can start now (plan KI-Harness P3): the palette lists them.
   const skills = useMemo(() => startableSkills((key, vars) => i18n.t(key, vars), state.skills.entries), [state.skills]);
-  // What the palette gets of the assistant, about the note the shell names for a command.
-  const palette = aiPaletteCommands({ enabled, skills }, paletteNote);
+  // What the palette gets of the assistant, about the note the shell names for a command (read when it runs).
+  const noteForPalette = useStableHandler(() => paletteNote());
+  const palette = useMemo(() => aiPaletteCommands({ enabled, skills }, noteForPalette), [enabled, skills, noteForPalette]);
   // The note picker (plan P9-3): over whatever shows, for the vault that is open.
-  const notePick = enabled && vault && pick ? { purpose: pick, vault } : null;
-  const closePick = () => setPick(null);
+  const notePick = useMemo(() => (enabled && vault && pick ? { purpose: pick, vault } : null), [enabled, vault, pick]);
+  const closePick = useCallback(() => setPick(null), []);
   return { session: s, enabled, sheet: enabled ? sheet : null, closeSheet, notePick, closePick, policy, navRef, embeddings, gists, skills, palette };
 }
 
-/**
- * Hands the shell's navigation to the AI: rendered below App's vault gate,
- * where `openNote` exists, and kept current after every render.
- */
-export function MobileAiNavigation({ navRef, nav }: { navRef: { current: MobileAiNavigation }; nav: MobileAiNavigation }) {
-  useEffect(() => {
-    navRef.current = nav;
-    latestNav = nav;
-  });
-  return null;
-}
-
-/** The shell's navigation as last rendered, for surfaces outside App (the note's context). */
-let latestNav: MobileAiNavigation | null = null;
-
-/** Opens the skills and the memory from any surface (F71 of release 0.9.0). */
-export function openAiSkills(): void {
-  latestNav?.openSkills?.();
-}
-
-/** Opens the AI settings screen from any surface. */
-export function openAiSettings(): void {
-  latestNav?.openSettings?.();
-}
-
-/** True while the AI is switched on, re-rendering when that changes. */
-export function useMobileAiEnabled(): boolean {
-  const s = getMobileAiSession();
-  const state = useSyncExternalStore(s.subscribe, s.getState);
-  return Boolean(state?.loaded && state.settings.enabled);
-}

@@ -115,7 +115,7 @@ describe("the deadline of a close", () => {
     for (const head of ["const restoreWorkspaceRecovery = async", "const resumeWorkspaceSetup = async"]) {
       const fn = desktop.slice(desktop.indexOf(head), desktop.indexOf("\n  };\n", desktop.indexOf(head)));
       expect(fn, head).not.toMatch(/workspaceStateRef\.current \?\?/);
-      expect(fn, head).toMatch(/on\.workspaceState \?\? new SqlWorkspaceStateStore\(on\.db\)/);
+      expect(fn, head).toMatch(/on\.workspaceState \?\? new (?:workspace\.)?SqlWorkspaceStateStore\(on\.db\)/);
     }
   });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { FakeWorkspaceObjectStore, parseWorkspaceDocument, workspaceDocumentHash, type WorkspaceOperationPayload, type WorkspaceSignedDocument } from "../src/index.js";
+import { FakeWorkspaceObjectStore, parseWorkspaceDocument, workspaceDocumentHash, type WorkspaceOperationPayload, type WorkspaceSignedDocument } from "../src/workspace/index.js";
 import { restoreKnownOperationCopies } from "../src/workspace/operationRecovery.js";
 import { commentShellWorkspace } from "./helpers/commentShellWorkspace.js";
 

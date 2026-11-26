@@ -1,14 +1,14 @@
+import { upsertFrontmatterKeys } from "@plainva/core";
 import {
   machineAuthorKind,
   parseWriteDraftOutcomes,
   parseWriteDrafts,
   serializeWriteDrafts,
-  upsertFrontmatterKeys,
   type AiPolicyDimension,
-  type WorkspaceCommentRecord,
   type WriteDraft,
   type WriteDraftOutcome,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { parseBaseConfig } from "../base/baseFormat";
 import { resolveNewItemTarget } from "../base/baseRelations";
 import { migrateFiltersToPerView } from "../base/filterExpr";

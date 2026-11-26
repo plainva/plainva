@@ -1,30 +1,33 @@
-import { AI_POLICY_DIMENSIONS, VersionHistoryService, type DirectWriteFiles, type VaultQueryService } from "@plainva/core";
+import { VersionHistoryService, type VaultQueryService } from "@plainva/core";
+import { AI_POLICY_DIMENSIONS, type DirectWriteFiles } from "@plainva/core/ai";
 import {
   calendarDay,
-  capturedNotePath,
   captureVocabularyOf,
   createTaskInDatabase,
   dailyNotePathFor,
-  entryPlaceOf,
   flushPendingSave,
-  machineProposals,
   noteDisplayName,
-  noteMovePlan,
-  noteRenamePlan,
   notifyFileOps,
   parseTaskCapture,
   prepareTaskNote,
   profileDefault,
-  proposeSuggestionRound,
   requestEventSeed,
+  reportBackground,
+  reportingTo,
+} from "@plainva/ui";
+import {
+  capturedNotePath,
+  entryPlaceOf,
+  machineProposals,
+  noteMovePlan,
+  noteRenamePlan,
+  proposeSuggestionRound,
   withNoteRule,
   type DraftCreator,
   type OpenProposal,
   type VaultPolicyHost,
   type VaultWriteDeps,
-  reportBackground,
-  reportingTo,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { confirmDeleteFile } from "../../lib/deleteFile";
 import { mobileCommentOperations } from "../commentOperations";

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import i18n from "@plainva/ui/i18n";
 import { publicationErrorText, publicationPreviewNotices, publicationStatusText } from "@plainva/ui";
-import { PUBLISHED_NOTE_REFUSED, PublishedNoteRefusedError, previewPublishedProjection } from "@plainva/core";
+import { PUBLISHED_NOTE_REFUSED, PublishedNoteRefusedError, previewPublishedProjection } from "@plainva/core/workspace";
 import { REPO } from "../test-sourceTree";
 
 /**

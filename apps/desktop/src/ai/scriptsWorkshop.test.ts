@@ -16,7 +16,6 @@ import {
   scriptSeal,
   serializeScriptManifest,
   signScriptApproval,
-  utf8Encode,
   verifyScriptApproval,
   type InstructionApprovals,
   type InstructionEntry,
@@ -26,10 +25,11 @@ import {
   type ScriptCallRecord,
   type ScriptFailure,
   type ScriptOutcome,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { utf8Encode } from "@plainva/core/workspace";
+import { APP_LANGUAGES } from "@plainva/ui";
 import {
   addScriptParameter,
-  APP_LANGUAGES,
   approvalFacts,
   changeScriptParameter,
   machineAuthorLabel,
@@ -52,7 +52,7 @@ import {
   toggleScriptTool,
   workshopSections,
   workshopTitle,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * The scripts of the workshop as both shells show them (plan KI-Harness

@@ -5,7 +5,7 @@ import {
   SimplenoteImporter,
   defaultImportRegistry,
   type ImportOptionKey,
-} from '../../src/index.js';
+} from '../../src/import/index.js';
 
 /**
  * The wizard's source-dependent options, and what the report promises.

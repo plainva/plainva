@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFrontmatterPath } from "@plainva/core";
 import {
   DEFAULT_AI_APP_SETTINGS,
   DEFAULT_WEB_SETTINGS,
@@ -7,7 +8,6 @@ import {
   effectivePolicy,
   notePolicyFrom,
   readConversationRecord,
-  readFrontmatterPath,
   type AiEgress,
   type ConversationRecord,
   type EgressChunk,
@@ -18,8 +18,8 @@ import {
   type ToolResultPart,
   type WebFetchResult,
   type WebSettings,
-} from "@plainva/core";
-import { AiSession, CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, writeCapturedNote, type AiVaultHost, type EffectRequest, type VaultToolDeps } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { AiSession, CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, writeCapturedNote, type AiVaultHost, type EffectRequest, type VaultToolDeps } from "@plainva/ui/ai";
 
 /**
  * "Keep as a note" and the two skills of plan KI-Harness P4-6 in the session:

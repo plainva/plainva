@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookMarked, CalendarPlus, Check, Database, Eraser, EyeOff, FilePlus2, GraduationCap, Info, ListChecks, Mail, NotebookPen, PencilLine, ScrollText, TriangleAlert, Undo2, Unlink, X, Zap } from "lucide-react";
-import { machineAuthorKind, machineAuthorSubject, type AppliedWrite, type MemoryPlace, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
+import { machineAuthorKind, machineAuthorSubject, type AppliedWrite, type MemoryPlace, type RunWrites, type WriteDraft, type WriteDraftOutcome } from "@plainva/core/ai";
 import { LineCompare } from "../components/LineCompare";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";

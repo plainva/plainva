@@ -1,5 +1,5 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
-import type { AiEgress, EgressChunk, EndpointConfirmText, HttpRequestSpec } from "@plainva/core";
+import type { AiEgress, EgressChunk, EndpointConfirmText, HttpRequestSpec } from "@plainva/core/ai";
 
 /**
  * The desktop's native AI egress (ADR 0017): the Rust commands in

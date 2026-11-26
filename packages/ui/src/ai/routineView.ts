@@ -16,7 +16,7 @@ import {
   type RoutineDay,
   type RoutineNeed,
   type RoutineSchedule,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { skillView } from "./aiSkills";
 
 /**

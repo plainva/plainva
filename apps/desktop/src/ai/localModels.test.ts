@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import { embeddingModel, fromBase64, toBase64, type EmbeddingModelSpec, type EmbeddingPackageFile } from "@plainva/core";
-import { bridgeRunner, downloadPackage, openPackage, packageInstalled, type LocalModelBridge } from "@plainva/ui";
+import { embeddingModel, type EmbeddingModelSpec, type EmbeddingPackageFile } from "@plainva/core/ai";
+import { fromBase64, toBase64 } from "@plainva/core/workspace";
+import { bridgeRunner, downloadPackage, openPackage, packageInstalled, type LocalModelBridge } from "@plainva/ui/ai";
 
 const spec = embeddingModel("granite-r2-97m")!;
 

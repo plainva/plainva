@@ -3,9 +3,10 @@ import { PublicationFeedback, publicationFeedbackCounts, CommentLegacyLock } fro
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, CornerDownRight, ListChecks, Lock, MessageSquare, Replace, Trash2, X } from "lucide-react";
-import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
-import { isLegacyTableQuote } from "@plainva/core";
-import type { CommentThread, CommentThreadAi } from "@plainva/ui";
+import type { PublicationComment, WorkspaceCommentAnchorResolution, WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core/workspace";
+import { isLegacyTableQuote } from "@plainva/core/workspace";
+import type { CommentThread } from "@plainva/ui";
+import type { CommentThreadAi } from "@plainva/ui/ai";
 import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, authorInitials, Button, buildCommentThreads, CommentBody as SharedCommentBody, CommentCardHead, commentAuthorLabel, composerNames, askDiscard, EmptyState, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, useDiscardGuard, type SuggestedProperty } from "@plainva/ui";
 
 /** A top-level comment with the replies hanging off it, in posting order. */

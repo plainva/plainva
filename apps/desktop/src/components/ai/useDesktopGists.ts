@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { DEFAULT_AI_APP_SETTINGS, type IVaultAdapter, type VaultQueryService } from "@plainva/core";
-import { aiVaultKey, createAiVaultStores, createVaultPolicy, LocalGists, type AiState } from "@plainva/ui";
+import { type IVaultAdapter, type VaultQueryService } from "@plainva/core";
+import { DEFAULT_AI_APP_SETTINGS } from "@plainva/core/ai";
+import { aiVaultKey, createAiVaultStores, createVaultPolicy, LocalGists, type AiState } from "@plainva/ui/ai";
 import { useVault } from "../../contexts/VaultContext";
 import { desktopAiFiles, getDesktopAiSession } from "../../services/ai/desktopAi";
 import { idleMoment } from "./useDesktopEmbeddings";

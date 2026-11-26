@@ -1,4 +1,4 @@
-import { BUILTIN_PROVIDERS, DEFAULT_AI_APP_SETTINGS, providerById, runsOnDevice, type AiAppSettings, type ModelFailure, type ProviderInfo } from "@plainva/core";
+import { BUILTIN_PROVIDERS, DEFAULT_AI_APP_SETTINGS, providerById, runsOnDevice, type AiAppSettings, type ModelFailure, type ProviderInfo } from "@plainva/core/ai";
 import { buildInfo, type BuildInfo } from "../lib/buildInfo";
 import type { AiState, ProviderTest } from "./aiSession";
 

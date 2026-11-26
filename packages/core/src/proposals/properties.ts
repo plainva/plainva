@@ -1,10 +1,10 @@
 import { Document, isMap, isScalar, parseDocument } from "yaml";
-import { canonicalJson } from "../../settingsSync/canonicalJson.js";
-import { FrontmatterSurgicalError, deleteFrontmatterPath, frontmatterSpan, isReservedPropertyName, readFrontmatterPath, setFrontmatterPath } from "../../frontmatter-surgical.js";
-import { OKF_TRUST_KEYS, parseOkfTrustSignals } from "../../okf-trust.js";
-import { MAX_ANCHOR_QUOTE_BYTES, type WorkspaceCommentAnchor } from "../../workspace/commentAnchor.js";
-import { utf8Encode } from "../../workspace/encoding.js";
-import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "../policy.js";
+import { canonicalJson } from "../settingsSync/canonicalJson.js";
+import { FrontmatterSurgicalError, deleteFrontmatterPath, frontmatterSpan, isReservedPropertyName, readFrontmatterPath, setFrontmatterPath } from "../frontmatter-surgical.js";
+import { OKF_TRUST_KEYS, parseOkfTrustSignals } from "../okf-trust.js";
+import { MAX_ANCHOR_QUOTE_BYTES, type WorkspaceCommentAnchor } from "../workspace/commentAnchor.js";
+import { utf8Encode } from "../workspace/encoding.js";
+import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "../noteAiRules.js";
 
 /**
  * A change to a property of a note as a suggestion (plan KI-Harness P5).

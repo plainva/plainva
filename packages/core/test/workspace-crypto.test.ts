@@ -16,7 +16,7 @@ import {
   utf8Encode,
   verifyWorkspaceDocumentSignatures,
   verifyWorkspaceSignature,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 const ED25519 = {
   seed: "9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60",

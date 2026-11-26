@@ -1,4 +1,4 @@
-import type { ImagePart } from "@plainva/core";
+import type { ImagePart } from "@plainva/core/ai";
 
 /**
  * A picture of a conversation, drawn from what was sent (plan KI-Harness

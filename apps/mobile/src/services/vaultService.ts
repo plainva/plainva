@@ -6,9 +6,6 @@ import {
   initializeSchema,
   type QueueingVaultAdapter,
   StructureNeedsIndexError,
-  type WorkspaceQueueingVaultAdapter,
-  type PermissionedVaultAdapter,
-  SqlWorkspaceStateStore,
   SyncQueue,
   type SyncStateRepository,
   OwnDeletionRegister,
@@ -19,13 +16,18 @@ import {
   type IVaultAdapter,
   type DeletionConfirmation,
   type SearchResult,
-  type PersonalWorkspaceRuntime,
   PimCacheRepository,
   toPathIdentity,
   formatFullScan,
   formatFullScanFailure,
   scanChangedNothing,
 } from "@plainva/core";
+import {
+  type WorkspaceQueueingVaultAdapter,
+  type PermissionedVaultAdapter,
+  SqlWorkspaceStateStore,
+  type PersonalWorkspaceRuntime,
+} from "@plainva/core/workspace";
 import { isHiddenPath, isInternalPath, linkTargetName, wikiLinkParts, resolveLinkTarget, updateVaultText, type TextChange, type TextFileUpdate, type TextUpdateFiles, buildLinkTargetIndex, markdownLinkTarget, resolveMarkdownLinkIndexed, type MarkdownLinkAnswer } from "@plainva/core";
 import { buildVaultChain, MANUAL_REFRESH_TRIGGER, type BackupVaultAdapterOptions, type VaultStorageReader, type VaultVersionsControl, copyFileContent, NotTextFileError } from "@plainva/core";
 import { adoptOwnRemovals, createVaultCallOff, sweepPlainOwed, sweepWorkspaceOwed, createLocalQueueing, queuesForTheRemote, readFullTextDamage, vaultFolderIsThere, watchFullTextDamage } from "@plainva/core";
@@ -47,7 +49,19 @@ import {
   LOCAL_VAULT_ID,
   type VaultEntry, isExternalVault, type ExternalFolderRef, getVaultEntry } from "./vaultRegistry";
 import { phoneTemplateVault } from "./templateVault";
-import { detachSync, getStoredProvider, purgeCredentials, startSyncIfConfigured, syncSoon } from "./syncService";
+import type { DetachedSync } from "./syncService";
+import { detachLoadedSync } from "./loadedSync";
+// The sync loads with the first vault that syncs or asks for it, not with the start (performance plan L5).
+const syncServiceModule = () => import("./syncService");
+const startSyncIfConfigured = async (vault: MobileVault): Promise<void> => (await syncServiceModule()).startSyncIfConfigured(vault);
+const getStoredProvider = async (vaultId: string) => (await syncServiceModule()).getStoredProvider(vaultId);
+const purgeCredentials = async (vaultId: string): Promise<void> => (await syncServiceModule()).purgeCredentials(vaultId);
+const syncSoon = (): void => void syncServiceModule().then((sync) => sync.syncSoon());
+
+/** The sync taken off at once, as far as it is loaded (`loadedSync.ts`). */
+function detachSync(): DetachedSync {
+  return detachLoadedSync();
+}
 import { armedLeaveGuards, foreignInputArmed } from "./leaveGuard";
 import { takeScreen } from "./screenStep";
 import { clearMobileSyncState, mobileSyncDeviceId, restoreMobileAccountsAfterRebuild } from "./mobileSettingsSync";
@@ -72,9 +86,15 @@ import { configuredDailyNoteType, configuredNoteType } from "./newNote";
 import { buildNewNoteFromTemplate, buildNewNoteFromTemplateText, applyTemplateInteractive } from "./templateInteractive";
 import {
   buildNewNoteContent,
-  ensureDailyNote as ensureSharedDailyNote, type EnsuredDailyNote,
+  ensureDailyNote as ensureSharedDailyNote,
+  type EnsuredDailyNote,
   conflictCopyPath,
-  importObsidianBookmarks, toggleBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk, type BookmarkEntry,
+  importObsidianBookmarks,
+  toggleBookmarkOnDisk,
+  removeBookmarksOnDisk,
+  renameBookmarksOnDisk,
+  moveBookmarkOnDisk,
+  type BookmarkEntry,
   readRecentsOnDisk,
   pushRecentOnDisk,
   forgetRecentOnDisk,
@@ -88,7 +108,6 @@ import {
   getPlatformServices,
   noteLargeFileTrimmed,
   notifyFileOps,
-  writeCapturedNote,
   scaffoldVaultTemplate,
   createIndexNotices,
   indexUnavailableText,
@@ -104,7 +123,6 @@ import i18n from "@plainva/ui/i18n";
 import { writeNewVault } from "@plainva/ui";
 import { rememberLastOpen, errorText, landedAtDestination, MoveBlockedError, moveItemName, deleteWithNet, type DeletionNetAsk } from "@plainva/ui";
 import { applyTextShape, DEFAULT_TEXT_SHAPE, keepTextBeside, openEditorText, type KeptText, type TextFileShape } from "@plainva/ui";
-import { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } from "./mobileWorkspaceSecurity";
 import { noteConflict } from "./conflictState";
 import { mobileChainPorts } from "./mobileChainPorts";
 import { awaitWholeIndex, beginIndexBuild, endIndexBuild, isIndexBuilding, reportIndexBuild } from "./indexBuild";
@@ -1200,6 +1218,8 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const adapter: MobileRawAdapter = callOff.storage(opened);
   const containerExisted = await adapter.exists("");
   await adapter.initialize();
+  // The encrypted workspace's keys and runtime load with the vault, not with the start (performance plan L5).
+  const { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } = await import("./mobileWorkspaceSecurity");
   const workspaceStatus = await getMobileWorkspaceStatus(entry.id);
   const workspaceRuntime = workspaceStatus ? await loadMobileWorkspaceRuntime(entry.id) : null;
 
@@ -2272,6 +2292,8 @@ export const vaultOps = {
    * that is there is never touched.
    */
   async createNoteWithContent(v: MobileVault, folder: string, stem: string, content: string): Promise<string> {
+    // The shared writer of a captured note comes with the AI that hands one over (performance plan L5).
+    const { writeCapturedNote } = await import("@plainva/ui/ai");
     const path = await writeCapturedNote(
       { exists: (p) => v.files.exists(p), createDir: (p) => v.files.createDir(p), writeTextFile: (p, text) => this.save(v, p, text) },
       folder,

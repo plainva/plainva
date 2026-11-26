@@ -112,7 +112,6 @@ import {
 import { cloudAccountsRegistryKey, loadCloudAccounts, saveCloudAccounts } from "./cloudAccounts";
 import { profileAccountMapKey } from "./profileAccountMap";
 import { clearPimCredentials } from "./pim/pimCredentials";
-import { getSyncRootFolder } from "./cloudAccountsActions";
 import {
   backupMaxAgeDaysKey,
   backupMaxCountKey,
@@ -973,7 +972,8 @@ export async function getActiveConnectionId(vaultPath: string): Promise<string |
   const provider = records.find((r) => r.services.files)?.services.files?.provider;
   if (!provider) return null;
   const selected = provider === "drive" ? await import("./syncRootFolder").then(({ readDriveDestination }) => readDriveDestination(vaultPath)) : null;
-  const root = selected?.id ? `id:${selected.id}` : await getSyncRootFolder(vaultPath, provider);
+  // The accounts' actions load with the first vault that syncs, not with the start (performance plan L5).
+  const root = selected?.id ? `id:${selected.id}` : await import("./cloudAccountsActions").then(({ getSyncRootFolder }) => getSyncRootFolder(vaultPath, provider));
   return connectionIdFor(provider, root);
 }
 

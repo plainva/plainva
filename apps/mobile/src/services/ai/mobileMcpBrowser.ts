@@ -1,5 +1,5 @@
 import { Browser } from "@capacitor/browser";
-import type { McpOAuthBrowser, McpOAuthRedirect } from "@plainva/core";
+import type { McpOAuthBrowser, McpOAuthRedirect } from "@plainva/core/ai";
 import { toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { openSignInPage } from "../../platform/webAuth";

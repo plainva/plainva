@@ -3,11 +3,18 @@ import { useTranslation } from "react-i18next";
 import { CodeXml, Copy, Play } from "lucide-react";
 import { sameStoredValue } from "@plainva/core";
 import {
-  AiRunWrites,
   Banner,
   Button,
   ICON,
   Modal,
+  Select,
+  Switch,
+  TextInput,
+  toast,
+  useDiscardGuard,
+} from "@plainva/ui";
+import {
+  AiRunWrites,
   ScriptCallList,
   scriptCallLines,
   scriptFieldDefaults,
@@ -17,18 +24,13 @@ import {
   scriptTypeLabel,
   scriptUsageLine,
   scriptValueText,
-  Select,
-  Switch,
-  TextInput,
-  toast,
   useAiSession,
   useAiState,
-  useDiscardGuard,
   useDraftActions,
   useScriptRun,
   workshopTitle,
   type ScriptFieldValues,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * A script run from the workshop (plan KI-Harness P5.5, mockup chapter 21):

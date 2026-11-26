@@ -1,4 +1,5 @@
 import { reportBackground } from "../services/backgroundErrors";
+import { type IDatabaseAdapter } from "@plainva/core";
 import {
   appendAiLedgerEntry,
   EMPTY_USAGE,
@@ -7,9 +8,8 @@ import {
   GistStore,
   GistWriter,
   type GistPass,
-  type IDatabaseAdapter,
   type PackageGists,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { AiLedgerStore, LocalCompletion } from "./aiSession";
 import type { VaultPolicyHost } from "./aiVaultHost";
 

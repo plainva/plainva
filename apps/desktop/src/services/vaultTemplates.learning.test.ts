@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { APP_LANGUAGES, getVaultTemplates, scaffoldVaultTemplate, parseBaseConfig, serializeBaseConfig, promoteTask } from "@plainva/ui";
-import { VaultIndexer, VaultQueryService, upsertFrontmatterKeys, computeColumnSummaries, SimplenoteImporter, BackupVaultAdapter, VersionHistoryService, scanTasks } from "@plainva/core";
+import { VaultIndexer, VaultQueryService, upsertFrontmatterKeys, computeColumnSummaries, BackupVaultAdapter, VersionHistoryService, scanTasks } from "@plainva/core";
+import { SimplenoteImporter } from "@plainva/core/import";
 import { MemoryVaultAdapter } from "../../../../packages/core/test/helpers/memoryVault";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { tourLessons } from "../../../../packages/ui/src/vaultTemplates/tourLearning";

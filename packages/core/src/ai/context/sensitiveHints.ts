@@ -1,4 +1,4 @@
-import { ReaderView } from "../readerView.js";
+import { ReaderView } from "../../withholding/readerView.js";
 
 /**
  * Sensitivity hints (plan KI-Harness P2b-6): local patterns that suggest a

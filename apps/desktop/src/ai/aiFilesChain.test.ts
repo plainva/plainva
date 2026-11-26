@@ -4,7 +4,6 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  ACTIVE_MEMORY_FILE,
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
   DEFAULT_BACKUP_RETENTION,
@@ -12,10 +11,13 @@ import {
   SyncQueue,
   SyncStateRepository,
   VaultIndexer,
-  addMemoryEntry,
   type IDatabaseAdapter,
 } from "@plainva/core";
-import { AI_POLICY_FILE, adapterInstructionIO, adapterInstructionWriter, changeFolderRules, createMemoryHost, withRuleValue } from "@plainva/ui";
+import {
+  ACTIVE_MEMORY_FILE,
+  addMemoryEntry,
+} from "@plainva/core/ai";
+import { AI_POLICY_FILE, adapterInstructionIO, adapterInstructionWriter, changeFolderRules, createMemoryHost, withRuleValue } from "@plainva/ui/ai";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
