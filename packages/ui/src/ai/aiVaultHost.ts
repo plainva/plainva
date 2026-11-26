@@ -35,6 +35,7 @@ import {
   type ContextNote,
   type ContextPolicyHost,
   type EffectivePolicy,
+  type AiEgress,
   type EgressRecipient,
   type GateRun,
   type InstructionIO,
@@ -460,7 +461,8 @@ export interface CandidateRetrieval {
   recentlyOpened(): Promise<{ path: string; openedAt: number }[]>;
   now(): number;
   /** Notes close in meaning (plan P2b); absent while the vault has no search by meaning. */
-  semanticCandidates?(question: string, limit: number, options: { cloudQuestion: boolean }): Promise<{ path: string; ordinal: number; hash: string; score: number }[]>;
+  /** `egress`: the asking run's own (B7, S1) — the question's embedding goes out through it, and is counted for that run. */
+  semanticCandidates?(question: string, limit: number, options: { cloudQuestion: boolean; egress: AiEgress }): Promise<{ path: string; ordinal: number; hash: string; score: number }[]>;
   /** Note sizes in bytes, as the index knows them, for what a naive request would have sent (plan P2b-5). */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   /**
@@ -479,7 +481,14 @@ const noteTitle = (path: string) => path.slice(path.lastIndexOf("/") + 1).replac
  * opened lately. Nothing here is gated or ranked — the package does both,
  * the gate first.
  */
-export async function gatherCandidates(retrieval: CandidateRetrieval, question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]> {
+export async function gatherCandidates(
+  retrieval: CandidateRetrieval,
+  question: string,
+  activePath: string | null,
+  recipient: EgressRecipient | undefined,
+  // The asking run's egress (B7, S1): the one way the question leaves for a search model, counted for that run.
+  egress: AiEgress,
+): Promise<Candidate[][]> {
   const now = retrieval.now();
   const terms = questionTerms(question);
   const cloudQuestion = recipient ? isCloudRecipient(recipient) : false;
@@ -488,7 +497,7 @@ export async function gatherCandidates(retrieval: CandidateRetrieval, question: 
     activePath ? retrieval.linkNeighbors(activePath, 20).catch(() => []) : Promise.resolve([]),
     retrieval.recentlyChanged(20).catch(() => []),
     retrieval.recentlyOpened().catch(() => []),
-    retrieval.semanticCandidates ? retrieval.semanticCandidates(question, 20, { cloudQuestion }).catch(() => []) : Promise.resolve([]),
+    retrieval.semanticCandidates ? retrieval.semanticCandidates(question, 20, { cloudQuestion, egress }).catch(() => []) : Promise.resolve([]),
   ]);
   const best = Math.max(...hits.map((h) => h.score), 0) || 1;
   const lists: Candidate[][] = [
@@ -532,7 +541,7 @@ export function createAiVaultHost(input: AiVaultHostInput): AiVaultHost {
     readNote: input.readNote,
     ...(input.policy.filesNamed ? { linkFilesFor: input.policy.filesNamed } : {}),
     situation: input.situation,
-    candidates: (question, activePath, recipient) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient) : Promise.resolve([])),
+    candidates: (question, activePath, recipient, egress) => (input.retrieval ? gatherCandidates(input.retrieval, question, activePath, recipient, egress) : Promise.resolve([])),
     ...(input.retrieval?.noteSizes ? { noteSizes: input.retrieval.noteSizes.bind(input.retrieval) } : {}),
     // "Only when something changed" of a routine (plan P8): the newest change on disk the index knows — a sync counts
     // as one —, other than the notes named. Asked of this device's own index; no model is involved.

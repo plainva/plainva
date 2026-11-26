@@ -461,16 +461,18 @@ export class LocalEmbeddings {
 
   /** One request through the native egress; an encrypted workspace stops a cloud even mid-run. */
   private sender(host: ProviderEmbeddingHost, cloud: boolean) {
-    return async (spec: HttpRequestSpec, signal?: AbortSignal): Promise<ProviderJsonAnswer> => {
+    return async (spec: HttpRequestSpec, signal?: AbortSignal, via?: { egress: AiEgress }): Promise<ProviderJsonAnswer> => {
       if (cloud && host.encrypted()) {
         void this.close().then(() => this.sync());
         throw new Error("encrypted workspace: nothing goes to a cloud");
       }
       const requestId = `embed-${host.newId()}`;
-      const abort = () => void host.egress.cancel(requestId);
+      // A run's question goes out through that run's egress (B7, S1); the notes' own embedding through this host's.
+      const egress = via?.egress ?? host.egress;
+      const abort = () => void egress.cancel(requestId);
       signal?.addEventListener("abort", abort, { once: true });
       try {
-        const answer = await fetchProviderJson(host.egress, spec, requestId);
+        const answer = await fetchProviderJson(egress, spec, requestId);
         this.lastFailure = answer.ok ? null : answer.failure;
         return answer;
       } finally {
@@ -640,13 +642,14 @@ export class LocalEmbeddings {
    * conversation stays local. A hit counts by how far it stands out of the
    * vault's band for this question; near-duplicates count once.
    */
-  async semanticCandidates(question: string, limit: number, options: { cloudQuestion: boolean }): Promise<SemanticCandidate[]> {
+  async semanticCandidates(question: string, limit: number, options: { cloudQuestion: boolean; egress: AiEgress }): Promise<SemanticCandidate[]> {
     const engine = this.state.engine;
     const indexer = this.indexer;
     if (engine.kind !== "ready" || !indexer || !question.trim() || limit <= 0) return [];
     if (engine.source.kind === "provider" && engine.source.target && !isLocalTarget(engine.source.target) && !options.cloudQuestion) return [];
     try {
-      const { hits, spread } = await indexer.rankedSearch(question, limit * 2);
+      // Through the asking run's egress (B7, S1): what of the question leaves the device is that run's.
+      const { hits, spread } = await indexer.rankedSearch(question, limit * 2, undefined, undefined, { egress: options.egress });
       if (spread.notes < MIN_SPREAD_NOTES) return [];
       const prominent = hits.filter((hit) => prominence(hit.score, spread) >= CANDIDATE_PROMINENCE);
       const kept = (await indexer.distinct(prominent, NEAR_DUPLICATE_COSINE)).slice(0, limit);

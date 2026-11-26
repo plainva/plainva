@@ -109,8 +109,8 @@ const localChat: EgressRecipient = { kind: "local", provider: "ollama", model: "
 /** Plan KI-Harness P2b-1: the vault's search by meaning as a candidate source of the context package. */
 describe("candidates by meaning for the context of a message", () => {
   it("finds the note and its closest section, strong by how far it stands out", async () => {
-    const { controller } = await controllerFor("ollama");
-    const found = await controller.semanticCandidates(QUESTION, 5, { cloudQuestion: false });
+    const { controller, net } = await controllerFor("ollama");
+    const found = await controller.semanticCandidates(QUESTION, 5, { cloudQuestion: false, egress: net.egress });
     expect(found[0]).toMatchObject({ path: "Film/Kickoff.md" });
     expect(found[0]!.score).toBeGreaterThanOrEqual(0.5);
     expect(found[0]!.hash).toMatch(/^[0-9a-f]{32}$/);
@@ -121,38 +121,44 @@ describe("candidates by meaning for the context of a message", () => {
 
   it("adds nothing in a vault too small to have a band", async () => {
     const small = { "Film/Kickoff.md": NOTES["Film/Kickoff.md"]!, "Garden.md": NOTES["Garden.md"]! };
-    const { controller } = await controllerFor("ollama", small);
-    expect(await controller.semanticCandidates(QUESTION, 5, { cloudQuestion: false })).toEqual([]);
+    const { controller, net } = await controllerFor("ollama", small);
+    expect(await controller.semanticCandidates(QUESTION, 5, { cloudQuestion: false, egress: net.egress })).toEqual([]);
     await controller.close();
   });
 
   it("asks a cloud embedding model only when the conversation goes to a cloud itself", async () => {
     const { controller, net } = await controllerFor("openai");
-    expect(await controller.semanticCandidates(QUESTION, 5, { cloudQuestion: false })).toEqual([]);
-    expect(net.questions()).toEqual([]);
-    const found = await controller.semanticCandidates(QUESTION, 5, { cloudQuestion: true });
+    // The asking run's own way out (B7, S1): the question leaves through it, the notes' embedding through the host's.
+    const run = fakeEgress();
+    expect(await controller.semanticCandidates(QUESTION, 5, { cloudQuestion: false, egress: run.egress })).toEqual([]);
+    expect(run.questions()).toEqual([]);
+    const found = await controller.semanticCandidates(QUESTION, 5, { cloudQuestion: true, egress: run.egress });
     expect(found.map((c) => c.path)).toContain("Film/Kickoff.md");
-    expect(net.questions()).toHaveLength(1);
+    expect(run.questions()).toHaveLength(1);
+    expect(run.sent).toHaveLength(1);
+    expect(net.questions()).toEqual([]);
     await controller.close();
   });
 
   it("joins the other sources, and a local conversation never sends the question to a cloud", async () => {
     const { controller, net } = await controllerFor("openai");
+    const run = fakeEgress();
     const retrieval = {
       searchCandidates: async () => [],
       linkNeighbors: async () => [],
       recentlyChanged: async () => [],
       recentlyOpened: async () => [],
       now: () => Date.parse("2026-10-01T09:00:00Z"),
-      semanticCandidates: (question: string, limit: number, options: { cloudQuestion: boolean }) => controller.semanticCandidates(question, limit, options),
+      semanticCandidates: (question: string, limit: number, options: { cloudQuestion: boolean; egress: AiEgress }) => controller.semanticCandidates(question, limit, options),
     };
-    const local = await gatherCandidates(retrieval, QUESTION, null, localChat);
+    const local = await gatherCandidates(retrieval, QUESTION, null, localChat, run.egress);
     expect(local.flat().filter((c) => c.signals.semantic !== undefined)).toEqual([]);
-    const cloud = await gatherCandidates(retrieval, QUESTION, null, cloudChat);
+    const cloud = await gatherCandidates(retrieval, QUESTION, null, cloudChat, run.egress);
     const meaning = cloud.flat().find((c) => c.path === "Film/Kickoff.md")!;
     expect(meaning.signals.semantic).toBeGreaterThanOrEqual(0.5);
     expect(meaning.chunk).toMatchObject({ ordinal: expect.any(Number) });
-    expect(net.questions()).toHaveLength(1);
+    expect(run.questions()).toHaveLength(1);
+    expect(net.questions()).toEqual([]);
     await controller.close();
   });
 });

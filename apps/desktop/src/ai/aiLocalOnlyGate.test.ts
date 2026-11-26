@@ -259,8 +259,7 @@ describe("fully local: held at one place", () => {
   it("the session names the host's egress once — where it puts the switch in front of it", () => {
     const source = code(readFileSync(join(repo, "packages", "ui", "src", "ai", "aiSession.ts"), "utf8"));
     expect(source.match(/\bhost\.egress\b/g)).toHaveLength(1);
-    // Wrapped once more by what counts the requests that left the device (B7): the switch stays right at the host's egress.
-    expect(source).toMatch(/this\.out = departingEgress\(\s*localOnlyEgress\(host\.egress, \{/);
+    expect(source).toContain("this.out = localOnlyEgress(host.egress, {");
     // No other file of the shared AI code reaches around it.
     for (const file of ["privateData.ts", "webTools.ts", "localEmbeddings.ts"]) {
       expect(code(readFileSync(join(repo, "packages", "ui", "src", "ai", file), "utf8")), file).not.toMatch(/createDesktopAiEgress|createMobileAiEgress|registerPlugin/);

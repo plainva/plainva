@@ -22,7 +22,7 @@ import type { IDatabaseAdapter } from "../../db/IDatabaseAdapter.js";
 import { sha256Hex, utf8Encode } from "../../workspace/encoding.js";
 import { aiVisibleSql } from "../hiddenPaths.js";
 import { chunkNote, type NoteChunk } from "./chunks.js";
-import type { EmbeddingEngine } from "./engine.js";
+import type { EmbedVia, EmbeddingEngine } from "./engine.js";
 import { RELATED_LIMIT, relatedNotes, type RelatedHint, type RelatedOptions } from "./related.js";
 import { scoreSpread, VectorIndex, type ScoreSpread, type SemanticHit } from "./search.js";
 import { EmbeddingStore, type StoredChunkVector } from "./store.js";
@@ -251,10 +251,12 @@ export class EmbeddingIndexer {
   }
 
   /** As `search`, with how the question's closeness spreads over the vault (plan P2b: a hit counts by how far it stands out). */
-  async rankedSearch(question: string, limit: number, accept?: (path: string) => boolean, signal?: AbortSignal): Promise<{ hits: SemanticHit[]; spread: ScoreSpread }> {
+  async rankedSearch(question: string, limit: number, accept?: (path: string) => boolean, signal?: AbortSignal, via?: EmbedVia): Promise<{ hits: SemanticHit[]; spread: ScoreSpread }> {
     const index = await this.vectorIndex();
     if (!index.noteCount || limit <= 0) return { hits: [], spread: scoreSpread([]) };
-    const [query] = await this.engine.embed([question], "query", signal);
+    // The question is embedded on its own, in a request of its own — never in a batch of the notes' embedding, and
+    // never from a store of earlier questions: what goes out for it goes out now, through `via` where a run asks.
+    const [query] = await this.engine.embed([question], "query", signal, via);
     const current: SemanticHit[] = [];
     let spread = scoreSpread([]);
     // Stale notes are skipped, so ask for more than needed and widen once if a sync left many behind.

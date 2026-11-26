@@ -472,7 +472,8 @@ export interface AiVaultHost {
   situation(run?: GateRun): Promise<SituationInput>;
   /** Candidate lists of the vault's sources for a question (§8.1); the package gates and ranks them. */
   /** The recipient decides whether a cloud embedding model may see the question (plan P2b). */
-  candidates(question: string, activePath: string | null, recipient?: EgressRecipient): Promise<Candidate[][]>;
+  /** `egress`: the asking run's own (B7, S1) — what of the question goes to a search model leaves through it. */
+  candidates(question: string, activePath: string | null, recipient: EgressRecipient | undefined, egress: AiEgress): Promise<Candidate[][]>;
   /** Note sizes in bytes, as the index knows them (plan P2b-5); absent, the lens leaves the naive comparison out. */
   noteSizes?(paths: readonly string[]): Promise<Map<string, number>>;
   /**
@@ -1582,11 +1583,8 @@ type ConsentAnswer = "send" | "cancel" | { leaveOut: string } | { redact: string
 
 const sortSummaries = (list: ConversationSummary[]) => [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
-/** How many recipients of departures a session remembers (`departedTo`). */
-const DEPARTED_KEPT = 200;
-
 /**
- * The session's egress, counting what may leave the device (B7, review S1): `onDeparture` is told of every request
+ * A run's egress, counting what of it may leave the device (B7, review S1): `onDeparture` is told of every request
  * the inner egress did not answer as never sent — a refusal of the first class before anything came back
  * (`failureClassOf`). A request that throws, is cancelled, or ends in any other way may have gone.
  */
@@ -1618,6 +1616,14 @@ export function departingEgress(inner: LocalOnlyEgress, onDeparture: (endpointId
       }
     },
   };
+}
+
+/** What one run handed to anyone outside this device, counted at that run's own egress (B7, S1). */
+interface RunDepartures {
+  /** The run's egress: every request of the run goes through it. */
+  readonly egress: LocalOnlyEgress;
+  /** The endpoints it reached, in order, one entry per request that left. */
+  readonly to: string[];
 }
 
 export class AiSession {
@@ -1686,15 +1692,6 @@ export class AiSession {
   private sending = false;
   /** Counts the questions that went back into the field (B7). */
   private returnSeq = 0;
-  /**
-   * Counts the requests that may have left this device (plan Umsetzung 0.9.x, B7, review S1): every request of the
-   * session to any model — the chat, embedding a question for the search, the reader without tools, a page's
-   * processing, a transcription — passes `this.out`, and each that is not answered "never sent" by the egress counts
-   * here, at that one place. A run notes the count when it begins: a run during which it grew has sent something.
-   */
-  private departures = 0;
-  /** The recipients of the latest departures, with their count: who a run's question went to. */
-  private readonly departedTo: Array<{ at: number; endpointId: string }> = [];
   /** Recordings being transcribed now: one run per file. */
   private transcribing = new Set<string>();
   /** Ends the run that fills a column, between two of its entries. */
@@ -1751,19 +1748,10 @@ export class AiSession {
   private readonly out: LocalOnlyEgress;
 
   constructor(private readonly host: AiSessionHost) {
-    this.out = departingEgress(
-      localOnlyEgress(host.egress, {
-        on: () => !this.state.loaded || this.state.settings.localOnly,
-        onDevice: (endpointId) => runsOnDevice(providerById(endpointId, this.state.settings.custom)),
-      }),
-      (endpointId) => {
-        // What went to this device's own model never left it.
-        if (runsOnDevice(providerById(endpointId, this.state.settings.custom))) return;
-        this.departures++;
-        this.departedTo.push({ at: this.departures, endpointId });
-        if (this.departedTo.length > DEPARTED_KEPT) this.departedTo.splice(0, this.departedTo.length - DEPARTED_KEPT);
-      },
-    );
+    this.out = localOnlyEgress(host.egress, {
+      on: () => !this.state.loaded || this.state.settings.localOnly,
+      onDevice: (endpointId) => runsOnDevice(providerById(endpointId, this.state.settings.custom)),
+    });
     // Foreign servers and external agents rest while the device is fully local: each has a way out of its own.
     const resting = () => this.state.settings.localOnly;
     this.mcp = new AiMcp(
@@ -1822,6 +1810,22 @@ export class AiSession {
       routines: this.routines.state,
       hints: EMPTY_NOTE_HINTS_STATE,
     };
+  }
+
+  /**
+   * The way out of one run (plan Umsetzung 0.9.x, B7, review S1): the session's egress, counting what of THIS run left
+   * the device — every request the run makes, the question embedded for the search included, is handed this egress
+   * explicitly; nothing else (the notes' own embedding, a connection test, another run) passes it. A request the
+   * egress answered "never sent" before anything came back does not count, nor one to a model on this device.
+   */
+  private runDepartures(): RunDepartures {
+    const to: string[] = [];
+    const egress = departingEgress(this.out, (endpointId) => {
+      // What went to this device's own model never left it.
+      if (runsOnDevice(providerById(endpointId, this.state.settings.custom))) return;
+      to.push(endpointId);
+    });
+    return { egress, to };
   }
 
   readonly getState = (): AiState => this.state;
@@ -5697,6 +5701,7 @@ export class AiSession {
         ...(isCloudRecipient(recipient) ? {} : { onDevice: true as const }),
       };
       const { stop, answer, record: saved } = await this.execute({
+        departures: this.runDepartures(),
         vault,
         choice,
         provider,
@@ -6754,6 +6759,8 @@ export class AiSession {
           ),
     );
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
+      // A preview is no run: what it hands a search model is nobody's question that could be withdrawn.
+      egress: this.out,
       tools,
       runs: record ? record.runs : [],
       more: record ? (record.conversation.more ?? []) : (start?.more ?? []),
@@ -6798,6 +6805,8 @@ export class AiSession {
       carried?: number;
       bare?: boolean;
       pinsOnly?: boolean;
+      /** The way out of the run this context is for (B7, S1): the question goes to a search model through it. */
+      egress: AiEgress;
     },
   ) {
     const recipient: EgressRecipient = recipientOf(provider, choice.model);
@@ -6814,7 +6823,7 @@ export class AiSession {
     const situation = conversation.bare ? this.bareSituation() : await vault.situation({ recipient, webTools: web }).catch(() => this.bareSituation());
     const seen = this.state.excludeActive || conversation.withoutActive ? { ...situation, active: null } : situation;
     const candidates =
-      conversation.bare || conversation.pinsOnly ? [] : await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient).catch(() => [] as Candidate[][]);
+      conversation.bare || conversation.pinsOnly ? [] : await vault.candidates(message, seen.active?.kind === "note" ? seen.active.path : null, recipient, conversation.egress).catch(() => [] as Candidate[][]);
     const gists = vault.gists?.() ?? null;
     const build = async (leaveOut: ReadonlySet<string>, redact: ReadonlySet<string>): Promise<{ pack: ContextPackage; manifest: EgressManifest }> => {
       const pack = await buildContextPackage(
@@ -7241,9 +7250,8 @@ export class AiSession {
     // Typed in the composer (B7): only such a question goes back into the field. A skill, an action at a selection, a
     // routine, learning, a replay, the setup's greeting and a "Send again" never withdraw what they started.
     const typed = !door && !detached && !routine && !replay && !skills && !greeting && !retry;
-    // What has left the device before this run began (S1): whatever leaves from here on is this run's — or, in doubt,
-    // something else's at the same time, which keeps the run from claiming that nothing was sent.
-    const departedAt = this.departures;
+    // This run's own way out (S1): what of it leaves the device is counted there, and nothing of anything else.
+    const run = this.runDepartures();
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
     const apart = door ?? detached ?? routine ?? replay ?? null;
     // A message of the composer goes nowhere once the user left what it is put together for, and a message of any kind
@@ -7507,7 +7515,7 @@ export class AiSession {
       ? createPrivateDataExecutor(
           base.executor,
           {
-            egress: this.out,
+            egress: run.egress,
             reader: () => this.quarantineReader(provider, choice),
             // A regression run has nobody to ask: what this session has not allowed yet does not happen in it. A
             // routine has nobody to ask either, and what its user allowed in a conversation of this session is not
@@ -7527,7 +7535,7 @@ export class AiSession {
             guarded,
             {
               fetcher: this.host.web ?? null,
-              egress: this.out,
+              egress: run.egress,
               endpoint: provider.endpoint,
               model: choice.model,
               providerLabel: provider.label,
@@ -7614,6 +7622,7 @@ export class AiSession {
         material: { sentChars: 0, sourceChars: 0, sentBytes: 0, candidateBytes: null },
       };
       return this.execute({
+        departures: run,
         vault,
         choice,
         provider,
@@ -7642,6 +7651,7 @@ export class AiSession {
     // What the request carries before this message's notes (plan P7): a small window's package is made smaller by it.
     const carried = this.carriedTokens(provider, choice.model, record.conversation);
     const context = await this.contextOf(message, vault, choice, provider, record.pins, record.conversation.turns, {
+      egress: run.egress,
       tools: toolNames,
       runs: record.runs,
       more: moreNames,
@@ -7715,6 +7725,7 @@ export class AiSession {
     // What this message carries counts as read from here on: a call to a foreign server in this very run looks at it too.
     sending.sources = manifest.sources.map((source) => ({ path: source.path, ...(source.image ? { image: true } : {}) }));
     return this.execute({
+      departures: run,
       vault,
       choice,
       provider,
@@ -7728,7 +7739,6 @@ export class AiSession {
       // A message typed in the composer used the drafts; a door or a regression run leaves them for the next one.
       usedDrafts: !apart,
       ...(typed ? { typed: { text: message } } : {}),
-      departedAt,
       begun,
       created,
       redactFrom,
@@ -8025,8 +8035,8 @@ export class AiSession {
      * then, and `text` goes back into the field.
      */
     typed?: { text: string };
-    /** The session's count of departures when the run began (S1). */
-    departedAt?: number;
+    /** The run's own egress and what of it left the device (S1). */
+    departures: RunDepartures;
     /** The conversation's last turn once more (B7): no new turn, a second run of it, with what the failed run carried. */
     retry?: { userTurn: number; withoutImages: boolean; sent: readonly string[]; kept: readonly string[] };
     /** What went redacted as the send overview began (step 8): what it changed of that counts for the conversation too. */
@@ -8117,7 +8127,7 @@ export class AiSession {
     let retried = false;
     const ran = await runAgent({
       conversation: requested,
-      egress: this.out,
+      egress: input.departures.egress,
       endpoint: provider.endpoint,
       model: choice.model,
       executor: input.executor ?? { execute: async () => ({ content: "This conversation has no tools.", isError: true }) },
@@ -8261,8 +8271,8 @@ export class AiSession {
     // no tool ran. Then nothing of it reached anyone: the turn and its run are withdrawn, the conversation stays as it
     // was stored before, and the question goes back into the field. In doubt, the second class: everything stays.
     // Nothing of the run left the device (S1): no request of it — the question embedded for the search included —
-    // was handed to anyone outside it. Asked of the one place every request passes, not of the ways one by one.
-    const departed = input.departedAt === undefined || this.departures > input.departedAt;
+    // was handed to anyone outside it. Asked of the run's own egress, which every request of the run is handed.
+    const departed = input.departures.to.length > 0;
     const neverSent =
       result.stop.kind === "failed" &&
       failureClassOf(result.stop.failure) === "never_sent" &&
@@ -8273,9 +8283,7 @@ export class AiSession {
       result.conversation.turns.length === userTurn + 1;
     // Who got something of the run although the model call itself never went (S1): the notice says no "nothing was sent".
     const departedTo =
-      result.stop.kind === "failed" && failureClassOf(result.stop.failure) === "never_sent" && departed && input.departedAt !== undefined
-        ? [...new Set(this.departedTo.filter((entry) => entry.at > input.departedAt!).map((entry) => entry.endpointId))]
-        : [];
+      result.stop.kind === "failed" && failureClassOf(result.stop.failure) === "never_sent" && departed ? [...new Set(input.departures.to)] : [];
     if (input.typed && !retry && neverSent && !input.background) {
       const before = this.running.get(record.id);
       if (before) this.running.delete(record.id);

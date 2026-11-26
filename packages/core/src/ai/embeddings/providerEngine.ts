@@ -17,7 +17,7 @@ import type { ModelFailure } from "../egress.js";
 import type { HttpRequestSpec, ProviderEndpoint } from "../providers.js";
 import { fromBase64 } from "../../workspace/encoding.js";
 import { GOLDEN_TEXT } from "./catalog.js";
-import type { EmbeddingEngine, EmbeddingKind } from "./engine.js";
+import type { EmbedVia, EmbeddingEngine, EmbeddingKind } from "./engine.js";
 import { l2Normalize } from "./vectors.js";
 
 export type EmbeddingRoute = "openai-embeddings" | "gemini-embed";
@@ -168,8 +168,8 @@ export interface ProviderEmbeddingOptions {
   endpoint: ProviderEndpoint;
   route: EmbeddingRoute;
   model: string;
-  /** One request through the native egress; the signal cancels it. */
-  send(spec: HttpRequestSpec, signal?: AbortSignal): Promise<ProviderJsonAnswer>;
+  /** One request through the native egress; the signal cancels it, `via` names the run's own egress (B7). */
+  send(spec: HttpRequestSpec, signal?: AbortSignal, via?: EmbedVia): Promise<ProviderJsonAnswer>;
   /** Each answered request: the input tokens the provider counted (0 where it says nothing). */
   onUsage?(inputTokens: number): void;
   /** Waits before another attempt; tests pass their own. */
@@ -220,11 +220,11 @@ function defaultSleep(ms: number, signal?: AbortSignal): Promise<void> {
 export async function createProviderEmbeddingEngine(options: ProviderEmbeddingOptions): Promise<ProviderEmbeddingEngine> {
   const { endpoint, route, model, send } = options;
   const sleep = options.sleep ?? defaultSleep;
-  const request = async (texts: readonly string[], kind: EmbeddingKind, signal?: AbortSignal): Promise<Float32Array[]> => {
+  const request = async (texts: readonly string[], kind: EmbeddingKind, signal?: AbortSignal, via?: EmbedVia): Promise<Float32Array[]> => {
     let wait = FIRST_WAIT_MS;
     for (let attempt = 1; ; attempt++) {
       signal?.throwIfAborted();
-      const answer = await send(embeddingRequest(endpoint, route, model, texts, kind), signal);
+      const answer = await send(embeddingRequest(endpoint, route, model, texts, kind), signal, via);
       signal?.throwIfAborted();
       if (answer.ok) {
         const vectors = embeddingsOf(route, answer.json, texts.length);
@@ -246,11 +246,11 @@ export async function createProviderEmbeddingEngine(options: ProviderEmbeddingOp
     id: providerEngineId(endpoint.id, model),
     dim,
     probe: probe!,
-    async embed(texts, kind, signal) {
+    async embed(texts, kind, signal, via) {
       if (disposed) throw new Error("embedding engine: disposed");
       const out: Float32Array[] = [];
       for (let i = 0; i < texts.length; i += PROVIDER_EMBED_BATCH) {
-        const vectors = await request(texts.slice(i, i + PROVIDER_EMBED_BATCH), kind, signal);
+        const vectors = await request(texts.slice(i, i + PROVIDER_EMBED_BATCH), kind, signal, via);
         if (vectors[0]!.length !== dim) throw new ProviderEmbeddingError({ kind: "provider_error", message: `${vectors[0]!.length} values instead of ${dim}` });
         out.push(...vectors);
       }

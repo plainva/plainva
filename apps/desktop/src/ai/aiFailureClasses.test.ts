@@ -161,12 +161,16 @@ describe("what left the device before the model call", () => {
   /** A search model's answer: one vector. */
   const vector: EgressChunk[] = [{ type: "open", status: 200 }, { type: "data", text: JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }) }, { type: "done" }];
 
-  function embeddingSearch(vault: ReturnType<typeof vaultHost>, s: ReturnType<typeof session>["s"], endpointId: string) {
+  /** A search model's request for `text`, as the search with a provider's model makes it. */
+  const embedding = (endpointId: string, text: string) =>
+    ({ endpointId, url: "https://api.openai.com/v1/embeddings", method: "POST", headers: {}, body: { input: [text] }, auth: "bearer", stream: false }) as never;
+
+  function embeddingSearch(vault: ReturnType<typeof vaultHost>, _s: ReturnType<typeof session>["s"], endpointId: string) {
     const handed: string[] = [];
-    vault.host.candidates = async (question) => {
+    vault.host.candidates = async (question, _active, _recipient, egress) => {
       handed.push(question);
-      // As the search with a provider's model does it: one request through the session's egress.
-      await s.egress.send(`emb-${handed.length}`, { endpointId, url: "https://api.openai.com/v1/embeddings", method: "POST", headers: {}, body: { input: [question] }, auth: "bearer", stream: false } as never, () => undefined);
+      // As the search does it: one request through the egress the run hands it (`gatherCandidates`, B7).
+      await egress.send(`emb-${handed.length}`, embedding(endpointId, question), () => undefined);
       return [];
     };
     return handed;
@@ -199,6 +203,79 @@ describe("what left the device before the model call", () => {
     await s.send("Where is the offer?");
     expect(s.getState().notice?.returned).toBe(true);
     expect(s.getState().active).toBeNull();
+  });
+
+  it("withdraws where only the notes' own embedding went out while it ran: that was not this question", async () => {
+    const { s, fake } = session([vector, unreachable]);
+    await s.load();
+    const vault = vaultHost();
+    vault.host.candidates = async () => {
+      // The search's index embeds a changed note at this moment, through the session's egress — nobody's run.
+      await s.egress.send("embed-note", embedding("openai", "A note that changed"), () => undefined);
+      return [];
+    };
+    await s.attachVault(vault.host);
+    await s.send("Where is the offer?");
+    expect(fake.sent).toHaveLength(2);
+    expect(s.getState().notice?.returned).toBe(true);
+    expect(s.getState().notice?.departedTo).toBeUndefined();
+    expect(s.getState().active).toBeNull();
+  });
+
+  it("withdraws where a connection test went out while it ran", async () => {
+    const models: EgressChunk[] = [{ type: "open", status: 200 }, { type: "data", text: JSON.stringify({ data: [{ id: "m-1" }] }) }, { type: "done" }];
+    const { s, fake } = session([models, unreachable]);
+    await s.load();
+    const vault = vaultHost();
+    vault.host.candidates = async () => {
+      expect((await s.testProvider("openai")).state).toBe("ok");
+      return [];
+    };
+    await s.attachVault(vault.host);
+    await s.send("Where is the offer?");
+    expect(fake.sent).toHaveLength(2);
+    expect(s.getState().notice?.returned).toBe(true);
+    expect(s.getState().active).toBeNull();
+  });
+
+  it("withdraws where the search needed no request: what the device already holds sends nothing", async () => {
+    // The question's vector is never kept between questions (`rankedSearch` embeds each anew); a search that answers
+    // without asking anyone — the device's own model, or no meaning at all — leaves nothing behind it.
+    const { s, fake } = session([unreachable]);
+    await s.load();
+    const vault = vaultHost();
+    vault.host.candidates = async () => [[{ path: "Offer.md", title: "Offer", signals: { semantic: 0.9 } } as never]];
+    await s.attachVault(vault.host);
+    await s.send("Where is the offer?");
+    expect(fake.sent).toHaveLength(1);
+    expect(s.getState().notice?.returned).toBe(true);
+  });
+
+  it("two runs at once count each its own requests: each run's egress counts what passes it, and nothing else", async () => {
+    // The session starts no second run of a message while one runs (`send`, `replyInThread` and `runRoutine` say
+    // "busy"); should two ever overlap, each still counts only its own: the count sits on the egress a run is handed.
+    let release: () => void = () => undefined;
+    const late = new Promise<void>((resolve) => (release = resolve));
+    const inner = {
+      async send(requestId: string, _spec: unknown, onChunk: (chunk: EgressChunk) => void) {
+        if (requestId === "first-question") await late;
+        for (const chunk of requestId.endsWith("refused") ? unreachable : vector) onChunk(chunk);
+      },
+      async cancel() {},
+      rest() {},
+    };
+    const first: string[] = [];
+    const second: string[] = [];
+    const firstRun = departingEgress(inner as never, (endpointId) => first.push(endpointId));
+    const secondRun = departingEgress(inner as never, (endpointId) => second.push(endpointId));
+    const spec = (endpointId: string) => ({ endpointId, url: "https://x.example/v1", method: "POST", headers: {}, body: {} }) as never;
+    const pending = firstRun.send("first-question", spec("openai"), () => undefined);
+    await secondRun.send("second-refused", spec("anthropic"), () => undefined);
+    expect(second).toEqual([]);
+    release();
+    await pending;
+    expect(first).toEqual(["openai"]);
+    expect(second).toEqual([]);
   });
 
   it("counts a request as gone unless the egress refused it as never sent before anything came back", async () => {

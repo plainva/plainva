@@ -3,6 +3,7 @@
  * package run by the native ONNX Runtime of each shell, or — P2a-5 — an own
  * provider's embeddings route. Search, store and pipeline only know this seam.
  */
+import type { AiEgress } from "../egress.js";
 import type { EmbeddingModelSpec, EmbeddingPooling } from "./catalog.js";
 import { embeddingEngineId } from "./catalog.js";
 import type { EmbeddingTokenizer } from "./tokenizer.js";
@@ -11,12 +12,20 @@ import { l2Normalize } from "./vectors.js";
 /** A search question gets the model's query prefix; a note's chunk goes in as it is. */
 export type EmbeddingKind = "query" | "document";
 
+/**
+ * The way out one embedding takes where it is not the engine's own (B7, S1): the egress of the run that asks, so
+ * that run knows what of it left the device. An engine on this device sends nothing and ignores it.
+ */
+export interface EmbedVia {
+  readonly egress: AiEgress;
+}
+
 export interface EmbeddingEngine {
   /** The vector space (`embeddingEngineId`): vectors of two engines never mix. */
   readonly id: string;
   readonly dim: number;
   /** One L2-normalised vector per text, in the order of `texts`. */
-  embed(texts: readonly string[], kind: EmbeddingKind, signal?: AbortSignal): Promise<Float32Array[]>;
+  embed(texts: readonly string[], kind: EmbeddingKind, signal?: AbortSignal, via?: EmbedVia): Promise<Float32Array[]>;
   dispose(): Promise<void>;
 }
 
