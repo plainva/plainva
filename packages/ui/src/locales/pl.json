@@ -3956,7 +3956,7 @@
     "readAsTextInfo": "Aby notatka otwierała się na każdym urządzeniu, Plainva czyta jej najcięższe części jako zwykły tekst. Brakuje tam tylko formatowania: tabele, listy i linki pojawiają się jako tekst źródłowy.\n\nPoza tym ten tekst liczy się jak każdy inny: wyszukiwanie go znajduje, jego linki pojawiają się w linkach zwrotnych i w grafie, jego tagi i zadania są odnajdywane, a zmiana nazwy notatki przepisuje jego linki. Podziel notatkę, a wszystko znów będzie sformatowane.",
     "readAsTextJump": "Przejdź tam",
     "readAsTextUnread": "Część tej notatki jest pokazywana jako tekst, a jej linki nie są odczytywane.",
-    "readAsTextUnreadInfo": "Aby notatka otwierała się na każdym urządzeniu, Plainva pokazuje bardzo duże lub nietypowo zapisane części jako zwykły tekst. Jedna z nich jest zbyt duża, by odczytać ją nawet po kawałku: jej linków brakuje w linkach zwrotnych i w grafie, a zmiana nazwy notatki pozostawia je bez zmian. Wyszukiwanie i tak ją znajduje, a jej tagi i zadania są odnajdywane.\n\nPodziel tę część pustymi wierszami albo zapisz ją jako listę, a znów zostanie odczytana.",
+    "readAsTextUnreadInfo": "Aby notatka otwierała się na każdym urządzeniu, Plainva pokazuje bardzo duże lub nietypowo zapisane części jako zwykły tekst. Jednej z nich Plainva nie odczytuje nawet po kawałku: jej linków brakuje w linkach zwrotnych i w grafie, a zmiana nazwy notatki pozostawia je bez zmian — Plainva wtedy o tym informuje. Wyszukiwanie i tak ją znajduje, a jej zadania są odnajdywane.\n\nPodziel notatkę na mniejsze, a zostanie znów odczytana.",
     "fmtHeading": "Nagłówek"
   },
   "tabMenu": {

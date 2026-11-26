@@ -151,6 +151,17 @@ export function inlineParseCost(text: string, from = 0, to = text.length): numbe
   return cost;
 }
 
+/**
+ * The fewest characters of a note that may hold a part not read
+ * (`ReadAsTextParts.unread`): each character adds to a paragraph's cost at
+ * most its distance from the paragraph's start (`inlineParseCost`), so a
+ * paragraph of n characters costs at most n(n − 1)/2, and over the budget it is
+ * from 5 478 characters (a paragraph of `]`); a block the note's budget cannot
+ * cut needs a note far larger. A rename reads the notes this large that may
+ * name the renamed one (`notesThatMayNameUnread`).
+ */
+export const SMALLEST_UNREAD_CHARS = Math.ceil((1 + Math.sqrt(1 + 8 * INLINE_PARSE_BUDGET)) / 2);
+
 /** Whether `text[from, to)`, read as one paragraph, costs more than the budget. */
 export function exceedsInlineParseBudget(text: string, from = 0, to = text.length): boolean {
   // A stretch too short to reach the budget even if every character looked back to its start.
@@ -1696,9 +1707,30 @@ export const NOTE_TABLE_PEAK_WEIGHT = 6;
  * 956860: 18 of 200 tables at the budget became text before this held).
  */
 export const NOTE_TABLE_SHARE = (0.9 * NOTE_BUDGET) / TABLE_READ_BUDGET;
-/** What each autolink literal and each footnote reference weighs to the note's budget. */
+/**
+ * What each autolink literal and each reference weighs to the note's budget: a
+ * footnote's (`[^label]`) and one to a link's definition (`[text][label]`,
+ * `[label][]`, `[label]`, by its brackets: more than the parser resolves, never
+ * fewer). A resolved reference holds what a link holds, and on the phone
+ * `main` reads 9 787 definitions alone under 128 MB, 5 742 beside a reference
+ * each (`defs`, `refsdefs`).
+ */
 export const NOTE_LITERAL_WEIGHT = 324;
 export const NOTE_REFERENCE_WEIGHT = 888;
+/**
+ * What a line that begins with a definition weighs beyond its characters — a
+ * link reference definition `[label]: …` or a footnote's `[^label]: …`, behind
+ * the markers its line begins with. micromark keeps about forty events of a
+ * definition until the end of the parse (10 000 of them, 0.18 MB of note, held
+ * 99 MB), where a line of prose of the same length holds a handful: 20 000 of
+ * them ran the index out of 128 MB, and the budget weighed them as prose
+ * (review of L14, 2026-11-26). Calibrated with the forms `defs`, `footdefs`
+ * and `refsdefs` (`scripts/perf/note-budget.ts`): on the phone `main` reads
+ * 9 729 link definitions and 6 030 footnote definitions under 128 MB, which
+ * the budget weighed as 16 830 and 9 191 lines of text; with this weight the
+ * forms are read as text from 6 650 and 5 010 (2026-11-26).
+ */
+export const NOTE_DEFINITION_WEIGHT = 2330;
 
 /**
  * The weights the note's budget weighs by, as one object: the constants
@@ -1728,6 +1760,7 @@ const W = {
   tablePeak: NOTE_TABLE_PEAK_WEIGHT,
   literal: NOTE_LITERAL_WEIGHT,
   reference: NOTE_REFERENCE_WEIGHT,
+  definition: NOTE_DEFINITION_WEIGHT,
 };
 export type NoteWeights = typeof W;
 
@@ -1780,6 +1813,25 @@ function noteTableRowCost(parts: TableRowParts, columns: number, prefix: string)
 }
 
 /**
+ * Whether `text[at, to)` begins with what may be a definition: `[label]:`,
+ * the label without an unescaped bracket and at most 999 characters, as the
+ * parser reads one; a footnote's `[^label]:` too. A line of a paragraph that
+ * reads so is weighed as one as well — the measure may be heavier than the
+ * parser's work, never lighter.
+ */
+function beginsWithDefinition(text: string, at: number, to: number): boolean {
+  if (text.charCodeAt(at) !== 0x5b) return false;
+  const end = Math.min(to, at + 1001);
+  for (let i = at + 1; i < end; i++) {
+    const code = text.charCodeAt(i);
+    if (code === 0x5c) i++;
+    else if (code === 0x5b) return false;
+    else if (code === 0x5d) return i > at + 1 && text.charCodeAt(i + 1) === 0x3a;
+  }
+  return false;
+}
+
+/**
  * What an ASCII character is to `noteLineCost`, by its code: a blank, a
  * character of inline syntax (`TABLE_SYNTAX`), one that may begin a link
  * literal (`@`, `:`, `w`, `m`, `x`), or nothing more (0) — a lookup for the
@@ -1818,7 +1870,25 @@ function isThematicBreak(text: string, from: number, to: number): boolean {
  * is inline syntax, nothing more). One pass over character codes: it reads every line of a long
  * note, where the scan otherwise asks most lines nothing.
  */
+/** The closing brackets of `text[from, to)` that may end a reference: no link's (`](`), no wiki link's, no definition's label (`]:`). */
+function closingBrackets(text: string, from: number, to: number): number {
+  let count = 0;
+  // Within the range alone: `indexOf` would read to the note's end for each table without a bracket.
+  for (let i = from; i < to; i++) {
+    if (text.charCodeAt(i) !== 0x5d) continue;
+    const next = text.charCodeAt(i + 1);
+    if (next !== 0x28 && next !== 0x5d && next !== 0x3a && text.charCodeAt(i - 1) !== 0x5d) count++;
+  }
+  return count;
+}
+
+/** What the last `noteLineCost` read: whether its line begins with a definition, and how many references it holds. */
+let lineDefinition = false;
+let lineReferences = 0;
+
 function noteLineCost(text: string, from: number, to: number): number {
+  lineDefinition = false;
+  lineReferences = 0;
   const kept = keptPrefix(text, from, to);
   let cost = W.line;
   if (kept > 0) {
@@ -1829,6 +1899,8 @@ function noteLineCost(text: string, from: number, to: number): number {
   // A thematic break (`---`, `***`, `_ _ _`) is one node, whatever its characters: no line of text, no emphasis, no
   // syntax — its characters and its markers alone.
   if (isThematicBreak(text, from + kept, to)) return cost - W.line + (to - from - kept) + W.rule;
+  lineDefinition = beginsWithDefinition(text, from + kept, to);
+  if (lineDefinition) cost += W.definition;
   let syntax = 0;
   let opens = 0;
   let emphasis = 0;
@@ -1843,6 +1915,13 @@ function noteLineCost(text: string, from: number, to: number): number {
   let references = 0;
   let inWord = false;
   let wordStart = -1;
+  // Brackets: how many plain ones are open and where the last opened, whether a footnote reference's or the label of a
+  // full reference (`][`) is open.
+  let plainOpen = 0;
+  let plainAt = -1;
+  let footnoteOpen = false;
+  let labelOpen = false;
+  const content = from + kept;
   for (let i = from + kept; i < to; i++) {
     const code = text.charCodeAt(i);
     // Most characters are letters: one look into the table, and on.
@@ -1868,14 +1947,42 @@ function noteLineCost(text: string, from: number, to: number): number {
       if (code === 0x5b) {
         opens++;
         const next = text.charCodeAt(i + 1);
+        const before = text.charCodeAt(i - 1);
         if (next === 0x5b) {
           links++;
           // Behind a `]` the reading view writes a comment in front of the link, as the table's weight counts it.
-          if (text.charCodeAt(i - 1) === 0x5d) cost += readerWikiLinkLead(text, i, false).length;
-        } else if (next === 0x5e) references++;
+          if (before === 0x5d) cost += readerWikiLinkLead(text, i, false).length;
+        } else if (next === 0x5e) {
+          references++;
+          footnoteOpen = true;
+        } else if (before === 0x5d && i - 1 > content) labelOpen = true;
+        else if (before !== 0x5b) {
+          plainOpen++;
+          plainAt = i;
+        }
         // A link glued to the word before it is a piece of its own.
-        if (inWord && wordStart !== i && text.charCodeAt(i - 1) !== 0x5b && !(wordStart === i - 1 && text.charCodeAt(i - 1) === 0x21)) words++;
-      } else if (code === 0x5d && text.charCodeAt(i + 1) === 0x28) links++;
+        if (inWord && wordStart !== i && before !== 0x5b && !(wordStart === i - 1 && before === 0x21)) words++;
+      } else if (code === 0x5d) {
+        const next = text.charCodeAt(i + 1);
+        if (next === 0x28) {
+          links++;
+          if (labelOpen) labelOpen = false;
+          else if (plainOpen > 0) plainOpen--;
+        } else if (next === 0x5d || text.charCodeAt(i - 1) === 0x5d) {
+          // A wiki link's end.
+        } else if (footnoteOpen) footnoteOpen = false;
+        else if (labelOpen) labelOpen = false;
+        else if (plainOpen > 0) {
+          plainOpen--;
+          // A reference to a definition: `[text][label]`, `[label][]`, `[label]` — resolved, it holds what a link
+          // holds, and its definition, read as text elsewhere, is given back to the tree (`givenDefinitions`). Not the
+          // label of a definition, a task's box or a callout's type at the line's start.
+          const opener = plainAt === content;
+          const box = opener && i === content + 2 && /[ xX]/.test(text[content + 1]);
+          const callout = opener && text.charCodeAt(content + 1) === 0x21;
+          if (next !== 0x3a && !box && !callout) references++;
+        }
+      }
     } else if (kind === CHAR_LITERAL) {
       if (code === 0x40) {
         literals++;
@@ -1891,6 +1998,8 @@ function noteLineCost(text: string, from: number, to: number): number {
     inWord = true;
     previous = code;
   }
+  // A footnote's definition is no reference to it.
+  lineReferences = lineDefinition && text.charCodeAt(content + 1) === 0x5e ? references - 1 : references;
   return (
     cost +
     (to - from - kept) +
@@ -1922,8 +2031,21 @@ function noteLineCost(text: string, from: number, to: number): number {
 function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number }>, ranges: BoundedRange[], reading: MarkdownReading, weights: Float64Array, observe?: InlineScanObserver, previous?: readonly BoundedRange[]): BoundedRange[] {
   const properties = reading.properties ? frontmatterSpan(text) : null;
   const propertiesEnd = properties ? properties.end : 0;
-  const blocks: Array<{ from: number; to: number; weight: number; asText: number; headings: boolean }> = [];
-  let block: { from: number; to: number; weight: number; asText: number; headings: boolean } | null = null;
+  // `definitions`: what the block's lines that begin with a definition weigh; `references`: the references it holds.
+  type NoteBlock = { from: number; to: number; weight: number; asText: number; headings: boolean; definitions: number; references: number };
+  const blocks: NoteBlock[] = [];
+  let block: NoteBlock | null = null;
+  // What the line `add` is given holds of definitions and references (`noteLineCost`).
+  let lineDefinitions = 0;
+  let lineRefs = 0;
+  // What the definitions of what the paragraph and table budgets read as written weigh: read as text from the start.
+  let writtenDefinitions = 0;
+  const weighLine = (from: number, to: number): number => {
+    const cost = noteLineCost(text, from, to);
+    lineDefinitions = lineDefinition ? cost : 0;
+    lineRefs = lineReferences;
+    return cost;
+  };
   let total = 0;
   let written = 0;
   let heaviestTable = 0;
@@ -1954,9 +2076,13 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
     blankChars = 0;
     if (block && block.headings !== headings) close();
     if (!block) {
-      block = { from, to, weight: 0, asText: 0, headings };
+      block = { from, to, weight: 0, asText: 0, headings, definitions: 0, references: 0 };
       weight += W.block;
     }
+    block.definitions += lineDefinitions;
+    block.references += lineRefs;
+    lineDefinitions = 0;
+    lineRefs = 0;
     total += weight;
     weights[index] += weight;
     deepBefore = indentOf(lines[lastIndex].text) >= 4;
@@ -1980,7 +2106,7 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
     // the note itself does (`readAsTextParts`).
     if (kind === LINE_HEADING && text.charCodeAt(line.from) !== 0x20 && text.charCodeAt(line.from) !== 0x09) {
       // Headings are blocks of their own, read as text last: the outline and the links to them hang on them.
-      add(index, line.from, line.to, W.heading + noteLineCost(text, line.from, line.to), asText, true);
+      add(index, line.from, line.to, W.heading + weighLine(line.from, line.to), asText, true);
       continue;
     }
     while (written < ranges.length && ranges[written].to <= line.from) written++;
@@ -1989,16 +2115,21 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
       const end = lines[table.last].to;
       const written = end - line.from + W.textLine * (table.last - index + 1);
       if (table.cost >= 0) heaviestTable = Math.max(heaviestTable, table.peak);
+      // A table's references, by its closing brackets that are no link's and no wiki link's: more than it holds, never fewer.
+      if (table.cost >= 0) lineRefs = closingBrackets(text, line.from, end);
       add(index, line.from, end, table.cost < 0 ? written : table.cost, end - line.from + 1, false, table.last);
       index = table.last;
       continue;
     }
     if (written < ranges.length && ranges[written].from < line.to) {
-      // Read as written already: what text costs, its line end kept.
+      // Read as written already: what text costs, its line end kept. A definition in it is read as text from the start
+      // (a block of 30 000 definitions is one paragraph over the paragraph's budget on the desktop).
+      const kept = keptPrefix(text, line.from, line.to);
+      if (beginsWithDefinition(text, line.from + kept, line.to)) writtenDefinitions += W.line + W.definition + (line.to - line.from);
       add(index, line.from, line.to, line.to - line.from + W.textLine, asText);
       continue;
     }
-    add(index, line.from, line.to, kind === LINE_CODE ? line.to - line.from + W.codeLine : noteLineCost(text, line.from, line.to), asText);
+    add(index, line.from, line.to, kind === LINE_CODE ? line.to - line.from + W.codeLine : weighLine(line.from, line.to), asText);
   }
   close();
   // The peak of the heaviest table while it is resolved, on top of what stays: it is there whichever blocks are read as text.
@@ -2007,8 +2138,18 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
   // Held: the blocks an earlier decision on this text read as text (the editor's, while it is typed in). Within a
   // tenth under the budget they stay text, and they are the first chosen over it: one keystroke at the threshold
   // turns no block back and forth, and among blocks of about the same weight the one read as text stays the one.
+  // A definition read as text that a reference in formatted text names is given back to the note's tree, a line of
+  // its own (`givenDefinitions`): what the definitions read as text weigh, at most one given line for each reference
+  // still formatted, is weighed again (review of L14, 2026-11-26: references formatted beside their definitions read
+  // as text held all the definitions again, and the note ran out of 128 MB where the budget weighed it read).
+  let givenFrom = writtenDefinitions;
+  let formattedReferences = 0;
+  for (const each of blocks) formattedReferences += each.references;
+  // The most a given line weighs: `[label]: #`, its label at most 999 characters.
+  const givenLineMost = W.line + W.definition + 1003 + 2 * W.word + 3 * W.syntax + W.open;
+  const given = (): number => Math.min(givenFrom, formattedReferences * givenLineMost);
   const held = (previous ?? []).filter((range) => range.block);
-  if (total <= noteBudget && (held.length === 0 || total <= noteBudget * (1 - NOTE_HYSTERESIS))) return [];
+  if (total + given() <= noteBudget && (held.length === 0 || total + given() <= noteBudget * (1 - NOTE_HYSTERESIS))) return [];
   const isHeld = (i: number): boolean => {
     const { from, to } = blocks[i];
     let lo = 0;
@@ -2039,13 +2180,15 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
     .sort((x, y) => Number(blocks[x].headings) - Number(blocks[y].headings) || blocks[y].weight - blocks[x].weight || x - y);
   const order = held.length > 0 ? [...heaviest.filter(isHeld), ...heaviest.filter((i) => !isHeld(i))] : heaviest;
   for (const i of order) {
-    if (total <= noteBudget && !(held.length > 0 && isHeld(i))) break;
+    if (total + given() <= noteBudget && !(held.length > 0 && isHeld(i))) break;
     const candidate = blocks[i];
     const before = besideAsText(i, i - 1);
     const after = besideAsText(i, i + 1);
     asTextAt[i] = 1;
     chosen.push({ from: candidate.from, to: candidate.to, block: true });
     total -= candidate.weight - candidate.asText - (before && after ? -paragraph : before || after ? 0 : paragraph);
+    givenFrom += candidate.definitions;
+    formattedReferences -= candidate.references;
   }
   // Blocks with only blank lines between them are one range, the blank lines standing in as well: one line, not a
   // paragraph a block (40 000 short paragraphs read as text still filled 128 MB).
@@ -2078,17 +2221,13 @@ let pieceShare = PIECE_SHARE;
  * fiftieth, with a third of the heap.
  */
 const PIECE_GATHER_SHARE = 0.02;
-/**
- * How much of a note the readers of its facts read in pieces at most, in
- * shares of the note's budget, in the order of the text; what lies behind is
- * unread. Each piece is a parse of its own, and a parse costs time beyond its
- * text (2 to 5 s a megabyte in pieces, 2026-11-25): mixed notes of 4 to 10 MB
- * took the index 10 to 28 s and more. Four budgets — about 16 000 linked list
- * items, 30 000 lines of prose on the phone — keep the time of the index's
- * reading of one note to a few seconds and what it holds of their links in
- * proportion.
+/*
+ * No cap on what is read in pieces (2026-11-26). A cap of four budgets left
+ * half the links of a mixed note of 1 MB unread on the phone, and saved no
+ * time against the parse it replaced: in pieces a note is read in linear time,
+ * 1 to 7 s a megabyte here, where `main`'s parse of the same note took 39 s
+ * for 1 MB of mixed blocks and 190 s for 4 MB of list items (Performance_Notes.md).
  */
-export const PIECES_READ_SHARE = 4;
 
 /**
  * The share of the note's budget a piece may weigh; only the tests and the
@@ -2096,18 +2235,23 @@ export const PIECES_READ_SHARE = 4;
  * a piece of its own, whatever it weighs — the tests' way to read every cut
  * against the note read whole.
  */
-export function setPieceShare(share: number, apart = false, read = PIECES_READ_SHARE): void {
+export function setPieceShare(share: number, apart = false): void {
   pieceShare = share;
   piecesApart = apart;
-  readShare = read;
 }
 let piecesApart = false;
-let readShare = PIECES_READ_SHARE;
 
 /** A stretch of a block read as text that the parser reads on its own for the note's facts: whole lines, in the note's places. */
 export interface ReadPiece {
   from: number;
   to: number;
+  /** What it weighs to the note's budget: pieces that stand side by side may be read as one up to `pieceLimit`. */
+  weight?: number;
+}
+
+/** What a piece read at once may weigh: the share of the note's budget a piece may take (`PIECE_SHARE`). */
+export function pieceLimit(): number {
+  return pieceShare * noteBudget;
 }
 
 /**
@@ -2124,6 +2268,13 @@ export interface ReadAsTextParts {
   ranges: BoundedRange[];
   pieces: ReadPiece[];
   unread: BoundedRange[];
+  /**
+   * Whether the note begins with a `---` that nothing closes: the parser then
+   * reads no blocks within blocks anywhere in it, and the note has no `---`
+   * line that would close it. A piece read behind a `---` of its own is read
+   * as in the note (`forEachReadPiece`).
+   */
+  behindUnclosedProperties?: boolean;
 }
 
 /** Whether `content` (a line behind its quote markers) is a thematic break: `- - -` opens no list item. */
@@ -2132,8 +2283,8 @@ const THEMATIC_BREAK = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3
 /**
  * Where the lines `[first, last]` of a unit of a block read as text can be
  * cut so that each part, read alone, is read as in the note: at the items of
- * its outermost list. The unit must begin with an item at the start of its
- * line (behind the quote markers it stands in); a cut is an item of the same
+ * its outermost list. The unit must begin with an item at most three blanks in
+ * (behind the quote markers it stands in); a cut is an item of the same
  * kind at the same place and depth, outside fenced code and HTML — bulleted
  * items interrupt whatever stands before them, an ordered one only continues
  * its list, so the cuts of an ordered list end at the first line of the
@@ -2144,7 +2295,9 @@ const THEMATIC_BREAK = /^ {0,3}(?:(?:\*[ \t]*){3,}|(?:-[ \t]*){3,}|(?:_[ \t]*){3
  */
 function listCuts(lines: ScanLine[], first: number, last: number): number[] | null {
   const head = peelQuotes(lines[first].text);
-  const item = indentOf(head.content) === 0 && !THEMATIC_BREAK.test(head.content) ? itemStart(head.content) : null;
+  // An item may stand up to three blanks in (`  - [x] done …`); its siblings may stand anywhere from none to three, short
+  // of its content (review of L14, 2026-11-26: a list indented by two was never cut, and lost its links from 3 500 items).
+  const item = indentOf(head.content) <= 3 && !THEMATIC_BREAK.test(head.content) ? itemStart(head.content) : null;
   if (!item) return null;
   const delimiterOf = (content: string): string => content[/^\d*/.exec(content)![0].length];
   const delimiter = item.ordered ? delimiterOf(head.content) : null;
@@ -2207,7 +2360,7 @@ function listCuts(lines: ScanLine[], first: number, last: number): number[] | nu
         continue;
       }
     }
-    if (peeled.depth !== head.depth || indentOf(text) > 0) {
+    if (peeled.depth !== head.depth || indentOf(text) > 3) {
       if (ended) inList = false;
       continue;
     }
@@ -2257,7 +2410,7 @@ function lineAt(lines: ScanLine[], at: number): number {
 export function readAsTextParts(text: string, reading: MarkdownReading = NOTE_READING, previous?: readonly BoundedRange[]): ReadAsTextParts {
   if (previous) return scannedParts(text, reading, previous);
   // The index parses a note and then reads its facts: one scan for both.
-  const key = `${noteBudget} ${pieceShare} ${piecesApart} ${readShare} ${weightsVersion} ${reading.tables} ${reading.properties} ${reading.notes}`;
+  const key = `${noteBudget} ${pieceShare} ${piecesApart} ${weightsVersion} ${reading.tables} ${reading.properties} ${reading.notes}`;
   if (lastParts && lastParts.text === text && lastParts.key === key) return lastParts.parts;
   const parts = scannedParts(text, reading);
   lastParts = { text, key, parts };
@@ -2279,19 +2432,14 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
   const { lines, kinds, weights } = found;
   const limit = pieceShare * noteBudget;
   const gather = Math.min(limit, PIECE_GATHER_SHARE * noteBudget);
-  // What the pieces may weigh together (`PIECES_READ_SHARE`); behind that, everything read as text is unread.
-  let readable = piecesApart ? Infinity : readShare * noteBudget;
   const leaveUnread = (from: number, to: number) => {
     const last = unread[unread.length - 1];
     if (last && onlyBlanksBetween(text, last.to, from)) last.to = Math.max(last.to, to);
     else unread.push({ from, to });
   };
+  // Behind an unclosed `---` the parser reads no blocks within blocks: a list is no list there, and a unit is not cut.
+  const cutsOf = (from: number, to: number) => (found.containers ? listCuts(lines, from, to) : null);
   for (const block of found.blocks) {
-    // Behind an unclosed `---` the parser reads no blocks within blocks: no part of it reads alone as it does there.
-    if (!found.containers) {
-      leaveUnread(block.from, block.to);
-      continue;
-    }
     const first = lineAt(lines, block.from);
     let last = first;
     while (last + 1 < lines.length && lines[last + 1].from < block.to) last++;
@@ -2314,17 +2462,10 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
     }
     let piece: { from: number; to: number; weight: number } | null = null;
     const flush = () => {
-      if (piece) pieces.push({ from: piece.from, to: piece.to });
+      if (piece) pieces.push({ from: piece.from, to: piece.to, weight: piece.weight });
       piece = null;
     };
     const take = (from: number, to: number, weight: number) => {
-      if (weight > readable) {
-        flush();
-        readable = 0;
-        leaveUnread(lines[from].from, lines[to].to);
-        return;
-      }
-      readable -= weight;
       const current = piece as { from: number; to: number; weight: number } | null;
       if (current && !piecesApart && current.weight + weight <= gather) {
         current.to = lines[to].to;
@@ -2335,11 +2476,11 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
       }
     };
     for (const [from, to, weight] of units) {
-      if (weight <= limit && !(piecesApart && listCuts(lines, from, to)?.length)) {
+      if (weight <= limit && !(piecesApart && cutsOf(from, to)?.length)) {
         take(from, to, weight);
         continue;
       }
-      const cuts = listCuts(lines, from, to);
+      const cuts = cutsOf(from, to);
       if (!cuts) {
         flush();
         leaveUnread(lines[from].from, lines[to].to);
@@ -2360,7 +2501,7 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
     }
     flush();
   }
-  return { ranges, pieces, unread: unitedRanges(unread, found.inline).map(({ from, to }) => ({ from, to })) };
+  return { ranges, pieces, unread: unitedRanges(unread, found.inline).map(({ from, to }) => ({ from, to })), ...(found.containers ? {} : { behindUnclosedProperties: true }) };
 }
 
 /** Whether the place `at` lies in one of `ranges` (in text order, apart), found by halving. */
@@ -2377,7 +2518,7 @@ export function inBoundedRanges(ranges: readonly BoundedRange[], at: number | un
 }
 
 /** Whether `text[from, to)` holds nothing but blanks and line ends. */
-function onlyBlanksBetween(text: string, from: number, to: number): boolean {
+export function onlyBlanksBetween(text: string, from: number, to: number): boolean {
   for (let i = from; i < to; i++) {
     const code = text.charCodeAt(i);
     if (code !== 0x20 && code !== 0x09 && code !== 0x0a && code !== 0x0d) return false;

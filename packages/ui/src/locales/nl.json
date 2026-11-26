@@ -3778,7 +3778,7 @@
     "readAsTextInfo": "Zodat de notitie op elk apparaat opent, leest Plainva de zwaarste delen als platte tekst. Daar ontbreekt alleen de opmaak: tabellen, lijsten en links verschijnen als brontekst.\n\nVerder telt die tekst als elke andere: zoeken vindt hem, zijn links verschijnen in backlinks en de graaf, zijn tags en taken worden gevonden, en bij het hernoemen van een notitie worden zijn links herschreven. Splits je de notitie, dan is alles weer opgemaakt.",
     "readAsTextJump": "Ga erheen",
     "readAsTextUnread": "Een deel van deze notitie wordt als tekst getoond, en de links daarin worden niet gelezen.",
-    "readAsTextUnreadInfo": "Zodat de notitie op elk apparaat opent, toont Plainva zeer grote of ongewoon geschreven delen als platte tekst. Een daarvan is te groot om zelfs in stukken te lezen: de links daarin ontbreken in backlinks en de graaf, en bij het hernoemen van een notitie blijven ze zoals ze zijn. Zoeken vindt het deel toch, en de tags en taken erin worden gevonden.\n\nSplits je dat deel met lege regels of schrijf je het als lijst, dan wordt het weer gelezen.",
+    "readAsTextUnreadInfo": "Zodat de notitie op elk apparaat opent, toont Plainva zeer grote of ongewoon geschreven delen als platte tekst. Een daarvan leest Plainva zelfs niet in stukken: de links daarin ontbreken in backlinks en de graaf, en bij het hernoemen van een notitie blijven ze zoals ze zijn – Plainva meldt dat dan. Zoeken vindt het deel toch, en de taken erin worden gevonden.\n\nSplits je de notitie in kleinere, dan wordt het weer gelezen.",
     "fmtHeading": "Kop"
   },
   "tabMenu": {

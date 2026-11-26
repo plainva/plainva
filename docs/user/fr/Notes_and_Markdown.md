@@ -1,6 +1,6 @@
 # Notes & Markdown
 
-Dernière mise à jour : 2026-11-25
+Dernière mise à jour : 2026-11-26
 
 Chaque note dans Plainva est un fichier Markdown ordinaire (`.md`). Cette page explique comment écrire confortablement et ce qui se retrouve réellement dans le fichier — car c'est exactement ce qui rend vos notes portables : n'importe quel éditeur de texte, Obsidian ou un diff git peut les lire.
 
@@ -262,6 +262,6 @@ Une note peut devenir si volumineuse qu'un appareil ne peut plus la lire mise en
 
 Dans ces parties, seule la mise en forme manque : les tableaux, les listes, les liens et les mises en valeur apparaissent sous forme de source. Pour le reste, le texte compte comme n'importe quel autre : la recherche le trouve, ses liens apparaissent dans les rétroliens et le graphe, ses étiquettes et ses tâches sont trouvées, et quand vous renommez une note, Plainva réécrit aussi ses liens. Les titres et les propriétés sont conservés aussi longtemps que possible. Divisez la note en plusieurs et tout est à nouveau mis en forme.
 
-Si une partie est trop volumineuse même pour cela — un seul paragraphe de plusieurs mégaoctets sans ligne vide, par exemple —, la note affiche **Une partie de cette note est affichée en texte, et ses liens ne sont pas lus.** Ses liens manquent alors dans les rétroliens et le graphe, et renommer une note les laisse tels quels ; la recherche la trouve quand même, et ses étiquettes et ses tâches sont trouvées. **Y aller** vous mène à cette partie. Divisez-la par des lignes vides ou écrivez-la sous forme de liste, et elle est de nouveau lue.
+Certaines parties, Plainva ne les lit pas, même par morceaux ; la note affiche alors **Une partie de cette note est affichée en texte, et ses liens ne sont pas lus.** Cela arrive avec un seul paragraphe trop volumineux même pour cela (quelques centaines de kilo-octets sans ligne vide, par exemple, y compris dans une citation) et avec un bloc qui ne peut pas être divisé aux éléments d'une liste, comme une longue liste sous un seul élément. Les liens d'une telle partie manquent alors dans les rétroliens et le graphe, et renommer une note les laisse tels quels ; Plainva signale alors que des références à l'ancien nom peuvent subsister. La recherche la trouve quand même, et ses tâches sont trouvées ; ses étiquettes, Plainva les trouve dans un long paragraphe comme avant, mais pas dans un autre bloc de ce genre, pour qu'aucune étiquette erronée ne s'ajoute. **Y aller** vous mène à cette partie. Divisez la note en notes plus petites, et elle est de nouveau lue ; un long paragraphe ou une longue citation l'est aussi si vous le divisez par des lignes vides, une longue liste sous un élément aussi si vous remontez ses éléments d'un niveau.
 
 Pendant que vous écrivez dans une telle note, une partie affichée en texte reste du texte jusqu'à ce que la note soit nettement plus petite : un seul caractère ne la fait pas basculer entre texte et mise en forme.

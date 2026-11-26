@@ -2,6 +2,8 @@ import {
   buildLinkTargetIndex,
   explicitLinkPath,
   resolveLinkRow,
+  notesThatMayNameUnread,
+  readAsTextParts,
   rewriteNoteLinks,
   unreadNaming,
   renameFrontmatterWikiLinks,
@@ -93,6 +95,13 @@ export interface LinkUpdatePlan {
     body: Array<{ raw: string; target: string; kind?: "wiki" | "markdown" }>;
     frontmatter: FrontmatterLinkRename[];
   }>;
+  /**
+   * Notes the backlinks do not name that may name the old file in a part the
+   * parse budget leaves unread (`notesThatMayNameUnread`), with the names to
+   * look for: a rename reads each, counts what its unread parts name as links
+   * it could not rewrite, and writes nothing there.
+   */
+  unread?: Array<{ path: string; names: string[] }>;
 }
 
 /** The way a link row of the index is written, as a plan names it. */
@@ -146,6 +155,23 @@ export async function planLinkUpdates(
     failed = true;
   }
   const plan: LinkUpdatePlan = { oldPath, newPath, sources: [] };
+  // The names a link to the old file is written with, as a part not read is searched for them: the bare name, the
+  // path without and with its extension, each also as a Markdown link encodes its blanks.
+  const oldStem = oldPath.replace(/\.md$/i, "");
+  const oldBase = oldStem.split(/[/\\]/).pop() ?? oldStem;
+  const unreadNames = [...new Set([oldBase, oldStem, oldPath].flatMap((name) => [name, name.replace(/ /g, "%20")]))];
+  let unreadPaths: string[] = [];
+  try {
+    unreadPaths = await notesThatMayNameUnread(queryService.db, [oldBase, oldBase.replace(/ /g, "%20")]);
+  } catch (e) {
+    console.warn("[renameNote] looking for notes with unread parts failed", e);
+    failed = true;
+  }
+  const withUnread = () => {
+    const planned = new Set(plan.sources.map((source) => source.path));
+    const unread = unreadPaths.filter((path) => path !== oldPath && !planned.has(path)).map((path) => ({ path, names: unreadNames }));
+    if (unread.length > 0) plan.unread = unread;
+  };
 
   const newBasename = newPath.split(/[/\\]/).pop()!;
   const isNote = newBasename.toLowerCase().endsWith(".md");
@@ -186,7 +212,10 @@ export async function planLinkUpdates(
   // 2026-10-12): from its note's folder first.
   const byName = buildLinkTargetIndex([...new Set([...allPaths, oldPath])]);
   backlinks = backlinks.filter((link) => resolveLinkRow(link.source_path, link.target_path, link.property_key ? null : link.link_type, byName) === oldPath);
-  if (backlinks.length === 0) return { plan, failed, bareTarget };
+  if (backlinks.length === 0) {
+    withUnread();
+    return { plan, failed, bareTarget };
+  }
   // The vault as it will be, for the question a Markdown link's new target
   // has to answer: does it still lead to the renamed file?
   const afterRename = buildLinkTargetIndex([...new Set([...allPaths.filter((p) => p !== oldPath), newPath])]);
@@ -270,6 +299,7 @@ export async function planLinkUpdates(
     const body = [...entry.body.values()].map(({ raw, kind }) => ({ raw, target: kind === "markdown" ? newMarkdownTargetFor(raw, path) : newTargetFor(raw), kind }));
     plan.sources.push({ path, body, frontmatter });
   }
+  withUnread();
   return { plan, failed, bareTarget };
 }
 
@@ -357,6 +387,20 @@ export async function applyLinkUpdates(
       failed = true;
     }
   }
+  // The notes that may name the old file only where they are not read: counted, never written.
+  for (const { path, names } of plan.unread ?? []) {
+    try {
+      const text = await adapter.readTextFile(path);
+      const left = unreadNaming(text, readAsTextParts(text).unread, names);
+      if (left > 0) {
+        console.warn(`[renameNote] ${left} part(s) of ${path} that are not read name the renamed note: left as they are`);
+        failed = true;
+      }
+    } catch (e) {
+      console.warn(`[renameNote] reading ${path} for its unread parts failed`, e);
+      failed = true;
+    }
+  }
   return { renamedLinks, changedFiles, changedPaths, failed };
 }
 
@@ -383,7 +427,7 @@ export async function renameFileWithLinkUpdates(opts: {
     console.warn("[renameNote] pinboard sweep failed", e);
   }
 
-  if (plan.sources.length === 0) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: planFailed, changedPaths: sweptBases };
+  if (plan.sources.length === 0 && !plan.unread?.length) return { renamedLinks: 0, changedFiles: 0, linkUpdateFailed: planFailed, changedPaths: sweptBases };
 
   const applied = await applyLinkUpdates(adapter, plan);
   const changedPaths = [...applied.changedPaths];

@@ -800,22 +800,35 @@ note's budget off under the heap — or, where `main`'s own paragraph budget rea
 before that, the most it reads formatted (one paragraph of sentences) —, against the most the note's
 budget reads with no block as text, its threshold. The safe side is the hard condition: every
 form keeps `main`'s limit at 1.13 times its threshold or more (`main`'s limit is known to some 5 to
-8 %: V8 close to its heap's end varies). The weights are those of 2026-11-19; on the phone's readers
-they keep 1.14 to 2.82. `perf:notes -- --check --shell <name>` reads each form at its threshold and
+8 %: V8 close to its heap's end varies). The weights are those of 2026-11-19 with the definitions' and the references' of 2026-11-26
+(below); on the phone's readers they keep 1.14 to 2.82. `perf:notes -- --check --shell <name>` reads each form at its threshold and
 three and ten times over it under the shell's heap and holds its ratio; the performance workflow
 runs it for both shells.
 
-The early side does not come lower with countable parts. Weighing by the nodes the parses make
-(L14b) does not help: at `main`'s limits the parse holds 78 000 (prose in one paragraph) to 505 000
-(escapes) events of micromark and 0 to 137 000 nodes in the same 128 MB — the memory follows
-neither alone. A linear program over the forms' parts (lp_solve, every form aimed at 1.16) brings
-the latest form to 2.27 on the phone's limits, and no further part (words in long lines,
-one-character words, continuation lines) lowers it; but those weights read what stays formatted of
-a mixed note over its budget too light — the parse of the footnote form, its paragraphs read as
-text and its definitions left formatted, ran out of 128 MB at 1.4 times its threshold, where the
-weights of 2026-11-19 hold it at ten times. A fit that holds needs a form of each part a mixed form
-is made of (footnote definitions alone, the prose between tables), and the check at three and ten
-times over every form.
+The early side does not come lower with countable parts, and weighing by what the parser makes of
+a note (L14b, "weight by nodes") is dropped for three reasons, each measured
+(`scripts/perf/note-budget-fit.ts`, its results in `noteBudgetFit.json` beside it, 2026-11-26):
+
+- *Events and nodes do not follow the memory.* At `main`'s limits on the phone — the same 128 MB for
+  every form — the parse makes 44 (one line of words, which the inline budget reads as one line of
+  stand-ins) to 498 264 (paragraphs of `\*`) micromark events, and its tree holds 5 to 141 803
+  nodes (`--counts`). A weight by either would spread the forms wider, not narrower.
+- *No weighting of the counted parts comes much lower.* A linear program over the parts the scan
+  counts (`--lp`: lp_solve over `noteBudgetFit.lp`; every form at 1.13 budgets or more at `main`'s
+  limit, the largest ratio made as small as weights can make it) finds 2.21; the weights in use give
+  1.14 to 2.82. The fitted weights are not taken: they hold the pure forms they are fitted on and
+  weigh the parts of a mixed note too light — the parse of the footnote form, its paragraphs read as
+  text and its definitions left formatted, ran out of 128 MB at 1.4 times its threshold, where the
+  weights of 2026-11-19 hold it at ten times.
+- *An early decision costs formatting only.* Since a block read as text is read for its facts in
+  pieces, a note read as text earlier than needed keeps its links, tags, tasks, headings and its
+  rename; it loses its formatting in that block, until the note is split.
+
+So the spread stays as measured: on the phone the form read as text earliest against `main`'s limit,
+lines of two tags, is text from 17 903 lines (211 KB of note), where `main` reads 50 538 lines
+(2.82 times); the latest, lines of a Markdown link and a URL, from 8 051 lines (569 KB), where `main`
+reads 9 181 (1.14 times). Over all forms the phone's thresholds lie between 41 KB (tables of 50 rows
+of sixteen cells) and 2.4 MB (paragraphs of eighty `*`).
 
 On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 
@@ -825,16 +838,20 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | tables of 50 rows of sixteen cells | 26 | 22 | 1.18 |
 | lines of links run together | 69 787 | 58 472 | 1.19 |
 | one line of `x x …` (words) | 161 408 | 135 286 | 1.19 |
+| references `[x][d]` with their link definitions | 5 742 | 4 837 | 1.19 |
+| footnote definitions | 5 953 | 5 014 | 1.19 |
 | lines of fenced code | 78 694 | 65 103 | 1.21 |
 | lines of embeds run together | 68 916 | 57 046 | 1.21 |
 | paragraphs of `&amp;` × 16 | 3 596 | 2 893 | 1.24 |
-| footnote references and definitions | 3 653 | 2 893 | 1.26 |
 | tables of two rows between blank lines | 3 216 | 2 450 | 1.31 |
 | paragraphs of `` `a `` × 40 | 2 115 | 1 516 | 1.40 |
 | headings | 19 398 | 13 506 | 1.44 |
+| link definitions | 9 787 | 6 665 | 1.47 |
 | paragraphs of eighty `]` | 14 000 | 9 478 | 1.48 |
 | lines of inline HTML | 16 705 | 11 075 | 1.51 |
+| references `[d]` with their link definitions | 7 432 | 4 905 | 1.52 |
 | tables of 50 rows of three cells | 110 | 69 | 1.59 |
+| footnote references and definitions | 3 653 | 2 292 | 1.59 |
 | callouts of two lines with a link | 5 143 | 3 205 | 1.60 |
 | ordered items | 8 431 | 4 904 | 1.72 |
 | paragraphs of `*a` × 40 | 1 652 | 957 | 1.73 |
@@ -849,6 +866,7 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | thematic breaks between blank lines | 39 466 | 18 860 | 2.09 |
 | paragraphs of eighty `[` | 2 638 | 1 239 | 2.13 |
 | nested items | 7 939 | 3 717 | 2.14 |
+| a list under one item (an outline) | 8 356 | 3 821 | 2.19 |
 | paragraphs of `\*` × 40 | 2 009 | 910 | 2.21 |
 | paragraphs of eighty `*` (thematic breaks) | 39 423 | 17 852 | 2.21 |
 | lines of emphasis, strike-through and code | 6 991 | 3 079 | 2.27 |
@@ -865,7 +883,7 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | lines of two tags | 50 538 | 17 903 | 2.82 |
 
 On the desktop (index, note source and reading view, 512 MB; `DESKTOP_NOTE_BUDGET`, four times
-`NOTE_BUDGET`): the seven forms the reading view could bind, measured exactly — under 512 MB
+`NOTE_BUDGET`): the seven forms the reading view could bind and two of definitions and outlines, measured exactly — under 512 MB
 `main` reads 6.2 (code spans) to 9.8 (journal lines) times the phone's threshold of them, so four
 times the budget keeps every one at 1.56 or more:
 
@@ -873,17 +891,36 @@ times the budget keeps every one at 1.56 or more:
 |---|---:|---:|---:|
 | paragraphs of `` `a `` × 40 | 9 461 | 6 064 | 1.56 |
 | lines of inline HTML | 70 751 | 44 292 | 1.60 |
+| link definitions | 43 316 | 26 656 | 1.63 |
 | tables of 1 200 rows | 19 | 11 | 1.73 |
 | callouts of two lines with a link | 23 953 | 12 822 | 1.87 |
 | paragraphs of `*a` × 40 | 7 431 | 3 831 | 1.94 |
 | list items with a wiki link | 39 552 | 16 768 | 2.36 |
 | journal lines `- 10:00 …` with a link and a tag | 30 972 | 12 663 | 2.45 |
+| a list under one item (an outline) | 37 742 | 15 288 | 2.47 |
 
-The other 35 forms are measured on their safe side alone: `main`'s readers read 1.13 times their
+The other 38 forms are measured on their safe side alone: `main`'s readers read 1.13 times their
 threshold at four times the budget under 512 MB, and `perf:notes -- --check --shell desktop` reads
-them there in three runs on every run of the performance workflow. A search for their exact limits
-under 512 MB is out of reach: one paragraph of 100 000 lines takes micromark minutes a parse (below,
-*Named limits*).
+them there in three runs whenever the performance workflow runs for a change to what the note's
+budget reads, and on its schedule. A search for their exact limits under 512 MB is out of reach: one
+paragraph of 100 000 lines takes micromark minutes a parse (below, *Named limits*).
+
+**Definitions and references (2026-11-26).** micromark keeps about forty events of a definition
+until the end of the parse (10 000 link definitions, 0.18 MB of note, held 99 MB), where a line of
+prose of the same length holds a handful: a line that begins with a definition weighs 2 330 beyond
+its characters (`NOTE_DEFINITION_WEIGHT`, from the forms `defs` and `footdefs`). A reference —
+`[text][label]`, `[label][]`, `[label]` by their brackets, and a footnote's `[^label]` — weighs 888
+(`NOTE_REFERENCE_WEIGHT`): resolved, it holds what a link holds (`main` reads 9 787 definitions
+alone under 128 MB, 5 742 beside a reference each). And what a definition read as text weighs counts
+again where formatted text refers to it, up to one given line a reference: the note's tree is given
+those definitions back (`givenDefinitions`). Before, the note's budget read the definitions of
+`refsdefs` as text, weighed them gone, and kept the references formatted, which held every
+definition again: on the phone it read the form formatted up to `main`'s own limit (1.00), on the
+desktop, where a block of 30 000 definitions is one paragraph over the paragraph's budget and read
+as written from the start, up to 54 479. The forms of definitions and references are calibrated and
+checked with the rest (`refsdefs` with `[x][d]`, `sharedrefs` with `[d]`); on the desktop `main`
+reads 1.13 times the threshold of footnote definitions, of references and their definitions under
+512 MB (their safe side).
 
 The editor's own parse is the whole note, whatever the budget (CodeMirror with the app's syntax
 extensions, as both shells build it): measured as a named limit under 128 MB, it reads five to a
@@ -927,16 +964,35 @@ code and HTML at the list's level. Units and items follow each other into pieces
 of the budget: the tree of a list is built in a pass per list that grows faster than the list
 (`prepareList`; 50 000 linked items took 7.4 s in pieces of half the budget and 3.4 s in pieces of
 a fiftieth, with a third of the heap). Each piece is parsed alone behind a blank line (no properties
-block opens there) with the definitions it refers to after it — the note's link and footnote
-definitions whose label stands in brackets in it (behind every piece every definition, a note of
-5 000 footnotes was quadratic) —, its places moved onto the note, its facts kept — the index's
-links and tags, a rename's links, headings and block ids, "copy link to line" — and its tree let go
-before the next. A note is read in pieces up to four budgets (`PIECES_READ_SHARE`), in the order of
-the text, and what lies behind is unread: each piece is a parse of its own, at 2 to 5 s a megabyte
-in pieces, and the performance workflow's mixed notes of 4 to 10 MB took the index 10 to 28 s and
-ran it out of 128 MB once before the cap; with it the index reads each of them in at most 5 s
-(locally), and 20 000 linked tasks (about six budgets) keep 27 490 of their 40 000 links, the rest
-named unread. 100 000 linked items: the links of their pieces under 128 MB, the rest unread.
+block opens there; in a note that begins with a `---` nothing closes, behind a `---` of its own, so
+that the parser reads it in the mode it reads that note in) with the definitions it refers to after
+it — the note's link and footnote definitions whose label stands in brackets in it, wherever they
+stand, matched by the parser's own key (behind every piece every definition, a note of 5 000
+footnotes was quadratic) —, its places moved onto the note, its facts kept — the index's links and
+tags, a rename's links, headings and block ids, "copy link to line" — and its tree let go before the
+next. Pieces side by side that carry a long appendix are read as one, up to what a piece may weigh:
+2 000 definitions that every paragraph refers to took the index 25 s at 3 MB, now 9.4 s at 2.4 MB
+and 18.3 s at 4.8 MB, linear (2026-11-26). The note's tree is given the definitions of blocks read
+as text that its own text refers to (`givenDefinitions`), and so is the reading view: every reading
+knows the note's definitions (`Note_Budget_Readings.md`, table A).
+
+Every block read as text is read in pieces, the whole note: there is no cap (2026-11-26). A cap of
+four budgets left half the links of 1 MB of mixed blocks unread on the phone, and saved no time
+against the parse it replaces. Read in pieces a note takes linear time, where `main`'s parse of the
+same note grows faster than it (this machine, the index's reading, 2026-11-26):
+
+| Note | `main` (note budget off) | In pieces |
+|---|---:|---:|
+| list items with links, 1 MB | 11.0 s, 635 MB | 4.7 s, 84 MB |
+| list items with links, 4 MB | 190 s, 1.8 GB | 5.3 s, 113 MB |
+| mixed blocks (tables, tasks, footnotes, callouts), 1 MB | 38.7 s, 1.1 GB | 7.2 s, 186 MB |
+| mixed blocks, 4 MB | out of 6 GB | 22.4 s, 208 MB |
+| prose with links, 1 MB | 1.2 s | 1.1 s |
+| prose with links, 4 MB | 7.2 s, 1.0 GB | 3.9 s, 187 MB |
+
+A phone is three to five times slower than this machine: a note of 4 MB of mixed blocks takes the
+phone's index a minute or more, where `main` ends the app. 100 000 linked items: every link under
+128 MB.
 `note-budget-pieces.test.ts` reads 50 constructs (the forms of the review of the link search among
 them) and 300 random notes, every block read as text and every cut a piece of its own, against the
 same notes read whole: the same index, rename and note source. Under the budget nothing changes:
@@ -944,14 +1000,51 @@ same notes read whole: the same index, rename and note source. Under the budget 
 source as `main` (2026-11-25).
 
 What is read as text and not read for its facts is named (`ReadAsTextParts.unread`): a paragraph
-over the inline budget, as on `main`, what of a block cannot be cut into pieces that small (one
-paragraph of hundreds of thousands of lines), and what lies behind the four budgets read in pieces. It gives no link to the index or a rename; its tags
-come from the tag rule over its characters, as a paragraph over the inline budget's do from the
-text the tree gives back, and tasks from the line scan (`taskScan.ts`), which reads no tree. The
-notice then says that its links are not read and goes there; a rename counts each such stretch
-that names a renamed note with the links it could not rewrite (`unreadNaming`), and rewrites
-nothing in it. Behind an unclosed `---` at a note's start the parser reads no blocks within blocks,
-and every block read as text there is unread.
+over the inline budget, as on `main` (5 478 characters at the least, `SMALLEST_UNREAD_CHARS`), and a
+unit of a block read as text heavier than a piece may weigh that cannot be cut — one paragraph, a
+quote of one paragraph, a list under one item (behind an unclosed `---` no list is cut, there is
+none). It gives no link to the index or a rename. A paragraph over the inline budget gives its tags
+from the tree that holds its text, as on `main` and as the note read whole does; a block not read
+gives none: the tag rule over its characters read `#include` in a fence as a tag the note read whole
+does not have — no tag rather than a wrong one.
+Its tasks come from the line scan (`taskScan.ts`), which reads no tree. The notice then says that its
+links are not read and goes there — by the index's decision, from the text alone, not by the blocks
+the editor holds while it is typed in. A rename counts each such stretch that names a renamed note
+with the links it could not rewrite (`unreadNaming`) and rewrites nothing in it; since the backlinks
+hold no link of it, a rename also asks the full-text index for the notes large enough to hold such a
+part whose text names the old file (`notesThatMayNameUnread`) and reads those. What the notices say
+of such a part is held claim by claim, through the index as the app builds it, with the budget of
+each shell (`note-budget-claims.test.ts`): search finds it, its tasks are found, its links are
+missing from the backlinks and the graph, a paragraph's tags are found and a block's are not, and a
+rename leaves its links and says so; split into smaller notes it is read again — a paragraph or a quote also with blank lines, a
+list under one item also with its items a level up. `Note_Budget_Readings.md` (table B) has it by
+reason.
+
+**Where a note loses links, against `main` (2026-11-26).** For each form, the size from which a
+part is not read (its links missing from the index) against the size from which `main` loses them —
+by its paragraph budget, or because the index ends out of memory and the note keeps no link at all.
+On the phone (128 MB):
+
+| Form | Not read from | `main` loses them from | Ratio |
+|---|---:|---:|---:|
+| sentences run together in one paragraph | 4 288 (319 KB) | 10 000 (748 KB), out of memory | 2.33 |
+| lines of a mail address and a `www.` | 10 368 (341 KB) | 23 633 (805 KB), out of memory | 2.28 |
+| a list under one item (an outline) | 3 840 (106 KB) | 8 356, out of memory | 2.18 |
+| lines of a Markdown link and a URL | 8 064 (570 KB) | 9 181 (650 KB), out of memory | 1.14 |
+| a quote of one paragraph | 9 472 (282 KB) | 10 112 (301 KB), paragraph budget | 1.07 |
+| lines of links, of embeds run together | 6 720 | 6 720, paragraph budget | 1.00 |
+| a table in a list item | 59 392 (1.46 MB) | not measured | — |
+| every other form (lists, tasks, journal lines, callouts, tables, footnotes …) | never | from its limit, out of memory | — |
+
+On the desktop (512 MB, four times the budget) a list under one item is not read from 15 360 items
+(431 KB), lines of a mail address from 41 472 against `main`'s 46 810 (1.13); paragraphs of links,
+URLs, sentences and quotes lose their links where `main`'s paragraph budget does (1.00), and every
+other form keeps them. The three largest gaps, on the phone, and what would close them: one
+paragraph heavier than a piece may weigh (sentences, mail addresses) is read alone where the rest of
+the note is light enough beside it — a piece's share by what the formatted rest leaves, not half the
+budget; a list under one item is cut at the items of its inner lists, each piece read behind the
+lines of its ancestors so that it stands at its depth. Neither is built: each changes the pieces'
+contract with the note read whole (`Note_Budget_Readings.md`) and needs its own differential test.
 
 The editor holds the blocks it reads as text while it is typed in: within a tenth under the
 budget they stay text (`NOTE_HYSTERESIS`), and among blocks of about the same weight the one it
@@ -1010,7 +1103,9 @@ readers; the weights are the same. The asymmetry is a decision of the parity cat
 
   Behind an unclosed `---` at a note's start the parser opens no blocks within blocks; `- a` lines
   there are 8 000 items in 20 ms before and after (no long paragraph), and a quiet paragraph behind it
-  is the long paragraph above.
+  is the long paragraph above. The reading of a note in pieces does not change with it (pieces are
+  short paragraphs): the index of 12 MB read in pieces takes the same time with and without the
+  patch (list items with links 2.25 and 2.29 s, mixed blocks 5.41 and 5.29 s, then with a cap).
 - *The desktop's reading view of many footnotes is slow, as on `main`:* at the desktop's threshold of
   the footnote form (11 572 references and definitions) the reading view takes 97 s, at 17 000 175 s,
   most of it in micromark's edit map; three and ten times over the threshold take it more than five

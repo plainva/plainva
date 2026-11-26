@@ -13,6 +13,7 @@ export * from "./proposals/properties.js";
 export * from "./proposals/authors.js";
 export * from "./vault/searchOccurrences.js";
 export * from "./vault/spacelessText.js";
+export * from "./vault/unreadNamings.js";
 export * from "./markdown-serializer.js";
 export * from "./metadata.js";
 export * from "./metadata-extractor.js";

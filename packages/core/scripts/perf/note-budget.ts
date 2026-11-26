@@ -135,6 +135,16 @@ export const NOTE_FORMS: Record<string, (n: number) => string> = {
   sentences: (n) => Array.from({ length: n }, (_, i) => `Sentence ${i} with a [[Link ${i}]], *some* **bold** and a snake_case_name.`).join(" "),
   callouts: (n) => Array.from({ length: n }, (_, i) => `> [!note] Title ${i}\n> a line with [[x]] and *y*`).join("\n\n"),
   footnotes: (n) => Array.from({ length: n }, (_, i) => `Text with a note[^${i}] and more.\n\n[^${i}]: The note ${i}.`).join("\n\n"),
+  // Definitions alone and with the references to them (review of L14, 2026-11-26: 20 000 lines `[dN]: TN.md` ran the
+  // index out of 128 MB, weighed as prose): link definitions in blocks of 2 000, footnote definitions, and paragraphs of
+  // a hundred references each before the definitions they refer to.
+  defs: (n) => Array.from({ length: Math.ceil(n / 2000) }, (_, b) => Array.from({ length: Math.min(2000, n - b * 2000) }, (_, i) => `[d${b * 2000 + i}]: T${b * 2000 + i}.md`).join("\n")).join("\n\n"),
+  // A list under one item, as an outline is written: cut only at the items of its outermost list, which has one.
+  outline: (n) => `- Outline\n${Array.from({ length: n }, (_, i) => `  - point ${i} [[Topic ${i % 50}]]`).join("\n")}`,
+  footdefs: (n) => Array.from({ length: n }, (_, i) => `[^f${i}]: The note ${i}.`).join("\n"),
+  // References by their label alone, `[d12]`, beside their definitions.
+  sharedrefs: (n) => `${Array.from({ length: Math.ceil(n / 100) }, (_, b) => Array.from({ length: Math.min(100, n - b * 100) }, (_, i) => `see [d${b * 100 + i}]`).join(" ")).join("\n\n")}\n\n${Array.from({ length: n }, (_, i) => `[d${i}]: T${i}.md`).join("\n")}`,
+  refsdefs: (n) => `${Array.from({ length: Math.ceil(n / 100) }, (_, b) => Array.from({ length: Math.min(100, n - b * 100) }, (_, i) => `[x][d${b * 100 + i}]`).join(" ")).join("\n\n")}\n\n${Array.from({ length: n }, (_, i) => `[d${i}]: T${i}.md`).join("\n")}`,
   embeds: (n) => Array.from({ length: n }, (_, i) => `![[image ${i}.png]] ![alt](pic${i}.jpg)`).join("\n"),
   html: (n) => Array.from({ length: n }, (_, i) => `<span class="a">text ${i}</span> and <b>bold</b>`).join("\n"),
   maths: (n) => Array.from({ length: n }, (_, i) => `where $x_${i}^2 + y$ holds and $\\frac{a}{b}$`).join("\n"),
@@ -198,7 +208,7 @@ function generatedNote(seed: number, k: number, scale = 1): string {
 }
 
 /** A form's note, or a generated one as `gen:<seed>:<k>`. */
-function noteOf(name: string, n: number, scale = 1): string {
+export function noteOf(name: string, n: number, scale = 1): string {
   if (name.startsWith("gen:")) {
     const [, seed, k] = name.split(":");
     return generatedNote(Number(seed), Number(k), scale);
@@ -301,7 +311,7 @@ function passes(name: string, n: number, bounded: boolean, scale = 1, parses: re
  * as text. A paragraph's or a table's own budget may read part of it as
  * written below that, as on `main`, which has them too.
  */
-function readAsItIs(form: string): number {
+export function readAsItIs(form: string): number {
   const bounded = (n: number) => overBudgetInlineRanges(noteOf(form, n)).some((range) => range.block);
   let lo = 0;
   let hi = 64;
@@ -510,7 +520,11 @@ async function readUnbounded(form: string, from: number, hint?: number): Promise
     }
   } else {
     lo = Math.max(1, Math.floor(from / 2));
-    if (!(await passesTogether(form, lo, false))) return 0;
+    // Where `main` does not read even half the threshold (definitions weighed as prose, 2026-11-26), downwards.
+    while (!(await passesTogether(form, lo, false))) {
+      if (lo === 1) return 0;
+      lo = Math.max(1, Math.floor(lo / 2));
+    }
     hi = lo * 2;
     while (await passesTogether(form, hi, false)) {
       lo = hi;

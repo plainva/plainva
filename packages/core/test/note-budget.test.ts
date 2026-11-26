@@ -146,7 +146,7 @@ describe("the note's budget (L14)", () => {
     const list = Array.from({ length: 10_000 }, (_, i) => `- [ ] task ${i} [[Note ${i % 7}]] [label](<Other ${i % 5}.md>) #tag${i % 3} \`[[Code]]\``).join("\n");
     const text = `# T\n\n[[Top]] and [x](Top.md)\n\n${list}\n`;
     expect(overBudgetInlineRanges(text).some((range) => range.block)).toBe(true);
-    // Within the four budgets the index reads in pieces (`PIECES_READ_SHARE`): nothing of it is unread.
+    // The index reads it in pieces: nothing of it is unread.
     expect(readAsTextParts(text).unread).toEqual([]);
     const { links, tags } = extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text);
     expect(links.filter((link) => link.type === "wikilink")).toHaveLength(10_001);
@@ -358,20 +358,19 @@ describe("the note's budget (L14)", () => {
     }
   }, 300 * SECONDS);
 
-  it("lists the links of the pieces of 100 000 items of links and of embeds under 128 MB, and names the rest and a paragraph of them unread", () => {
+  it("lists every link of 100 000 items of links and of embeds under 128 MB, and names a paragraph of them unread", () => {
     expect.hasAssertions();
     // Twenty-five times the threshold of the forms of links: the blocks read as text are read in pieces by the parser
-    // itself (`forEachReadPiece`), each let go before the next, up to four budgets of them (`PIECES_READ_SHARE`) —
-    // every link there is listed, the rest is unread and named. A picture (`![alt](…)`) is no link to the index, as
-    // the parser reads it. One paragraph of such lines cannot be cut into pieces (only a list can, at its items): it is
-    // unread, and the index runs no more out of 128 MB than for the lists.
+    // itself (`forEachReadPiece`), each let go before the next, all of them — every link is listed, nothing is
+    // unread. A picture (`![alt](…)`) is no link to the index, as the parser reads it. One paragraph of such lines is
+    // over the inline budget: it is unread, as on `main`, and the index runs no more out of 128 MB than for the lists.
     const notes = [
       [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "- see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`, 2],
       [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "- ![[image " + i + ".png]] ![alt](pic" + i + ".jpg)").join("\\n") + "\\n"`, 1],
       [`"# N\\n\\n" + Array.from({ length: 100000 }, (_, i) => "see [[n" + i + "]] and [t](u" + i + ")").join("\\n") + "\\n"`, 0],
     ] as const;
     for (const [text, perLine] of notes) {
-      const body = `const S = await import(${JSON.stringify(new URL("../src/ast-scanner.ts", import.meta.url).pathname)}); const B = await import(${JSON.stringify(new URL("../src/inlineParseBudget.ts", import.meta.url).pathname)}); const parts = B.readAsTextParts(text); let lines = 0; for (const p of parts.pieces) lines += text.slice(p.from, p.to).split("\\n").filter((l) => l.startsWith("- ")).length; const { links } = S.extractLinksAndTags(P.parseMarkdownAst(text, { preserveObsidianSyntax: true }), text); console.log(links.length === ${perLine} * lines && parts.unread.length > 0 && (${perLine} === 0 || lines > 10000) ? "ok" : "links " + links.length + " lines " + lines + " unread " + parts.unread.length);`;
+      const body = `const S = await import(${JSON.stringify(new URL("../src/ast-scanner.ts", import.meta.url).pathname)}); const B = await import(${JSON.stringify(new URL("../src/inlineParseBudget.ts", import.meta.url).pathname)}); const parts = B.readAsTextParts(text); let lines = 0; for (const p of parts.pieces) lines += text.slice(p.from, p.to).split("\\n").filter((l) => l.startsWith("- ")).length; const { links } = S.extractLinksAndTags(P.parseMarkdownAst(text, { preserveObsidianSyntax: true }), text); console.log((${perLine} === 0 ? links.length === 0 && parts.unread.length > 0 : links.length === ${perLine} * 100000 && lines === 100000 && parts.unread.length === 0) ? "ok" : "links " + links.length + " lines " + lines + " unread " + parts.unread.length);`;
       const run = underHeap(128, text, body);
       expect(run.stdout.trim(), `${text.slice(0, 60)}: ${run.stderr.slice(-200)}`).toBe("ok");
     }

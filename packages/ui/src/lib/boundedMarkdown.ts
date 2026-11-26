@@ -1,5 +1,5 @@
 import type { markdown } from "@codemirror/lang-markdown";
-import { boundMarkdownInRanges, exceedsInlineParseBudget, overBudgetInlineRanges, READER_READING, restoreBoundedTree, unitedRanges, type BoundedMarkdown, type ReaderSource } from "@plainva/core";
+import { boundMarkdownInRanges, exceedsInlineParseBudget, overBudgetInlineRanges, READER_READING, readerGivenDefinitions, restoreBoundedTree, unitedRanges, withdrawReaderDefinitions, type BoundedMarkdown, type ReaderSource } from "@plainva/core";
 
 /**
  * The parse budget (`inlineParseBudget.ts` in core) for the two parsers that
@@ -32,9 +32,17 @@ export function boundReaderMarkdown(text: string, from?: { original: string; sou
     ? overBudgetInlineRanges(from.original).map((range) => ({ ...range, from: from.source.toRendered(range.from), to: from.source.toRendered(range.to, "end") }))
     : [];
   const bounded = boundMarkdownInRanges(text, unitedRanges(own, theirs.filter((range) => range.to > range.from)));
+  // The definitions of the original's blocks read as text that the shown text refers to, given in front of it, so that
+  // a reference reads and leads as in the note read whole (docs/engineering/Note_Budget_Readings.md, table A); the
+  // restore takes them out again before it gives every node its place.
+  const given = from && theirs.some((range) => range.block) ? readerGivenDefinitions(from.original, bounded.text) : null;
   return {
     ...bounded,
-    remarkRestore: () => (tree: unknown) => restoreBoundedTree(tree, bounded),
+    text: given ? given.lines + bounded.text : bounded.text,
+    remarkRestore: () => (tree: unknown) => {
+      if (given) withdrawReaderDefinitions(tree, given);
+      restoreBoundedTree(tree, bounded);
+    },
   };
 }
 

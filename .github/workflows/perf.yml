@@ -141,8 +141,47 @@ jobs:
       - name: The tables of seed 956860 under a capped heap
         run: pnpm --filter @plainva/core perf:tables -- --hunt 200 --seed 956860 --minutes 20
 
+  # Whether this push changes what the note budget's search and check measure: the modules
+  # `note-budget.ts` reads, the calibration, the dependencies and their patches, this file
+  # (scripts/perf/note-budget-inputs.mjs). They take about four runner hours; they run when it does,
+  # on every scheduled run (daily on main) and by hand. On a branch the push is compared with where
+  # it leaves main, on main and in a pull request with what it builds on.
+  note-budget-inputs:
+    name: Note budget inputs changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.inputs.outputs.changed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Compare with the base
+        id: inputs
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ "$EVENT" = "pull_request" ]; then base="$PR_BASE"
+          elif [ "$REF" = "refs/heads/main" ]; then base="$BEFORE"
+          else base="$(git merge-base origin/main HEAD)"; fi
+          # A new branch or a forced push may name no commit here: then everything runs.
+          if [ -z "$base" ] || ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "changed=$(node packages/core/scripts/perf/note-budget-inputs.mjs --changed "$base")" >> "$GITHUB_OUTPUT"
+
   notes:
     name: Note budget search (${{ matrix.shell }})
+    needs: note-budget-inputs
+    if: needs.note-budget-inputs.outputs.changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -178,6 +217,8 @@ jobs:
 
   notes-check:
     name: Note budget check (${{ matrix.shell }}, ${{ matrix.group }}/${{ matrix.groups }})
+    needs: note-budget-inputs
+    if: needs.note-budget-inputs.outputs.changed == 'true'
     runs-on: ubuntu-latest
     # The desktop reads notes four times the phone's under 512 MB: one form there can take half an hour.
     timeout-minutes: 120

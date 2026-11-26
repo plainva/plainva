@@ -1,6 +1,6 @@
 # Note e Markdown
 
-Ultimo aggiornamento: 2026-11-25
+Ultimo aggiornamento: 2026-11-26
 
 Ogni nota in Plainva è un normale file Markdown (`.md`). Questa pagina spiega come scrivere comodamente e cosa finisce effettivamente nel file — perché è proprio questo che rende le tue note portabili: qualsiasi editor di testo, Obsidian o un diff di git può leggerle.
 
@@ -262,6 +262,6 @@ Una nota può diventare così grande che un dispositivo non riesce più a legger
 
 In queste parti manca solo la formattazione: tabelle, elenchi, link ed enfasi appaiono come testo sorgente. Per il resto il testo conta come qualsiasi altro: la ricerca lo trova, i suoi link compaiono nei backlink e nel grafo, i suoi tag e le sue attività vengono trovati e, quando rinomini una nota, Plainva riscrive anche i suoi link. Titoli e proprietà vengono mantenuti il più a lungo possibile. Dividi la nota in più note e tutto torna formattato.
 
-Se una parte è troppo grande anche per questo, per esempio un unico paragrafo di megabyte senza righe vuote, sopra la nota compare **Una parte di questa nota viene mostrata come testo e i suoi link non vengono letti.** I suoi link mancano allora nei backlink e nel grafo e, rinominando una nota, restano come sono; la ricerca la trova comunque e i suoi tag e le sue attività vengono trovati. **Vai lì** ti porta a quella parte. Dividila con righe vuote o scrivila come elenco e verrà letta di nuovo.
+Alcune parti Plainva non le legge nemmeno a pezzi; allora sopra la nota compare **Una parte di questa nota viene mostrata come testo e i suoi link non vengono letti.** Succede con un unico paragrafo troppo grande anche per questo (qualche centinaio di kilobyte senza righe vuote, per esempio, anche in una citazione) e con un blocco che non si può dividere agli elementi di un elenco, come un lungo elenco sotto un solo elemento. I link di una parte così mancano allora nei backlink e nel grafo e, rinominando una nota, restano come sono; Plainva segnala allora che i riferimenti al vecchio nome possono restare. La ricerca la trova comunque e le sue attività vengono trovate; i suoi tag Plainva li trova in un paragrafo lungo come prima, in un altro blocco del genere no, così che non se ne aggiunga uno sbagliato. **Vai lì** ti porta a quella parte. Dividi la nota in note più piccole e verrà letta di nuovo; un paragrafo o una citazione lunghi anche se li dividi con righe vuote, un lungo elenco sotto un elemento anche se sposti i suoi elementi di un livello più in alto.
 
 Mentre scrivi in una nota del genere, una parte mostrata come testo resta testo finché la nota non è diventata chiaramente più piccola: un solo carattere non la fa passare avanti e indietro tra testo e formattazione.

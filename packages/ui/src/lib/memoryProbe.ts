@@ -96,20 +96,24 @@ export function memoryProbeResult(): MemoryProbeResult | null {
  * it — the parse and the reading of its links and tags, a block read as text
  * in pieces — and through the note-source parse. Yields to the page between
  * notes, so that it stays usable. A form ends at a step slower than
- * `PROBE_STEP_MS`; the probe ends where the engine says its heap is fuller
- * than `PROBE_HEAP_SHARE` (Chromium; WKWebView says nothing, and there the
- * size limit alone holds it).
+ * `PROBE_STEP_MS`; the probe ends where the next note, twice the last, would
+ * leave the heap fuller than `PROBE_HEAP_SHARE` by what the engine says of it
+ * (Chromium; WKWebView says nothing, and there the size limit alone holds it),
+ * and where it would end after `seconds`.
  */
-export async function runMemoryProbe(onStep?: (step: MemoryProbeStep) => void, seconds = 60): Promise<MemoryProbeResult> {
+export async function runMemoryProbe(onStep?: (step: MemoryProbeStep) => void, seconds = 60, now: () => number = () => performance.now()): Promise<MemoryProbeResult> {
   const store = storage();
-  const started = performance.now();
+  const started = now();
   const steps: MemoryProbeStep[] = [];
   let largest = 0;
   let stopped: MemoryProbeResult["stopped"] = "all";
   forms: for (const [form, make] of Object.entries(FORMS)) {
     let last = 0;
+    let lastMs = 0;
     for (let n = 1_000; ; n *= 2) {
-      if (performance.now() - started > seconds * 1000) {
+      // The next note is twice the last, and takes about twice its time: it is begun only where it ends in time
+      // (review of L14, 2026-11-26: a step could begin at 59 s of 60).
+      if (now() - started + 2 * lastMs > seconds * 1000) {
         stopped = "time";
         break forms;
       }
@@ -120,18 +124,20 @@ export async function runMemoryProbe(onStep?: (step: MemoryProbeStep) => void, s
       last = chars;
       if (chars > PROBE_MOST_CHARS) break;
       store?.setItem(ATTEMPT_KEY, JSON.stringify({ form, chars }));
-      const begun = performance.now();
+      const begun = now();
       const ast = parseMarkdownAst(text, { preserveObsidianSyntax: true });
       extractLinksAndTags(ast, text);
       parseMarkdownTree(text);
-      const step = { form, chars, ms: Math.round(performance.now() - begun), heapMb: heapMb() };
+      const step = { form, chars, ms: Math.round(now() - begun), heapMb: heapMb() };
       store?.removeItem(ATTEMPT_KEY);
       steps.push(step);
       largest = Math.max(largest, chars);
       onStep?.(step);
       await new Promise((resolve) => setTimeout(resolve, 0));
+      lastMs = step.ms;
+      // The next note is twice as large: it is read only where twice the heap it left stays within the share.
       const known = memory();
-      if (known?.jsHeapSizeLimit && known.usedJSHeapSize > PROBE_HEAP_SHARE * known.jsHeapSizeLimit) {
+      if (known?.jsHeapSizeLimit && 2 * known.usedJSHeapSize > PROBE_HEAP_SHARE * known.jsHeapSizeLimit) {
         stopped = "heap";
         break forms;
       }

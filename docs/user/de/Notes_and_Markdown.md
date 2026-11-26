@@ -1,6 +1,6 @@
 # Notizen & Markdown
 
-Stand: 2026-11-25
+Stand: 2026-11-26
 
 Jede Notiz in Plainva ist eine gewöhnliche Markdown-Datei (`.md`). Diese Seite erklärt, wie Du komfortabel schreibst und was dabei tatsächlich in der Datei landet — denn genau das macht Deine Notizen portabel: Jeder Text-Editor, Obsidian oder ein Git-Diff kann sie lesen.
 
@@ -262,6 +262,6 @@ Eine Notiz kann so groß werden, dass ein Gerät sie nicht mehr formatiert lesen
 
 In diesen Teilen fehlt nur die Formatierung: Tabellen, Listen, Links und Hervorhebungen erscheinen als Quelltext. Sonst zählt der Text wie jeder andere: die Suche findet ihn, seine Links erscheinen in Backlinks und Graph, seine Tags und Aufgaben werden gefunden, und beim Umbenennen einer Notiz schreibt Plainva auch seine Links um. Überschriften und Eigenschaften bleiben so lange wie möglich erhalten. Teilst Du die Notiz in mehrere auf, wird alles wieder formatiert.
 
-Ist ein Teil auch dafür zu groß – etwa ein einzelner Absatz von Megabytes ohne Leerzeile –, steht über der Notiz **Ein Teil dieser Notiz wird als Text gezeigt, seine Links werden nicht gelesen.** Seine Links fehlen dann in Backlinks und Graph, und beim Umbenennen einer Notiz bleiben sie, wie sie sind; die Suche findet ihn trotzdem, und seine Tags und Aufgaben werden gefunden. **Zur Stelle** springt zu diesem Teil. Teilst Du ihn mit Leerzeilen auf oder schreibst ihn als Liste, wird er wieder gelesen.
+Manche Teile liest Plainva auch stückweise nicht; dann steht über der Notiz **Ein Teil dieser Notiz wird als Text gezeigt, seine Links werden nicht gelesen.** Das geschieht bei einem einzelnen Absatz, der auch dafür zu groß ist (etwa einige hundert Kilobyte ohne Leerzeile, auch in einem Zitat), und bei einem Block, der sich nicht an den Punkten einer Liste teilen lässt, etwa einer langen Liste unter einem einzigen Punkt. Die Links eines solchen Teils fehlen dann in Backlinks und Graph, und beim Umbenennen einer Notiz bleiben sie, wie sie sind; Plainva meldet dann, dass Verweise auf den alten Namen bestehen bleiben können. Die Suche findet ihn trotzdem, und seine Aufgaben werden gefunden; seine Tags findet Plainva in einem langen Absatz wie bisher, in einem anderen solchen Block nicht, damit kein falsches dazukommt. **Zur Stelle** springt zu diesem Teil. Teilst Du die Notiz in kleinere auf, wird er wieder gelesen – einen langen Absatz oder ein langes Zitat liest Plainva auch, wenn Du ihn mit Leerzeilen aufteilst, eine lange Liste unter einem Punkt auch, wenn Du ihre Punkte eine Ebene höher stellst.
 
 Während Du in einer solchen Notiz schreibst, bleibt ein Teil, der als Text gezeigt wird, Text, bis die Notiz deutlich kleiner geworden ist: ein einzelnes Zeichen lässt ihn nicht zwischen Text und Formatierung hin- und herspringen.

@@ -555,7 +555,7 @@ export function rewriteNoteLinks(
       const key = containers.of(retargeted.get(edit)!.link.start);
       // A paragraph read this often leaves out all its lost links at once: they still name the file they named,
       // counted as such, and a paragraph of thousands of them is not read once per link: 2 000 links to one note in one paragraph took 51 s.
-      if ((rounds.get(key) ?? 0) >= ROUNDS_PER_CONTAINER) {
+      if ((rounds.get(key) ?? 0) >= roundsPerContainer) {
         together.push(edit);
         continue;
       }
@@ -571,8 +571,22 @@ export function rewriteNoteLinks(
 }
 
 
-/** How many rounds a paragraph leaves out one link each before it leaves out all its lost ones (`rewriteNoteLinks`). */
-const ROUNDS_PER_CONTAINER = 16;
+/**
+ * How many rounds a paragraph leaves out one link each before it leaves out
+ * all its lost ones at once (`rewriteNoteLinks`). It bounds the time, not what
+ * is rewritten: a link a backtick made code stays code when another of its
+ * paragraph is left out first — in 20 000 random paragraphs of wiki links,
+ * Markdown links and backticks, one link a round and all at once gave the same
+ * note (2026-11-26, `link-rewrite.test.ts`). Without it two thousand links of
+ * one paragraph took 51 s.
+ */
+export const ROUNDS_PER_CONTAINER = 16;
+let roundsPerContainer = ROUNDS_PER_CONTAINER;
+
+/** The rounds a paragraph leaves out one link each (`ROUNDS_PER_CONTAINER`); only the tests change it. */
+export function setRenameRounds(rounds: number = ROUNDS_PER_CONTAINER): void {
+  roundsPerContainer = rounds;
+}
 
 interface InlineContainers {
   /** The paragraph, heading or table cell a place of the note stands in, by number; a place in none is a container of its own. */

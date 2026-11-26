@@ -14,8 +14,10 @@ import type { ReadAsTextState } from "./readAsText";
  * looks like a fault. One strip over the note in both shells, in the reading
  * view and in the editor alike; the ⓘ says what the part keeps and what not,
  * and the button goes to its first place. Where a part is read as text and not
- * read for its links at all (`readAsTextParts`: too large to be read even in
- * pieces), the strip says that instead, and the button goes there.
+ * read for its links at all (`readAsTextParts.unread`: a paragraph too large
+ * for a piece, what lies beyond the four budgets read in pieces, what lies
+ * behind an unclosed `---`), the strip says that instead, and the button goes
+ * there.
  *
  * `state` is the editor's decision (`readAsText`), which holds its blocks
  * while it is typed in; without one, `content` is read as the reading view

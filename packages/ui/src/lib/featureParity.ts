@@ -700,8 +700,13 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "reading view among its readers (noteBudgetShells.json). A phone's WebView " +
       "ends the app's process for its memory without a word, a computer has the " +
       "memory. Every phone shows the same parts of a note formatted, every " +
-      "desktop the same; the facts of a part shown as text - its links, tags " +
-      "and block ids - are read on both shells alike, and both say so over the note.",
+      "desktop the same. A part shown as text is read for its facts in pieces " +
+      "on both shells, the whole note; a part too heavy for a piece and not cut " +
+      "(one paragraph, a list under one item) is not read for its links and " +
+      "tags - on the phone from a quarter of the size the desktop reads so, " +
+      "since a piece's share is of each shell's budget. Both say so over the " +
+      "note, and a rename on either says when it left links in such a part " +
+      "(docs/engineering/Note_Budget_Readings.md).",
     verified: "2026-11-25",
   },
   {

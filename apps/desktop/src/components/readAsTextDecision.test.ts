@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { Decoration } from "@codemirror/view";
-import { overBudgetInlineRanges, prepareReaderSource, readAsTextParts } from "@plainva/core";
+import { DESKTOP_NOTE_BUDGET, NOTE_BUDGET, overBudgetInlineRanges, prepareReaderSource, readAsTextParts, setNoteBudget } from "@plainva/core";
 import { boundReaderMarkdown } from "@plainva/ui";
 import { readAsText, readAsTextField, readAsTextTouches, withoutReadAsText, type ReadAsTextState } from "../../../../packages/ui/src/components/readAsText";
 import { EditorView } from "@codemirror/view";
@@ -105,6 +105,36 @@ describe("what of a note is read as text (L14)", () => {
     }
   }, 60_000);
 
+  it("says a part is not read where the index does not read it, not where the editor holds a block as text", async () => {
+    expect.hasAssertions();
+    // A list under one item: not cut at its items, so a block of it read as text is not read (review of L14, 2026-11-26,
+    // H3): held by the editor under the budget it was not read for the notice, while the index read every link of it.
+    const nested = (n: number) => `# T\n\n- outer\n${Array.from({ length: n }, (_, i) => `  - sub ${i} [[Note ${i}]]`).join("\n")}\n`;
+    let n = 1_000;
+    while (!readAsTextParts(nested(n)).ranges.some((range) => range.block)) n = Math.ceil(n * 1.1);
+    let lo = Math.floor(n / 1.1);
+    while (n - lo > 1) {
+      const mid = (lo + n) >> 1;
+      if (readAsTextParts(nested(mid)).ranges.some((range) => range.block)) n = mid;
+      else lo = mid;
+    }
+    const over = nested(n);
+    expect(readAsTextParts(over).unread.length, "over the budget the list is not read").toBeGreaterThan(0);
+    const view = new EditorView({ state: EditorState.create({ doc: over, extensions: [readAsText()] }) });
+    try {
+      const lastItem = over.lastIndexOf("\n  - sub");
+      view.dispatch({ changes: { from: lastItem, to: over.length - 1 } });
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      const held = view.state.field(readAsTextField);
+      // The editor holds the block as text; the index reads the note whole, every link of it — and so says the notice.
+      expect(held.ranges.some((range) => range.block)).toBe(true);
+      expect(readAsTextParts(view.state.doc.toString()).unread).toEqual([]);
+      expect(held.unread).toEqual([]);
+    } finally {
+      view.destroy();
+    }
+  }, 60_000);
+
   it("keeps among two blocks of about one weight the one it reads as text, whichever is typed in", () => {
     expect.hasAssertions();
     const items = (n: number, tag: string) => Array.from({ length: n }, (_, i) => `- item ${tag}${i} [[Note ${i}]]`).join("\n");
@@ -112,7 +142,8 @@ describe("what of a note is read as text (L14)", () => {
     while (!readAsTextParts(`# T\n\n${items(n, "a")}\n\n${items(n, "b")}\n`).ranges.some((range) => range.block)) n += 100;
     const two = (extra: string) => `# T\n\n${items(n, "a")}\n\n${items(n, "b").replace("- item b7 ", `- item b7 ${extra}`)}\n`;
     const chosen = (text: string, previous?: ReturnType<typeof readAsTextParts>["ranges"]) =>
-      readAsTextParts(text, undefined, previous).ranges.filter((range) => range.block).map((range) => text.slice(range.from, range.from + 9));
+      // Each block's beginning and length: two blocks with only a blank line between them are one range (both lists end alike).
+      readAsTextParts(text, undefined, previous).ranges.filter((range) => range.block).map((range) => `${text.slice(range.from, range.from + 9)}… ${range.to - range.from}`);
     const first = readAsTextParts(two(""));
     const typed = two("[[x]] [[y]] [[z]] ");
     // From the text alone, the heavier block is read as text; held, the one read so far stays it.
@@ -120,7 +151,27 @@ describe("what of a note is read as text (L14)", () => {
     const shift = typed.length - two("").length;
     const moved = first.ranges.map((range) => (range.from > typed.indexOf("- item b7") ? { ...range, from: range.from + shift, to: range.to + shift } : range));
     expect(chosen(typed, moved)).toEqual(chosen(two("")));
+    // Held, the other block is not read as text besides it: the held one is chosen first, and it is enough.
+    expect(chosen(typed, moved)).toHaveLength(1);
   });
+
+  it("reads four times as much formatted on the desktop as on the phone", () => {
+    expect.hasAssertions();
+    const list = (n: number) => `# T\n\n${Array.from({ length: n }, (_, i) => `- item a${i} [[Note ${i}]]`).join("\n")}\n`;
+    const blocks = (text: string) => readAsTextParts(text).ranges.filter((range) => range.block).length;
+    try {
+      setNoteBudget(NOTE_BUDGET);
+      let n = 1_000;
+      while (blocks(list(n)) === 0) n = Math.ceil(n * 1.25);
+      setNoteBudget(DESKTOP_NOTE_BUDGET);
+      // What the phone reads as text, the desktop reads formatted, and three times that as well; six times it no more.
+      expect(blocks(list(n))).toBe(0);
+      expect(blocks(list(3 * n))).toBe(0);
+      expect(blocks(list(6 * n))).toBeGreaterThan(0);
+    } finally {
+      setNoteBudget(NOTE_BUDGET);
+    }
+  }, 60_000);
 
   it("reads the note's blocks as text in the reading view where the editor and the notice do, the original's decision alone", () => {
     expect.hasAssertions();
@@ -134,6 +185,37 @@ describe("what of a note is read as text (L14)", () => {
       const theirs = overBudgetInlineRanges(text).filter((range) => range.block);
       expect(blocks.length).toBe(theirs.length);
     }
+  });
+
+  it("knows in the reading view the definitions of a block read as text, as the note read whole does", async () => {
+    expect.hasAssertions();
+    // A definition in the heaviest block, a reference with a parenthesis behind it in a light one (review of L14,
+    // 2026-11-26, S1): the reading view read `[foo][bar](x.md)` as a link to x.md, the note read whole a reference.
+    // The reading view's own parser: react-markdown's unified and remark-parse, and the desktop's remark-gfm.
+    const { createRequire } = await import("node:module");
+    const { pathToFileURL } = await import("node:url");
+    const fromReader = createRequire(createRequire(import.meta.url).resolve("react-markdown"));
+    const { unified } = await import(pathToFileURL(fromReader.resolve("unified")).href);
+    const remarkParse = (await import(pathToFileURL(fromReader.resolve("remark-parse")).href)).default;
+    const remarkGfm = (await import("remark-gfm")).default;
+    const heavy = (n: number) => `[bar]: def.md\n${Array.from({ length: n }, (_, i) => `- item ${i} [[Note ${i}]]`).join("\n")}`;
+    const note = (n: number) => `# T\n\n${heavy(n)}\n\nSee [foo][bar](x.md) here.\n`;
+    let n = 1_000;
+    while (!readAsTextParts(note(n)).ranges.some((range) => range.block)) n *= 2;
+    const text = note(n);
+    const source = prepareReaderSource(text);
+    const bounded = boundReaderMarkdown(source.text, { original: text, source });
+    const tree = unified().use(remarkParse).use(remarkGfm).parse(bounded.text);
+    bounded.remarkRestore()(tree);
+    const found: Array<{ type: string; url?: string; at?: number }> = [];
+    const walk = (node: { type: string; url?: string; children?: unknown[]; position?: { start?: { offset?: number } } }) => {
+      if (node.type === "link" || node.type === "linkReference" || node.type === "definition") found.push({ type: node.type, url: node.url, at: node.position?.start?.offset });
+      for (const child of node.children ?? []) walk(child as never);
+    };
+    walk(tree as never);
+    const at = source.text.indexOf("[foo][bar]");
+    expect(found.filter((node) => node.at !== undefined && node.at >= at)).toEqual([{ type: "linkReference", url: undefined, at }]);
+    expect(found.some((node) => node.url === "x.md")).toBe(false);
   });
 
   it("is in the editor of both shells, and so is the notice over the note", () => {

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { within } from "./helpers/timeBudget.js";
 import { extractLinksAndTags } from "../src/ast-scanner.js";
-import { readNoteLinks, renameNoteLinks, rewriteNoteLinks, wikiLinkCanName } from "../src/linkRewrite.js";
+import { readNoteLinks, renameNoteLinks, rewriteNoteLinks, ROUNDS_PER_CONTAINER, setRenameRounds, wikiLinkCanName } from "../src/linkRewrite.js";
 import { parseMarkdownAst } from "../src/markdown-parser.js";
 import { serializeMarkdownAst } from "../src/markdown-serializer.js";
 
@@ -599,4 +599,41 @@ describe("leaving out the links that would not read back, in linear time", () =>
       expect(rename(`\` ${tail}[[B]]\n`, { Alt: "Neu`x", B: "x>y" })).toEqual({ content: `\` ${tail}[[x>y]]\n`, renamed: 1, unplaced: after });
     }
   });
+});
+
+/**
+ * The rounds a paragraph leaves out one lost link each before it leaves out
+ * the rest at once (`ROUNDS_PER_CONTAINER`) bound the time and change nothing
+ * that is rewritten, under the budget as over it (review of L14, 2026-11-26):
+ * the same note as with a link left out each round, however many rounds.
+ */
+describe("the rounds of a rename in one paragraph", () => {
+  it("rewrite random paragraphs of links and backticks as one link left out a round does", () => {
+    expect.hasAssertions();
+    const tokens = ["[[Alt]]", "`", "x", "``", "[t](Alt.md)", "[u](<Alt.md>)", "[[Alt|a`b]]", "[[Alt#h]]", "![[Alt]]"];
+    let seed = 20261126;
+    const random = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+    const renames = new Map([["Alt", "N`x"], ["Alt.md", "N`x.md"]]);
+    let differing = 0;
+    let most = 0;
+    // Random paragraphs, and cascades behind an open backtick long enough to pass the rounds: each link left out hands
+    // its backtick to the next one.
+    const cascades = [8, 17, 40, 120].flatMap((n) => [`\` ${"[[Alt]] ".repeat(n)}\n`, `[[Alt]] x \` ${"[t](Alt.md) [[Alt]] ".repeat(n)}\n`, `${"[[Alt]] \` ".repeat(n)}\n`]);
+    try {
+      for (let k = 0; k < 3_000 + cascades.length; k++) {
+        const note = k < cascades.length ? cascades[k] : `${Array.from({ length: 3 + Math.floor(random() * 40) }, () => tokens[Math.floor(random() * tokens.length)]).join(" ")}\n`;
+        setRenameRounds(Number.MAX_SAFE_INTEGER);
+        const one = renameNoteLinks(note, renames);
+        setRenameRounds();
+        const bounded = renameNoteLinks(note, renames);
+        if (bounded.content !== one.content || bounded.renamed !== one.renamed || bounded.unplaced !== one.unplaced) differing++;
+        most = Math.max(most, one.unplaced);
+      }
+    } finally {
+      setRenameRounds();
+    }
+    // Some paragraph loses more links than the rounds leave out one by one: the rest is left at once there.
+    expect(most).toBeGreaterThan(ROUNDS_PER_CONTAINER);
+    expect(differing).toBe(0);
+  }, 120_000);
 });

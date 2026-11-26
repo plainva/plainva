@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { PROBE_MOST_CHARS, memoryProbeLines, runMemoryProbe } from "../../../../packages/ui/src/lib/memoryProbe";
+import { PROBE_MOST_CHARS, PROBE_STEP_MS, memoryProbeLines, runMemoryProbe } from "../../../../packages/ui/src/lib/memoryProbe";
 
 /**
  * „Speicher messen“ (Über & Diagnose, both shells) reads generated notes of
@@ -48,5 +48,47 @@ describe("the memory probe", () => {
       if (had) Object.defineProperty(performance, "memory", had);
       else delete performanceWithMemory.memory;
     }
+  });
+
+  it("does not read the next note, twice the last, where twice the heap it left would pass the share", async () => {
+    expect.hasAssertions();
+    // At 35 % the heap was under the share of 60 %, and the next note — twice as large — began (review of L14, H4).
+    const performanceWithMemory = performance as unknown as { memory?: unknown };
+    const had = Object.getOwnPropertyDescriptor(performance, "memory");
+    Object.defineProperty(performance, "memory", { configurable: true, get: () => ({ usedJSHeapSize: 350e6, jsHeapSizeLimit: 1_000e6 }) });
+    try {
+      const result = await runMemoryProbe(undefined, 60);
+      expect(result.stopped).toBe("heap");
+      expect(result.steps).toHaveLength(1);
+    } finally {
+      if (had) Object.defineProperty(performance, "memory", had);
+      else delete performanceWithMemory.memory;
+    }
+  });
+
+  it("ends a form at a step slower than its limit, and goes on with the next form", async () => {
+    expect.hasAssertions();
+    // A clock on which every note takes 6 s, over the 5 s a step may take; the probe is given 60 s. Each form ends
+    // after its first note, and all three are read in time; read on, the first form alone used the time up.
+    let clock = 0;
+    const result = await runMemoryProbe(undefined, 60, () => (clock += 6_000));
+    expect(result.steps.map((step) => step.form)).toEqual(["list", "prose", "table"]);
+    expect(result.steps.every((step) => step.ms > PROBE_STEP_MS)).toBe(true);
+    expect(result.stopped).toBe("all");
+  });
+
+  it("does not begin a note it would read past its time", async () => {
+    expect.hasAssertions();
+    // A clock on which every note takes 10 s; the probe is given 25 s. At 10 s the next note (about 20 s) would end at
+    // 30 s: the probe ends after the first. Until 2026-11-26 it began a note whenever the time was not yet up.
+    let clock = 0;
+    const steps: number[] = [];
+    const result = await runMemoryProbe(() => steps.push(clock), 25, () => {
+      clock += 5_000;
+      return clock;
+    });
+    expect(result.stopped).toBe("time");
+    expect(result.steps).toHaveLength(1);
+    expect(result.steps[0].ms).toBe(5_000);
   });
 });

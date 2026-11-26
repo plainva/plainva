@@ -1,6 +1,6 @@
 # Notas y Markdown
 
-Última actualización: 2026-11-25
+Última actualización: 2026-11-26
 
 Cada nota en Plainva es un archivo Markdown normal (`.md`). Esta página explica cómo escribir cómodamente y qué termina realmente en el archivo — porque eso es exactamente lo que hace que tus notas sean portables: cualquier editor de texto, Obsidian o un diff de git pueden leerlas.
 
@@ -262,6 +262,6 @@ Una nota puede crecer tanto que un dispositivo ya no pueda leerla con formato: u
 
 En esas partes solo falta el formato: las tablas, las listas, los enlaces y los énfasis aparecen como texto fuente. Por lo demás, el texto cuenta como cualquier otro: la búsqueda lo encuentra, sus enlaces aparecen en los vínculos entrantes y en el grafo, sus etiquetas y tareas se encuentran y, al renombrar una nota, Plainva también reescribe sus enlaces. Los encabezados y las propiedades se conservan todo lo posible. Divide la nota en varias y todo vuelve a tener formato.
 
-Si una parte es demasiado grande incluso para eso —por ejemplo, un único párrafo de megabytes sin línea en blanco—, sobre la nota aparece **Una parte de esta nota se muestra como texto y sus enlaces no se leen.** Sus enlaces faltan entonces en los vínculos entrantes y en el grafo, y al renombrar una nota se quedan como están; la búsqueda la encuentra igualmente, y sus etiquetas y tareas se encuentran. **Ir allí** te lleva a esa parte. Si la divides con líneas en blanco o la escribes como lista, vuelve a leerse.
+Algunas partes Plainva no las lee ni siquiera por fragmentos; entonces sobre la nota aparece **Una parte de esta nota se muestra como texto y sus enlaces no se leen.** Ocurre con un único párrafo demasiado grande incluso para eso (unos cientos de kilobytes sin línea en blanco, por ejemplo, también dentro de una cita) y con un bloque que no se puede dividir en los elementos de una lista, como una lista larga bajo un único elemento. Los enlaces de esa parte faltan entonces en los vínculos entrantes y en el grafo, y al renombrar una nota se quedan como están; Plainva te avisa entonces de que pueden quedar referencias al nombre anterior. La búsqueda la encuentra igualmente, y sus tareas se encuentran; sus etiquetas Plainva las encuentra en un párrafo largo como antes, en otro bloque así no, para que no se añada ninguna incorrecta. **Ir allí** te lleva a esa parte. Si divides la nota en otras más pequeñas, se vuelve a leer; un párrafo o una cita largos también si los divides con líneas en blanco, y una lista larga bajo un elemento también si subes sus elementos un nivel.
 
 Mientras escribes en una nota así, una parte que se muestra como texto sigue siendo texto hasta que la nota se ha vuelto claramente más pequeña: un solo carácter no la hace saltar entre texto y formato.

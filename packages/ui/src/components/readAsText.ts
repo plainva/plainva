@@ -30,7 +30,11 @@ const setReadAsText = StateEffect.define<ReadAsTextState>();
 export const SCAN_PAUSE_MS = 400;
 
 const scan = (state: EditorState, previous?: readonly BoundedRange[]): ReadAsTextState => {
-  const { ranges, unread } = readAsTextParts(state.doc.toString(), undefined, previous);
+  const text = state.doc.toString();
+  const { ranges } = readAsTextParts(text, undefined, previous);
+  // What is not read follows what the index reads — the text alone, no blocks held while typing (review of L14,
+  // 2026-11-26): the notice "its links are not read" says what the index does, the drawing what the editor holds.
+  const { unread } = readAsTextParts(text);
   return { ranges, unread };
 };
 

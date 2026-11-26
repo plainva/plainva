@@ -5,7 +5,9 @@ import remarkGfm from "remark-gfm";
 import remarkObsidianPreserve from "./remark-obsidian-preserve.ts";
 import { remarkWikiLinks } from "./wikiLinkSyntax.ts";
 import { unified, type Processor } from "unified";
-import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, restoreBoundedTree, type BoundedRange, type MarkdownReading, type ReadAsTextParts, type ReadPiece } from "./inlineParseBudget.ts";
+import { normalizeIdentifier } from "micromark-util-normalize-identifier";
+import { frontmatterSpan, opensUnclosedProperties } from "./frontmatter-block.ts";
+import { boundMarkdownForParse, COMMONMARK_READING, NOTE_READING, onlyBlanksBetween, pieceLimit, readAsTextParts, restoreBoundedTree, type BoundedMarkdown, type BoundedRange, type MarkdownReading, type ReadAsTextParts, type ReadPiece } from "./inlineParseBudget.ts";
 
 export type ParseMarkdownAstOptions = {
   preserveObsidianSyntax?: boolean;
@@ -111,13 +113,16 @@ function parsedInText<Tree>(parse: (text: string) => Tree, text: string, reading
   // A stretch whose inline syntax would cost the parser more than the budget
   // is read as written (`inlineParseBudget.ts`); every place stays where it is.
   const bounded = boundMarkdownForParse(text, reading);
-  if (text.charCodeAt(0) !== BYTE_ORDER_MARK) {
-    const tree = parse(bounded.text);
+  // The definitions that stand in blocks read as text, which the parse of the rest would not see (`noteDefinitions`).
+  const given = bounded.ranges.some((range) => range.block) ? givenDefinitions(text, bounded, readAsTextDefinitions(text, reading), reading) : null;
+  const bom = text.charCodeAt(0) === BYTE_ORDER_MARK;
+  const tree = parse(given ? bounded.text.slice(0, given.at) + given.lines + bounded.text.slice(given.at) : bounded.text);
+  if (given) withdrawGiven(tree as unknown as PlacedNode, given, bom ? 1 : 0);
+  if (!bom) {
     restoreBoundedTree(tree, bounded);
-    if (rowLinks) readRowLinks(tree as unknown as LinkNode, text, bounded.ranges, parse, reading);
+    if (rowLinks) readRowLinks(tree as unknown as LinkNode, text, bounded.ranges, parse, reading, noteDefinitions(text, tree, reading));
     return tree;
   }
-  const tree = parse(bounded.text);
   // A point two nodes shared would otherwise be moved twice.
   const moved = new WeakSet<object>();
   const move = (point: Partial<MarkdownTreePoint> | undefined): void => {
@@ -133,8 +138,111 @@ function parsedInText<Tree>(parse: (text: string) => Tree, text: string, reading
   };
   walk(tree as unknown as PlacedNode);
   restoreBoundedTree(tree, bounded);
-  if (rowLinks) readRowLinks(tree as unknown as LinkNode, text, bounded.ranges, parse, reading);
+  if (rowLinks) readRowLinks(tree as unknown as LinkNode, text, bounded.ranges, parse, reading, noteDefinitions(text, tree, reading));
   return tree;
+}
+
+/**
+ * The definitions of blocks read as text that the rest of the note refers to,
+ * as lines the parse of the note is given behind its properties block: a
+ * reference `[x][label]` reads as one where the label is defined anywhere in
+ * the note, and the parse of the note sees a block read as text as one
+ * paragraph of stand-ins. Without them `[foo][bar](x.md)` read as a link to
+ * `x.md` where the note read whole reads a reference and the text `(x.md)`,
+ * and a rename wrote into that text (review of L14, 2026-11-26). A definition
+ * names nothing to the index; a given line only makes its label defined.
+ */
+interface GivenDefinitions {
+  /** Where they stand in the text handed to the parser: behind the properties block, or behind the `---` of an unclosed one. */
+  at: number;
+  lines: string;
+  /** How many lines they take. */
+  count: number;
+}
+
+function givenDefinitions(text: string, bounded: BoundedMarkdown, definitions: ReadonlyMap<string, NoteDefinition>, reading: MarkdownReading): GivenDefinitions | null {
+  if (definitions.size === 0) return null;
+  // The labels the text outside the blocks read as text refers to: inside them every character stands in.
+  const wanted: string[] = [];
+  const seen = new Set<string>();
+  for (const match of bounded.text.matchAll(BRACKETED)) {
+    for (const key of keysOf(match[1])) {
+      if (seen.has(key) || !definitions.has(key)) continue;
+      seen.add(key);
+      wanted.push(definitions.get(key)!.line);
+    }
+  }
+  if (wanted.length === 0) return null;
+  const bom = text.charCodeAt(0) === BYTE_ORDER_MARK ? 1 : 0;
+  let at = bom;
+  if (reading.properties) {
+    const span = frontmatterSpan(text);
+    // Behind an unclosed `---` the parser opens no blocks within blocks; a definition behind its line keeps it so.
+    if (span) at = span.end;
+    else if (opensUnclosedProperties(text)) at = text.indexOf("\n", bom) + 1;
+  }
+  if (at > 0 && text.charCodeAt(at - 1) !== 0x0a) return null;
+  const lines = `${wanted.join("\n\n")}\n\n`;
+  return { at, lines, count: 2 * wanted.length };
+}
+
+/** The tree without the given definitions: their nodes gone, every place behind them moved back onto the text. */
+function withdrawGiven(tree: PlacedNode, given: GivenDefinitions, skipped: number): void {
+  // The parser counts its places from behind a byte order mark it skipped.
+  const from = given.at - skipped;
+  const to = from + given.lines.length;
+  tree.children = (tree.children ?? []).filter((child) => {
+    const at = child.position?.start?.offset;
+    return typeof at !== "number" || at < from || at >= to;
+  });
+  const moved = new WeakSet<object>();
+  const move = (point: Partial<MarkdownTreePoint> | undefined): void => {
+    if (!point || moved.has(point) || typeof point.offset !== "number" || point.offset < to) return;
+    moved.add(point);
+    point.offset -= given.lines.length;
+    if (typeof point.line === "number") point.line -= given.count;
+  };
+  const walk = (node: PlacedNode): void => {
+    move(node.position?.start);
+    move(node.position?.end);
+    for (const child of node.children ?? []) walk(child);
+  };
+  walk(tree);
+}
+
+/**
+ * The definitions the reading view's parse is given in front of the text it
+ * shows (`boundReaderMarkdown`): those of the original's blocks read as text
+ * and parts not read that the shown text outside them refers to, each with
+ * its destination and title, so that a reference reads and leads as in the
+ * note read whole. `shown` is the text handed to the reading view's parser,
+ * its blocks read as text standing in. Null where there are none.
+ */
+export function readerGivenDefinitions(original: string, shown: string): { lines: string; count: number } | null {
+  const definitions = readAsTextDefinitions(original, NOTE_READING);
+  if (definitions.size === 0) return null;
+  const wanted: string[] = [];
+  const seen = new Set<string>();
+  for (const match of shown.matchAll(BRACKETED)) {
+    for (const key of keysOf(match[1])) {
+      if (seen.has(key) || !definitions.has(key)) continue;
+      seen.add(key);
+      wanted.push(definitions.get(key)!.shown);
+    }
+  }
+  return wanted.length > 0 ? { lines: `${wanted.join("\n\n")}\n\n`, count: 2 * wanted.length } : null;
+}
+
+/** The reading view's tree without the definitions it was given in front of its text (`readerGivenDefinitions`). */
+export function withdrawReaderDefinitions(tree: unknown, given: { lines: string; count: number }): void {
+  withdrawGiven(tree as PlacedNode, { at: 0, lines: given.lines, count: given.count }, 0);
+}
+
+/** Every definition of the note by key: those of its tree, and those of what is read as text (`readAsTextDefinitions`). */
+function noteDefinitions(text: string, tree: unknown, reading: MarkdownReading): Map<string, NoteDefinition> {
+  const definitions = new Map<string, NoteDefinition>(readAsTextDefinitions(text, reading));
+  definitionsOf(tree as PieceNode, definitions);
+  return definitions;
 }
 
 /** What the index and a rename read of a line: wiki and Markdown links, images, and their references. */
@@ -158,7 +266,7 @@ interface LinkNode {
  * facts (`forEachReadPiece`), its tables with it; a paragraph over the inline
  * budget is not read for its links, as before, and the note's notice says so.
  */
-function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly BoundedRange[], parse: (text: string) => Tree, reading: MarkdownReading): void {
+function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly BoundedRange[], parse: (text: string) => Tree, reading: MarkdownReading, definitions: ReadonlyMap<string, NoteDefinition>): void {
   let counted = 0;
   let line = 1;
   // The line of `at`, counted on from the last one asked: the ranges come in the order of the text.
@@ -182,7 +290,8 @@ function readRowLinks<Tree>(tree: LinkNode, text: string, ranges: readonly Bound
     const found: LinkNode[] = [];
     // One row in its table: what of it the parser makes a link, moved to the row's place in `text`.
     const take = (row: string, rowStart: number, rowLine: number, alone: boolean) => {
-      const mini = alone ? `${head}\n${delimiter}` : `${head}\n${delimiter}\n${row}`;
+      // With the definitions it refers to behind it, as a piece is read: its references read as in the note.
+      const mini = (alone ? `${head}\n${delimiter}` : `${head}\n${delimiter}\n${row}`) + appendixFor(row, definitions);
       const at = alone ? 0 : head.length + delimiter.length + 2;
       const miniLine = alone ? 1 : 3;
       const parsed = parsedInText(parse, mini, reading) as unknown as LinkNode;
@@ -346,6 +455,17 @@ export function parseReaderTextTree(text: string, options: { codeSpans?: boolean
 /** How a piece of a block read as text is read (`forEachReadPiece`): no properties block (it is not the note's start), no note's budget (it is within a piece's share). */
 const PIECE_READING: MarkdownReading = { tables: true, properties: false, notes: false };
 
+/**
+ * What a piece is read behind, and with which reading: a blank line, so that
+ * no properties block opens there — or, in a note that begins with a `---`
+ * nothing closes, a `---` of its own and the properties block's reading, so
+ * that the parser reads it in the mode it reads the note in (no blocks within
+ * blocks; the note has no line that would close it).
+ */
+function pieceLead(parts: ReadAsTextParts): { lead: string; reading: MarkdownReading } {
+  return parts.behindUnclosedProperties ? { lead: "---\n\n", reading: { ...PIECE_READING, properties: true } } : { lead: "\n", reading: PIECE_READING };
+}
+
 interface PieceNode {
   type: string;
   label?: string;
@@ -354,33 +474,59 @@ interface PieceNode {
   position?: { start?: Partial<MarkdownTreePoint>; end?: Partial<MarkdownTreePoint> };
 }
 
-/** A label as CommonMark matches it: case folded, its runs of blanks one space. */
-const labelKey = (label: string): string => label.replace(/[ \t\r\n]+/g, " ").trim().toLowerCase();
+/**
+ * A label as the parser matches it: micromark's own `normalizeIdentifier` over
+ * the label as written, escapes and all, lower case — mdast's `identifier`.
+ * (`ß` is `SS` there, and `[b\\]c]` the label `b\\]c`: a fold of its own
+ * or the label with its escapes read gave a piece no definition the note had,
+ * review of L14, 2026-11-26.)
+ */
+const labelKey = (label: string): string => normalizeIdentifier(label).toLowerCase();
+
+/** The keys a label in brackets may be defined under: a link's, and with a leading `^` a footnote's. */
+function keysOf(label: string): string[] {
+  return label.startsWith("^") ? [`^${labelKey(label.slice(1))}`, labelKey(label)] : [labelKey(label)];
+}
+
+/** A definition of the note, by its key: a line that defines its label and names nothing (`#`, `.`), and where the note has it. */
+interface NoteDefinition {
+  line: string;
+  at: number;
+  /** The line for the reading view: a link's own destination and title, so that its reference leads where it leads. */
+  shown: string;
+}
+
+/** `[label]: <dest> "title"` for the reading view, the destination and the title as the parser gave them. */
+function shownDefinition(node: PieceNode & { url?: string; title?: string | null }): string {
+  const url = (node.url ?? "").replace(/[<>\n\r]/g, (ch) => encodeURIComponent(ch));
+  const title = node.title ? ` "${node.title.replace(/["\\]/g, "\\$&").replace(/[\n\r]+/g, " ")}"` : "";
+  return `[${node.identifier}]: <${url}>${title}`;
+}
 
 /**
- * The definitions a piece read alone must know to read its references as the
- * note does — link reference definitions and footnote definitions are the
- * note's, wherever they stand —, by their label, as lines to append behind
- * it: each reads as a definition and names nothing (`#`, `.`).
+ * The definitions in `tree` — link reference definitions and footnote
+ * definitions, which are the note's wherever they stand — by key, each as a
+ * line that defines it; the first one in the note wins, as in the parser.
+ * `shift` lays a place of the tree onto the note; `within` keeps those that
+ * stand there.
  */
-function definitionsOf(tree: PieceNode, into: Map<string, string>, within?: { from: number; to: number }): boolean {
-  let found = false;
+function definitionsOf(tree: PieceNode, into: Map<string, NoteDefinition>, shift = 0, within?: { from: number; to: number }): void {
   const visit = (node: PieceNode): void => {
-    if ((node.type === "definition" || node.type === "footnoteDefinition") && (node.label ?? node.identifier)) {
-      const at = node.position?.start?.offset ?? -1;
-      if (!within || (at >= within.from && at < within.to)) {
-        const label = (node.label ?? node.identifier)!.replace(/[ \t\r\n]+/g, " ");
-        const key = node.type === "definition" ? labelKey(label) : `^${labelKey(label)}`;
-        if (!into.has(key)) {
-          into.set(key, node.type === "definition" ? `[${label}]: #` : `[^${label}]: .`);
-          found = true;
+    if ((node.type === "definition" || node.type === "footnoteDefinition") && node.identifier) {
+      const start = node.position?.start?.offset ?? -1;
+      if (!within || (start >= within.from && start < within.to)) {
+        const key = node.type === "definition" ? node.identifier : `^${node.identifier}`;
+        const at = start + shift;
+        const known = into.get(key);
+        if (!known || at < known.at) {
+          const line = node.type === "definition" ? `[${node.identifier}]: #` : `[^${node.identifier}]: .`;
+          into.set(key, { line, at, shown: node.type === "definition" ? shownDefinition(node) : line });
         }
       }
     }
     for (const child of node.children ?? []) visit(child);
   };
   visit(tree);
-  return found;
 }
 
 /** What may be a label in brackets — `[text]`, `[^note]` —: which definitions a piece is given, nothing more. */
@@ -392,19 +538,122 @@ const BRACKETED = /\[((?:[^[\]\\]|\\.){1,999})\]/g;
  * one it holds and does not refer to is given and changes nothing. Every
  * definition behind every piece made a note of 5 000 footnotes quadratic.
  */
-function appendixFor(piece: string, definitions: ReadonlyMap<string, string>): string {
+function appendixFor(piece: string, definitions: ReadonlyMap<string, NoteDefinition>): string {
   if (definitions.size === 0) return "";
   const lines: string[] = [];
   const seen = new Set<string>();
   for (const match of piece.matchAll(BRACKETED)) {
-    const key = labelKey(match[1]);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const line = definitions.get(key);
-    if (line) lines.push(line);
+    for (const key of keysOf(match[1])) {
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const definition = definitions.get(key);
+      if (definition) lines.push(definition.line);
+    }
   }
   // A blank line between them: behind a footnote's definition the next line would be its text.
   return lines.length > 0 ? `\n\n${lines.join("\n\n")}\n` : "";
+}
+
+/** How many lines of a stretch read as text, around one that may hold a definition, are read with it for it (`readAsTextDefinitions`). */
+const DEFINITION_WINDOW_LINES = 400;
+
+/**
+ * The definitions that stand in what the note's budget reads as text, by key
+ * (`definitionsOf`), read by the parser itself. In a block read in pieces,
+ * each piece that holds `]:` is read for them. Where a stretch is not read in
+ * pieces (`ReadAsTextParts.unread`), each line that holds `]:` is read with
+ * the line before and after it: a definition spans at most these as people
+ * write them, and a line read so as a definition that the note read whole
+ * would not take for one (in a fence, inside a paragraph) only makes its
+ * label defined — a reference `[x][label]` then reads as one, and no link
+ * is made of it that the note does not have.
+ */
+function readAsTextDefinitions(text: string, reading: MarkdownReading): Map<string, NoteDefinition> {
+  const key = `${reading.tables} ${reading.properties} ${reading.notes}`;
+  if (lastDefinitions && lastDefinitions.text === text && lastDefinitions.key === key) return lastDefinitions.definitions;
+  const parts = readAsTextParts(text, reading);
+  const definitions = new Map<string, NoteDefinition>();
+  const { lead, reading: pieceReading } = pieceLead(parts);
+  const readFor = (from: number, to: number) => {
+    const tree = parseMarkdownTree(`${lead}${text.slice(from, to)}`, pieceReading) as unknown as PieceNode;
+    definitionsOf(tree, definitions, from - lead.length, { from: lead.length, to: lead.length + to - from });
+  };
+  let marker = -1;
+  for (const piece of parts.pieces) {
+    if (marker < piece.from) marker = text.indexOf("]:", piece.from);
+    if (marker < 0) break;
+    if (marker < piece.to) readFor(piece.from, piece.to);
+  }
+  const blocks = parts.ranges.filter((range) => range.block);
+  for (const stretch of parts.unread) {
+    if (!blocks.some((block) => block.from <= stretch.from && stretch.from < block.to)) continue;
+    // The starts of the stretch's lines; each line that holds `]:` is read with its neighbours, runs of them together.
+    const starts: number[] = [];
+    for (let at = stretch.from; at < stretch.to; ) {
+      starts.push(at);
+      const next = text.indexOf("\n", at);
+      at = next < 0 || next >= stretch.to ? stretch.to : next + 1;
+    }
+    starts.push(stretch.to);
+    let window: [number, number] | null = null;
+    const flush = () => {
+      if (window) readFor(starts[window[0]], starts[window[1] + 1]);
+      window = null;
+    };
+    for (let k = 0; k + 1 < starts.length; k++) {
+      const from = starts[k];
+      const marker = text.indexOf("]:", from);
+      if (marker < 0) break;
+      if (marker >= starts[k + 1]) {
+        // No `]:` in this line: jump to the line that holds the next one.
+        let line = k + 1;
+        while (line + 1 < starts.length && starts[line + 1] <= marker) line++;
+        if (line > k + 1) k = line - 1;
+        continue;
+      }
+      const first = Math.max(0, k - 1);
+      const last = Math.min(starts.length - 2, k + 1);
+      const open = window as [number, number] | null;
+      if (open && first <= open[1] + 1 && last - open[0] < DEFINITION_WINDOW_LINES) open[1] = last;
+      else {
+        flush();
+        window = [first, last];
+      }
+    }
+    flush();
+  }
+  lastDefinitions = { text, key, definitions };
+  return definitions;
+}
+
+/** The last note `readAsTextDefinitions` read: the parse of a note and the reading of its facts ask for the same one. */
+let lastDefinitions: { text: string; key: string; definitions: Map<string, NoteDefinition> } | null = null;
+
+/** How many lines of appendix a piece may carry before the pieces beside it are read with it (`withSharedAppendix`). */
+const SHARED_APPENDIX_LINES = 64;
+
+/**
+ * The pieces as they are read: pieces that stand side by side — only blank
+ * lines between them — and carry a long appendix are read as one, up to what
+ * a piece may weigh (`pieceLimit`). Two thousand definitions that every
+ * paragraph refers to were read again behind every paragraph: 3 MB of them
+ * took the index 25 s (review of L14, 2026-11-26). Read together they are
+ * read as they stand in the note, and each run of pieces once with its
+ * appendix.
+ */
+function withSharedAppendix(text: string, pieces: readonly ReadPiece[], definitions: ReadonlyMap<string, NoteDefinition>): ReadPiece[] {
+  if (definitions.size < SHARED_APPENDIX_LINES) return pieces as ReadPiece[];
+  const limit = pieceLimit();
+  const read: ReadPiece[] = [];
+  for (const piece of pieces) {
+    const last = read[read.length - 1];
+    const long = () => appendixFor(text.slice(piece.from, piece.to), definitions).split("\n\n").length > SHARED_APPENDIX_LINES;
+    if (last && (last.weight ?? 0) + (piece.weight ?? 0) <= limit && onlyBlanksBetween(text, last.to, piece.from) && long()) {
+      last.to = piece.to;
+      last.weight = (last.weight ?? 0) + (piece.weight ?? 0);
+    } else read.push({ ...piece });
+  }
+  return read;
 }
 
 /**
@@ -420,40 +669,36 @@ function appendixFor(piece: string, definitions: ReadonlyMap<string, string>): s
  * definitions outside the pieces; a piece that holds definitions of its own
  * is read for them first.
  */
-export function forEachReadPiece(text: string, parts: ReadAsTextParts, tree: unknown, options: { preserveObsidianSyntax?: boolean; places?: boolean }, visit: (tree: MarkdownTreeNode, piece: ReadPiece) => void): void {
+export function forEachReadPiece(text: string, parts: ReadAsTextParts, tree: unknown, options: { preserveObsidianSyntax?: boolean; places?: boolean; reading?: MarkdownReading }, visit: (tree: MarkdownTreeNode, piece: ReadPiece) => void): void {
   if (parts.pieces.length === 0) return;
+  const { lead, reading } = pieceLead(parts);
   const read = (piece: string): MarkdownTreeNode =>
-    (options.places ? parseMarkdownTree(piece, PIECE_READING) : parseMarkdownAst(piece, { preserveObsidianSyntax: options.preserveObsidianSyntax, reading: PIECE_READING })) as unknown as MarkdownTreeNode;
-  const definitions = new Map<string, string>();
-  definitionsOf(tree as PieceNode, definitions);
-  // Definitions inside the pieces: read first, so that every piece knows them. A piece without `]:` holds none.
-  let marker = -1;
-  for (const piece of parts.pieces) {
-    if (marker < piece.from) marker = text.indexOf("]:", piece.from);
-    if (marker < 0) break;
-    if (marker >= piece.to) continue;
-    const own = read(`\n${text.slice(piece.from, piece.to)}`);
-    definitionsOf(own as unknown as PieceNode, definitions, { from: 1, to: 1 + piece.to - piece.from });
-  }
+    (options.places ? parseMarkdownTree(piece, reading) : parseMarkdownAst(piece, { preserveObsidianSyntax: options.preserveObsidianSyntax, reading })) as unknown as MarkdownTreeNode;
+  const leadLines = lead.split("\n").length - 1;
+  // Every definition of the note, wherever it stands: those of the note's tree, and those of what is read as text.
+  const definitions = noteDefinitions(text, tree, options.reading ?? NOTE_READING);
   // The places of the note's lines, counted as the parser counts them, from piece to piece.
   let line = 1;
   let counted = 0;
-  for (const piece of parts.pieces) {
+  for (const piece of withSharedAppendix(text, parts.pieces, definitions)) {
     for (; counted < piece.from; counted++) {
       const code = text.charCodeAt(counted);
       if (code === 0x0a || (code === 0x0d && text.charCodeAt(counted + 1) !== 0x0a)) line++;
     }
     const length = piece.to - piece.from;
     const body = text.slice(piece.from, piece.to);
-    const own = read(`\n${body}${appendixFor(body, definitions)}`) as unknown as PieceNode;
-    // What stands behind the piece is the appendix: none of it is the note's.
-    own.children = (own.children ?? []).filter((child) => (child.position?.start?.offset ?? 0) < 1 + length);
+    const own = read(`${lead}${body}${appendixFor(body, definitions)}`) as unknown as PieceNode;
+    // What stands before the piece is its lead, behind it the appendix: none of it is the note's.
+    own.children = (own.children ?? []).filter((child) => {
+      const at = child.position?.start?.offset ?? 0;
+      return at >= lead.length && at < lead.length + length;
+    });
     const moved = new WeakSet<object>();
     const move = (point: Partial<MarkdownTreePoint> | undefined): void => {
       if (!point || moved.has(point)) return;
       moved.add(point);
-      if (typeof point.offset === "number") point.offset += piece.from - 1;
-      if (typeof point.line === "number") point.line += line - 2;
+      if (typeof point.offset === "number") point.offset += piece.from - lead.length;
+      if (typeof point.line === "number") point.line += line - 1 - leadLines;
     };
     const walk = (node: PieceNode): void => {
       move(node.position?.start);

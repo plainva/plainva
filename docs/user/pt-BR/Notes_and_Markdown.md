@@ -1,6 +1,6 @@
 # Notas & Markdown
 
-Última revisão: 2026-11-25
+Última revisão: 2026-11-26
 
 Toda nota no Plainva é um arquivo Markdown (`.md`) comum. Esta página explica como escrever com conforto e o que realmente acaba indo para o arquivo — porque é exatamente isso que torna suas notas portáteis: qualquer editor de texto, o Obsidian ou um diff do git conseguem lê-las.
 
@@ -262,6 +262,6 @@ Uma nota pode crescer tanto que um dispositivo não consegue mais lê-la formata
 
 Nessas partes falta apenas a formatação: tabelas, listas, links e ênfases aparecem como texto-fonte. No mais, o texto conta como qualquer outro: a busca o encontra, seus links aparecem nos backlinks e no grafo, suas tags e tarefas são encontradas, e ao renomear uma nota o Plainva também reescreve seus links. Títulos e propriedades são mantidos pelo maior tempo possível. Divida a nota em várias e tudo volta a ser formatado.
 
-Se uma parte for grande demais até para isso — por exemplo, um único parágrafo de megabytes sem linha em branco —, aparece **Uma parte desta nota é exibida como texto, e os links dela não são lidos.** acima da nota. Os links dela ficam então de fora dos backlinks e do grafo, e renomear uma nota os deixa como estão; a busca a encontra mesmo assim, e suas tags e tarefas são encontradas. **Ir até lá** leva você até essa parte. Divida-a com linhas em branco ou escreva-a como lista, e ela volta a ser lida.
+Algumas partes o Plainva não lê nem mesmo em pedaços; então aparece **Uma parte desta nota é exibida como texto, e os links dela não são lidos.** acima da nota. Isso acontece com um único parágrafo grande demais até para isso (algumas centenas de kilobytes sem linha em branco, por exemplo, também dentro de uma citação) e com um bloco que não pode ser dividido nos itens de uma lista, como uma lista longa sob um único item. Os links dessa parte ficam então de fora dos backlinks e do grafo, e renomear uma nota os deixa como estão; o Plainva avisa então que referências ao nome antigo podem permanecer. A busca a encontra mesmo assim, e suas tarefas são encontradas; suas tags o Plainva encontra num parágrafo longo como antes, em outro bloco assim não, para que nenhuma tag errada seja acrescentada. **Ir até lá** leva você até essa parte. Divida a nota em notas menores e ela volta a ser lida — um parágrafo ou uma citação longos também se você os dividir com linhas em branco, e uma lista longa sob um item também se você subir os itens dela um nível.
 
 Enquanto você escreve numa nota assim, uma parte exibida como texto continua sendo texto até que a nota fique claramente menor: um único caractere não a faz alternar entre texto e formatação.

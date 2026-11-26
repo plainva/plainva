@@ -3778,7 +3778,7 @@
     "readAsTextInfo": "Damit sich die Notiz auf jedem Gerät öffnen lässt, liest Plainva ihre schwersten Teile als reinen Text. Dort fehlt nur die Formatierung: Tabellen, Listen und Links erscheinen als Quelltext.\n\nSonst zählt der Text wie jeder andere: die Suche findet ihn, seine Links erscheinen in Backlinks und Graph, seine Tags und Aufgaben werden gefunden, und beim Umbenennen werden seine Links umgeschrieben. Teilst Du die Notiz auf, wird alles wieder formatiert.",
     "readAsTextJump": "Zur Stelle",
     "readAsTextUnread": "Ein Teil dieser Notiz wird als Text gezeigt, seine Links werden nicht gelesen.",
-    "readAsTextUnreadInfo": "Damit sich die Notiz auf jedem Gerät öffnen lässt, zeigt Plainva sehr große oder ungewöhnlich geschriebene Teile als reinen Text. Einer davon ist zu groß, um ihn auch stückweise zu lesen: seine Links fehlen in Backlinks und Graph, und beim Umbenennen einer Notiz bleiben sie, wie sie sind. Die Suche findet ihn trotzdem, und seine Tags und Aufgaben werden gefunden.\n\nTeilst Du diesen Teil mit Leerzeilen auf oder schreibst ihn als Liste, wird er wieder gelesen.",
+    "readAsTextUnreadInfo": "Damit sich die Notiz auf jedem Gerät öffnen lässt, zeigt Plainva sehr große oder ungewöhnlich geschriebene Teile als reinen Text. Einen davon liest Plainva auch nicht stückweise: seine Links fehlen in Backlinks und Graph, und beim Umbenennen einer Notiz bleiben sie, wie sie sind – Plainva meldet das dann. Die Suche findet ihn trotzdem, und seine Aufgaben werden gefunden.\n\nTeilst Du die Notiz in kleinere auf, wird er wieder gelesen.",
     "fmtHeading": "Überschrift"
   },
   "tabMenu": {

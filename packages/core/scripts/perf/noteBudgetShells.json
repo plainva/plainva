@@ -122,8 +122,8 @@
         },
         "footnotes": {
           "main": 3653,
-          "branch": 2893,
-          "ratio": 1.26
+          "branch": 2292,
+          "ratio": 1.59
         },
         "embeds": {
           "main": 68916,
@@ -219,6 +219,31 @@
           "main": 26,
           "branch": 22,
           "ratio": 1.18
+        },
+        "defs": {
+          "main": 9787,
+          "branch": 6665,
+          "ratio": 1.47
+        },
+        "footdefs": {
+          "main": 5953,
+          "branch": 5014,
+          "ratio": 1.19
+        },
+        "refsdefs": {
+          "main": 5742,
+          "branch": 4837,
+          "ratio": 1.19
+        },
+        "sharedrefs": {
+          "main": 7432,
+          "branch": 4905,
+          "ratio": 1.52
+        },
+        "outline": {
+          "main": 8356,
+          "branch": 3821,
+          "ratio": 2.19
         }
       }
     },
@@ -362,8 +387,8 @@
           "lowerBound": true
         },
         "footnotes": {
-          "main": 13077,
-          "branch": 11572,
+          "main": 10361,
+          "branch": 9169,
           "ratio": 1.13,
           "lowerBound": true
         },
@@ -476,6 +501,34 @@
           "branch": 88,
           "ratio": 1.13,
           "lowerBound": true
+        },
+        "defs": {
+          "main": 43316,
+          "branch": 26656,
+          "ratio": 1.63
+        },
+        "outline": {
+          "main": 37742,
+          "branch": 15288,
+          "ratio": 2.47
+        },
+        "footdefs": {
+          "main": 265879,
+          "branch": 235291,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "refsdefs": {
+          "main": 21861,
+          "branch": 19346,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "sharedrefs": {
+          "main": 22170,
+          "branch": 19619,
+          "ratio": 1.13,
+          "lowerBound": true
         }
       }
     },
@@ -525,7 +578,7 @@
         "bigtables": {
           "main": 290,
           "branch": 2,
-          "ratio": 145.0
+          "ratio": 145
         }
       }
     }

@@ -1,6 +1,6 @@
 # Notities & Markdown
 
-Laatst bijgewerkt: 2026-11-25
+Laatst bijgewerkt: 2026-11-26
 
 Elke notitie in Plainva is een gewoon Markdown-bestand (`.md`). Deze pagina legt uit hoe je comfortabel schrijft en wat er daadwerkelijk in het bestand terechtkomt — want juist dat maakt je notities draagbaar: elke teksteditor, Obsidian of een git-diff kan ze lezen.
 
@@ -262,6 +262,6 @@ Een notitie kan zo groot worden dat een apparaat haar niet meer opgemaakt kan le
 
 In deze delen ontbreekt alleen de opmaak: tabellen, lijsten, links en nadruk verschijnen als brontekst. Verder telt de tekst als elke andere: zoeken vindt hem, zijn links verschijnen in backlinks en de graaf, zijn tags en taken worden gevonden, en als je een notitie hernoemt, herschrijft Plainva ook zijn links. Koppen en eigenschappen blijven zo lang mogelijk behouden. Splits de notitie in meerdere en alles is weer opgemaakt.
 
-Is een deel daarvoor zelfs te groot – bijvoorbeeld één alinea van megabytes zonder lege regel –, dan staat boven de notitie **Een deel van deze notitie wordt als tekst getoond, en de links daarin worden niet gelezen.** De links daarin ontbreken dan in backlinks en de graaf, en bij het hernoemen van een notitie blijven ze zoals ze zijn; zoeken vindt het deel toch, en de tags en taken erin worden gevonden. **Ga erheen** brengt je naar dat deel. Splits je het met lege regels of schrijf je het als lijst, dan wordt het weer gelezen.
+Sommige delen leest Plainva zelfs niet in stukken; dan staat boven de notitie **Een deel van deze notitie wordt als tekst getoond, en de links daarin worden niet gelezen.** Dat gebeurt bij één alinea die daarvoor zelfs te groot is (bijvoorbeeld een paar honderd kilobyte zonder lege regel, ook in een citaat), en bij een blok dat niet bij de punten van een lijst te splitsen is, zoals een lange lijst onder één enkel punt. De links van zo'n deel ontbreken dan in backlinks en de graaf, en bij het hernoemen van een notitie blijven ze zoals ze zijn; Plainva meldt dan dat verwijzingen naar de oude naam kunnen blijven staan. Zoeken vindt het deel toch, en de taken erin worden gevonden; de tags vindt Plainva in een lange alinea zoals voorheen, in een ander zulk blok niet, zodat er geen verkeerde bijkomt. **Ga erheen** brengt je naar dat deel. Splits je de notitie in kleinere, dan wordt het weer gelezen – een lange alinea of een lang citaat ook als je het met lege regels splitst, een lange lijst onder één punt ook als je de punten een niveau hoger zet.
 
 Terwijl je in zo'n notitie schrijft, blijft een deel dat als tekst wordt getoond tekst, totdat de notitie duidelijk kleiner is geworden: één teken laat het niet heen en weer springen tussen tekst en opmaak.

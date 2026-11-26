@@ -98,13 +98,10 @@ export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedD
     for (const child of node.children ?? []) walk(child, inPiece);
   };
   walk(ast);
-  if (parts && text !== undefined) {
-    // What of a block read as text is unread gives no link, but its tags are found by the one tag rule over its
-    // characters, as in a paragraph over the inline budget, whose text the tree holds (and the walk reads).
-    for (const range of parts.unread) {
-      if (inRanges(blocks, range.from)) for (const tag of findInlineTags(text.slice(range.from, range.to))) result.tags.push({ name: tag.name, source: "inline" });
-    }
-  }
+  // What of a block read as text is not read (`ReadAsTextParts.unread`) gives no link and no tag: the tag rule over its
+  // characters read `#include` in a fence and in a code span as tags the note read whole does not have (review of L14,
+  // 2026-11-26) — no tag rather than a wrong one. A paragraph over the inline budget inside a piece gives its tags from
+  // the piece's tree, once, as one outside the blocks does from the note's tree.
   if (parts && text !== undefined && parts.pieces.length > 0) {
     // Each piece's links and tags, at its place in the order of the text: the walk lists the tree's in that order.
     const fromTree = result.links.length;

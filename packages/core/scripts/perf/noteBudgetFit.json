@@ -1,0 +1,627 @@
+{
+  "measured": "phone, 128 MB, main's limits of noteBudgetShells.json",
+  "counts": [
+    {
+      "form": "prose",
+      "main": 19774,
+      "ratio": 2.59,
+      "chars": 1324885,
+      "events": 79134,
+      "nodes": 6,
+      "budgets": 2.59
+    },
+    {
+      "form": "paras",
+      "main": 13240,
+      "ratio": 2.44,
+      "chars": 900346,
+      "events": 132432,
+      "nodes": 26484,
+      "budgets": 2.44
+    },
+    {
+      "form": "emails",
+      "main": 23633,
+      "ratio": 2.28,
+      "chars": 804962,
+      "events": 330900,
+      "nodes": 141803,
+      "budgets": 2.28
+    },
+    {
+      "form": "urls",
+      "main": 9181,
+      "ratio": 1.14,
+      "chars": 649658,
+      "events": 348916,
+      "nodes": 55092,
+      "budgets": 1.14
+    },
+    {
+      "form": "items",
+      "main": 8876,
+      "ratio": 1.87,
+      "chars": 105429,
+      "events": 124300,
+      "nodes": 26633,
+      "budgets": 1.87
+    },
+    {
+      "form": "linked",
+      "main": 8253,
+      "ratio": 1.97,
+      "chars": 212385,
+      "events": 132084,
+      "nodes": 33017,
+      "budgets": 1.97
+    },
+    {
+      "form": "tasks",
+      "main": 7784,
+      "ratio": 1.84,
+      "chars": 154597,
+      "events": 171284,
+      "nodes": 23357,
+      "budgets": 1.84
+    },
+    {
+      "form": "taskem",
+      "main": 6287,
+      "ratio": 2,
+      "chars": 244110,
+      "events": 226368,
+      "nodes": 44014,
+      "budgets": 2
+    },
+    {
+      "form": "done",
+      "main": 7194,
+      "ratio": 2.07,
+      "chars": 335235,
+      "events": 201468,
+      "nodes": 35975,
+      "budgets": 2.07
+    },
+    {
+      "form": "journal",
+      "main": 6554,
+      "ratio": 2.07,
+      "chars": 358307,
+      "events": 196656,
+      "nodes": 52437,
+      "budgets": 2.07
+    },
+    {
+      "form": "quotes",
+      "main": 26507,
+      "ratio": 2.68,
+      "chars": 625085,
+      "events": 265110,
+      "nodes": 7,
+      "budgets": 2.68
+    },
+    {
+      "form": "callouts",
+      "main": 5143,
+      "ratio": 1.6,
+      "chars": 256066,
+      "events": 226324,
+      "nodes": 36005,
+      "budgets": 1.6
+    },
+    {
+      "form": "xwords",
+      "main": 161408,
+      "ratio": 1.19,
+      "chars": 322844,
+      "events": 44,
+      "nodes": 6,
+      "budgets": 1.19
+    },
+    {
+      "form": "nested",
+      "main": 7939,
+      "ratio": 2.14,
+      "chars": 133875,
+      "events": 164102,
+      "nodes": 30437,
+      "budgets": 2.14
+    },
+    {
+      "form": "ordered",
+      "main": 8431,
+      "ratio": 1.72,
+      "chars": 91661,
+      "events": 134932,
+      "nodes": 25298,
+      "budgets": 1.72
+    },
+    {
+      "form": "loose",
+      "main": 8758,
+      "ratio": 2.31,
+      "chars": 112770,
+      "events": 140162,
+      "nodes": 26279,
+      "budgets": 2.31
+    },
+    {
+      "form": "quote3",
+      "main": 20336,
+      "ratio": 2.54,
+      "chars": 334629,
+      "events": 447436,
+      "nodes": 9,
+      "budgets": 2.54
+    },
+    {
+      "form": "headings",
+      "main": 19398,
+      "ratio": 1.44,
+      "chars": 318683,
+      "events": 232810,
+      "nodes": 38800,
+      "budgets": 1.44
+    },
+    {
+      "form": "code",
+      "main": 78694,
+      "ratio": 1.21,
+      "chars": 1484111,
+      "events": 314824,
+      "nodes": 5,
+      "budgets": 1.21
+    },
+    {
+      "form": "links",
+      "main": 69787,
+      "ratio": 1.19,
+      "chars": 2141204,
+      "events": 279186,
+      "nodes": 6,
+      "budgets": 1.19
+    },
+    {
+      "form": "tagsl",
+      "main": 50538,
+      "ratio": 2.82,
+      "chars": 596373,
+      "events": 202190,
+      "nodes": 6,
+      "budgets": 2.82
+    },
+    {
+      "form": "sentences",
+      "main": 10000,
+      "ratio": 2.37,
+      "chars": 747807,
+      "events": 360042,
+      "nodes": 80006,
+      "budgets": 2.36
+    },
+    {
+      "form": "footnotes",
+      "main": 3653,
+      "ratio": 1.26,
+      "chars": 215876,
+      "events": 189988,
+      "nodes": 25575,
+      "budgets": 1.26
+    },
+    {
+      "form": "embeds",
+      "main": 68916,
+      "ratio": 1.21,
+      "chars": 2872279,
+      "events": 275702,
+      "nodes": 6,
+      "budgets": 1.21
+    },
+    {
+      "form": "html",
+      "main": 16705,
+      "ratio": 1.51,
+      "chars": 824167,
+      "events": 400958,
+      "nodes": 133644,
+      "budgets": 1.51
+    },
+    {
+      "form": "maths",
+      "main": 18879,
+      "ratio": 2.34,
+      "chars": 857351,
+      "events": 151070,
+      "nodes": 6,
+      "budgets": 2.34
+    },
+    {
+      "form": "emphasis",
+      "main": 6991,
+      "ratio": 2.27,
+      "chars": 432359,
+      "events": 433480,
+      "nodes": 97880,
+      "budgets": 2.27
+    },
+    {
+      "form": "opens",
+      "main": 2638,
+      "ratio": 2.13,
+      "chars": 216342,
+      "events": 443216,
+      "nodes": 5280,
+      "budgets": 2.13
+    },
+    {
+      "form": "starred",
+      "main": 1652,
+      "ratio": 1.73,
+      "chars": 135490,
+      "events": 409728,
+      "nodes": 100776,
+      "budgets": 1.72
+    },
+    {
+      "form": "tables2",
+      "main": 3216,
+      "ratio": 1.31,
+      "chars": 108260,
+      "events": 289472,
+      "nodes": 35380,
+      "budgets": 1.31
+    },
+    {
+      "form": "tables50",
+      "main": 110,
+      "ratio": 1.59,
+      "chars": 170604,
+      "events": 240922,
+      "nodes": 39602,
+      "budgets": 1.59
+    },
+    {
+      "form": "bigtables",
+      "main": 4,
+      "ratio": 2,
+      "chars": 144598,
+      "events": 201982,
+      "nodes": 33642,
+      "budgets": 1.35
+    },
+    {
+      "form": "manytables",
+      "main": 74,
+      "ratio": 1.8,
+      "chars": 432030,
+      "events": 223676,
+      "nodes": 37154,
+      "budgets": 1.79
+    },
+    {
+      "form": "rules",
+      "main": 39466,
+      "ratio": 2.09,
+      "chars": 197356,
+      "events": 315760,
+      "nodes": 39470,
+      "budgets": 2.09
+    },
+    {
+      "form": "brackets",
+      "main": 14000,
+      "ratio": 1.48,
+      "chars": 1148026,
+      "events": 140032,
+      "nodes": 28004,
+      "budgets": 1.48
+    },
+    {
+      "form": "stars",
+      "main": 39423,
+      "ratio": 2.21,
+      "chars": 3232712,
+      "events": 315416,
+      "nodes": 39427,
+      "budgets": 2.21
+    },
+    {
+      "form": "images",
+      "main": 4406,
+      "ratio": 2.29,
+      "chars": 361318,
+      "events": 387760,
+      "nodes": 8816,
+      "budgets": 2.29
+    },
+    {
+      "form": "ticks",
+      "main": 2115,
+      "ratio": 1.4,
+      "chars": 173456,
+      "events": 439952,
+      "nodes": 86719,
+      "budgets": 1.4
+    },
+    {
+      "form": "entities",
+      "main": 3596,
+      "ratio": 1.24,
+      "chars": 294898,
+      "events": 489088,
+      "nodes": 7196,
+      "budgets": 1.24
+    },
+    {
+      "form": "escapes",
+      "main": 2009,
+      "ratio": 2.21,
+      "chars": 164764,
+      "events": 498264,
+      "nodes": 4022,
+      "budgets": 2.21
+    },
+    {
+      "form": "angles",
+      "main": 11767,
+      "ratio": 2.53,
+      "chars": 964920,
+      "events": 117702,
+      "nodes": 23538,
+      "budgets": 2.53
+    },
+    {
+      "form": "densetables",
+      "main": 26,
+      "ratio": 1.18,
+      "chars": 48484,
+      "events": 183322,
+      "nodes": 43838,
+      "budgets": 1.18
+    }
+  ],
+  "lp": {
+    "safeSide": 1.13,
+    "bound": 2.21,
+    "weights": {
+      "line": 413.5,
+      "item": 2166.9,
+      "marker": 655.5,
+      "block": 1343.3,
+      "heading": 1902.1,
+      "word": 199.5,
+      "syntax": 38.5,
+      "open": 0,
+      "emphasis": 476.5,
+      "codeSpan": 253.9,
+      "angle": 31.3,
+      "entity": 339.1,
+      "escape": 0,
+      "link": 246.4,
+      "codeLine": 351.2,
+      "rule": 0,
+      "textLine": 386.5,
+      "tableRow": 1268.5,
+      "tableCell": 1083.3,
+      "tablePeak": 0,
+      "literal": 580,
+      "reference": 1525.3,
+      "definition": 2061
+    },
+    "weightsInUse": {
+      "line": 1049,
+      "item": 3402,
+      "marker": 592,
+      "block": 1360,
+      "heading": 275,
+      "word": 188,
+      "syntax": 35,
+      "open": 14,
+      "emphasis": 569,
+      "codeSpan": 322,
+      "angle": 36,
+      "entity": 353,
+      "escape": 0,
+      "link": 214,
+      "codeLine": 377,
+      "rule": 0,
+      "textLine": 410,
+      "tableRow": 1085,
+      "tableCell": 1547,
+      "tablePeak": 6,
+      "literal": 324,
+      "reference": 888,
+      "definition": 2330
+    },
+    "ratios": {
+      "prose": {
+        "fitted": 2.21,
+        "inUse": 2.59
+      },
+      "paras": {
+        "fitted": 2.17,
+        "inUse": 2.44
+      },
+      "emails": {
+        "fitted": 2.21,
+        "inUse": 2.28
+      },
+      "urls": {
+        "fitted": 1.13,
+        "inUse": 1.14
+      },
+      "items": {
+        "fitted": 1.26,
+        "inUse": 1.87
+      },
+      "linked": {
+        "fitted": 1.41,
+        "inUse": 1.97
+      },
+      "tasks": {
+        "fitted": 1.31,
+        "inUse": 1.84
+      },
+      "taskem": {
+        "fitted": 1.54,
+        "inUse": 2
+      },
+      "done": {
+        "fitted": 1.6,
+        "inUse": 2.07
+      },
+      "journal": {
+        "fitted": 1.59,
+        "inUse": 2.07
+      },
+      "quotes": {
+        "fitted": 2.15,
+        "inUse": 2.68
+      },
+      "callouts": {
+        "fitted": 1.36,
+        "inUse": 1.6
+      },
+      "xwords": {
+        "fitted": 1.27,
+        "inUse": 1.19
+      },
+      "nested": {
+        "fitted": 1.63,
+        "inUse": 2.14
+      },
+      "ordered": {
+        "fitted": 1.13,
+        "inUse": 1.72
+      },
+      "loose": {
+        "fitted": 1.7,
+        "inUse": 2.31
+      },
+      "quote3": {
+        "fitted": 2.21,
+        "inUse": 2.54
+      },
+      "headings": {
+        "fitted": 2.21,
+        "inUse": 1.44
+      },
+      "code": {
+        "fitted": 1.13,
+        "inUse": 1.21
+      },
+      "links": {
+        "fitted": 1.13,
+        "inUse": 1.19
+      },
+      "tagsl": {
+        "fitted": 1.62,
+        "inUse": 2.82
+      },
+      "sentences": {
+        "fitted": 2.21,
+        "inUse": 2.36
+      },
+      "footnotes": {
+        "fitted": 1.57,
+        "inUse": 1.59
+      },
+      "embeds": {
+        "fitted": 1.15,
+        "inUse": 1.21
+      },
+      "html": {
+        "fitted": 1.13,
+        "inUse": 1.51
+      },
+      "maths": {
+        "fitted": 1.88,
+        "inUse": 2.34
+      },
+      "emphasis": {
+        "fitted": 1.9,
+        "inUse": 2.27
+      },
+      "opens": {
+        "fitted": 2.21,
+        "inUse": 2.13
+      },
+      "starred": {
+        "fitted": 1.45,
+        "inUse": 1.72
+      },
+      "tables2": {
+        "fitted": 1.13,
+        "inUse": 1.31
+      },
+      "tables50": {
+        "fitted": 1.39,
+        "inUse": 1.59
+      },
+      "bigtables": {
+        "fitted": 1.18,
+        "inUse": 1.35
+      },
+      "manytables": {
+        "fitted": 1.58,
+        "inUse": 1.79
+      },
+      "rules": {
+        "fitted": 2.07,
+        "inUse": 2.09
+      },
+      "brackets": {
+        "fitted": 1.13,
+        "inUse": 1.48
+      },
+      "stars": {
+        "fitted": 2.18,
+        "inUse": 2.21
+      },
+      "images": {
+        "fitted": 2.21,
+        "inUse": 2.29
+      },
+      "ticks": {
+        "fitted": 1.13,
+        "inUse": 1.4
+      },
+      "entities": {
+        "fitted": 1.13,
+        "inUse": 1.24
+      },
+      "escapes": {
+        "fitted": 1.89,
+        "inUse": 2.21
+      },
+      "angles": {
+        "fitted": 2.21,
+        "inUse": 2.53
+      },
+      "densetables": {
+        "fitted": 1.13,
+        "inUse": 1.5
+      },
+      "defs": {
+        "fitted": 1.13,
+        "inUse": 1.47
+      },
+      "footdefs": {
+        "fitted": 1.13,
+        "inUse": 1.19
+      },
+      "refsdefs": {
+        "fitted": 1.13,
+        "inUse": 1.19
+      },
+      "sharedrefs": {
+        "fitted": 1.45,
+        "inUse": 1.51
+      },
+      "outline": {
+        "fitted": 1.64,
+        "inUse": 2.19
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { NOTE_BUDGET, NOTE_READING, PIECE_SHARE, readAsTextParts, setNoteBudget, setPieceShare, type MarkdownReading } from "../src/inlineParseBudget.ts";
-import { parseMarkdownAst } from "../src/markdown-parser.ts";
+import { NOTE_BUDGET, NOTE_READING, PIECE_SHARE, overBudgetInlineRanges, readAsTextParts, setNoteBudget, setPieceShare, type MarkdownReading } from "../src/inlineParseBudget.ts";
+import { forEachReadPiece, parseMarkdownAst } from "../src/markdown-parser.ts";
 import { extractLinksAndTags } from "../src/ast-scanner.ts";
 import { extractFrontmatter } from "../src/metadata-extractor.ts";
 import { readNoteLinks, renameNoteLinks } from "../src/linkRewrite.ts";
@@ -236,7 +236,7 @@ describe("the cases of the review of the link search (2026-11-19), at the real b
     expect.hasAssertions();
     const note = `# T\n\n${filler}\n\n| a | b |\n|---|---|\n| [t](<Old.md>) | [u](Old.md) |\n`;
     setNoteBudget(1);
-    setPieceShare(1e12, false, Infinity);
+    setPieceShare(1e12, false);
     const got = renameNoteLinks(note, new Map([["Old.md", "x|y.md"]])).content;
     setNoteBudget(Number.MAX_SAFE_INTEGER);
     expect(got).toBe(renameNoteLinks(note, new Map([["Old.md", "x|y.md"]])).content);
@@ -247,7 +247,7 @@ describe("the cases of the review of the link search (2026-11-19), at the real b
     const rows = Array.from({ length: 2_500 }, (_, i) => `| r${i} [[Row${i % 3}]] | ${"word ".repeat(20)} [x](Old.md) |`).join("\n");
     const note = `# T\n\nlead line [[Lead]] and [y](Old.md)\nsecond line [[Second]]\n| a | b |\n|---|---|\n${rows}\nafter [[After]]\n\n# End\n`;
     setNoteBudget(1);
-    setPieceShare(1e12, false, Infinity);
+    setPieceShare(1e12, false);
     const got = readNoteLinks(note).links.map((link) => `${link.type}:${link.target}@${link.start}`);
     const index = JSON.stringify(extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note));
     setNoteBudget(Number.MAX_SAFE_INTEGER);
@@ -300,4 +300,61 @@ describe("a stretch read as text with many callout markers", () => {
     const ast = parseMarkdownAst(note, { preserveObsidianSyntax: true });
     expect(ast.children.length).toBeGreaterThan(0);
   }, 120 * SECONDS);
+
+  it("keeps an indented block with the block before it: the item's second paragraph is read as text with its item", () => {
+    expect.hasAssertions();
+    // The heaviest block of the note is the second paragraph of an item, indented under it: read as text alone, the
+    // note's tree would end the item before it and read the paragraph as one of the note's own (mutation X6 of the
+    // review of L14, 2026-11-26: no test saw the block cut there). The block read as text begins at its item.
+    setNoteBudget(NOTE_BUDGET);
+    const heavy = (n: number) => Array.from({ length: n }, (_, i) => `  line ${i} of the item's second paragraph [[Deep ${i % 9}]] *em* \`c\``).join("\n");
+    const light = Array.from({ length: 40 }, (_, i) => `Light paragraph ${i} [[Light]].`).join("\n\n");
+    const note = (n: number) => `# T\n\n${light}\n\n- the item [[Item]]\n\n${heavy(n)}\n\n- the next item\n`;
+    let n = 1_000;
+    while (!overBudgetInlineRanges(note(n)).some((range) => range.block)) n *= 2;
+    const text = note(n);
+    const item = text.indexOf("- the item");
+    const second = text.indexOf("  line 0");
+    const blocks = overBudgetInlineRanges(text).filter((range) => range.block);
+    expect(blocks.some((range) => range.from <= second && second < range.to), "the second paragraph is read as text").toBe(true);
+    expect(blocks.some((range) => range.from <= item && second < range.to), "with its item").toBe(true);
+  });
+
+  it("reads pieces side by side that refer to the same many definitions as one, and as the note read whole", () => {
+    expect.hasAssertions();
+    // 2 000 definitions every paragraph refers to were read again behind every piece: 3 MB took the index 25 s (review
+    // of L14, 2026-11-26, M3). Read together, the pieces are parsed fewer times than there are pieces.
+    setNoteBudget(NOTE_BUDGET);
+    const defs = Array.from({ length: 2000 }, (_, i) => `[s${i}]: T${i}.md`).join("\n");
+    const para = Array.from({ length: 2000 }, (_, i) => `[s${i}]`).join(" ");
+    const note = `# Shared\n\n${defs}\n\n${Array.from({ length: 100 }, (_, k) => `${para} [[Link ${k}]]`).join("\n\n")}\n`;
+    const parts = readAsTextParts(note);
+    expect(parts.pieces.length).toBeGreaterThan(20);
+    const tree = parseMarkdownAst(note, { preserveObsidianSyntax: true });
+    let reads = 0;
+    forEachReadPiece(note, parts, tree, { preserveObsidianSyntax: true }, () => reads++);
+    expect(reads).toBeLessThan(parts.pieces.length / 2);
+    const head = extractLinksAndTags(tree, note);
+    setNoteBudget(Number.MAX_SAFE_INTEGER);
+    expect(head).toEqual(extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note));
+  }, 120 * SECONDS);
+
+  it("cuts a list whose items stand up to three blanks in at its items, as the note read whole reads them", () => {
+    expect.hasAssertions();
+    // `  - [x] done …`, the form of a list moved in by two (review of L14, 2026-11-26): never cut, it lost every link
+    // from 3 500 items on the phone, where `main` read 7 194. The list begins with an item moved in, some later ones not.
+    setNoteBudget(NOTE_BUDGET);
+    for (const indent of ["  ", " ", "   "]) {
+      const note = `# T\n\n${Array.from({ length: 8000 }, (_, i) => `${i % 5 === 4 ? "" : indent}- [x] done ${i} [[Project ${i % 40}]] #t${i % 3}${i % 7 === 0 ? `\n${indent}  continued [[More ${i}]]` : ""}`).join("\n")}\n`;
+      const parts = readAsTextParts(note);
+      expect(parts.pieces.length, JSON.stringify(indent)).toBeGreaterThan(10);
+      expect(parts.unread, JSON.stringify(indent)).toEqual([]);
+      const head = { index: extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note), rename: renameNoteLinks(note, RENAMES), source: analyzeNoteSource(note) };
+      setNoteBudget(Number.MAX_SAFE_INTEGER);
+      expect(head.index, JSON.stringify(indent)).toEqual(extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note));
+      expect(head.rename, JSON.stringify(indent)).toEqual(renameNoteLinks(note, RENAMES));
+      expect(head.source, JSON.stringify(indent)).toEqual(analyzeNoteSource(note));
+      setNoteBudget(NOTE_BUDGET);
+    }
+  }, 300 * SECONDS);
 });

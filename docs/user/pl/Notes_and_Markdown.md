@@ -1,6 +1,6 @@
 # Notatki i Markdown
 
-Stan na: 2026-11-25
+Stan na: 2026-11-26
 
 Każda notatka w Plainva to zwykły plik Markdown (`.md`). Ta strona wyjaśnia, jak wygodnie pisać i co dokładnie trafia do pliku — bo właśnie to sprawia, że notatki są przenośne: może je odczytać dowolny edytor tekstu, Obsidian czy diff w Git.
 
@@ -262,6 +262,6 @@ Notatka może urosnąć tak bardzo, że urządzenie nie zdoła jej już odczyta�
 
 W tych częściach brakuje tylko formatowania: tabele, listy, linki i wyróżnienia pojawiają się jako tekst źródłowy. Poza tym tekst liczy się jak każdy inny: wyszukiwanie go znajduje, jego linki pojawiają się w linkach zwrotnych i w grafie, jego tagi i zadania są odnajdywane, a przy zmianie nazwy notatki Plainva przepisuje także jego linki. Nagłówki i właściwości są zachowywane tak długo, jak to możliwe. Podziel notatkę na kilka, a wszystko znów będzie sformatowane.
 
-Jeśli jakaś część jest zbyt duża nawet na to — na przykład pojedynczy akapit o rozmiarze megabajtów bez pustego wiersza — nad notatką pojawia się **Część tej notatki jest pokazywana jako tekst, a jej linki nie są odczytywane.** Jej linków brakuje wtedy w linkach zwrotnych i w grafie, a zmiana nazwy notatki pozostawia je bez zmian; wyszukiwanie i tak ją znajduje, a jej tagi i zadania są odnajdywane. **Przejdź tam** przenosi do tej części. Podziel ją pustymi wierszami albo zapisz jako listę, a znów zostanie odczytana.
+Niektórych części Plainva nie odczytuje nawet po kawałku; wtedy nad notatką pojawia się **Część tej notatki jest pokazywana jako tekst, a jej linki nie są odczytywane.** Dzieje się tak przy pojedynczym akapicie zbyt dużym nawet na to (np. kilkaset kilobajtów bez pustego wiersza, także w cytacie) oraz przy bloku, którego nie da się podzielić na punkty listy, np. długiej liście pod jednym punktem. Linków takiej części brakuje wtedy w linkach zwrotnych i w grafie, a zmiana nazwy notatki pozostawia je bez zmian; Plainva informuje wtedy, że odwołania do starej nazwy mogą pozostać. Wyszukiwanie i tak ją znajduje, a jej zadania są odnajdywane; jej tagi Plainva znajduje w długim akapicie jak dotąd, w innym takim bloku nie, aby nie doszedł żaden błędny. **Przejdź tam** przenosi do tej części. Podziel notatkę na mniejsze, a zostanie znów odczytana – długi akapit lub długi cytat także wtedy, gdy podzielisz go pustymi wierszami, a długą listę pod jednym punktem także wtedy, gdy przesuniesz jej punkty o poziom wyżej.
 
 Gdy piszesz w takiej notatce, część pokazywana jako tekst pozostaje tekstem, dopóki notatka nie stanie się wyraźnie mniejsza: pojedynczy znak nie przełącza jej tam i z powrotem między tekstem a formatowaniem.

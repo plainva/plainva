@@ -386,6 +386,9 @@ importers:
       ical.js:
         specifier: ^2.2.1
         version: 2.2.1
+      micromark-util-normalize-identifier:
+        specifier: 2.0.1
+        version: 2.0.1
       node-diff3:
         specifier: ^3.2.1
         version: 3.2.1
