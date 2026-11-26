@@ -162,7 +162,11 @@ A save made 30 % slower on purpose (a spin of 0.3 × its own time in `indexPath`
 `479fe39bf`, never landed) came out at ×1.17–1.46 on the save's median: every one of them over
 1.15, every unchanged run at most 1.07. The 95th percentile does not tell the two apart (×1.06–1.45
 slowed against ×0.92–1.38 unchanged); it stays a gate for a save that grows a long tail, at 50 %.
-Out of the sample the baseline was made of: FRESH_RUNS.
+Out of the sample the baseline was made of, twenty fresh runs of the gate itself (`dcbe602d9`,
+and the same slowdown on it, `4c1fed993`): unchanged code green in ten of ten (save median
+×0.88–1.08, 95th percentile ×0.84–1.23, every other metric within ×0.84–1.11), the slowed save
+red in ten of ten (save median ×1.18–1.42). The gate's job in CI is a single run, no retry: a
+real slowdown is red every time, not in half of the runs.
 
 **Bundle gate.** `scripts/perf/bundle-gate.mjs` builds both shells with source maps into a temp
 folder (never their own `dist/`) and reads from each built `index.html` what loads before the
