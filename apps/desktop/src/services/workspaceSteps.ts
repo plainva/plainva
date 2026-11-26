@@ -49,17 +49,19 @@ export interface StepPorts<R> {
  * `current()` is the runtime as the last load left it (`runtimeRef`) with
  * that load (one per load), or null — never a fallback to what the step's
  * caller held. The step keeps the load it began on; its stop reopens the
- * vault only while that is on screen (`mine`), and the load its reopen opened
- * becomes the step's (`renewed`).
+ * vault only through `step.reopen`, which opens anew only the step's own
+ * runtime (`mine`) and makes the load it opened the step's.
  */
 export function createStepPorts<R>(parts: {
   vault: string;
   take(): () => void;
   /**
-   * Stops the sync; its reopen asks `mine` first (only the step's own runtime
-   * is left and opened anew) and calls `renewed` right after it opened.
+   * Stops the sync. `mine`: whether the runtime on screen is still the
+   * step's; `reopen(load)`: opens the vault anew with `load` — only where it
+   * is (one another reload replaced is not left for the step) — and makes the
+   * load that opened the step's from there on.
    */
-  stop(step: { mine(): boolean; renewed(): void }): Promise<"same" | "renewed">;
+  stop(step: { mine(): boolean; reopen(load: () => Promise<void>): Promise<void> }): Promise<"same" | "renewed">;
   current(): { load: AbortSignal; runtime: R } | null;
   retire(load: AbortSignal): void;
 }): StepPorts<R> {
@@ -69,12 +71,17 @@ export function createStepPorts<R>(parts: {
       mine = parts.current()?.load ?? null;
       return parts.take();
     },
-    stopSync: () => parts.stop({
-      mine: () => mine !== null && parts.current()?.load === mine,
-      renewed: () => {
-        mine = parts.current()?.load ?? null;
-      },
-    }),
+    stopSync: () => {
+      const own = () => mine !== null && parts.current()?.load === mine;
+      return parts.stop({
+        mine: own,
+        reopen: async (load) => {
+          if (!own()) return;
+          await load();
+          mine = parts.current()?.load ?? null;
+        },
+      });
+    },
     runtime: () => {
       const now = parts.current();
       if (now && mine !== null && now.load === mine) return now.runtime;
@@ -124,9 +131,9 @@ export async function leaveWorkspace<R extends { belowChain: unknown }>(
       await steps.markDeparted(on.belowChain as NonNullable<R["belowChain"]>);
     } catch (error) {
       // The vault opens anew instead (its load sees the workspace as far as it is gone), and the failure is said by
-      // the caller — with a reopen that failed as well, both.
-      const reopened = await steps.reopen().then(() => null, (reopenError: unknown) => reopenError);
-      if (reopened) throw new AggregateError([error, reopened], `${messageOf(error)} · ${messageOf(reopened)}`, { cause: error });
+      // the caller. An open that fails says so on the vault itself (its load's error); the runtime torn down gets
+      // its sync back either way never (`retire` above).
+      await steps.reopen();
       throw error;
     }
     await steps.reopen();
@@ -172,8 +179,4 @@ export async function lockWorkspaceStep<R>(
  */
 export function rethrowCalledOff(error: unknown): void {
   if (isCalledOffError(error)) throw error;
-}
-
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }

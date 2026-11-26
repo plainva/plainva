@@ -2887,17 +2887,14 @@ export const VaultProvider: React.FC<{
       // The worker — or, before there is one, the reconcile of the encrypted workspace still running (`stoppable`).
       worker: (runtimeRef.current?.path === path ? runtimeRef.current.worker : null) ?? runningVaultSyncStep(path),
       fence: callOffRef.current,
+      // Only the step's own runtime forgets its worker: one another reload opened keeps its own.
       forgetWorker: () => {
-        if (runtimeRef.current?.path === path) runtimeRef.current = { ...runtimeRef.current, worker: null };
+        const live = runtimeRef.current;
+        if (live?.path === path && step.mine()) runtimeRef.current = { ...live, worker: null };
       },
       // A window that left the vault meanwhile does not open it again: nothing of the step runs then (`runtime()`).
-      // The runtime the step's own reopen opened is the step's from here on (`renewed`, before anything else runs).
-      // Only the step's own runtime is left and opened anew: one another reload replaced meanwhile is not.
-      reopen: async () => {
-        if (providerGoneRef.current || !step.mine()) return;
-        await loadVault(path);
-        step.renewed();
-      },
+      // Only the step's own runtime is left and opened anew (`step.reopen`), and the runtime it opened is the step's.
+      reopen: () => (providerGoneRef.current ? Promise.resolve() : step.reopen(() => loadVault(path))),
     }),
     // The runtime on screen as the last load left it, with that load — the step goes on only on its own (the one it
     // began on, or the one its reopen opened), never on what the step's caller held or another reload opened: without

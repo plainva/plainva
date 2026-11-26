@@ -8583,7 +8583,7 @@
     "openingGaveUp": "« {{vault}} » n'a pas fini de s'ouvrir. Plainva le ferme et le supprime dès qu'il répond.",
     "stillClosing": "« {{vault}} » est encore en cours de fermeture – ensuite, Plainva le rouvre.",
     "stillClosingSameFolder": "« {{vault}} » utilise le même dossier de synchronisation et est encore en cours de fermeture – ensuite, la synchronisation démarre.",
-    "stepNotRun": "L’étape n’a pas été effectuée : « {{vault}} » a été fermé entre-temps ou n’a pas pu être rouvert. Rien n’a été modifié ; ouvrez le vault et réessayez.",
-    "stepInterrupted": "L’étape pour « {{vault}} » n’a pas été terminée : le vault a été fermé pendant qu’elle s’exécutait. Ouvrez-le et vérifiez ce qui manque encore."
+    "stepNotRun": "L’étape n’a pas été effectuée : « {{vault}} » était en train d’être fermé ou rouvert, ou n’a pas pu être rouvert. Rien n’a été modifié ; réessayez une fois le vault ouvert.",
+    "stepInterrupted": "L’étape pour « {{vault}} » n’a pas été terminée : le vault a été fermé ou rouvert pendant qu’elle s’exécutait. Une partie peut déjà être faite ; vérifiez ce qui manque une fois le vault ouvert."
   }
 }

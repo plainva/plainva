@@ -57,16 +57,18 @@ function vaultOnScreen(how: "same" | "renewed", options: { reopenFails?: boolean
       // Another reload of the vault while the step waited for its sync (a window's "reload", the index rebuilt).
       if (options.reloadedMeanwhile) load(other);
       if (how === "same") return "same";
-      // As `stepPorts`: only the step's own runtime is left and opened anew.
-      const own = step.mine();
-      if (!own) return "renewed";
-      fence.callOff();
-      world.live = null;
-      if (!options.reopenFails) {
-        // The vault opens anew: a new runtime with a new worker, started through its load's gate.
-        load(fresh);
-        step.renewed();
+      // As `stepPorts`: the old runtime is called off, and the step's own reopen opens the vault anew (`step.reopen`) —
+      // only where the runtime on screen is still the step's.
+      if (!step.mine()) {
+        await step.reopen(async () => { load(fresh); });
+        return "renewed";
       }
+      fence.callOff();
+      await step.reopen(async () => {
+        world.live = null;
+        // The vault opens anew: a new runtime with a new worker, started through its load's gate.
+        if (!options.reopenFails) load(fresh);
+      });
       return "renewed";
     },
     current: () => world.live,
@@ -206,39 +208,26 @@ describe("leaving the workspace where noting the departure fails after the teard
     expect(rows).toEqual([]);
   });
 
-  it("gives the sync back to the old runtime neither when the reopen fails as well: its reconcile does not run again, and both failures are said", async () => {
-    expect.hasAssertions();
-    const { load, reconcile, counted } = await reconcileRunning();
-    const outcome = await leaveWorkspace(reconcilePorts(load.signal), {
-      tearDown: async () => { counted.rows.length = 0; },
-      markDeparted: async () => { throw new Error("disk full"); },
-      // The reload fails before it calls the old load off.
-      reopen: async () => { throw new Error("reopen failed"); },
-    }).then(() => "done", (e: Error) => e.message);
-    await new Promise((r) => setTimeout(r, 20));
-    // THE DEFECT (probe d11): the failed reopen was swallowed, the sync went back, the reconcile ran on the half torn-down runtime.
-    expect(counted.runs, "the reconcile is not run again on the torn-down runtime").toBe(1);
-    expect(counted.rows).toEqual([]);
-    expect(outcome).toContain("disk full");
-    expect(outcome, "the failed reopen is said too").toContain("reopen failed");
-    load.abort();
-    await reconcile;
-  });
-
-  it("gives the sync back to the old runtime neither when the teardown went through and the reopen fails", async () => {
-    expect.hasAssertions();
-    const { load, reconcile, counted } = await reconcileRunning();
-    const outcome = await leaveWorkspace(reconcilePorts(load.signal), {
-      tearDown: async () => {},
-      markDeparted: async () => {},
-      reopen: async () => { throw new Error("reopen failed"); },
-    }).then(() => "done", (e: Error) => e.message);
-    await new Promise((r) => setTimeout(r, 20));
-    expect(outcome).toBe("reopen failed");
-    expect(counted.runs).toBe(1);
-    load.abort();
-    await reconcile;
-  });
+  // An open that fails does not throw (`loadVault` says its failure on the vault itself, `state.error`): the step's
+  // reopen comes back with no runtime of the vault open, and the old one's load is not called off.
+  for (const [teardown, expected] of [["fails", "disk full"], ["goes through", "done"]] as const) {
+    it(`gives the sync back to the old runtime neither when the teardown ${teardown} and the vault does not open again`, async () => {
+      expect.hasAssertions();
+      const { load, reconcile, counted } = await reconcileRunning();
+      const outcome = await leaveWorkspace(reconcilePorts(load.signal), {
+        tearDown: async () => { counted.rows.length = 0; },
+        markDeparted: async () => { if (teardown === "fails") throw new Error("disk full"); },
+        reopen: async () => {},
+      }).then(() => "done", (e: Error) => e.message);
+      await new Promise((r) => setTimeout(r, 20));
+      // THE DEFECT (probe d11): the sync went back to the old runtime, and its reconcile ran on the half torn-down workspace.
+      expect(counted.runs, "the reconcile is not run again on the torn-down runtime").toBe(1);
+      expect(counted.rows).toEqual([]);
+      expect(outcome).toBe(expected);
+      load.abort();
+      await reconcile;
+    });
+  }
 });
 
 describe("a step whose runtime another reload replaced while it waited for the sync", () => {

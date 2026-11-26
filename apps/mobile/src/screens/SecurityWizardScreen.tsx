@@ -8,7 +8,7 @@ import { SqlWorkspaceStateStore } from "@plainva/core";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { saveRecoveryFile } from "../services/recoveryFile";
-import { getMobileWorkspaceObjectStore, remoteSidebandFileExists, stopSyncForStep } from "../services/syncService";
+import { getMobileWorkspaceObjectStore, remoteSidebandFileExists, withRuntimeStep } from "../services/syncService";
 import {
   activatePreparedMobileWorkspace,
   discardPreparedMobileWorkspace,
@@ -176,25 +176,33 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
     try {
       if (flow === "workspace") {
         if (!workspaceDraft || !vault.db) { toast.error(t("workspaceSecurity.setupFailed")); setStep(2); return; }
-        // Park the plaintext worker first: from the moment genesis is
-        // published its own fail-closed guard would refuse the next cycle
-        // anyway, and a half-finished plaintext push only adds noise.
-        // Within the deadline: a cycle that does not end in time is left, and the step goes on with the vault's new runtime.
-        const on = (await stopSyncForStep({ vaultId: vault.vaultId, runtime: vault })) ?? vault;
-        if (!on.db) { toast.error(t("workspaceSecurity.setupFailed")); setStep(2); return; }
-        const result = await activatePreparedMobileWorkspace({
-          vaultId: on.vaultId,
-          draftId: workspaceDraft.draftId,
-          store: await getMobileWorkspaceObjectStore(on.vaultId),
-          // The RAW/backup adapter: the sweep reads local files as they are —
-          // the permissioned + workspace-queueing chain exists after reload.
-          vault: on.belowChain,
-          state: new SqlWorkspaceStateStore(on.db),
-          onProgress: (done, total) => setMigration({ done, total }),
+        const draft = workspaceDraft;
+        // The step holds the vault's sync from here to its reload (`withRuntimeStep`).
+        const activated = await withRuntimeStep({ vaultId: vault.vaultId, runtime: vault }, {
+          work: async (stop) => {
+            // Park the plaintext worker first: from the moment genesis is
+            // published its own fail-closed guard would refuse the next cycle
+            // anyway, and a half-finished plaintext push only adds noise.
+            // Within the deadline: a cycle that does not end in time is left, and the step goes on with the vault's new runtime.
+            const on = await stop();
+            if (!on.db) return false;
+            const result = await activatePreparedMobileWorkspace({
+              vaultId: on.vaultId,
+              draftId: draft.draftId,
+              store: await getMobileWorkspaceObjectStore(on.vaultId),
+              // The RAW/backup adapter: the sweep reads local files as they are —
+              // the permissioned + workspace-queueing chain exists after reload.
+              vault: on.belowChain,
+              state: new SqlWorkspaceStateStore(on.db),
+              onProgress: (done, total) => setMigration({ done, total }),
+            });
+            toast.success(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
+            setWorkspaceDraft(null); // activated: the keys belong to the keystore now
+            return true;
+          },
+          then: async (done) => { if (done) await reloadActiveMobileVault("security-wizard"); },
         });
-        toast.success(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
-        setWorkspaceDraft(null); // activated: the keys belong to the keystore now
-        await reloadActiveMobileVault("security-wizard");
+        if (!activated) { toast.error(t("workspaceSecurity.setupFailed")); setStep(2); return; }
       } else {
         if (!encryptionDraft) { setStep(2); return; }
         await activatePreparedMobileEncryption(vault, encryptionDraft.draftId);

@@ -8583,7 +8583,7 @@
     "openingGaveUp": "«{{vault}}» no terminó de abrirse. Plainva lo cierra y lo elimina en cuanto responda.",
     "stillClosing": "«{{vault}}» todavía se está cerrando; después Plainva lo vuelve a abrir.",
     "stillClosingSameFolder": "«{{vault}}» usa la misma carpeta de sincronización y todavía se está cerrando; después empieza la sincronización.",
-    "stepNotRun": "El paso no se ejecutó: «{{vault}}» se cerró entretanto o no se pudo volver a abrir. No se cambió nada; abre el vault y vuelve a intentarlo.",
-    "stepInterrupted": "El paso para «{{vault}}» no terminó: el vault se cerró mientras se ejecutaba. Ábrelo y comprueba qué falta."
+    "stepNotRun": "El paso no se ejecutó: «{{vault}}» se estaba cerrando o volviendo a abrir, o no se pudo volver a abrir. No se cambió nada; vuelve a intentarlo cuando el vault esté abierto.",
+    "stepInterrupted": "El paso para «{{vault}}» no terminó: el vault se cerró o se volvió a abrir mientras se ejecutaba. Puede que una parte ya esté hecha; comprueba qué falta cuando el vault esté abierto."
   }
 }

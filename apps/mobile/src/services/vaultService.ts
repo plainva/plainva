@@ -346,19 +346,46 @@ let bootSettled = false;
 let bootAbort: AbortController | null = null;
 /** The vault the running start opens, once known: a retired start is parked under it (`retireBoot`). */
 let bootEntry: VaultEntry | null = null;
-/** The runtime the start of `bootPromise` opened, once it has (`runtimeOnScreen`). */
-let screenBoot: { of: Promise<MobileVault>; vault: MobileVault } | null = null;
+/**
+ * Where the runtime on screen stands — one state, set where it changes, never
+ * read off something else (review B2, round 6):
+ *
+ * - `none`: nothing is on screen — between a transition's end and the next
+ *   start, and after a start that failed (`clearScreen`, the start's failure);
+ * - `opening`: a start runs (`getMobileVault` begins one);
+ * - `open`: that start answered, and nothing has begun to leave it since;
+ * - `leaving`: a transition has begun to leave it — set by the transition as
+ *   the first thing at its turn, before it waits for anything (`leaveScreen`),
+ *   and set back to `open` only where the transition fails and the runtime
+ *   stays (`stay`). A start a transition left never becomes `open`.
+ *
+ * Only an `open` runtime is on screen for a step and for the sync's start.
+ */
+type ScreenState = "none" | "opening" | "open" | "leaving";
+let screen: { state: ScreenState; of: Promise<MobileVault> | null; runtime: MobileVault | null } = { state: "none", of: null, runtime: null };
 
 /**
- * The vault runtime on screen now — the one the current start opened — or
- * null while a start runs or none is open. Read without waiting: a step
- * compares its own runtime with it after every wait, and a switch in between
- * can never slip past a read of "the active vault". Only the start that is
- * `bootPromise` now counts: a later start that failed leaves the runtime of
- * the one before it behind in `screenBoot`, closed and gone from the screen.
+ * The vault runtime on screen now — the one the current start opened, while
+ * it is `open` — or null. Read without waiting: a step compares its own
+ * runtime with it after every wait, and the sync builds no worker for any
+ * other (`syncService.startSyncDecided`).
  */
 export function runtimeOnScreen(): MobileVault | null {
-  return screenBoot && bootPromise && screenBoot.of === bootPromise ? screenBoot.vault : null;
+  return screen.state === "open" ? screen.runtime : null;
+}
+
+/** A transition begins to leave the runtime on screen (`leaving`); `stay` sets it back where the runtime stays. */
+function leaveScreen(): { stay(): void } {
+  const before = screen;
+  const leaving = { ...before, state: "leaving" as const };
+  screen = leaving;
+  return { stay: () => { if (screen === leaving) screen = before; } };
+}
+
+/** A transition's end: nothing is on screen until the next start begins. */
+function clearScreen(): void {
+  bootPromise = null;
+  screen = { state: "none", of: null, runtime: null };
 }
 /** The vault the last switch left: where "back" on the boot surface leads (issue 143). */
 let previousVaultId: string | null = null;
@@ -376,7 +403,12 @@ export function getMobileVault(): Promise<MobileVault> {
       return boot(entry, abort.signal);
     });
     bootPromise = starting;
-    starting.then((vault) => { if (bootPromise === starting) screenBoot = { of: starting, vault }; }, () => {});
+    screen = { state: "opening", of: starting, runtime: null };
+    // Open once it answers — unless a transition began to leave it meanwhile: a start left never comes on screen.
+    starting.then(
+      (vault) => { if (screen.of === starting && screen.state === "opening") screen = { state: "open", of: starting, runtime: vault }; },
+      () => { if (screen.of === starting && screen.state === "opening") screen = { state: "none", of: starting, runtime: null }; },
+    );
     bootPromise.then(settle, settle);
   }
   return bootPromise;
@@ -603,6 +635,7 @@ export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: 
     // renew's turn. One on screen now that is another vault's, or the same vault's opened again meanwhile, is never
     // closed for it; nor is anything opened then.
     if (runtimeOnScreen() !== left.runtime) throw left.notRun();
+    leaveScreen();
     const current = left.runtime;
     const saved = (async () => {
       await flushDraftsBeforeClosing(current).catch(reportingTo("drafts:flush-before-closing"));
@@ -614,7 +647,7 @@ export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: 
       .catch(reportingTo("sync:owed-before-call-off"))
       .finally(() => current.callOff());
     await leaveVault(current, { drain: Promise.all([left.drain, saved.catch(() => undefined)]).then(() => undefined), gaveUp: true, place: left.place, vault: left.vault });
-    bootPromise = null;
+    clearScreen();
     window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: current.vaultId } }));
     // The turn ends with the start begun, not opened: a switch meanwhile retires it as any start.
     return { starting: getMobileVault() };
@@ -627,9 +660,14 @@ export async function renewAfterSyncGaveUp(left: { drain: Promise<void>; place: 
 }
 async function switchTo(id: string): Promise<void> {
   // Already opening this very vault: stopping its boot to start it again would only lose the scan so far.
-  if (bootPromise && !bootSettled && (await getActiveVaultEntry()).id === id) return;
+  if (screen.state === "opening" && bootEntry?.id === id) return;
+  // Left from here on, before anything waits: no step and no start of the sync takes this runtime any more.
+  const left = leaveScreen();
   const current = await retireBoot();
-  if (current?.vaultId === id) return;
+  if (current?.vaultId === id) {
+    left.stay();
+    return;
+  }
   let leaving: string | undefined;
   const previous = previousVaultId;
   let settled: SettledClose | null = null;
@@ -668,12 +706,14 @@ async function switchTo(id: string): Promise<void> {
       await leaveVault(current, settled);
       await resumeOnScreen(null, leaving);
     } else {
+      // The runtime stays on screen: open again, its sync started anew.
+      if (current) left.stay();
       await resumeOnScreen(current, leaving);
     }
     throw error;
   }
   if (current) await leaveVault(current, settled ?? { drain: Promise.resolve(), gaveUp: false });
-  bootPromise = null;
+  clearScreen();
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id } }));
 }
 
@@ -692,7 +732,7 @@ async function resumeOnScreen(current: MobileVault | null, vaultId?: string): Pr
     void startSyncIfConfigured(current).catch((e: unknown) => console.error("[switch] sync restart failed", e));
     return;
   }
-  bootPromise = null;
+  clearScreen();
   window.dispatchEvent(new CustomEvent("m-vault-switched", { detail: { id: vaultId } }));
 }
 
@@ -769,21 +809,25 @@ export function reloadActiveMobileVault(own?: string | readonly string[], opts: 
   const of = opts.of !== undefined ? opts.of : bootPromise;
   return inScreenTransitions(async () => {
     if (bootPromise !== of) return false;
-    const vaultId = (await getActiveVaultEntry()).id;
+    // Put off behind someone else's input, decided before anything waits: the vault is not left for it.
     if (foreignInputArmed(own)) {
-      offerReload(vaultId, own, { ...opts, of });
+      offerReload(own, { ...opts, of });
       return false;
     }
+    const left = leaveScreen();
+    const vaultId = (await getActiveVaultEntry()).id;
     const current = await retireBoot();
     const settled = await settleBeforeClosing(current);
     // The drain can take a transfer's length: input begun in it is at stake too —
-    // unless the runtime was called off: then there is only forwards.
+    // unless the runtime was called off: then there is only forwards. The vault stays on screen, open again (a step
+    // pressed in the meantime was told it did not run: the vault "was being reloaded").
     if (current && !settled.calledOff && foreignInputArmed(own)) {
-      offerReload(vaultId, own, { ...opts, of });
+      left.stay();
+      offerReload(own, { ...opts, of });
       return false;
     }
     if (current) await leaveVault(current, settled);
-    bootPromise = null;
+    clearScreen();
     try {
       // Between the close and the next open, once the old runtime has ENDED: nothing of this vault holds its files
       // or its database now — also after a close that gave up and left them to finish in the background (text 7).
@@ -807,16 +851,17 @@ interface ReloadOptions {
   of?: Promise<MobileVault> | null;
 }
 
-function offerReload(vaultId: string, own?: string | readonly string[], opts: ReloadOptions = {}): void {
+function offerReload(own?: string | readonly string[], opts: ReloadOptions = {}): void {
   takeScreen(RELOAD_STEP, {
-    // A vault switched away from meanwhile has been opened anew already.
+    // A vault switched away from meanwhile, or opened anew, is not reloaded for it: the reload is for its start
+    // (`opts.of`), which it checks at its turn.
     // What is armed when it runs was given up: by "Discard" at the notice's
     // button (the question keeps the guards until their surfaces go, and the
     // reload is what takes them), or there is nothing left by then.
     run: async () => {
       const given = armedLeaveGuards().map((g) => g.id);
       const mine = own === undefined ? [] : typeof own === "string" ? [own] : own;
-      if ((await getActiveVaultEntry()).id === vaultId) await reloadActiveMobileVault([...mine, ...given], opts);
+      await reloadActiveMobileVault([...mine, ...given], opts);
     },
     offer: i18n.t("mobile.vaultReloadOffer"),
     label: i18n.t("mobile.vaultReloadOfferAction"),

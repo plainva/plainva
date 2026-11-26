@@ -21,7 +21,7 @@ import { retiredBoot } from "./bootRetirement";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["inScreenTransitions", "deleteVault", "switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "retiredStart", "runtimeOnScreen"];
+const NAMES = ["leaveScreen", "clearScreen", "inScreenTransitions", "deleteVault", "switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "retireBoot", "retiredStart", "runtimeOnScreen"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
@@ -29,10 +29,10 @@ ts.forEachChild(file, (node) => {
 const found = parts.map((part) => /function (\w+)/.exec(part)?.[1]);
 for (const name of ["deleteVault", "switchVault", "retireBoot"]) if (!found.includes(name)) throw new Error(`${name} missing`);
 const compiled = ts.transpileModule(
-  "let screenTransitions = Promise.resolve(); let bootPromise = null; let screenBoot = null; let bootSettled = true; let bootAbort = null; let bootEntry = null; let previousVaultId = null; let switching = null;\n" +
+  "let screenTransitions = Promise.resolve(); let bootPromise = null; let screen = { state: 'none', of: null, runtime: null }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let previousVaultId = null; let switching = null;\n" +
     "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const LOCAL_VAULT_ID = \"local\";\n" +
     parts.join("\n") +
-    "\nreturn { deleteVault, setBoot: (p, settled) => { bootPromise = p; bootSettled = settled; void p.then((v) => { if (bootPromise === p) screenBoot = { of: p, vault: v }; }); } };",
+    "\nreturn { deleteVault, setBoot: (p, settled) => { bootPromise = p; bootSettled = settled; screen = { state: 'opening', of: p, runtime: null }; void p.then((v) => { if (screen.of === p && screen.state === 'opening') screen = { state: 'open', of: p, runtime: v }; }); } };",
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
 ).outputText;
 

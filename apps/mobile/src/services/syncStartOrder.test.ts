@@ -181,7 +181,7 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
-import { connectProvider, detachSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep, withVaultSyncStopped } from "./syncService";
+import { connectProvider, detachSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep, withRuntimeStep, withVaultSyncStopped } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -356,6 +356,7 @@ describe("an encrypted workspace's start that a stop overtakes (fourth review, f
     const promise = new Promise<boolean>((resolve) => { release = () => resolve(false); });
     state.joinGate = { reached: false, release, promise };
     const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {} } as unknown as MobileVault;
+    state.screen = workspaceVault;
     const starting = startSyncIfConfigured(workspaceVault);
     await vi.waitFor(() => expect(state.joinGate?.reached).toBe(true));
     expect(getSyncStatus().status).toBe("syncing");
@@ -377,6 +378,7 @@ describe("an encrypted workspace's first cycle (3.119)", () => {
     const markFirstSyncComplete = vi.fn();
     const sweepOwedToRemote = vi.fn();
     const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {}, markFirstSyncComplete, sweepOwedToRemote } as unknown as MobileVault;
+    state.screen = workspaceVault;
     await startSyncIfConfigured(workspaceVault);
     const encrypted = state.workerHooks[state.workerHooks.length - 1];
     expect(encrypted?.onFirstCycleComplete).toBeTypeOf("function");
@@ -506,6 +508,7 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
   it("joining keeps the knowledge, as membership", async () => {
     known();
     const joined = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = joined;
     await startSyncIfConfigured(joined).catch(() => undefined);
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
   });
@@ -515,7 +518,8 @@ describe("the first pull of a vault (O8: a cloud vault arriving is not an empty 
   it("is pending from the worker's start until its first cycle is done, and nothing without a worker", async () => {
     expect(isFirstPullPending(getSyncStatus())).toBe(false);
     // A vault opened afresh: what earlier tests' pulls of `vault` failed does not carry over.
-    await startSyncIfConfigured({ ...vault } as MobileVault);
+    state.screen = { ...vault } as MobileVault;
+    await startSyncIfConfigured(state.screen as MobileVault);
     expect(getSyncStatus().firstPullDone).toBe(false);
     expect(isFirstPullPending(getSyncStatus())).toBe(true);
     const plain = state.workers[state.workers.length - 1] as { onFirstCycleComplete?: (outcome: { skipped: string[]; conflictCopies: string[] }) => void };
@@ -527,6 +531,7 @@ describe("the first pull of a vault (O8: a cloud vault arriving is not an empty 
   });
   it("the first failure ends \"being loaded\" for the session, a new start included (third review of O8)", async () => {
     const opened = { ...vault } as MobileVault;
+    state.screen = opened;
     await startSyncIfConfigured(opened);
     expect(isFirstPullPending(getSyncStatus())).toBe(true);
     type W = { onStatusChange?: (status: "idle" | "syncing" | "retrying" | "error", message?: string, reason?: unknown, retryAt?: number) => void };
@@ -543,7 +548,8 @@ describe("the first pull of a vault (O8: a cloud vault arriving is not an empty 
     expect(isFirstPullPending(getSyncStatus())).toBe(false);
     // The vault opened again (a switch, a reload) is a pull of its own.
     await detachSync().drain();
-    await startSyncIfConfigured({ ...vault } as MobileVault);
+    state.screen = { ...vault } as MobileVault;
+    await startSyncIfConfigured(state.screen as MobileVault);
     expect(isFirstPullPending(getSyncStatus())).toBe(true);
   });
 });
@@ -570,6 +576,7 @@ describe("the sync of a vault that closes", () => {
 
     // The next runtime opens meanwhile and starts its sync (another runtime object; the fakes here know one registry entry).
     const next = { ...vault } as MobileVault;
+    state.screen = next;
     await startSyncIfConfigured(next);
     expect(state.workers, "a worker for the next vault").toHaveLength(2);
     const mine = state.workers[1];
@@ -742,24 +749,31 @@ describe("a step that stops the sync", () => {
     state.renew.mockImplementationOnce(async () => fresh);
     vi.useFakeTimers();
     let on: MobileVault | null | undefined;
-    const stopping = stopSyncForStep(step()).then((v) => { on = v; });
+    let through!: () => void;
+    const working = new Promise<void>((r) => (through = r));
+    const stepping = withRuntimeStep(step(), {
+      work: async (stop) => {
+        on = await stop();
+        await working;
+      },
+    });
     await vi.advanceTimersByTimeAsync(29_000);
     // THE DEFECT: the step waited for the cycle for as long as it ran — with no end where a call hung.
     expect(on, "within the deadline it still waits").toBeUndefined();
     await vi.advanceTimersByTimeAsync(1_000);
-    await stopping;
-    expect(on, "the step goes on with the new runtime").toBe(fresh);
+    await vi.waitFor(() => expect(on, "the step goes on with the new runtime").toBe(fresh));
     expect(state.renew).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
 
-    // The new runtime's start after its boot: held for the step.
-    // The vault opened anew is the one on screen now.
+    // The new runtime's start after its boot: held for the step, as is a restart from elsewhere.
     state.screen = fresh;
     await startSyncAfterBoot(fresh);
-    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
-    // The step through, it starts the sync itself.
     await restartSyncIfActive("v");
-    expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    // The step through, its release starts the sync once.
+    through();
+    await stepping;
+    await vi.waitFor(() => expect(running()).toEqual({ workers: 1, settingsOnly: 0 }));
     answer();
   });
 });
@@ -849,6 +863,7 @@ describe("the plain sync's first cycle (stability plan R22)", () => {
     const markFirstSyncComplete = vi.fn();
     const sweepOwedToRemote = vi.fn();
     const plainVault = { ...vault, markFirstSyncComplete, sweepOwedToRemote } as unknown as MobileVault;
+    state.screen = plainVault;
     await startSyncIfConfigured(plainVault);
     const plain = state.workerHooks[state.workerHooks.length - 1];
     expect(plain?.onFirstCycleComplete).toBeTypeOf("function");

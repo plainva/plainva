@@ -88,7 +88,7 @@ describe("the deadline of a close", () => {
     for (const [file, head, through] of [
       ["apps/mobile/src/services/syncService.ts", "export async function switchProviderToAccountBroker(", /await withVaultSyncStopped\(vaultId, /],
       ["apps/mobile/src/services/syncService.ts", "export async function disconnectFiles(", /await withVaultSyncStopped\(vaultId, /],
-      ["apps/mobile/src/services/syncService.ts", "export async function changeRemoteFolder(", /stopSyncForStep\(\{ vaultId: v\.vaultId, runtime: v \}\)/],
+      ["apps/mobile/src/services/syncService.ts", "export async function changeRemoteFolder(", /withRuntimeStep\(\{ vaultId: v\.vaultId, runtime: v \}/],
       ["apps/mobile/src/services/syncService.ts", "export function restartSyncIfActive(", /stopAndDrainNow\(v\)/],
     ] as const) {
       const fn = body(readFileSync(join(ROOT, file), "utf8"), head);
@@ -106,8 +106,12 @@ describe("the deadline of a close", () => {
     expect(signIn.slice(0, signIn.indexOf("await stopForSignIn(runtime)"))).not.toMatch(/await /);
     const take = body(sync, "async function stopForSignIn(");
     expect(take.slice(0, take.indexOf("takeSync(false)"))).not.toMatch(/await /);
+    // On the phone a step stops the sync only within its hold (`withRuntimeStep`), a restart only in the start chain.
+    expect(sync.match(/await stopSyncForStep\(|stopSyncForStep\(\{/g)?.length, "stopSyncForStep: the step's frame and the restart's stop").toBe(2);
     // A step on the desktop keeps the state store of its own runtime (`on`), never the one a load opened meanwhile.
     const desktop = readFileSync(join(ROOT, "apps/desktop/src/contexts/VaultContext.tsx"), "utf8");
+    // And only its own runtime forgets its worker after "renewed": one another reload opened keeps its own.
+    expect(desktop).toMatch(/forgetWorker: \(\) => \{\s*const live = runtimeRef\.current;\s*if \(live\?\.path === path && step\.mine\(\)\)/);
     for (const head of ["const restoreWorkspaceRecovery = async", "const resumeWorkspaceSetup = async"]) {
       const fn = desktop.slice(desktop.indexOf(head), desktop.indexOf("\n  };\n", desktop.indexOf(head)));
       expect(fn, head).not.toMatch(/workspaceStateRef\.current \?\?/);
@@ -121,8 +125,8 @@ describe("the deadline of a close", () => {
     const callers: Array<[string, RegExp, number, number]> = [
       ["apps/desktop/src/components/security/SecuritySharingPage.tsx", /await (decommissionWorkspace|liftWorkspaceEncryption|resumePersonalWorkspaceSetup|restoreWorkspaceRecovery)\(/g, 4, 4],
       // Resuming, lifting, decommissioning (the last two through `stopSyncLeaving`).
-      ["apps/mobile/src/screens/SecurityAreaScreen.tsx", /stopSyncForStep\(\{ vaultId: vault\.vaultId, runtime: vault \}\)|decommissionMobileWorkspace\(/g, 4, 3],
-      ["apps/mobile/src/screens/SecurityWizardScreen.tsx", /stopSyncForStep\(\{ vaultId: vault\.vaultId, runtime: vault \}\)/g, 1, 1],
+      ["apps/mobile/src/screens/SecurityAreaScreen.tsx", /withRuntimeStep\(\{ vaultId: vault\.vaultId, runtime: vault \}/g, 3, 3],
+      ["apps/mobile/src/screens/SecurityWizardScreen.tsx", /withRuntimeStep\(\{ vaultId: vault\.vaultId, runtime: vault \}/g, 1, 1],
       ["apps/mobile/src/screens/AccountServiceScreen.tsx", /changeRemoteFolder\(/g, 2, 2],
     ];
     for (const [file, call, count, asked] of callers) {

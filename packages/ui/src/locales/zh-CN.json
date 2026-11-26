@@ -8239,7 +8239,7 @@
     "openingGaveUp": "“{{vault}}”未能打开完成。Plainva 会在它响应后将其关闭并删除。",
     "stillClosing": "“{{vault}}”仍在关闭中，完成后 Plainva 会重新打开它。",
     "stillClosingSameFolder": "“{{vault}}”使用同一个同步文件夹，仍在关闭中，完成后开始同步。",
-    "stepNotRun": "该步骤未执行：“{{vault}}”在此期间已关闭，或无法再次打开。未做任何更改；请打开仓库后重试。",
-    "stepInterrupted": "“{{vault}}”的步骤未完成：仓库在执行期间被关闭。请打开仓库，查看还缺少什么。"
+    "stepNotRun": "该步骤未执行：“{{vault}}”当时正在关闭或重新打开，或无法再次打开。未做任何更改；请在仓库打开后重试。",
+    "stepInterrupted": "“{{vault}}”的步骤未完成：仓库在执行期间被关闭或重新打开。其中一部分可能已经完成；请在仓库打开后查看还缺少什么。"
   }
 }
