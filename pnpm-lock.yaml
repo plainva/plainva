@@ -9,6 +9,11 @@ overrides:
   rehype-katex>katex: 0.19.1
   micromark-extension-math>katex: 0.19.1
 
+patchedDependencies:
+  micromark@4.0.3:
+    hash: 75defa1f27191464b9afc2dcb907c452f3c16ce5328e4df488157620e392cca0
+    path: patches/micromark@4.0.3.patch
+
 importers:
 
   .:
@@ -420,7 +425,7 @@ importers:
         version: 13.2.2
       micromark:
         specifier: 4.0.3
-        version: 4.0.3
+        version: 4.0.3(patch_hash=75defa1f27191464b9afc2dcb907c452f3c16ce5328e4df488157620e392cca0)
       sqlite:
         specifier: ^5.1.1
         version: 5.1.1
@@ -8944,7 +8949,7 @@ snapshots:
       decode-named-character-reference: 1.3.0
       devlop: 1.1.0
       mdast-util-to-string: 4.0.0
-      micromark: 4.0.3
+      micromark: 4.0.3(patch_hash=75defa1f27191464b9afc2dcb907c452f3c16ce5328e4df488157620e392cca0)
       micromark-util-decode-numeric-character-reference: 2.0.2
       micromark-util-decode-string: 2.0.1
       micromark-util-normalize-identifier: 2.0.1
@@ -9348,7 +9353,7 @@ snapshots:
 
   micromark-util-types@2.0.3: {}
 
-  micromark@4.0.3:
+  micromark@4.0.3(patch_hash=75defa1f27191464b9afc2dcb907c452f3c16ce5328e4df488157620e392cca0):
     dependencies:
       '@types/debug': 4.1.13
       debug: 4.4.3(supports-color@8.1.1)

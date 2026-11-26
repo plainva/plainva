@@ -993,13 +993,24 @@ readers; the weights are the same. The asymmetry is a decision of the parity cat
   hunt of seed 823320 found three of 6.3 to 9.0 MB whose index and note parse passed.
 - *Headings last, properties never:* only where every other block is text and the note is still over its
   budget are its headings read as text too (a note of 30 000 headings); the properties block never is.
-- *A long paragraph is quadratic in its lines, in time:* micromark's text initializer (`resolveAllText`,
-  4.0.3 as 4.0.2) merges adjacent `data` events with one `splice` each on the paragraph's whole event
-  list. A quiet paragraph of 5 000 lines takes 2.2 s in the reading view, of 10 000 lines 4.6 s (92 % in
-  that function), on `main` alike; the release's "use edit map in text initializer" changed the line
-  suffixes, not this merge. The note's budget bounds the memory, not the time: up to the threshold of
-  prose (7 625 lines) a parse takes about 2.5 s. A block read as text is one line of stand-ins and
-  linear; so is an unclosed `---` at a note's start, past which the parser reads one paragraph.
+- *A long paragraph is linear in its lines since 2026-11-26:* micromark's text initializer
+  (`resolveAllText`, 4.0.3 as 4.0.2) merged adjacent `data` events with one `splice` each on the
+  paragraph's whole event list, quadratic in its lines. The app patches it into one pass
+  (`patches/micromark@4.0.3.patch`, `Dependency_Updates.md`), event for event the same
+  (`micromark-text-patch.test.ts`). Measured on this machine, the build the app ships:
+
+  | | before | after |
+  |---|---:|---:|
+  | merge of 100 000 runs of data events | 8 506 ms | 91 ms |
+  | a quiet paragraph of 10 000 lines, micromark with GFM | 2 135 ms | 210 ms |
+  | the same, 40 000 lines | 17 018 ms | 706 ms |
+  | `parseMarkdownTree`, 5 000 lines | 752 ms | 129 ms |
+  | `parseMarkdownTree`, 10 000 lines | 2 056 ms | 232 ms |
+  | `parseMarkdownAst` with Obsidian syntax, 10 000 lines | 2 295 ms | 217 ms |
+
+  Behind an unclosed `---` at a note's start the parser opens no blocks within blocks; `- a` lines
+  there are 8 000 items in 20 ms before and after (no long paragraph), and a quiet paragraph behind it
+  is the long paragraph above.
 - *The desktop's reading view of many footnotes is slow, as on `main`:* at the desktop's threshold of
   the footnote form (11 572 references and definitions) the reading view takes 97 s, at 17 000 175 s,
   most of it in micromark's edit map; three and ten times over the threshold take it more than five

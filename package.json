@@ -36,6 +36,9 @@
       "mermaid>katex": "0.19.1",
       "rehype-katex>katex": "0.19.1",
       "micromark-extension-math>katex": "0.19.1"
+    },
+    "patchedDependencies": {
+      "micromark@4.0.3": "patches/micromark@4.0.3.patch"
     }
   }
 }

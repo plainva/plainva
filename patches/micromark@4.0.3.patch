@@ -1,0 +1,104 @@
+diff --git a/dev/lib/initialize/text.js b/dev/lib/initialize/text.js
+index af0ff9f50e4f912acde9c93b610413e2c1419254..7651a455e3c9c17e1723e0395fec11ad7a08cc96 100644
+--- a/dev/lib/initialize/text.js
++++ b/dev/lib/initialize/text.js
+@@ -114,30 +114,28 @@ function createResolver(extraResolver) {
+ 
+   /** @type {Resolver} */
+   function resolveAllText(events, context) {
+-    let index = -1
+-    /** @type {number | undefined} */
+-    let enter
+-
+-    // A rather boring computation (to merge adjacent `data` events) which
+-    // improves mm performance by 29%.
+-    while (++index <= events.length) {
+-      if (enter === undefined) {
+-        if (events[index] && events[index][1].type === types.data) {
+-          enter = index
+-          index++
+-        }
+-      } else if (!events[index] || events[index][1].type !== types.data) {
++    // Merge adjacent `data` events in one pass, moving the events that stay
++    // forward in place: a `splice` per run of them was quadratic in the lines
++    // of a paragraph. The same events as before, in the same order: of a run,
++    // the first enter and exit stay, the token's end set to the run's end.
++    let read = 0
++    let write = 0
++    while (read < events.length) {
++      if (events[read][1].type === types.data) {
++        let end = read + 1
++        while (end < events.length && events[end][1].type === types.data) end++
+         // Don’t do anything if there is one data token.
+-        if (index !== enter + 2) {
+-          events[enter][1].end = events[index - 1][1].end
+-          events.splice(enter + 2, index - enter - 2)
+-          index = enter + 2
++        if (end - read > 2) {
++          events[read][1].end = events[end - 1][1].end
+         }
+-
+-        enter = undefined
++        events[write++] = events[read]
++        events[write++] = events[read + 1]
++        read = end
++      } else {
++        events[write++] = events[read++]
+       }
+     }
+-
++    events.length = write
+     return extraResolver ? extraResolver(events, context) : events
+   }
+ }
+diff --git a/lib/initialize/text.js b/lib/initialize/text.js
+index f9c110be7f67d070fb9f8c12cf436dc0efabcd3b..459f3ae0f549db13e623bff65a363731bed127e7 100644
+--- a/lib/initialize/text.js
++++ b/lib/initialize/text.js
+@@ -105,28 +105,28 @@ function createResolver(extraResolver) {
+ 
+   /** @type {Resolver} */
+   function resolveAllText(events, context) {
+-    let index = -1;
+-    /** @type {number | undefined} */
+-    let enter;
+-
+-    // A rather boring computation (to merge adjacent `data` events) which
+-    // improves mm performance by 29%.
+-    while (++index <= events.length) {
+-      if (enter === undefined) {
+-        if (events[index] && events[index][1].type === "data") {
+-          enter = index;
+-          index++;
+-        }
+-      } else if (!events[index] || events[index][1].type !== "data") {
++    // Merge adjacent `data` events in one pass, moving the events that stay
++    // forward in place: a `splice` per run of them was quadratic in the lines
++    // of a paragraph. The same events as before, in the same order: of a run,
++    // the first enter and exit stay, the token's end set to the run's end.
++    let read = 0;
++    let write = 0;
++    while (read < events.length) {
++      if (events[read][1].type === "data") {
++        let end = read + 1;
++        while (end < events.length && events[end][1].type === "data") end++;
+         // Don’t do anything if there is one data token.
+-        if (index !== enter + 2) {
+-          events[enter][1].end = events[index - 1][1].end;
+-          events.splice(enter + 2, index - enter - 2);
+-          index = enter + 2;
++        if (end - read > 2) {
++          events[read][1].end = events[end - 1][1].end;
+         }
+-        enter = undefined;
++        events[write++] = events[read];
++        events[write++] = events[read + 1];
++        read = end;
++      } else {
++        events[write++] = events[read++];
+       }
+     }
++    events.length = write;
+     return extraResolver ? extraResolver(events, context) : events;
+   }
+ }
