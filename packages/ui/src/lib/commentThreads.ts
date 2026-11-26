@@ -6,7 +6,8 @@
  * A thread is a structural fact about the records, not a property of the surface
  * that draws it, so it belongs here.
  */
-import { commentAuthorKey, commentCreatedAt, propertyAnchorKey, resolvePropertyAnchor, type WorkspaceCommentRecord } from "@plainva/core";
+import { commentAuthorKey, commentCreatedAt } from "@plainva/core";
+import { propertyAnchorKey, resolvePropertyAnchor, type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { mentionsMember } from "./commentMentions.js";
 
 export interface CommentThread {

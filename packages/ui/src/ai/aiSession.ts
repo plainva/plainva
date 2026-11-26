@@ -29,6 +29,11 @@ import type { PropertyFilterRule } from "../base/filterExpr";
 import { safeFileStem } from "../lib/fileStem";
 import type { SuggestionChunk } from "../components/suggestMode";
 import {
+  sameStoredValue,
+  editorTextOf,
+  type PimEventRow,
+} from "@plainva/core";
+import {
   approvalSeen,
   MCP_SKILL_LIMITS,
   mcpSkillRegistration,
@@ -142,7 +147,6 @@ import {
   sameFiles,
   serializeSkillFile,
   SKILLS_FOLDER,
-  utf8Encode,
   EMPTY_INSTRUCTION_APPROVALS,
   EMPTY_SKILL_TESTS,
   pruneSkillTests,
@@ -168,7 +172,6 @@ import {
   memoryUpkeep,
   shownUpkeep,
   skillUpkeep,
-  sameStoredValue,
   type UpkeepHint,
   type UpkeepTestResult,
   switchInstruction,
@@ -186,7 +189,6 @@ import {
   conversationSummaryOf,
   conversationTitleFrom,
   EMPTY_USAGE,
-  editorTextOf,
   estimateTokens,
   fenceUntrusted,
   gateDecision,
@@ -344,7 +346,6 @@ import {
   noteHints,
   todoLines,
   type NoteHint,
-  type PimEventRow,
   type Routine,
   type RoutineDraft,
   type RoutineNeed,
@@ -352,7 +353,8 @@ import {
   type Turn,
   type VaultLinkFile,
   RUN_UNFOUNDED_CAP,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { utf8Encode } from "@plainva/core/workspace";
 import { skillView } from "./aiSkills";
 import { conversationGrounding } from "./answerGrounds";
 import { answerLinksShown, answerLinkTargets, answerMayLink, unfoundedAmongShown } from "./answerLinks";

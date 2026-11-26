@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Ban, Bot, Check, Circle, CircleAlert, Copy, FileText, Info, LoaderCircle, Plus, Send, SlidersHorizontal, Square, SquareTerminal } from "lucide-react";
-import type { AcpCommand, AcpConfigOption, AcpConfigValue } from "@plainva/core";
+import type { AcpCommand, AcpConfigOption, AcpConfigValue } from "@plainva/core/ai";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";

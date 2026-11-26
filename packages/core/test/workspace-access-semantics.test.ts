@@ -13,7 +13,7 @@ import {
   workspaceSliceIdsForObject,
   type WorkspacePolicyPayload,
   type WorkspacePolicySlice,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 const GROUP = "20".repeat(16);
 const MEMBER = "10".repeat(16);

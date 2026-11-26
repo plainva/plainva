@@ -1,5 +1,7 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { isTextEntry, readSkillImport, utf8Encode, type ImportedFile, type SkillImport } from "@plainva/core";
+import { isTextEntry } from "@plainva/core/import";
+import { readSkillImport, type ImportedFile, type SkillImport } from "@plainva/core/ai";
+import { utf8Encode } from "@plainva/core/workspace";
 import { discardExtractedArchive, extractArchive } from "../importArchive";
 
 /**

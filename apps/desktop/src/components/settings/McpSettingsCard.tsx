@@ -2,7 +2,8 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Package, Trash2 } from "lucide-react";
 import { save as saveDialog } from "@tauri-apps/plugin-dialog";
-import { Button, ICON, IconButton, SettingCardNote, SettingRow, Switch, toast, type AiSession } from "@plainva/ui";
+import { Button, ICON, IconButton, SettingCardNote, SettingRow, Switch, toast } from "@plainva/ui";
+import { type AiSession } from "@plainva/ui/ai";
 import { appConfirm } from "../../services/appDialogs";
 import { claudeCodeCommand, mcpClientConfig, mcpRevoke, mcpSetWrites, mcpStatus, mcpWritePackage, type McpAuditEntry, type McpStatus } from "../../services/ai/mcpBridge";
 

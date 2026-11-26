@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
-  MemoryWorkspaceStateStore,
-  PermissionedVaultAdapter,
   PLAIN_VAULT_CHAIN,
   QueueingVaultAdapter,
   SyncQueue,
@@ -13,14 +11,18 @@ import {
   UNINDEXED_VAULT_CHAIN,
   VaultPermissionDeniedError,
   WORKSPACE_VAULT_CHAIN,
-  WorkspaceQueueingVaultAdapter,
   buildVaultChain,
   type IVaultAdapter,
   type VaultChain,
   type VaultStorageReader,
   type VaultVersionsControl,
-  type WorkspaceMutationAuthorizer,
 } from "../src/index.js";
+import {
+  MemoryWorkspaceStateStore,
+  PermissionedVaultAdapter,
+  WorkspaceQueueingVaultAdapter,
+  type WorkspaceMutationAuthorizer,
+} from "../src/workspace/index.js";
 import { MemoryVaultAdapter } from "./helpers/memoryVault.js";
 import { realSqlite } from "./helpers/realSqlite.js";
 

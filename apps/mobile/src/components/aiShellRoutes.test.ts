@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../services/tabTap", () => ({ tabTapped: vi.fn(async () => true) }));
+// The routes stand in the AI's entry and reach the AI's ports, which load with the start (performance plan L5).
+vi.mock("../services/ai/mobileAiPorts", () => ({
+  MobileAiNavigation: () => null,
+  // Where a link of an answer leads is the resolver's business; here it leads where it names.
+  openAiNoteTarget: (_vault: unknown, target: string, open: (path: string) => void) => open(`${target}.md`),
+  withoutAiArea: <T,>(order: T) => order,
+}));
 vi.mock("../services/ai/mobileAi", () => ({
   MobileAiNavigation: () => null,
   // Where a link of an answer leads is the resolver's business; here it leads where it names.
@@ -16,7 +23,7 @@ import { currentMobileDialog, dismissMobileDialog } from "../services/mobileDial
 import { tabTapped } from "../services/tabTap";
 import { parseDraft } from "../screens/mail/mailNavRefs";
 import type { MobileVault } from "../services/vaultService";
-import { aiShellRoutes } from "./MobileAiShell";
+import { aiShellRoutes } from "./MobileAiEntry";
 
 /**
  * The assistant's ways to another screen ask before unsaved input goes

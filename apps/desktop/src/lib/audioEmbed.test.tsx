@@ -11,9 +11,11 @@ import {
   isAudioTarget,
   mountAudioPlayer,
   parseNoteCard,
+} from "@plainva/ui";
+import {
   setAudioTranscriber,
   type AudioPlace,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * Sound embeds (plan Journal-Erweiterungen, X3).

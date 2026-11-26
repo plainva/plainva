@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { buildCommentOverview, buildCommentThreads, buildPropertyCommentCells, findPropertyCommentThread, groupSuggestionRounds, isCommentThreadOpen } from "@plainva/ui";
 
 /**

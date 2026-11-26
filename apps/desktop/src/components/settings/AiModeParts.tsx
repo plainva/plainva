@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { Button, ICON, modeFacts, SettingCard, SettingCardNote, SettingRow, Switch, type AiSession, type AiState } from "@plainva/ui";
+import { Button, ICON, SettingCard, SettingCardNote, SettingRow, Switch } from "@plainva/ui";
+import { modeFacts, type AiSession, type AiState } from "@plainva/ui/ai";
 
 /**
  * The mode line at the top of Settings → AI → Models (plan KI-Harness P7,

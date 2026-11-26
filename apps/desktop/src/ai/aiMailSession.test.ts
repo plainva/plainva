@@ -18,7 +18,7 @@ import {
   type InstructionIO,
   type LedgerEntry,
   type ToolResultPart,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import {
   AiSession,
   CHAT_TOOL_NAMES,
@@ -29,7 +29,7 @@ import {
   type EffectRequest,
   type MailSource,
   type VaultToolDeps,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import type { MailEnvelope, MailMessage } from "@plainva/ui/mail";
 
 /**

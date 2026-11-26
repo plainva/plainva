@@ -1,4 +1,5 @@
-import { placeProposedProperty, proposedPropertyOf, resolveCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core";
+import { placeProposedProperty, proposedPropertyOf } from "@plainva/core";
+import { resolveCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core/workspace";
 
 /**
  * A suggestion that proposes the value of a property, as a card shows it

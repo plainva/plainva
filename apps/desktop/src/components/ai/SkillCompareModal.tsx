@@ -1,7 +1,8 @@
 import { Fragment, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Scale } from "lucide-react";
-import { Button, ICON, LineCompare, Modal, skillCompareFacts, toast, useAiSession, useAiState } from "@plainva/ui";
+import { Button, ICON, LineCompare, Modal, toast } from "@plainva/ui";
+import { skillCompareFacts, useAiSession, useAiState } from "@plainva/ui/ai";
 
 /**
  * Two skills that say almost the same, side by side (plan KI-Harness P6-3,

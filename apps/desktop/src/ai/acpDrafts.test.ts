@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_AI_APP_SETTINGS, WRITE_DRAFT_LIMITS, readFrontmatterPath, type AiEgress, type ScriptedAcpStep, type WriteDraft } from "@plainva/core";
-import { AiSession, createAcpDeviceStore, createWriteDraftStore, type AcpSessionEvent, type AcpThreadItem, type AiVaultHost, type DraftCreator } from "@plainva/ui";
+import { readFrontmatterPath } from "@plainva/core";
+import { DEFAULT_AI_APP_SETTINGS, WRITE_DRAFT_LIMITS, type AiEgress, type ScriptedAcpStep, type WriteDraft } from "@plainva/core/ai";
+import { AiSession, createAcpDeviceStore, createWriteDraftStore, type AcpSessionEvent, type AcpThreadItem, type AiVaultHost, type DraftCreator } from "@plainva/ui/ai";
 import { acpLabel, memoryAcpVault, ROOT, scriptedAcpNative, type AcpScript } from "./acpTestHost";
 import { memoryFiles } from "./mcpTestHost";
 

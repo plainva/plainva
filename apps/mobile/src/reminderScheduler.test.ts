@@ -34,7 +34,8 @@ const { notifications, settings, cache, taskDb } = vi.hoisted(() => ({
 }));
 vi.mock("@capacitor/local-notifications", () => ({ LocalNotifications: notifications }));
 vi.mock("./services/mobileSettings", () => ({ getMobileSettings: () => settings }));
-vi.mock("./services/pim/pimService", () => ({ getPimCache: () => cache }));
+// The scheduler reads the calendar's cache from the runtime, which the start carries (performance plan L5).
+vi.mock("./services/pim/pimRuntime", () => ({ getPimCache: () => cache }));
 vi.mock("./services/vaultService", () => ({
   getMobileVault: async () => ({ vaultId: "v1", queryService: { queryDatabaseFiles: taskDb.query, listTasks: taskDb.listTasks } }),
   vaultOps: { read: async () => taskDb.base },

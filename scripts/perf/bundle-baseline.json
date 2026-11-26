@@ -13,39 +13,40 @@
     {
       "family": "packages/core/src/ai/",
       "expected": {
-        "desktop": "fail",
-        "mobile": "fail"
-      },
-      "until": "package L5"
+        "desktop": "pass",
+        "mobile": "pass"
+      }
     },
     {
       "family": "packages/ui/src/ai/",
       "expected": {
-        "desktop": "fail",
-        "mobile": "fail"
-      },
-      "until": "package L5"
+        "desktop": "pass",
+        "mobile": "pass"
+      }
     },
     {
       "family": "packages/core/src/import/adapters/",
       "expected": {
-        "desktop": "fail",
-        "mobile": "fail"
-      },
-      "until": "package L5"
+        "desktop": "pass",
+        "mobile": "pass"
+      }
     }
   ],
   "shells": {
     "desktop": {
-      "startBytes": 7804033,
-      "startGzipBytes": 2427962,
-      "entryBytes": 95942
+      "startBytes": 3981956,
+      "startGzipBytes": 1205611,
+      "entryBytes": 6190,
+      "afterStartBytes": 2129006,
+      "afterStartGzipBytes": 679820
     },
     "mobile": {
-      "startBytes": 7892524,
-      "startGzipBytes": 2412166,
-      "entryBytes": 1132589
+      "startBytes": 4454456,
+      "startGzipBytes": 1330240,
+      "entryBytes": 4472,
+      "afterStartBytes": 1384774,
+      "afterStartGzipBytes": 451292
     }
   },
-  "recorded": "2026-11-20"
+  "recorded": "2026-11-25"
 }

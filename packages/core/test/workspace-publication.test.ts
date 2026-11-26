@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { WorkspaceCommentStore } from "../src/index.js";
 import {
   FakeWorkspaceObjectStore,
   MemoryWorkspaceStateStore,
   PUBLISHED_NOTE_REFUSED,
-  WorkspaceCommentStore,
   publishQueuedWorkspaceComment,
   PublishedSliceObjectStore,
   createPersonalWorkspaceBootstrap,
@@ -52,7 +52,7 @@ import {
   type WorkspaceObjectStore,
   type WorkspacePolicySlice,
   type WorkspacePublicationRecord,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 /**
  * The publication as a real thing (Stufe B).

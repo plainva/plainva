@@ -11,7 +11,7 @@ import {
   toHex,
   workspaceDocumentHash,
   workspaceSha256Hex,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 const ids = {
   workspace: "01".repeat(16),

@@ -1,4 +1,4 @@
-import type { ConversationRecord, RunMeta, SnapshotState } from "@plainva/core";
+import type { ConversationRecord, RunMeta, SnapshotState } from "@plainva/core/ai";
 
 /**
  * A run's snapshot and its replay (plan KI-Harness P9-2, ADR 0034): what a

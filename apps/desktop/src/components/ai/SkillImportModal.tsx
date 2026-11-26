@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download } from "lucide-react";
-import type { SkillImport } from "@plainva/core";
-import { Banner, Button, Checkbox, ICON, importFacts, Modal, toast, useAiSession, useAiState } from "@plainva/ui";
+import type { SkillImport } from "@plainva/core/ai";
+import { Banner, Button, Checkbox, ICON, Modal, toast } from "@plainva/ui";
+import { importFacts, useAiSession, useAiState } from "@plainva/ui/ai";
 
 /**
  * The check of a picked skill before anything is written (plan KI-Harness

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolByName, type EgressRecipient } from "@plainva/core";
-import { createVaultToolExecutor, furtherToolNames, noteHistorySource, SKILL_TOOL_NAMES, type VaultToolDeps } from "@plainva/ui";
+import { effectivePolicy, notePolicyFrom, parsePolicyFile, toolByName, type EgressRecipient } from "@plainva/core/ai";
+import { createVaultToolExecutor, furtherToolNames, noteHistorySource, SKILL_TOOL_NAMES, type VaultToolDeps } from "@plainva/ui/ai";
 
 /**
  * How notes developed (plan KI-Harness P9-1): the two tools a look back is

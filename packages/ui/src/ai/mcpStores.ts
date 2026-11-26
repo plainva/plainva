@@ -15,7 +15,7 @@ import {
   type McpServerGrant,
   type McpServerReview,
   type McpSkillEntry,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { AiFileStore } from "./aiStores";
 
 /**

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { ACP_KNOWN_AGENTS, ACP_LOGIN_PROBLEMS, ACP_START_DECLINED, ACP_START_PROBLEMS, acpInitializeParams } from "@plainva/core";
+import { ACP_KNOWN_AGENTS, ACP_LOGIN_PROBLEMS, ACP_START_DECLINED, ACP_START_PROBLEMS, acpInitializeParams } from "@plainva/core/ai";
 
 /**
  * The native boundary of external agents, as a test (plan KI-Harness P4.6).

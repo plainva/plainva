@@ -12,7 +12,7 @@ import {
   splitPvo1Chunks,
   verifyChunkedPlaintextHash,
   workspaceSha256Hex,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 const workspaceId = "01".repeat(16);
 const objectId = "02".repeat(16);

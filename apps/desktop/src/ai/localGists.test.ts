@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { gistKey, gistSections, protectedTokens, sectionGistKey, turns } from "@plainva/core";
-import { createVaultPolicy, LocalGists, type LocalCompletion } from "@plainva/ui";
+import { gistKey, gistSections, protectedTokens, sectionGistKey, turns } from "@plainva/core/ai";
+import { createVaultPolicy, LocalGists, type LocalCompletion } from "@plainva/ui/ai";
 import { until, vaultWith } from "./embeddingTestVault";
 
 const filler = (topic: string) => `${`The team talked about ${topic} at length and agreed to keep going. `.repeat(12)}`;

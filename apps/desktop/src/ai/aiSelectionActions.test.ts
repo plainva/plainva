@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { MAX_ANCHOR_QUOTE_BYTES } from "@plainva/core";
-import { askMessage, passageOf, relocate, selectionChunks, selectionInstruction, type SuggestionChunk } from "@plainva/ui";
+import { MAX_ANCHOR_QUOTE_BYTES } from "@plainva/core/workspace";
+import { type SuggestionChunk } from "@plainva/ui";
+import { askMessage, passageOf, relocate, selectionChunks, selectionInstruction } from "@plainva/ui/ai";
 
 /** The note after every chunk of a round was accepted. */
 function accepted(doc: string, chunks: readonly SuggestionChunk[]): string {

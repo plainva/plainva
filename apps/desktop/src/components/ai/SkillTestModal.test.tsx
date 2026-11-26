@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { EMPTY_INSTRUCTION_APPROVALS, resolveInstructions, type SkillTestRecord } from "@plainva/core";
+import { EMPTY_INSTRUCTION_APPROVALS, resolveInstructions, type SkillTestRecord } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiSessionContext, APP_SKILL_SOURCES, type AiSession, type AiState, type SkillTestOutcome, type SkillTestPlan } from "@plainva/ui";
+import { AiSessionContext, APP_SKILL_SOURCES, type AiSession, type AiState, type SkillTestOutcome, type SkillTestPlan } from "@plainva/ui/ai";
 import { SkillTestModal } from "./SkillTestModal";
 
 /**

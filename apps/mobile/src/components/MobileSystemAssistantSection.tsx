@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { GroupCard, Row, RowList, SectionLabel, Switch, type AiSession } from "@plainva/ui";
+import { GroupCard, Row, RowList, SectionLabel, Switch } from "@plainva/ui";
+import { type AiSession } from "@plainva/ui/ai";
 import { systemIntentsAvailable } from "../platform/intentBridge";
 import { getIntentDirectoryStatus, subscribeIntentDirectoryStatus, type IntentDirectoryStatus } from "../services/intentService";
 

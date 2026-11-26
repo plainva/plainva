@@ -1,7 +1,7 @@
 import type { Conversation, TextPart } from "./conversation.js";
 import { gateDecision, isCloudRecipient, redactDeniedLinksIn, type EgressRecipient, type GateDecision } from "./egressGate.js";
-import { ReaderView } from "./readerView.js";
-import { LINK_CANDIDATE_LIMIT } from "./linkNames.js";
+import { ReaderView } from "../withholding/readerView.js";
+import { LINK_CANDIDATE_LIMIT } from "../withholding/linkNames.js";
 import { isMcpExposedToolName } from "./mcp/names.js";
 import type { EffectivePolicy } from "./policy.js";
 import { DISPATCH_TOOL, FIND_TOOL, hasWebTools, MAIL_TOOL_NAMES, WRITE_TOOL_NAMES } from "./tools.js";

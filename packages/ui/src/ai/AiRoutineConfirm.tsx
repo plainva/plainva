@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { routineDays, type RoutineDraft } from "@plainva/core";
+import { routineDays, type RoutineDraft } from "@plainva/core/ai";
 import { Banner } from "../components/ui/Banner";
 import { AiSendOverview } from "./AiSendOverview";
 import type { RoutinePreview } from "./aiSession";

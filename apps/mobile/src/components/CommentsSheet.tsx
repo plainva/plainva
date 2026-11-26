@@ -3,8 +3,9 @@ import { PublicationFeedback, publicationFeedbackCounts, CommentLegacyLock, type
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, Bell, BellOff, Check, ListChecks, Lock, MessageSquare, Replace, Trash2 } from "lucide-react";
-import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, composerNames, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type AnchorCellPlace, type SuggestedProperty, type CommentThread, type CommentThreadAi, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
-import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core";
+import { CommentAiPending, CommentProvenance, CommentDeliveryState, CommentDecisionConflict, anchorDisplayLabel, Button, buildCommentThreads, CommentBody, CommentCardHead, composerNames, groupSuggestionRounds, ICON, IconButton, isMachineAuthorId, isCommentThreadOpen, MentionTextArea, namesWithAi, PropertySuggestionDiff, Segmented, SuggestionDiff, toAnchorDisplayHint, toast, type AnchorCellPlace, type SuggestedProperty, type CommentThread, EmptyState, commentAuthorLabel, authorInitials } from "@plainva/ui";
+import { type CommentThreadAi } from "@plainva/ui/ai";
+import type { WorkspaceCommentRecord, WorkspacePropertyAnchorResolution } from "@plainva/core/workspace";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 

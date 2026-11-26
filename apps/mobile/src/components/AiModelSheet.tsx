@@ -1,23 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, providerById, sameStoredValue, type AiProfileSlot, type ModelChoice } from "@plainva/core";
+import { sameStoredValue } from "@plainva/core";
+import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, providerById, type AiProfileSlot, type ModelChoice } from "@plainva/core/ai";
 import {
   Button,
-  describesItself,
-  readStatedWindow,
   Row,
   RowList,
   GroupCard,
   SearchField,
   Segmented,
-  statedChoice,
-  STATED_WINDOW_BOUNDS,
   Switch,
   TextInput,
+} from "@plainva/ui";
+import {
+  describesItself,
+  readStatedWindow,
+  statedChoice,
+  STATED_WINDOW_BOUNDS,
   type AiSession,
   type AiState,
   type ProviderRowModel,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { ChoiceMark } from "./ChoiceMark";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";

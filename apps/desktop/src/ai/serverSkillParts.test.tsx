@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { useServerSkillText, type ServerSkillText, type ServerSkillTextView } from "@plainva/ui";
+import { useServerSkillText, type ServerSkillText, type ServerSkillTextView } from "@plainva/ui/ai";
 
 /**
  * The reading of a server skill's instructions in its review (plan KI-Harness

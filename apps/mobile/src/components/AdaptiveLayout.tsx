@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { Suspense, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AreaBoundary } from "@plainva/ui";
 import { renderRoute, TAB_ROUTES, type RouteContext } from "../routes";
@@ -59,7 +59,8 @@ export function AdaptiveLayout({
           <SplitPlaceholder onCreateNote={ctx.captureNote} />
         ) : (
           <AreaBoundary area={`screen:${top ? top.kind : activeTab}`} resetKey={key} exit={top ? { label: t("common.back"), onExit: () => ctx.done(top) } : null}>
-            {() => renderRoute(top, activeTab, ctx)}
+            {/* A screen loads when it is first opened (performance plan L5): the column waits empty for that moment. */}
+            {() => <Suspense fallback={null}>{renderRoute(top, activeTab, ctx)}</Suspense>}
           </AreaBoundary>
         )}
       </div>

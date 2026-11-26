@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_MCP_GRANT, McpError, scriptedMcpOAuth, type EgressChunk, type ScriptedOAuthOptions } from "@plainva/core";
+import { EMPTY_MCP_GRANT, McpError, scriptedMcpOAuth, type EgressChunk, type ScriptedOAuthOptions } from "@plainva/core/ai";
 import { CONFIRM } from "./mcpTestHost";
 import { SEARCH, TRACKER_URL, answering, body, mcpSession, results, tracker, turn, viaDispatch } from "./mcpSessionHarness";
 

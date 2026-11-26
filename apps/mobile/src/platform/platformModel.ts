@@ -1,5 +1,5 @@
 import { registerPlugin, type PluginListenerHandle } from "@capacitor/core";
-import type { EgressChunk } from "@plainva/core";
+import type { EgressChunk } from "@plainva/core/ai";
 
 /**
  * The system's own model (plan KI-Harness P2c): the `PlatformModel` plugin

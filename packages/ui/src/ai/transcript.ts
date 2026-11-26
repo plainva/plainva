@@ -1,4 +1,4 @@
-import { calledToolName, contextStampPath, directOutcomeOf, EFFECT_DECLINED, imagesOf, type ConversationRecord, type ImagePart, type RunMeta } from "@plainva/core";
+import { calledToolName, contextStampPath, directOutcomeOf, EFFECT_DECLINED, imagesOf, type ConversationRecord, type ImagePart, type RunMeta } from "@plainva/core/ai";
 
 /**
  * What a reader sees of a conversation (P1a): the user's words, the answers,

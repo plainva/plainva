@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { AI_EMBEDDING_PROFILE, createTrigramEmbeddingEngine, DEFAULT_AI_APP_SETTINGS, SEMANTIC_BY_PROVIDER, semanticSourceOf, type AiEgress } from "@plainva/core";
-import { createAiVaultStores, createVaultPolicy, LocalEmbeddings, type AiFileStore, type LocalModelBridge, type RelatedFeedbackStore } from "@plainva/ui";
+import { AI_EMBEDDING_PROFILE, createTrigramEmbeddingEngine, DEFAULT_AI_APP_SETTINGS, SEMANTIC_BY_PROVIDER, semanticSourceOf, type AiEgress } from "@plainva/core/ai";
+import { createAiVaultStores, createVaultPolicy, LocalEmbeddings, type AiFileStore, type LocalModelBridge, type RelatedFeedbackStore } from "@plainva/ui/ai";
 import { until, vaultWith } from "./embeddingTestVault";
 
 /** A vault with a band: the kick-off, a schedule close to its production section, the linked budget, and notes about other things. */

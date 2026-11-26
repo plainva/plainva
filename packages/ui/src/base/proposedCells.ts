@@ -1,4 +1,6 @@
-import { commentActionController, commentCreatedAt, planCommentDecision, proposedPropertyOf, type CommentOperationService, type WorkspaceCommentRecord } from "@plainva/core";
+import { commentActionController, commentCreatedAt, planCommentDecision, type CommentOperationService } from "@plainva/core";
+import { proposedPropertyOf } from "@plainva/core";
+import { type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { runVisibleCommentOperation } from "../lib/commentActionView";
 import { isCommentThreadOpen, type PropertyCommentCellsInput } from "../lib/commentThreads";
 import { propertyValueWords } from "../lib/propertySuggestion";

@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { STYLE_EXAMPLES_MAX, type EgressManifest, type StyleFeature } from "@plainva/core";
+import { STYLE_EXAMPLES_MAX, type EgressManifest, type StyleFeature } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiSendOverview, EMPTY_STYLE_STATE, styleFeatureText, styleOutcomeText, styleView, type AiStyleState } from "@plainva/ui";
+import { AiSendOverview, EMPTY_STYLE_STATE, styleFeatureText, styleOutcomeText, styleView, type AiStyleState } from "@plainva/ui/ai";
 
 /**
  * The writing style as both shells show it (plan KI-Harness P9-3, mockup

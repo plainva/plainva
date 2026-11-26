@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { EmbeddingModelSpec } from "@plainva/core";
-import { Banner, Button, getPlatformServices, GroupCard, loadFacts, Row, RowList, useLocalEmbeddings, type LoadFacts } from "@plainva/ui";
+import type { EmbeddingModelSpec } from "@plainva/core/ai";
+import { Banner, Button, getPlatformServices, GroupCard, Row, RowList } from "@plainva/ui";
+import { loadFacts, useLocalEmbeddings, type LoadFacts } from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 
 /**

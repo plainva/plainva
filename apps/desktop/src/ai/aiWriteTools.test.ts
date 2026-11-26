@@ -1,22 +1,24 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
+  deleteFrontmatterPath,
+  readFrontmatterPath,
+  setFrontmatterPath,
+} from "@plainva/core";
+import {
   WRITE_REFUSALS,
   WRITE_RESULTS,
   buildLinkNameIndex,
-  deleteFrontmatterPath,
   effectivePolicy,
   filesALinkCouldMean,
   notePolicyFrom,
   parsePolicyFile,
-  readFrontmatterPath,
-  setFrontmatterPath,
   toolByName,
   type AiPolicyDimension,
   type EgressRecipient,
   type WriteDraftBody,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
 import {
-  captureVocabularyOf,
   createVaultToolExecutor,
   entryPlaceOf,
   furtherToolNames,
@@ -30,7 +32,7 @@ import {
   type VaultToolDeps,
   type VaultWriteDeps,
   type WriteRun,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 
 /**

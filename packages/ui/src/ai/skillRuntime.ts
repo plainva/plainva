@@ -18,7 +18,7 @@ import {
   type ConversationRecord,
   type InstructionEntry,
   type ToolExecutor,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { ToolScope } from "./vaultTools";
 
 /**

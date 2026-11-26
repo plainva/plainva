@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ScriptedAcpStep, WriteDraft } from "@plainva/core";
+import type { ScriptedAcpStep, WriteDraft } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
 import {
   agentArgsFromText,
@@ -33,7 +33,7 @@ import {
   saidSentence,
   sentence,
   sentenceString,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { acpHarness, AGENT_NOTES, decideAcpDraft, lastOf, memoryAcpVault, ROOT, type AcpHarness, type AcpScript } from "./acpTestHost";
 
 /**

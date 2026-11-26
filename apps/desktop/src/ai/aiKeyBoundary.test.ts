@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_AI_APP_SETTINGS, type AiEgress } from "@plainva/core";
-import { AiSession } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS, type AiEgress } from "@plainva/core/ai";
+import { AiSession } from "@plainva/ui/ai";
 
 /**
  * The key boundary of the AI egress, as a test (plan KI-Harness P1a gate,

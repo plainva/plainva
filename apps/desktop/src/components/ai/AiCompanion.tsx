@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import { PanelRight, PanelTop, Sparkles, SquarePen, X } from "lucide-react";
 import { editorSelectionReader } from "../../services/editorSelection";
 import { requestSkillsView } from "../../services/ai/desktopAi";
-import { AiConversation, FloatingWindow, ICON, IconButton, startAiConversation, useAiSession } from "@plainva/ui";
+import { FloatingWindow, ICON, IconButton } from "@plainva/ui";
+import { AiConversation, startAiConversation, useAiSession } from "@plainva/ui/ai";
 
 /**
  * The companion (plan KI-Harness §19.1, dress A): the conversation in the

@@ -1,16 +1,18 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, CodeXml, Eye, Plug, ScrollText, X } from "lucide-react";
-import { approvalSeen } from "@plainva/core";
+import { approvalSeen } from "@plainva/core/ai";
 import {
-  approvalContextOf,
-  approvalFacts,
   Banner,
   Button,
-  findWorkshopEntry,
   ICON,
   LineCompare,
   Modal,
+} from "@plainva/ui";
+import {
+  approvalContextOf,
+  approvalFacts,
+  findWorkshopEntry,
   scriptCheckLine,
   ScriptCode,
   ServerSaid,
@@ -20,7 +22,7 @@ import {
   useAiState,
   useScriptCheck,
   useServerSkillText,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * One source before it may run on this device (plan KI-Harness P3-5, §14.3):

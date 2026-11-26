@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest";
-import { mailDocument, readableBody, UNREADABLE_BODY } from "@plainva/ui";
+import { mailDocument, readableBody, UNREADABLE_BODY } from "@plainva/ui/ai";
 import { mailBodyHtml, mailBodyView, mailMessageText, sanitizeEmailHtml, type MailMessage } from "@plainva/ui/mail";
 
 /**

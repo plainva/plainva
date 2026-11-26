@@ -1,7 +1,8 @@
 import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import type { SkillImport } from "@plainva/core";
-import { Banner, Button, Checkbox, GroupCard, importFacts, Row, RowList, toast } from "@plainva/ui";
+import type { SkillImport } from "@plainva/core/ai";
+import { Banner, Button, Checkbox, GroupCard, Row, RowList, toast } from "@plainva/ui";
+import { importFacts } from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 

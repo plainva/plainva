@@ -1,31 +1,35 @@
 import {
-  buildLinkNameIndex,
   buildLinkTargetIndex,
-  DEFAULT_AI_POLICY,
   deleteFrontmatterPath,
+  linkTargetName,
+  markdownLinkTarget,
+  readFrontmatterPath,
+  resolveLinkTargetIndexed,
+  resolveMarkdownLinkIndexed,
+  setFrontmatterPath,
+  updateVaultText,
+  VersionHistoryService,
+  wikiLinkParts,
+  type IVaultAdapter,
+  type TextUpdateFiles,
+} from "@plainva/core";
+import {
+  buildLinkNameIndex,
+  DEFAULT_AI_POLICY,
   EDITED_HALF_LIFE_MS,
   effectivePolicy,
   filesALinkCouldMean,
   isCloudRecipient,
   ENCRYPTED_WORKSPACE_AI_POLICY,
   isAiHiddenPath,
-  linkTargetName,
-  markdownLinkTarget,
   notePolicyFrom,
   OPENED_HALF_LIFE_MS,
   parsePolicyFile,
   questionTerms,
-  readFrontmatterPath,
   readInstructionFile,
-  resolveLinkTargetIndexed,
-  resolveMarkdownLinkIndexed,
   scanInstruction,
   scanVaultInstructions,
   recencySignal,
-  setFrontmatterPath,
-  updateVaultText,
-  VersionHistoryService,
-  wikiLinkParts,
   type AiPolicyDimension,
   type Candidate,
   type ContextNote,
@@ -34,16 +38,15 @@ import {
   type EgressRecipient,
   type GateRun,
   type InstructionIO,
-  type IVaultAdapter,
   type LinkNameIndex,
   type NamedFile,
   type VaultLinkFile,
   type PackageGists,
   type ParsedPolicyFile,
   type SituationInput,
-  type TextUpdateFiles,
   type ToolManifest,
-} from "@plainva/core";
+  AI_POLICY_FILE,
+} from "@plainva/core/ai";
 import { deleteWithNet } from "../lib/deletionNet";
 import type { AcpVaultAccess } from "./acpFiles";
 import { createAcpVaultStore } from "./acpStores";
@@ -66,8 +69,8 @@ import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, unmarkSnipp
  * what the policy says about it (ADR 0018).
  */
 
-/** Where folder rules live. Plainva writes no marker files into the user's folders. */
-export const AI_POLICY_FILE = ".agent/policy.yml";
+// Where folder rules live: the core's constant, so a reader of the rules needs no part of the harness.
+export { AI_POLICY_FILE };
 
 export interface VaultPolicyHost extends ContextPolicyHost {
   /** The parsed folder rules, re-read at most every few seconds. */

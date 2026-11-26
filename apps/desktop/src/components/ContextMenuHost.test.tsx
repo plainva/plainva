@@ -5,7 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
 import { ContextMenuHost } from "./ContextMenuHost";
 import { openContextMenu, closeContextMenu } from "../services/contextMenuStore";
-import { findEditable, setImageExplainer } from "@plainva/ui";
+import { findEditable } from "@plainva/ui";
+import { setImageExplainer } from "@plainva/ui/ai";
 
 (globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

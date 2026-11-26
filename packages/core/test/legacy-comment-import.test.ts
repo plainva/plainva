@@ -3,16 +3,38 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  createPersonalWorkspaceBootstrap, personalWorkspaceRuntime, initializePersonalWorkspaceMigration,
-  EncryptedWorkspaceWorker, FakeWorkspaceObjectStore, MemoryWorkspaceStateStore, SqlWorkspaceStateStore,
-  createWorkspaceObjectId, importedCommentFields, commentAuthorKey, commentCreatedAt,
-  openWorkspaceComment, parseWorkspaceDocument, fromBase64, publishQueuedWorkspaceComment,
-  evaluateWorkspaceAccess, type WorkspaceSignedDocument, type WorkspaceOperationPayload,
-  inviteWorkspaceMember, applyWorkspaceGovernanceUpdate, createWorkspacePairingRequest,
-  approveWorkspacePairing, acceptWorkspacePairing, workspaceDocumentHash,
-  prepareWorkspaceComment, publishWorkspaceComment,
-  type LegacyCommentOrigin, type WorkspaceCommentOutboxEntry, type IDatabaseAdapter,
+  importedCommentFields,
+  commentAuthorKey,
+  commentCreatedAt,
+  type LegacyCommentOrigin,
+  type IDatabaseAdapter,
 } from "../src/index.js";
+import {
+  createPersonalWorkspaceBootstrap,
+  personalWorkspaceRuntime,
+  initializePersonalWorkspaceMigration,
+  EncryptedWorkspaceWorker,
+  FakeWorkspaceObjectStore,
+  MemoryWorkspaceStateStore,
+  SqlWorkspaceStateStore,
+  createWorkspaceObjectId,
+  openWorkspaceComment,
+  parseWorkspaceDocument,
+  fromBase64,
+  publishQueuedWorkspaceComment,
+  evaluateWorkspaceAccess,
+  type WorkspaceSignedDocument,
+  type WorkspaceOperationPayload,
+  inviteWorkspaceMember,
+  applyWorkspaceGovernanceUpdate,
+  createWorkspacePairingRequest,
+  approveWorkspacePairing,
+  acceptWorkspacePairing,
+  workspaceDocumentHash,
+  prepareWorkspaceComment,
+  publishWorkspaceComment,
+  type WorkspaceCommentOutboxEntry,
+} from "../src/workspace/index.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { initializeSchema } from "../src/db/Schema.js";
 import { realSqlite } from "./helpers/realSqlite.js";

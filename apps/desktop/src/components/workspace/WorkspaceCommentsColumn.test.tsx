@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import { buildCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord } from "@plainva/core";
+import { buildCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { suggestedProperties } from "@plainva/ui";
 
 import { WorkspaceCommentsColumn, type PublicationCommentEntry } from "./WorkspaceCommentsColumn";

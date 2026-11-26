@@ -1,4 +1,4 @@
-import { acpAgentLabel, isAcpAgentId } from "@plainva/core";
+import { acpAgentLabel, isAcpAgentId } from "@plainva/core/ai";
 import type { AiFileStore } from "./aiStores";
 
 /**

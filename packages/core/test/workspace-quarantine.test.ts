@@ -11,7 +11,7 @@ import {
   quarantineReasonFamilyOf,
   splitDeviceChains,
   type WorkspaceQuarantineRecord,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 /**
  * The quarantine list as a person reads it (finding 2026-09-03).

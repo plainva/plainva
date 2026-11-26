@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { App as CapApp } from "@capacitor/app";
-import { DEFAULT_AI_APP_SETTINGS, semanticSourceOf, type AiAppSettings } from "@plainva/core";
-import { aiVaultKey, createAiVaultStores, createVaultPolicy, LocalEmbeddings, type AiFileStore, type AiSession } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS, semanticSourceOf, type AiAppSettings } from "@plainva/core/ai";
+import { aiVaultKey, createAiVaultStores, createVaultPolicy, LocalEmbeddings, type AiFileStore, type AiSession } from "@plainva/ui/ai";
 import { NOTE_INDEXED_EVENT, vaultOps, type MobileVault } from "../vaultService";
 import { mobileLocalModels } from "./localModels";
 

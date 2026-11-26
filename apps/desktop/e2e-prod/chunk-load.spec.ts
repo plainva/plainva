@@ -13,7 +13,10 @@ import { test, expect } from '../e2e/fixtures/clockedTest';
  * the desktop did, and a module of the shared UI read a list as "not
  * iterable" when its chunk was loaded first. The app's own start covers only
  * the chunks it loads at boot; this loads each one on its own, in an order
- * the app never uses, the way a lazy screen or a second window does.
+ * the app never uses, the way a lazy screen or a second window does —
+ * with every other host refused, so a chunk that reaches for the network to
+ * load (a script or style sheet of another origin) fails here too (review of
+ * L5, 2026-11-25).
  */
 const ASSETS = fileURLToPath(new URL('../dist/assets/', import.meta.url));
 
@@ -22,6 +25,13 @@ test('every chunk of the production bundle loads on its own without throwing', a
   // The worker entries run in a worker, not on a page; everything else is a chunk the page may load.
   const chunks = readdirSync(ASSETS).filter((f) => f.endsWith('.js') && !/worker/i.test(f));
   expect(chunks.length, 'the bundle was built (dist/assets)').toBeGreaterThan(10);
+  // No other host: a chunk loads from the bundle or not at all.
+  const origin = new URL(test.info().project.use.baseURL ?? 'http://localhost').origin;
+  const foreign: string[] = [];
+  await page.context().route((url) => url.origin !== origin, (route) => {
+    foreign.push(route.request().url());
+    return route.abort('internetdisconnected');
+  });
   // A bare page of the app's origin: nothing of the app runs before the chunk.
   await page.route('**/__chunk_probe', (route) => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><div id="root"></div></body></html>' }));
   // What the WebView has around the app: a Tauri bridge that answers nothing.
@@ -48,4 +58,5 @@ test('every chunk of the production bundle loads on its own without throwing', a
     if (error) failed.push(`${chunk}: ${error}`);
   }
   expect(failed, failed.join('\n')).toEqual([]);
+  expect(foreign.filter((url) => /\.(m?js|css)(\?|$)/.test(url)), 'a script or style sheet asked of another host').toEqual([]);
 });

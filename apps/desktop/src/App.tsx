@@ -11,12 +11,14 @@ import { captureSyncErrorSnapshot, isSyncAuthenticationError, useDisplaySyncStat
 import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
 import { AlertTriangle } from "lucide-react";
 import { AreaBoundary, Button, EndpointConfirmBlock, ICON, migrateLegacyBarLayouts, Modal, toast, useEndpointConfirmation, useStableHandler } from "@plainva/ui";
-import { requestAiSettingsIntent, setNoteLinksVaultLoading, type AiSettingsIntent } from "@plainva/ui";
+// The import wizard loads when it opens (performance plan L5).
+const ImportWizardModal = deferredPart(() => import("./components/import/ImportWizardModal").then((m) => m.ImportWizardModal));
+import { setNoteLinksVaultLoading } from "@plainva/ui";
+import { requestAiSettingsIntent, type AiSettingsIntent } from "@plainva/ui";
 import { WorkspaceActivationOverlay } from "./components/security/WorkspaceActivationOverlay";
 import { appConfirm } from "./services/appDialogs";
 import { IndexMdModal } from "./components/IndexMdModal";
 import { WindowChromeStrip } from "./components/WindowControls";
-import { ImportWizardModal } from "./components/import/ImportWizardModal";
 import { WhatsNewModal } from "./components/whatsNew/WhatsNewModal";
 import { getAppVersion, markWhatsNewSeen, readWhatsNewSeenVersion, requestWelcomeOnNextStart, shouldShowWhatsNew, takeReleaseDialogSlot, takeWelcomeRequest } from "./services/whatsNew";
 import { scheduleStartupUpdateCheck } from "./services/appUpdate";
@@ -24,6 +26,7 @@ import { SplashScreen } from "./components/SplashScreen";
 import { getRestoreWindowsSetting, listAuxWindows, restoreAuxWindows, setOwnerOpenContents } from "./services/windowManager";
 import { AppShell } from "./AppShell";
 import type { ShellCapabilities } from "./shellCapabilities";
+import { deferredPart } from "./lib/deferredParts";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to paint
 // the first frame, and each becomes its own chunk that only ever downloads
 // when the user opens it.
@@ -419,7 +422,7 @@ function App() {
         />
         </AreaBoundary>
       )}
-      {showImportWizard && <AreaBoundary area="dialog:import" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowImportWizard(false) }}><ImportWizardModal targetVaultPath={vaultPath || ""} onClose={() => setShowImportWizard(false)} /></AreaBoundary>}
+      {showImportWizard && <AreaBoundary area="dialog:import" size="dialog" exit={{ label: t("common.close"), onExit: () => setShowImportWizard(false) }}><Suspense fallback={null}><ImportWizardModal targetVaultPath={vaultPath || ""} onClose={() => setShowImportWizard(false)} /></Suspense></AreaBoundary>}
       {showWhatsNew && <AreaBoundary area="dialog:whatsNew" size="dialog" exit={{ label: t("common.close"), onExit: dismissReleaseDialog }}><WhatsNewModal onClose={dismissReleaseDialog} /></AreaBoundary>}
     </AppShell>
   );

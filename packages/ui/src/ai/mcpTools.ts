@@ -18,7 +18,7 @@ import {
   type RunMcpQuestions,
   type ToolExecutor,
   type ToolOutcome,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { McpCheck } from "./mcpRuntime";
 import type { McpAuditOutcome } from "./mcpStores";
 

@@ -32,7 +32,7 @@ vi.mock("./settingsStore", () => ({
   }),
 }));
 
-import { toBase64 } from "@plainva/core";
+import { toBase64 } from "@plainva/core/workspace";
 import { getMemoryMasterKey, loadCachedMasterKey, lockVault } from "./encryptionSession";
 import { slot } from "./keychainSlots";
 

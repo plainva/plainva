@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scriptedAnswers, scriptedCapabilities, scriptedQuestions, type McpElicitResult } from "@plainva/core";
+import { scriptedAnswers, scriptedCapabilities, scriptedQuestions, type McpElicitResult } from "@plainva/core/ai";
 import { SEARCH, answering, audit, body, connect, mcpSession, questioning, results, turn, viaDispatch } from "./mcpSessionHarness";
 
 /**

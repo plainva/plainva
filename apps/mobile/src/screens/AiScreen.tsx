@@ -1,8 +1,9 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { History, SquarePen } from "lucide-react";
-import { AiConversation, AiSessionContext, GroupCard, ICON, IconButton, openWriteLines, openWritesCount, Row, RowList, SectionLabel, startAiConversation, useOpenProposals, type OpenWriteLine } from "@plainva/ui";
-import type { ConversationSummary } from "@plainva/core";
+import { GroupCard, ICON, IconButton, Row, RowList, SectionLabel } from "@plainva/ui";
+import { AiConversation, AiSessionContext, openWriteLines, openWritesCount, startAiConversation, useOpenProposals, type OpenWriteLine } from "@plainva/ui/ai";
+import type { ConversationSummary } from "@plainva/core/ai";
 import { AppBar } from "../components/AppBar";
 import { useAiSetupDoor } from "../hooks/useAiSetupDoor";
 import { getMobileAiSession, openAiLink, openAiNotePick } from "../services/ai/mobileAi";

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  canonicalJson,
+  type IVaultAdapter,
+  type VaultFileInfo,
+} from "../src/index.js";
+import {
   EncryptedWorkspaceWorker,
   FakeWorkspaceObjectStore,
   MemoryWorkspaceStateStore,
@@ -9,7 +14,6 @@ import {
   applyWorkspaceGovernanceUpdate,
   approveWorkspacePairing,
   buildCommentAnchor,
-  canonicalJson,
   sealInlinePvo1,
   signWorkspaceDocument,
   workspaceSha256Hex,
@@ -35,11 +39,9 @@ import {
   workspaceRecoveryContentInvariant,
   workspaceSliceIdsForObject,
   toBase64,
-  type IVaultAdapter,
   type PersonalWorkspaceRuntime,
-  type VaultFileInfo,
   type WorkspacePolicyPayload,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 class TestVault implements IVaultAdapter {
   readonly files = new Map<string, Uint8Array>();

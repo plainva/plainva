@@ -1,19 +1,25 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, ExternalLink } from "lucide-react";
-import { AI_EMBEDDING_PROFILE, SEMANTIC_BY_PROVIDER, semanticSourceOf, type EmbeddingModelSpec } from "@plainva/core";
+import { AI_EMBEDDING_PROFILE, SEMANTIC_BY_PROVIDER, semanticSourceOf, type EmbeddingModelSpec } from "@plainva/core/ai";
 import {
-  AiSendOverview,
   Banner,
   Button,
   getPlatformServices,
   ICON,
+  Modal,
+  Radio,
+  SettingCardBlock,
+  SettingCardNote,
+  SettingRow,
+  toast,
+} from "@plainva/ui";
+import {
+  AiSendOverview,
   loadFacts,
   measurementRows,
   measurementText,
-  Modal,
   packageInstalled,
-  Radio,
   semanticFailureText,
   semanticModelRows,
   semanticProgressLine,
@@ -21,17 +27,13 @@ import {
   semanticRunFailureText,
   semanticUnusedLine,
   searchRests,
-  SettingCardBlock,
-  SettingCardNote,
-  SettingRow,
-  toast,
   useAiState,
   useLocalEmbeddings,
   type AiSession,
   type LoadFacts,
   type StandingApproval,
   type UnusedEmbeddings,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { appConfirm } from "../../services/appDialogs";
 import { desktopLocalModels } from "../../services/ai/localModels";
 

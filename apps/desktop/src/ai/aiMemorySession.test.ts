@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVE_MEMORY_FILE, AGENTS_FILE, LONG_MEMORY_FILE, MEMORY_LIMITS, WRITE_REFUSALS, WRITE_RESULTS } from "@plainva/core";
+import { ACTIVE_MEMORY_FILE, AGENTS_FILE, LONG_MEMORY_FILE, MEMORY_LIMITS, WRITE_REFUSALS, WRITE_RESULTS } from "@plainva/core/ai";
 import { LOCAL, SEARCH, answering, body, chat, connect, results, toolNames, tracker, turn, viaDispatch } from "./mcpSessionHarness";
 import { memorySession, memoryVault } from "./memorySessionHarness";
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Banner, Button, TextArea, useMemoryRuleForm } from "@plainva/ui";
+import { Banner, Button, TextArea } from "@plainva/ui";
+import { useMemoryRuleForm } from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";

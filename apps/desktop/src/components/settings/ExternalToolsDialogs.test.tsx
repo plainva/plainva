@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, useSyncExternalStore } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { EMPTY_MCP_GRANT, scriptedMcpOAuth, type ScriptedOAuthOptions } from "@plainva/core";
+import { EMPTY_MCP_GRANT, scriptedMcpOAuth, type ScriptedOAuthOptions } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import type { AiSession } from "@plainva/ui";
+import type { AiSession } from "@plainva/ui/ai";
 import { CONFIRM } from "../../ai/mcpTestHost";
 import { TRACKER_URL, close, connect, mcpSession, search, tracker } from "../../ai/mcpSessionHarness";
 import { ExternalAddDialog, ExternalReviewDialog } from "./ExternalToolsDialogs";

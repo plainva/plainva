@@ -2,9 +2,9 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { BUILTIN_PROVIDERS, type ModelFailure } from "@plainva/core";
+import { BUILTIN_PROVIDERS, type ModelFailure } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiWorkingLine, WORKING_HERE_AFTER, aiFailureText, failureRecipient, providerStatus } from "@plainva/ui";
+import { AiWorkingLine, WORKING_HERE_AFTER, aiFailureText, failureRecipient, providerStatus } from "@plainva/ui/ai";
 
 /**
  * Patience for a model on this device (plan KI-Harness P7, ADR 0030): it may

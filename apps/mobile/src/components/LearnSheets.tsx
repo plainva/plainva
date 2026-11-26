@@ -1,24 +1,27 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { GraduationCap, History } from "lucide-react";
-import { AreaBoundary,
-  approvalFacts,
+import {
+  AreaBoundary,
   Banner,
   Button,
-  closeLearnSurface,
   EmptyState,
   GroupCard,
   ICON,
+  LineCompare,
+  Row,
+  RowList,
+  TextArea,
+} from "@plainva/ui";
+import {
+  approvalFacts,
+  closeLearnSurface,
   LearnDrafts,
   learnPlanFacts,
   learnRefusalText,
   learnResultFacts,
   learnSurfaceKey,
-  LineCompare,
-  Row,
-  RowList,
   skillVersionLabel,
-  TextArea,
   useLearnFlow,
   useLearnSurfaces,
   useSkillDraftReview,
@@ -26,7 +29,7 @@ import { AreaBoundary,
   workshopTitle,
   type AiSession,
   type AiState,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";

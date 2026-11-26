@@ -13,8 +13,8 @@ import {
   type HttpRequestSpec,
   type ImagePart,
   type LedgerEntry,
-} from "@plainva/core";
-import { AiSession, CHAT_TOOL_NAMES, createVaultToolExecutor, notesEmbedding, transcriptOf, type AiVaultHost, type ImageRequest, type PreparedImage, type VaultToolDeps } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { AiSession, CHAT_TOOL_NAMES, createVaultToolExecutor, notesEmbedding, transcriptOf, type AiVaultHost, type ImageRequest, type PreparedImage, type VaultToolDeps } from "@plainva/ui/ai";
 
 /**
  * "Explain image" in the session (plan KI-Harness P4-5): a picture of the

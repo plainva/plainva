@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { AiAnswer } from "@plainva/ui";
+import { AiAnswer } from "@plainva/ui/ai";
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;

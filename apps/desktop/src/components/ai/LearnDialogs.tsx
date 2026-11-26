@@ -1,25 +1,27 @@
 import { useTranslation } from "react-i18next";
 import { GraduationCap, History } from "lucide-react";
 import {
-  approvalFacts,
   Banner,
   Button,
-  closeLearnSurface,
   EmptyState,
   ICON,
+  LineCompare,
+  Modal,
+  Select,
+  TextArea,
+  useDiscardGuard,
+} from "@plainva/ui";
+import {
+  approvalFacts,
+  closeLearnSurface,
   LearnDrafts,
   learnPlanFacts,
   learnRefusalText,
   learnResultFacts,
   learnSurfaceKey,
-  LineCompare,
-  Modal,
-  Select,
   skillVersionLabel,
-  TextArea,
   useAiSession,
   useAiState,
-  useDiscardGuard,
   useLearnFlow,
   useLearnSurfaces,
   useSkillDraftReview,
@@ -27,7 +29,7 @@ import {
   workshopTitle,
   type AiSession,
   type AiState,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * Learning's dialogs on the desktop (plan KI-Harness P6-2, mockup chapter

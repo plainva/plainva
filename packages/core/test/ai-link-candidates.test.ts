@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 import { assembleContext, withholdDeniedLinks, type ContextPolicyHost } from "../src/ai/chat.js";
 import { gateDecision, WITHHELD_LINK, type EgressRecipient } from "../src/ai/egressGate.js";
-import { buildLinkNameIndex, filesALinkCouldMean } from "../src/ai/linkNames.js";
+import { buildLinkNameIndex, filesALinkCouldMean } from "../src/withholding/linkNames.js";
 import { effectivePolicy, notePolicyFrom, parsePolicyFile } from "../src/ai/policy.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";

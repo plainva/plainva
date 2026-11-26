@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
-import { MEMORY_LIMITS, activeMemoryBudget, parseMemory } from "@plainva/core";
-import { EMPTY_MEMORY_STATE, MEMORY_SEARCH_FROM, filterMemoryRows, memoryDescription, memoryGroups, memoryProblemText, memoryRowActions, memorySummary, type AiMemoryState } from "@plainva/ui";
+import { MEMORY_LIMITS, activeMemoryBudget, parseMemory } from "@plainva/core/ai";
+import { memoryRowActions } from "@plainva/ui";
+import { EMPTY_MEMORY_STATE, MEMORY_SEARCH_FROM, filterMemoryRows, memoryDescription, memoryGroups, memoryProblemText, memorySummary, type AiMemoryState } from "@plainva/ui/ai";
 
 /** The memory's one model for both shells (plan KI-Harness P6, mockup chapter 22). */
 

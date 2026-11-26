@@ -28,9 +28,10 @@ import { loadPropertyTypes, toast, toastStore } from "@plainva/ui";
 
 // "Trust & provenance" and its lifecycle rows show while the AI is on (plan Oberfläche O7, D11): these tests are about
 // what the group writes, so the AI is on here.
-vi.mock("../services/ai/desktopAi", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../services/ai/desktopAi")>()),
-  getDesktopAiSession: (() => ({ subscribe: () => () => undefined, getState: () => ({ loaded: true, settings: { enabled: true } }) })) as never,
+// The AI is on: the session the start bundle reads through its loader (performance plan L5).
+vi.mock("../services/ai/desktopAiLoader", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../services/ai/desktopAiLoader")>()),
+  useDesktopAiSession: (() => ({ subscribe: () => () => undefined, getState: () => ({ loaded: true, settings: { enabled: true } }) })) as never,
 }));
 vi.mock("../contexts/VaultContext", () => ({
   useVault: () => ({ fileTreeVersion: 0, vaultPath: "/vault", queryService: null, vaultAdapter: null }),

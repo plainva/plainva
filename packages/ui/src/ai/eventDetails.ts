@@ -1,4 +1,4 @@
-import { contextStamp, inertLine, type QuarantinedText } from "@plainva/core";
+import { contextStamp, inertLine, type QuarantinedText } from "@plainva/core/ai";
 import type { EventAttendee, SituationEventInput } from "./aiSituation";
 import { looksLikeHtml, readableBody } from "./quarantineText";
 

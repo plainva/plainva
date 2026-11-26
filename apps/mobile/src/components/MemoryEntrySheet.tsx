@@ -1,7 +1,8 @@
 import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import type { MemoryPlace } from "@plainva/core";
-import { Banner, Button, Checkbox, Segmented, TextArea, useMemoryEntryForm } from "@plainva/ui";
+import type { MemoryPlace } from "@plainva/core/ai";
+import { Banner, Button, Checkbox, Segmented, TextArea } from "@plainva/ui";
+import { useMemoryEntryForm } from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";

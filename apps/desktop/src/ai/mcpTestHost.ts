@@ -11,8 +11,8 @@ import {
   type ScriptedMcpServer,
   type ScriptedOAuth,
   type ScriptedStdioPort,
-} from "@plainva/core";
-import type { AiFileStore } from "@plainva/ui";
+} from "@plainva/core/ai";
+import type { AiFileStore } from "@plainva/ui/ai";
 
 /**
  * The native side of foreign MCP servers for tests (plan KI-Harness P4.5):
