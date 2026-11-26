@@ -237,6 +237,10 @@ async function fuzz(seed: number, MODE: string, sameClocks = false): Promise<Out
   clock = 0;
   const allow = (what: string) => MODE === "all" || MODE.split(",").includes(what);
   const POOL: Row[] = [{ id: "a", user: "anna" }, { id: "b", user: "Bert" }, { id: "m", user: "carl@example.com", kind: "mail" }, { id: "n", user: "dora@example.com", kind: "mail" }];
+  // "twins" (never part of "all", so the named seeds keep their steps): a
+  // second account of the same user at the other address of each kind, so
+  // that repairs land on each other's names (review 2026-11-26, fourth round).
+  if (MODE.split(",").includes("twins")) POOL.push({ id: "e", user: "anna", at: "b" }, { id: "o", user: "carl@example.com", kind: "mail", at: "b" });
   const kinds: Kind[] = ["new", "new", "new", "v090", "v087"];
   // `sameClocks`: the same choices (and so the same steps), every clock at 0.
   const skews = allow("skew") ? (sameClocks ? [0, 0, 0, 0, 0, 0, 0] : [0, 0, 0, 600_000, -600_000, 3 * 3600_000, -3 * 3600_000]) : [0];
@@ -245,6 +249,9 @@ async function fuzz(seed: number, MODE: string, sameClocks = false): Promise<Out
   const shared = POOL.filter(() => r() < 0.8);
   const fleet: Device[] = [];
   for (let i = 0; i < size; i++) fleet.push(device(`D${i}`, i === 0 ? "new" : pick(kinds), shared, pick(skews), i === 0 ? "on" : pick(profiles)));
+  /** Updated from the start, and never without its mark key: what statement 5 is checked on. */
+  const checked = new Set(fleet.filter((d) => d.kind === "new").map((d) => d.name));
+  const wasOld = new Set(fleet.filter((d) => d.kind === "v087").map((d) => d.name));
   let n = 0;
   for (const d of fleet) for (const row of d.rows) if (r() < 0.5) typeInto(d, row.id, `${row.id}${++n}`);
   const problems: string[] = [];
@@ -255,6 +262,11 @@ async function fuzz(seed: number, MODE: string, sameClocks = false): Promise<Out
   const removedEver = new Set<string>();
   let step = 0;
   const order = () => [...fleet].sort(() => r() - 0.5);
+  // Two accounts of one user on one server are one sign-in: the product folds
+  // such rows (`mailboxDuplicates.ts`, `passwordAccounts.ts`), so no repair or
+  // re-add here puts one onto the name another account of that device has.
+  const occupied = (d: Device, row: Row, at: At) =>
+    d.rows.some((x) => x.id !== row.id && (x.kind ?? "calendar") === (row.kind ?? "calendar") && x.user.toLowerCase() === row.user.toLowerCase() && (x.at ?? "a") === at);
   const profileTo = (src: Device, apply: (d: Device) => void) => {
     for (const d of fleet) if (d !== src && d.profile !== "off") d.pending.push(() => apply(d));
     for (const d of fleet) if (d !== src && d.profile === "off") d.pending.push(() => apply(d)); // never flushed
@@ -289,7 +301,7 @@ async function fuzz(seed: number, MODE: string, sameClocks = false): Promise<Out
       const rem = removed.get(row.id);
       if (rem) rem.typedAfter = true;
       log.push(`${e}: ${d.name} types ${p} for ${row.id}`);
-    } else if (row && k < 0.36) {
+    } else if (row && k < 0.36 && !occupied(d, row, row.at === "b" ? "a" : "b")) {
       const to: At = row.at === "b" ? "a" : "b";
       const typed = r() < 0.5 ? `${row.id}${++n}` : undefined;
       row.at = to;
@@ -322,8 +334,8 @@ async function fuzz(seed: number, MODE: string, sameClocks = false): Promise<Out
       log.push(`${e}: ${d.name} signs out ${row.id}`);
     } else if (k < 0.68) {
       const back = pick(POOL);
-      if (!d.rows.some((item) => item.id === back.id)) {
-        const at: At = r() < 0.5 ? "a" : "b";
+      const at: At | null = d.rows.some((item) => item.id === back.id) ? null : r() < 0.5 ? "a" : "b";
+      if (at && !occupied(d, back, at)) {
         d.rows.push({ ...back, at });
         removed.delete(back.id);
         const typed = r() < 0.6 ? `${back.id}${++n}` : undefined;
@@ -335,6 +347,7 @@ async function fuzz(seed: number, MODE: string, sameClocks = false): Promise<Out
       }
     } else if (k < 0.74 && allow("keyloss") && d.kind === "new") {
       d.keyring.delete(SECRETS_MARK_KEY_SLOT);
+      checked.delete(d.name);
       for (const rem of removed.values()) rem.keyLossAfter = true;
       log.push(`${e}: ${d.name} loses its mark key`);
     } else if (k < 0.8 && allow("away")) {
@@ -381,7 +394,19 @@ async function fuzz(seed: number, MODE: string, sameClocks = false): Promise<Out
       const ids = [canonicalSecretId(b)];
       for (const id of ids) {
         const entry = docEntries()[id];
-        if (entry && !entry.tombstone) {
+        // A password of another account (the second account of the user, repaired
+        // onto that name and away again, leaves its password under its old
+        // address, as every repair does) is no password of the removed one.
+        const own = new RegExp(`^${rowId}\\d+$`).test(String((entry?.secret as { pass?: string } | undefined)?.pass ?? ""));
+        // The name is in use again: an account of the same user on the same
+        // server (the second account, repaired there before the removal went
+        // out) is the same sign-in, and its password stays.
+        const inUse = fleet.some((o) => o.profile !== "off" && o.rows.some((x) => canonicalSecretId(newBinding(x)) === id));
+        // Named exception: the old place of a removed account stays where the
+        // remover did not know the old name — and an account that later gets
+        // that name reads a password a device on 0.8.7 left there.
+        const fromOld = !!entry && wasOld.has(entry.deviceId);
+        if (entry && !entry.tombstone && own && !inUse && !fromOld) {
           problems.push(
             `end: removed ${rowId} still has a password under ${id.slice(0, 60)} [typedAfter=${rem.typedAfter} keyLossAfter=${rem.keyLossAfter} holders=${holders.map((h) => `${h.name}:${h.profile}`).join(",") || "none"} by=${entry.deviceId}]`,
           );
@@ -401,6 +426,22 @@ async function fuzz(seed: number, MODE: string, sameClocks = false): Promise<Out
         const starving = fleet.filter((o) => o !== d && o.kind === "new" && o.rows.some((x) => x.id === row.id && (x.at ?? "a") === (row.at ?? "a")) && o.slots.get(row.id) === undefined).map((o) => o.name);
         problems.push(`end: ${d.name} holds ${row.id}@${row.at ?? "a"}=${slot} but the document has ${entry ? "a tombstone" : "nothing"} [removedEver=${removedEver.has(row.id)} starving=${starving.join(",") || "-"}]`);
       }
+    }
+  }
+  // Satz 5: a password in the document reaches every device that has the
+  // account and is not signed out there — but for a password typed on that
+  // device (and not since replaced by its port), which stays (every version
+  // since 0.8.7). Counted under the current name or the old one a device up
+  // to 0.8.7 writes (the one comparison of two times, a named exception).
+  for (const d of fleet) {
+    if (!checked.has(d.name) || d.profile === "off") continue;
+    for (const row of d.rows) {
+      const slot = d.slots.get(row.id);
+      if (typeof slot !== "string" || d.typed.has(row.id)) continue;
+      const values = [docEntries()[canonicalSecretId(newBinding(row))], docEntries()[v087.canonicalSecretId(oldBinding(row) as never)]]
+        .filter((entry) => entry && !entry.tombstone)
+        .map((entry) => (entry!.secret as { pass?: string } | undefined)?.pass);
+      if (values.length > 0 && !values.includes(slot)) problems.push(`end: ${d.name} holds ${row.id}@${row.at ?? "a"}=${slot}, received, but the document has ${values.join(" / ")}`);
     }
   }
   return { problems, log };
@@ -571,7 +612,7 @@ const NAMED: Array<[number, string, string]> = [
  */
 const CLOCK_ORDERED: Array<[number, string]> = [[305, "skew"], [312, "skew"], [380, "skew"]];
 /** Seeds per mode in every CI run (about a minute on the CI runner). */
-const RANGES: Array<[string, number]> = [["all", 120], ["profile,away", 60], ["profile,away,keyloss", 60]];
+const RANGES: Array<[string, number]> = [["all", 120], ["profile,away", 60], ["profile,away,keyloss", 60], ["twins", 60], ["twins,profile,away,skew", 60]];
 
 describe("random fleets around what takes an account away (review 2026-11-25)", () => {
   for (const [seed, mode, what] of NAMED) {

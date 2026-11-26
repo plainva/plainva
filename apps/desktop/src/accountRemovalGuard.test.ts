@@ -53,7 +53,7 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, kind: Kin
   ["apps/desktop/src/services/pim/pimAccounts.ts", "await clearPimCredentials(vaultPath, accountId).catch(reportingTo(\"pim:remove-credentials\"));", "caldav", 1, "remove-step"],
   ["apps/mobile/src/services/pim/pimService.ts", "await clearPimCredentials(current.vaultId, accountId);", "caldav", 1, "remove-step"],
   ["apps/mobile/src/services/pim/pimService.ts", "await current.cache.deleteAccount(accountId);", "caldav", 1, "remove-step"],
-  ["packages/ui/src/mail/mailAccounts.ts", "await removeMailAccount(vaultPath, accountId);", "imap", 1, "remove-step"],
+  ["packages/ui/src/mail/mailAccounts.ts", "await removeAfterSecretsNote(note, () => removeMailAccount(vaultPath, accountId));", "imap", 1, "remove-step"],
   // The sinks themselves: a row's slot goes with it, for whichever reason the row goes.
   ["apps/desktop/src/services/pim/pimCredentials.ts", "await removeSlot(credentialManager, slot.calendar(vaultPath, accountId)", "caldav", 1, "other"],
   ["apps/mobile/src/services/pim/pimCredentials.ts", "await getPlatformServices().credentials.removeSecret(key(vaultId, accountId));", "caldav", 1, "other"],
@@ -224,6 +224,16 @@ describe("every way a calendar account or a mailbox goes away is listed with wha
     expect(body("apps/desktop/src/services/pim/pimAccounts.ts", "export async function removePimAccount(")).toMatch(/retireRemovedCalDavSecret\(runtime, vaultPath, accountId, take\)/);
     expect(body("apps/mobile/src/services/pim/pimService.ts", "export async function removePimAccount(")).toMatch(/retireRemovedCalDavSecret\(current\.vaultId, accountId, take\)/);
     expect(body("packages/ui/src/mail/mailAccounts.ts", "export async function removeMailAccountOnPurpose(")).toMatch(/await retire\(vaultPath, \{[^}]+\}, take\)/);
+    // ...and the account goes only once that note is written (review 2026-11-26, fourth round).
+    for (const [rel, start] of [
+      ["apps/desktop/src/services/pim/pimAccounts.ts", "export async function removePimAccount("],
+      ["apps/mobile/src/services/pim/pimService.ts", "export async function removePimAccount("],
+      ["packages/ui/src/mail/mailAccounts.ts", "export async function removeMailAccountOnPurpose("],
+    ] as const) {
+      const act = body(rel, start);
+      expect(act, rel).toMatch(/await removeAfterSecretsNote\(/);
+      expect(act, `${rel}: nothing catches the note`).not.toMatch(/\.catch\(reportingTo\("(?:pim|mail):remove-secret"\)\)/);
+    }
     // Stored access signs a calendar or mailbox password of a vault in use out before anything is removed (maintainer, 2026-11-18).
     expect(body("apps/desktop/src/services/storedCredentials.ts", "export async function removeStoredCredential(")).toMatch(
       /if \(\(kind === "calendar" \|\| kind === "mail"\) && !orphaned\) \{\s*await signOutAccountHere\([\s\S]*?if \(isSignedOutSlot\(await credentialManager\.readSecret\(slot\)\)\) return;\s*\}\s*await credentialManager\.removeSecret\(slot\);/,

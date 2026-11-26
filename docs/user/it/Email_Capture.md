@@ -1,6 +1,6 @@
 # Cattura e-mail
 
-Ultimo aggiornamento: 2026-11-25
+Ultimo aggiornamento: 2026-11-26
 
 Plainva può leggere la tua casella di posta per estrarre conoscenza dalle e-mail e portarla nel tuo vault, e — dalla 0.4.0 — anche scrivere e inviare e-mail. L'attenzione resta sulla **cattura** dei messaggi come note; una casella collegata tramite **IMAP** viene letta solo per la cattura (non cambia nulla in essa, nemmeno i contrassegni di lettura) finché non configuri l'invio.
 
@@ -20,7 +20,7 @@ Il collegamento verifica l'accesso prima che venga salvato qualcosa; le credenzi
 
 **Account e-mail senza password.** Una configurazione fallita durante il salvataggio poteva lasciare una voce senza password (Plainva 0.8.3 su desktop). L’area **E-mail** segnala una volta gli account che su questo dispositivo non hanno password e qui non hanno mai scaricato e-mail. **Vedi** mostra l’elenco. Se usi un account del genere su un altro dispositivo, scegli **Accedi**: in quel caso è la strada giusta. **Rimuovi** elimina la voce dopo una conferma, su tutti i dispositivi che sincronizzano le impostazioni di questo vault, mai e-mail o file. **Più tardi** nasconde l’avviso. Plainva non rimuove mai nulla da solo.
 
-**Cambiare i server di una casella.** Nell’area **E-mail**, **Modifica** (la matita) accanto a una casella collegata via IMAP apre il suo modulo, sul desktop come sul telefono: l’indirizzo, la password e **Server IMAP**, **Porta IMAP**, **Server SMTP** e **Porta SMTP**, compilati dalla casella. Un campo password lasciato vuoto mantiene la password salvata. Un server che cambi lì conta come digitato da te; uno lasciato com’era riceve la password solo se questo dispositivo lo ha confermato (per un server in una rete locale).
+**Cambiare i server di una casella.** Nell’area **E-mail**, **Modifica** (la matita) accanto a una casella collegata via IMAP apre il suo modulo: l’indirizzo, la password e **Server IMAP**, **Porta IMAP**, **Server SMTP** e **Porta SMTP**, compilati dalla casella; sul telefono, **Avanzate (server, porta, SMTP)** mostra i quattro campi dei server. Un campo password lasciato vuoto mantiene la password salvata, anche per un server che cambi lì: un server cambiato conta come digitato da te e riceve la password salvata. Uno lasciato com’era la riceve solo se questo dispositivo lo ha confermato (per un server in una rete locale).
 
 Un server di posta in una rete locale riceve la password da un dispositivo solo dopo che il suo indirizzo è stato confermato lì: [Indirizzi non cifrati e locali](Sync_Setup.md#indirizzi-non-cifrati-e-locali).
 

@@ -81,6 +81,7 @@ export * from "./lib/iconPickerModel";
 export * from "./lib/authErrors";
 export * from "./lib/pimAccountFailure";
 export * from "./lib/secretsPort";
+export * from "./lib/removeAfterSecretsNote";
 export * from "./lib/secretsMark";
 export * from "./lib/tokenBroker";
 export * from "./lib/accountCredentials";

@@ -1,6 +1,6 @@
 # E-Mail-Capture
 
-Stand: 2026-11-25
+Stand: 2026-11-26
 
 Plainva kann Dein Postfach lesen, um Wissen aus E-Mails in Deinen Vault zu holen — und seit 0.4.0 auch Mails verfassen und senden. Der Schwerpunkt bleibt das **Ablegen** von Nachrichten als Notizen; ein über **IMAP** verbundenes Postfach wird für das Ablegen nur gelesen (im Postfach ändert sich nichts, nicht einmal die Ungelesen-Markierungen), solange Du den Versand nicht einrichtest.
 
@@ -20,7 +20,7 @@ Beim Verbinden wird die Anmeldung geprüft, bevor irgendetwas gespeichert wird; 
 
 **E-Mail-Konten ohne Passwort.** Eine Einrichtung, die beim Speichern scheiterte, konnte einen Eintrag ohne Passwort zurücklassen (Plainva 0.8.3 am Desktop). Der Bereich **E-Mail** weist einmal auf Konten hin, die auf diesem Gerät kein Passwort haben und hier noch nie Mails abgerufen haben. **Ansehen** zeigt die Liste. Nutzt Du ein solches Konto auf einem anderen Gerät, wähle **Anmelden** — das ist dann der richtige Weg. **Entfernen** löscht den Eintrag nach einer Rückfrage auf allen Geräten, die die Einstellungen dieses Vaults abgleichen, nie Mails oder Dateien. **Später** blendet den Hinweis aus. Von sich aus entfernt Plainva nichts.
 
-**Die Server eines Postfachs ändern.** Im Bereich **E-Mail** öffnet **Bearbeiten** (der Stift) neben einem über IMAP verbundenen Postfach sein Formular, am Desktop wie am Telefon: die Adresse, das Passwort und **IMAP-Server**, **IMAP-Port**, **SMTP-Server** und **SMTP-Port**, ausgefüllt aus dem Postfach. Bleibt das Passwortfeld leer, bleibt das gespeicherte Passwort. Ein Server, den Du dort änderst, gilt als von Dir eingegeben; einer, den Du lässt, wie er war, bekommt das Passwort nur, wenn dieses Gerät ihn bestätigt hat (bei einem Server im lokalen Netz).
+**Die Server eines Postfachs ändern.** Im Bereich **E-Mail** öffnet **Bearbeiten** (der Stift) neben einem über IMAP verbundenen Postfach sein Formular: die Adresse, das Passwort und **IMAP-Server**, **IMAP-Port**, **SMTP-Server** und **SMTP-Port**, ausgefüllt aus dem Postfach; am Telefon zeigt **Erweitert (Server, Port, SMTP)** die vier Serverfelder. Bleibt das Passwortfeld leer, bleibt das gespeicherte Passwort, auch für einen Server, den Du dort änderst: Ein geänderter Server gilt als von Dir eingegeben und bekommt das gespeicherte Passwort. Einer, den Du lässt, wie er war, bekommt es nur, wenn dieses Gerät ihn bestätigt hat (bei einem Server im lokalen Netz).
 
 Ein Mailserver im lokalen Netz bekommt das Passwort von einem Gerät erst, wenn seine Adresse dort bestätigt ist: [Adressen ohne Verschlüsselung oder im lokalen Netz](Sync_Setup.md#adressen-ohne-verschlüsselung-oder-im-lokalen-netz).
 

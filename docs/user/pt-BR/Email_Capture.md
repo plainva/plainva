@@ -1,6 +1,6 @@
 # Captura de e-mail
 
-Última revisão: 2026-11-25
+Última revisão: 2026-11-26
 
 O Plainva pode ler sua caixa de e-mail para tirar conhecimento dos e-mails e levá-lo para o seu vault — e, desde a versão 0.4.0, também compor e enviar e-mails. O foco continua sendo a **captura** de mensagens como notas; uma caixa de correio conectada via **IMAP** é sempre apenas lida para captura (nada nela muda, nem mesmo as marcações de não lido), a menos que você configure o envio.
 
@@ -20,7 +20,7 @@ Conectar valida o login antes de salvar qualquer coisa; as credenciais vão para
 
 **Contas de e-mail sem senha.** Uma configuração que falhou ao salvar podia deixar uma entrada sem senha (Plainva 0.8.3 no desktop). A área **E-mail** aponta uma vez as contas que não têm senha neste dispositivo e nunca baixaram e-mails aqui. **Ver** mostra a lista. Se você usa uma dessas contas em outro dispositivo, escolha **Entrar** — esse é então o caminho certo. **Remover** apaga a entrada depois de perguntar, em todos os dispositivos que sincronizam as configurações deste vault, nunca e-mails ou arquivos. **Depois** oculta o aviso. O Plainva nunca remove nada por conta própria.
 
-**Mudar os servidores de uma caixa de correio.** Na área **E-mail**, **Editar** (o lápis) ao lado de uma caixa conectada por IMAP abre o formulário dela, no desktop como no celular: o endereço, a senha e **Servidor IMAP**, **Porta IMAP**, **Servidor SMTP** e **Porta SMTP**, preenchidos a partir da caixa. Um campo de senha deixado vazio mantém a senha salva. Um servidor que você muda ali conta como digitado por você; um deixado como estava só recebe a senha se este dispositivo o tiver confirmado (para um servidor em uma rede local).
+**Mudar os servidores de uma caixa de correio.** Na área **E-mail**, **Editar** (o lápis) ao lado de uma caixa conectada por IMAP abre o formulário dela: o endereço, a senha e **Servidor IMAP**, **Porta IMAP**, **Servidor SMTP** e **Porta SMTP**, preenchidos a partir da caixa; no celular, **Avançado (servidor, porta, SMTP)** mostra os quatro campos de servidor. Um campo de senha deixado vazio mantém a senha salva, também para um servidor que você muda ali: um servidor alterado conta como digitado por você e recebe a senha salva. Um deixado como estava só a recebe se este dispositivo o tiver confirmado (para um servidor em uma rede local).
 
 Um servidor de e-mail em uma rede local só recebe a senha de um dispositivo depois que o endereço dele for confirmado nele: [Endereços sem criptografia e locais](Sync_Setup.md#endereços-sem-criptografia-e-locais).
 

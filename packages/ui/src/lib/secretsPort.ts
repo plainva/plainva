@@ -126,19 +126,11 @@ export interface SecretsPortMeta {
       /** This tombstone was written by "Remove account" on this device (`retireSecret`). */
       removal?: true;
       /**
-       * This device put the password of an account still on it above a
-       * tombstone it found (a tombstone never empties the slot of an account
-       * still here: the password goes out above it). When the settings
-       * profile then takes that account away (`noteSecretLeftWithProfile`),
-       * the tombstone it went over comes back: this device put the password
-       * there, and nobody else would take it out.
-       */
-      over?: true;
-      /**
        * Carried to this name by a repair (`carryRepairedKnowledge`): this
-       * device puts the entry here, though its version is the one it had
-       * under the name before. Taken back like its own when the account
-       * leaves with the settings profile.
+       * device puts the entry here, though its version (and so its device)
+       * is the one it had under the name before. Taken back like its own when
+       * the account leaves with the settings profile, until this device takes
+       * a newer password under that name or one is typed here.
        */
       moved?: true;
     }
@@ -192,6 +184,14 @@ export interface SecretsPortMeta {
    * account, not the history of its slot.
    */
   slotNames?: Record<string, string>;
+  /**
+   * The highest revision a slot knew under the names it had before a repair,
+   * by its name now (`carryRepairedKnowledge`). What this device writes under
+   * that name — a password typed here, a removal — goes above it, so it never
+   * falls below a version another updated device carried over from the old
+   * name. Dropped once the record under the name is at or above it.
+   */
+  floors?: Record<string, number>;
   /**
    * The document, accounts and slots the last import took with nothing left
    * open, as a mark (`settledKey`). The same again is settled: nothing is
@@ -315,6 +315,7 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   ...(source?.closedOldNames ? { closedOldNames: { ...source.closedOldNames } } : {}),
   ...(source?.removedIds ? { removedIds: Object.fromEntries(Object.entries(source.removedIds).map(([id, state]) => [id, { ...state }])) } : {}),
   ...(source?.slotNames ? { slotNames: { ...source.slotNames } } : {}),
+  ...(source?.floors ? { floors: { ...source.floors } } : {}),
   ...(source?.settled ? { settled: source.settled } : {}),
 });
 
@@ -350,9 +351,11 @@ export async function retireSecret(
 
 /**
  * The settings profile took this account away (it was removed elsewhere):
- * said by the profile import, never inferred from a missing row. If this
- * device had put the account's password above a tombstone (`over`), its next
- * export brings that tombstone back; otherwise nothing is written.
+ * said by the profile import, never inferred from a missing row. Its next
+ * export takes back what this device published for the account itself (above
+ * a tombstone too) or carried there by a repair (`moved`), under the
+ * account's name and every earlier address of the same user; what it only
+ * received is its publisher's to take back.
  */
 export async function noteSecretLeftWithProfile(host: Pick<SecretsPortHost, "readMeta" | "writeMeta">, binding: SecretBinding): Promise<void> {
   await serialized(async () => {
@@ -513,58 +516,73 @@ function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSe
 }
 
 /**
- * A repair changes the name, not the history (review 2026-11-25, third
- * round). An account whose address was repaired — here, or by the settings
- * profile — keeps its slot under another name. What the slot knew under the
- * name it was last listed under holds under the new one: whether its password
- * came in through the sync or was typed here, the version of the entry it
- * holds, the highest revision it saw and did not take (`heldRev`). Unchanged,
- * the password goes out under the new name with the version it had, so it
- * never beats a newer one there; changed since, it goes out above every
- * revision this device knew under either name. A device that received its
- * password follows a change made elsewhere after the repair as before it.
+ * A repair changes the name, not the history (review 2026-11-25, third and
+ * fourth round; the table "A repair changes the name, not the history" in
+ * `docs/engineering/Secrets_Removal_Rules.md`, one test per cell in
+ * `apps/desktop/src/services/secretsRepairCells.test.ts`). An account whose
+ * address was repaired — here, or by the settings profile — keeps its slot
+ * under another name, and the slot keeps what it knew under the name it was
+ * last listed under:
  *
- * Nothing is carried from a name an account here still has (two rows, one
- * name), from an alias or a record of a lost key, or into a tombstone; from a
- * tombstone of another device under the old name only whether the password
- * came in through the sync, from this device's own removal nothing. A record that already holds the slot's password under the new
- * name keeps its own version. Without a note of its slot (a record written
- * by 0.9.0 or before) nothing is carried: the device behaves as those
- * versions did until its first round writes the note.
+ *  - Received or typed belongs to the slot: the mark of having come in
+ *    through the sync is the one it had under the old name, whatever this
+ *    device knows of the new one (nothing, a password, a tombstone of another
+ *    device, its own removal).
+ *  - Every revision it knew under the old name is a floor under the new one
+ *    (`floors`): a password typed after the repair, or a removal, goes out
+ *    above it.
+ *  - The version of the entry it holds goes along only from a password whose
+ *    record is settled (not of a lost key, not held, not waiting to be
+ *    confirmed) and only where the new name holds no tombstone (the password
+ *    goes out above that one) and no record with the slot's own password
+ *    (that record keeps its version). Unchanged, the password then goes out
+ *    under the new name with the version it had, so it never beats a newer
+ *    one there.
+ *
+ * Nothing is carried from a name another account here still has (two rows,
+ * one name), from an alias, or between two kinds. Without a note of its slot
+ * (a record written by 0.9.0 or before) nothing is carried: the device behaves
+ * as those versions did until its first round writes the note.
  */
 async function carryRepairedKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], mark: SecretsMarker): Promise<void> {
   const listed = new Set(candidates.map((candidate) => candidate.logicalId));
   for (const candidate of candidates) {
     if (!isShareableSecretType(candidate.binding.secretType)) continue;
+    const id = candidate.logicalId;
     const former = meta.slotNames?.[candidate.slot];
-    if (!former || former === candidate.logicalId || listed.has(former)) continue;
+    if (!former || former === id || listed.has(former)) continue;
     const known = meta.entries[former];
-    if (!known || known.alias || known.binding.secretType !== candidate.binding.secretType) continue;
-    const here = meta.entries[candidate.logicalId];
-    // Under the old name a tombstone of another device (a device on 0.9.0
-    // writes one for the address it repaired away from) took the place of
-    // the version this slot held: only whether its password came in through
-    // the sync goes along, never a version, so nothing older goes out.
-    if (known.tombstone) {
-      if (!known.removal && !here && meta.imported[former]) meta.imported[candidate.logicalId] = true;
-      continue;
-    }
-    if (isLostMark(mark, known.hash) || known.sinceLoss || known.held || known.unconfirmed) continue;
+    if (known && (known.alias || known.binding.secretType !== candidate.binding.secretType)) continue;
+    if (meta.imported[former]) meta.imported[id] = true;
+    else delete meta.imported[id];
+    if (!known) continue;
+    const floor = Math.max(known.entryRev, known.heldRev ?? 0, meta.floors?.[former] ?? 0);
+    if (floor > (meta.floors?.[id] ?? 0)) meta.floors = { ...(meta.floors ?? {}), [id]: floor };
+    if (known.tombstone || isLostMark(mark, known.hash) || known.sinceLoss || known.held || known.unconfirmed) continue;
+    const here = meta.entries[id];
     if (here?.tombstone) continue;
-    if (meta.imported[former]) meta.imported[candidate.logicalId] = true;
     if (here && candidate.secret && here.hash === (await pairMark(mark, candidate.binding, candidate.secret))) continue;
     const seen = Math.max(known.heldRev ?? 0, here?.entryRev ?? 0, here?.heldRev ?? 0);
-    meta.entries[candidate.logicalId] = {
+    meta.entries[id] = {
       hash: await movedHash(mark, known, candidate),
       entryRev: known.entryRev,
-      updatedAt: known.updatedAt,
+      // A moment before its time: one device that wrote both names in one
+      // round gave both entries one revision, time and device, and a repair
+      // that makes them one name would leave two entries the merge cannot
+      // order — each device would keep sending its own. Carried, the version
+      // yields to any entry of that very version (fourth round).
+      updatedAt: justBefore(known.updatedAt),
       deviceId: known.deviceId,
       binding: candidate.binding,
       ...(seen > 0 ? { heldRev: seen } : {}),
-      ...(known.over ? { over: true as const } : {}),
       moved: true,
     };
   }
+}
+
+/** The floor under a name (`floors`): what this device writes under it goes above it. */
+function floorOf(meta: SecretsPortMeta, id: string): number {
+  return meta.floors?.[id] ?? 0;
 }
 
 /** Notes the name each slot is listed under now (`slotNames`); a note whose slot and record are both gone goes. */
@@ -579,6 +597,12 @@ function noteSlotNames(meta: SecretsPortMeta, candidates: readonly LocalSecretCa
     if (!slots.has(slot) && !meta.entries[id]) delete meta.slotNames![slot];
   }
   if (meta.slotNames && Object.keys(meta.slotNames).length === 0) delete meta.slotNames;
+  const names = new Set(candidates.map((candidate) => candidate.logicalId));
+  for (const id of Object.keys(meta.floors ?? {})) {
+    const record = meta.entries[id];
+    if (!names.has(id) || (record && record.entryRev >= meta.floors![id])) delete meta.floors![id];
+  }
+  if (meta.floors && Object.keys(meta.floors).length === 0) delete meta.floors;
 }
 
 /**
@@ -840,7 +864,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // The revision only moves when the secret actually changed — otherwise
         // two devices would ping-pong revisions on every cycle.
         const changed = !previous || previous.tombstone || !!previous.held || previous.hash !== hash;
-        const entryRev = changed || !previous ? Math.max(previous?.entryRev ?? 0, previous?.heldRev ?? 0) + 1 : previous.entryRev;
+        const entryRev = changed || !previous ? Math.max(previous?.entryRev ?? 0, previous?.heldRev ?? 0, floorOf(meta, candidate.logicalId)) + 1 : previous.entryRev;
         const updatedAt = changed || !previous ? stamp : previous.updatedAt;
         // An unconfirmed baseline goes out just below the version it knew.
         const below = !changed && !!previous?.unconfirmed;
@@ -852,8 +876,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           secret: candidate.secret,
         };
         // Above a tombstone this device found for an account still here, the
-        // password goes out — and is this device's to take back (`over`).
-        const over = !!previous?.over || (!!previous?.tombstone && !previous.removal);
+        // password goes out — as this device's entry, so its to take back.
         meta.entries[candidate.logicalId] = {
           // Unchanged, the record keeps what it knew besides (the revision seen).
           ...(changed || !previous ? {} : previous),
@@ -862,7 +885,6 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           updatedAt,
           deviceId: below ? previous!.deviceId : entries[candidate.logicalId].deviceId,
           binding: candidate.binding,
-          ...(over ? { over: true as const } : {}),
         };
       }
 
@@ -920,7 +942,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         }
         const binding = isShareableSecretType(previous.binding.secretType) ? previous.binding : removed;
         if (!isShareableSecretType(binding.secretType)) return;
-        const entryRev = Math.max(previous.entryRev, previous.heldRev ?? 0) + 1;
+        const entryRev = Math.max(previous.entryRev, previous.heldRev ?? 0, floorOf(meta, id)) + 1;
         entries[id] = { entryRev, updatedAt: at, deviceId, binding, tombstone: true };
         meta.entries[id] = { hash: "", entryRev, updatedAt: at, deviceId, binding, tombstone: true, removal: true };
         delete meta.imported[id];
@@ -935,14 +957,14 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         if (knownOld) {
           const oldRev = known!.entryRev + 1;
           entries[old!] = { entryRev: oldRev, updatedAt: at, deviceId, binding: known!.binding, tombstone: true };
-          const { alias: _alias, over: _over, ...rest } = known!;
+          const { alias: _alias, moved: _moved, ...rest } = known!;
           meta.entries[old!] = { ...rest, hash: "", entryRev: oldRev, updatedAt: at, deviceId, tombstone: true, removal: true };
           noteRemoved(old!, at, known!.binding);
         }
       };
       // The profile took the account away (removed elsewhere — said by the
       // profile import, never read from a list): what this device published
-      // for it itself, or put above a tombstone (`over`), is taken back with
+      // for it itself (above a tombstone too), or carried by a repair (`moved`), is taken back with
       // a tombstone one revision above it — under its name, and under every
       // earlier address of the same user that no account here has any more
       // (an address repaired before writes nothing under the old name, so its
@@ -952,10 +974,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         for (const [id, previous] of Object.entries(meta.entries)) {
           if (previous.tombstone || knownIds.has(id) || !isShareableSecretType(previous.binding.secretType) || previous.binding.secretType !== left.secretType) continue;
           if (!bindingMatchesExceptFamily({ ...previous.binding, endpoint: left.endpoint }, left, "fold")) continue;
-          if (!previous.over && !previous.moved && previous.deviceId !== deviceId) continue;
+          if (!previous.moved && previous.deviceId !== deviceId) continue;
           const entryRev = previous.entryRev + 1;
           entries[id] = { entryRev, updatedAt: stamp, deviceId, binding: previous.binding, tombstone: true };
-          const { over: _over, moved: _moved, ...rest } = previous;
+          const { moved: _moved, ...rest } = previous;
           meta.entries[id] = { ...rest, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
         }
       };
@@ -1163,8 +1185,18 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
                 const { unconfirmed: _u, sinceLoss: _s, ...rest } = previous;
                 meta.entries[logicalId] = rest;
               }
-              recordImportResult(result, logicalId, "unchanged", "already-current");
-              continue;
+              // ...unless the slot of the account here was emptied outside
+              // this port (the keychain entry deleted, "Stored access" of a
+              // vault no longer listed, which is opened again later) and is
+              // not signed out: the password in the document reaches every
+              // device that has the account (review 2026-11-26, fourth round,
+              // H1). It is read in below like any other.
+              const here = byId.get(logicalId);
+              const emptied = !entry.tombstone && !!here && !here.secret && !here.signedOutHere && previous.hash !== (await pairMark(mark, here.binding, null));
+              if (!emptied) {
+                recordImportResult(result, logicalId, "unchanged", "already-current");
+                continue;
+              }
             } else if (atLoss) {
               // The same version with another password than the slot holds
               // after a lost key: held here, neither overwritten nor
@@ -1303,7 +1335,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // an account still here is another device's view — a device on 0.9.0
         // or 0.8.7 still writes one for an address it repaired, and applied,
         // it took a working password. It is remembered, and the password this
-        // device holds goes out above it at its next export (`over`).
+        // device holds goes out above it at its next export, as its own.
         if (entry.tombstone) {
           await rememberEntry(logicalId, entry);
           recordImportResult(result, logicalId, "unchanged", candidate.secret ? "account-still-here" : "tombstone-no-local-secret");
@@ -1313,7 +1345,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // it in again. Seen, not taken — a sign-in here goes out above it.
         if (candidate.signedOutHere) {
           if (previous && !previous.tombstone && entry.entryRev > (previous.heldRev ?? 0)) {
-            meta.entries[logicalId] = { ...previous, heldRev: entry.entryRev };
+            meta.entries[logicalId] = { ...meta.entries[logicalId]!, heldRev: entry.entryRev };
           }
           recordImportResult(result, logicalId, "unchanged", "signed-out-here");
           continue;
@@ -1326,7 +1358,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             // it — after a lost key, beside a held slot, or beside this
             // device's own password (round twelve; F73).
             if (previous && entry.entryRev > (previous.heldRev ?? 0)) {
-              meta.entries[logicalId] = { ...previous, heldRev: entry.entryRev };
+              meta.entries[logicalId] = { ...meta.entries[logicalId]!, heldRev: entry.entryRev };
             }
             recordImportResult(result, logicalId, "rejected", "local-secret-conflict");
             continue;

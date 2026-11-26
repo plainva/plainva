@@ -1025,8 +1025,11 @@ export async function importAccountMetadata(
       ...importedRows,
     ]);
     // A mailbox the document removed takes its sign-in along (as a calendar
-    // account does through `deletePimAccount`). The deletion stays in the
-    // document: should this fail, the next application tries again.
+    // account does through `deletePimAccount`), and the secrets sync is told
+    // (`noteSecretLeftWithProfile`). The row is gone already, so should this
+    // fail (the store refused), no later application tries again: what this
+    // device itself put into the shared document for the mailbox stays there
+    // (named limit, `docs/engineering/Secrets_Removal_Rules.md`).
     for (const gone of existing.filter((a) => removedMailLocals.has(a.id) && !importedIds.has(a.id))) {
       await ports.removeMailSecret(gone).catch(reportingTo("account:profile-removal"));
     }

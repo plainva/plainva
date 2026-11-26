@@ -1,5 +1,5 @@
 import { fetch as httpFetch } from "@tauri-apps/plugin-http";
-import { adoptedPimConfig, ownConfirmedAccessConfig, reportingTo } from "@plainva/ui";
+import { adoptedPimConfig, ownConfirmedAccessConfig, removeAfterSecretsNote, reportingTo } from "@plainva/ui";
 import { CalDavPimTarget, GooglePimTarget, GraphPimTarget, type PimAccountRow, type IPimTarget } from "@plainva/core";
 import { calendarGrantProbe } from "../accountBroker";
 import { restartPimAccountAfterLogin, type PimRuntime } from "./pimRuntime";
@@ -295,20 +295,19 @@ export async function connectMicrosoftAccount(
 }
 
 export async function removePimAccount(runtime: PimRuntime, vaultPath: string, accountId: string): Promise<void> {
-  // Before it is gone: the tombstone stops the next profile import putting it
-  // back, which is what made deleted calendar accounts keep returning (P2).
-  await noteAccountRemovedLocally(vaultPath, "pim", accountId).catch(reportingTo("pim:remove-tombstone"));
   // Its password leaves the secrets sync by this act (review 2026-11-18), the
   // only act that writes a tombstone (review 2026-11-25). The row goes in the
   // same line as the secrets rounds, so no round finds the mark while the row
-  // is still there.
-  let taken = false;
-  const take = async () => {
-    await runtime.cache.deleteAccount(accountId);
-    taken = true;
-  };
-  await retireRemovedCalDavSecret(runtime, vaultPath, accountId, take).catch(reportingTo("pim:remove-secret"));
-  if (!taken) await take();
+  // is still there — and only once that note is written (`removeAfterSecretsNote`).
+  await removeAfterSecretsNote(
+    (take) => retireRemovedCalDavSecret(runtime, vaultPath, accountId, take),
+    async () => {
+      // Before it is gone: the tombstone stops the next profile import putting
+      // it back, which is what made deleted calendar accounts keep returning (P2).
+      await noteAccountRemovedLocally(vaultPath, "pim", accountId).catch(reportingTo("pim:remove-tombstone"));
+      await runtime.cache.deleteAccount(accountId);
+    },
+  );
   // A sign-in left in the keychain of an account that is gone: for the diagnostics.
   await clearPimCredentials(vaultPath, accountId).catch(reportingTo("pim:remove-credentials"));
 }

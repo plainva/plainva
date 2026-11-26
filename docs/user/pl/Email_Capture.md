@@ -1,6 +1,6 @@
 # Przechwytywanie e-maili
 
-Stan na: 2026-11-25
+Stan na: 2026-11-26
 
 Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili do Twojego vaulta — a od wersji 0.4.0 także pisać i wysyłać wiadomości. Nacisk pozostaje na **przechwytywaniu** wiadomości jako notatek; skrzynka połączona przez **IMAP** jest do przechwytywania wyłącznie odczytywana (nic się w niej nie zmienia, nawet znaczniki nieprzeczytanych), o ile nie skonfigurujesz wysyłania.
 
@@ -20,7 +20,7 @@ Plainva może czytać Twoją skrzynkę pocztową, aby wydobyć wiedzę z e-maili
 
 **Konta e-mail bez hasła.** Konfiguracja, która nie powiodła się przy zapisie, mogła pozostawić wpis bez hasła (Plainva 0.8.3 na komputerze). Obszar **E-mail** jeden raz wskazuje konta, które na tym urządzeniu nie mają hasła i nigdy nie pobrały tu wiadomości. **Pokaż** wyświetla listę. Jeśli takie konto działa na innym urządzeniu, należy wybrać **Zaloguj się** — to wtedy właściwa droga. **Usuń** po potwierdzeniu kasuje wpis na wszystkich urządzeniach synchronizujących ustawienia tego vaultu, nigdy wiadomości ani pliki. **Później** ukrywa komunikat. Plainva nigdy nie usuwa niczego samodzielnie.
 
-**Zmiana serwerów skrzynki.** W obszarze **E-mail** przycisk **Edytuj** (ołówek) obok skrzynki połączonej przez IMAP otwiera jej formularz, na komputerze tak samo jak na telefonie: adres, hasło oraz **Serwer IMAP**, **Port IMAP**, **Serwer SMTP** i **Port SMTP**, wypełnione na podstawie skrzynki. Pozostawione puste pole hasła zachowuje zapisane hasło. Serwer zmieniony tam liczy się jako wpisany przez Ciebie; serwer pozostawiony bez zmian dostaje hasło tylko wtedy, gdy to urządzenie go potwierdziło (w przypadku serwera w sieci lokalnej).
+**Zmiana serwerów skrzynki.** W obszarze **E-mail** przycisk **Edytuj** (ołówek) obok skrzynki połączonej przez IMAP otwiera jej formularz: adres, hasło oraz **Serwer IMAP**, **Port IMAP**, **Serwer SMTP** i **Port SMTP**, wypełnione na podstawie skrzynki; na telefonie cztery pola serwerów pokazuje **Zaawansowane (serwer, port, SMTP)**. Pozostawione puste pole hasła zachowuje zapisane hasło, także dla serwera zmienionego w tym formularzu: zmieniony serwer liczy się jako wpisany ręcznie i dostaje zapisane hasło. Serwer pozostawiony bez zmian dostaje je tylko wtedy, gdy to urządzenie go potwierdziło (w przypadku serwera w sieci lokalnej).
 
 Serwer poczty w sieci lokalnej dostaje hasło z urządzenia dopiero wtedy, gdy jego adres zostanie tam potwierdzony: [Adresy bez szyfrowania i lokalne](Sync_Setup.md#adresy-bez-szyfrowania-i-lokalne).
 

@@ -133,3 +133,42 @@ describe("phone: what takes an account away, and what writes a tombstone", () =>
     expect(result.entries.map((entry) => entry.reason)).toEqual(["signed-out-here", "signed-out-here"]);
   });
 });
+
+describe("phone: a removal whose note for the secrets sync cannot be written does not happen, and says so", () => {
+  // Review 2026-11-26, fourth round (M2), as on the desktop: the account goes
+  // only once its removal is written (`removeAfterSecretsNote`), whether or
+  // not the code that writes it has loaded.
+  it("an IMAP mailbox, while the code that writes the note does not load", async () => {
+    state.store.set(mailAccountsKey(VAULT), [mailbox("m2", "bert@example.com")]);
+    state.slots.set(mailSecretKey(VAULT, "m2"), { pass: "B1" });
+    await port().exportBundle();
+    const services = { ...(await import("@plainva/ui")).getPlatformServices() };
+    setPlatformServices({ ...services, retireMailSecret: () => Promise.reject(new TypeError("Failed to fetch dynamically imported module")) });
+    await expect(removeMailAccountOnPurpose(VAULT, "m2")).rejects.toThrow("dynamically imported module");
+    expect((state.store.get(mailAccountsKey(VAULT)) as MailAccountConfig[]).map((row) => row.id), "the mailbox stays").toEqual(["m2"]);
+    setPlatformServices(services);
+    await removeMailAccountOnPurpose(VAULT, "m2");
+    expect((await port().exportBundle()).entries[mailId("bert@example.com")]?.tombstone).toBe(true);
+  });
+
+  it("a calendar account: the account goes inside the note, and not when the note fails", async () => {
+    const { removeAfterSecretsNote } = await import("@plainva/ui");
+    calendars("anna");
+    await port().exportBundle();
+    const take = async () => {
+      state.calendars = state.calendars.filter((row) => row.id !== "c1");
+      state.slots.delete(pimSecretKey(VAULT, "c1"));
+    };
+    // As `removePimAccount` of the phone does it (`apps/mobile/src/services/pim/pimService.ts`).
+    await expect(removeAfterSecretsNote(() => Promise.reject(new Error("store refused")), take)).rejects.toThrow("store refused");
+    expect(state.calendars.map((row) => row.id), "the calendar account stays").toEqual(["c1"]);
+    await removeAfterSecretsNote((inside) => retireCalDavSecret(VAULT, CAL, "anna", inside), take);
+    expect(state.calendars).toEqual([]);
+    expect((await port().exportBundle()).entries[calId("anna")]?.tombstone).toBe(true);
+    // A note with nothing to note (no password account) takes the account here.
+    calendars("bert");
+    await removeAfterSecretsNote(async () => undefined, async () => void (state.calendars = []));
+    expect(state.calendars).toEqual([]);
+  });
+});
+

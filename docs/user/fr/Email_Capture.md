@@ -1,6 +1,6 @@
 # Capture d'e-mails
 
-Dernière mise à jour : 2026-11-25
+Dernière mise à jour : 2026-11-26
 
 Plainva peut lire votre boîte aux lettres pour faire passer la connaissance de vos e-mails dans votre vault, et — depuis la 0.4.0 — aussi rédiger et envoyer des e-mails. L'accent reste sur la **capture** de messages sous forme de notes ; une boîte connectée via **IMAP** n'est lue que pour la capture (rien n'y change, pas même les marqueurs de lecture) tant que vous ne configurez pas l'envoi.
 
@@ -20,7 +20,7 @@ Connecter le compte valide l'identification avant que quoi que ce soit ne soit e
 
 **Comptes e-mail sans mot de passe.** Une configuration qui échouait à l’enregistrement pouvait laisser une entrée sans mot de passe (Plainva 0.8.3 sur ordinateur). La zone **E-mail** signale une fois les comptes qui n’ont pas de mot de passe sur cet appareil et n’y ont jamais récupéré d’e-mails. **Voir** affiche la liste. Si vous utilisez un tel compte sur un autre appareil, choisissez **Se connecter** — c’est alors la bonne voie. **Retirer** supprime l’entrée après confirmation, sur tous les appareils qui synchronisent les réglages de ce vault, jamais d’e-mails ni de fichiers. **Plus tard** masque l’avis. Plainva ne retire jamais rien de lui-même.
 
-**Modifier les serveurs d’une boîte aux lettres.** Dans la zone **E-mail**, **Modifier** (le crayon) à côté d’une boîte connectée en IMAP ouvre son formulaire, sur ordinateur comme sur le téléphone : l’adresse, le mot de passe et **Serveur IMAP**, **Port IMAP**, **Serveur SMTP** et **Port SMTP**, remplis à partir de la boîte. Un champ de mot de passe laissé vide conserve le mot de passe enregistré. Un serveur que vous y modifiez compte comme saisi par vous ; un serveur laissé tel quel ne reçoit le mot de passe que si cet appareil l’a confirmé (pour un serveur sur un réseau local).
+**Modifier les serveurs d’une boîte aux lettres.** Dans la zone **E-mail**, **Modifier** (le crayon) à côté d’une boîte connectée en IMAP ouvre son formulaire : l’adresse, le mot de passe et **Serveur IMAP**, **Port IMAP**, **Serveur SMTP** et **Port SMTP**, remplis à partir de la boîte ; sur le téléphone, **Avancé (serveur, port, SMTP)** affiche les quatre champs de serveur. Un champ de mot de passe laissé vide conserve le mot de passe enregistré, aussi pour un serveur que vous y modifiez : un serveur modifié compte comme saisi par vous et reçoit le mot de passe enregistré. Un serveur laissé tel quel ne le reçoit que si cet appareil l’a confirmé (pour un serveur sur un réseau local).
 
 Un serveur de messagerie sur un réseau local ne reçoit le mot de passe d’un appareil qu’une fois son adresse confirmée sur celui-ci : [Adresses non chiffrées et locales](Sync_Setup.md#adresses-non-chiffrées-et-locales).
 

@@ -12,7 +12,7 @@ import { calDavSecretBinding, imapSecretBinding, retiredServiceSignIn, setPlatfo
  * the fleets in `secretsRemovalFleet.test.ts`.
  */
 
-const state = vi.hoisted(() => ({ store: new Map<string, unknown>(), slots: new Map<string, unknown>() }));
+const state = vi.hoisted(() => ({ store: new Map<string, unknown>(), slots: new Map<string, unknown>(), refuseRetired: false }));
 vi.mock("@tauri-apps/plugin-http", () => ({ fetch: vi.fn() }));
 vi.mock("./settingsProfile", () => ({ noteAccountRemovedLocally: vi.fn(async () => undefined), getDeviceId: async () => "laptop" }));
 vi.mock("./pim/pimAuth", () => ({ authorizeGooglePim: vi.fn(), authorizeMicrosoftPim: vi.fn(), buildPimAuthProvider: vi.fn() }));
@@ -20,7 +20,10 @@ vi.mock("./cloudAccounts", () => ({ loadCloudAccounts: vi.fn(async () => []) }))
 vi.mock("./settingsStore", () => ({
   getSettingsStore: vi.fn(async () => ({
     get: async (key: string) => structuredClone(state.store.get(key) ?? null),
-    set: async (key: string, value: unknown) => void state.store.set(key, structuredClone(value)),
+    set: async (key: string, value: unknown) => {
+      if (state.refuseRetired && key.startsWith("settingsSyncSecretRetired_")) throw new Error("store refused");
+      state.store.set(key, structuredClone(value));
+    },
     delete: async (key: string) => state.store.delete(key),
     keys: async () => [...state.store.keys()],
     save: async () => undefined,
@@ -53,6 +56,7 @@ let tick = 0;
 beforeEach(() => {
   state.store.clear();
   state.slots.clear();
+  state.refuseRetired = false;
   tick = 0;
   setPlatformServices({
     loadSettings: async () => ({
@@ -164,5 +168,46 @@ describe("desktop: what takes an account away, and what writes a tombstone", () 
     expect(state.slots.get(pimSecretKey(VAULT, "c1"))).toMatchObject({ pass: "", signedOutHere: true });
     expect(state.slots.get(mailSecretKey(VAULT, "m1"))).toMatchObject({ pass: "", signedOutHere: true });
     expect(result.entries.map((entry) => entry.reason)).toEqual(["signed-out-here", "signed-out-here"]);
+  });
+});
+
+describe("desktop: a removal whose note for the secrets sync cannot be written does not happen, and says so", () => {
+  // Review 2026-11-26, fourth round (M2): the act is the one writer of the
+  // tombstone, so the account may only go once its removal is written —
+  // whether or not the code that writes it has loaded, whether or not the
+  // store takes it.
+  it("an IMAP mailbox, while the code that writes the note does not load", async () => {
+    state.store.set(mailAccountsKey(VAULT), [mailbox("m2", "bert@example.com")]);
+    state.slots.set(mailSecretKey(VAULT, "m2"), { pass: "B1" });
+    await portFor(null).exportBundle();
+    const services = { ...(await import("@plainva/ui")).getPlatformServices() };
+    setPlatformServices({ ...services, retireMailSecret: () => Promise.reject(new TypeError("Failed to fetch dynamically imported module")) });
+    await expect(removeMailAccountOnPurpose(VAULT, "m2")).rejects.toThrow("dynamically imported module");
+    expect((state.store.get(mailAccountsKey(VAULT)) as MailAccountConfig[]).map((row) => row.id), "the mailbox stays").toEqual(["m2"]);
+    expect(state.slots.get(mailSecretKey(VAULT, "m2"))).toEqual({ pass: "B1" });
+    // Once it loads, the same act removes the mailbox and writes its tombstone.
+    setPlatformServices(services);
+    await removeMailAccountOnPurpose(VAULT, "m2");
+    expect((await portFor(null).exportBundle()).entries[mailId("bert@example.com")]?.tombstone).toBe(true);
+  });
+
+  it("an IMAP mailbox and a calendar account, while the store refuses the note", async () => {
+    const rows = [calRow("c1", "anna")];
+    const runtime = calendar(rows);
+    state.slots.set(pimSecretKey(VAULT, "c1"), { kind: "caldav", url: CAL, user: "anna", pass: "A1" });
+    state.store.set(mailAccountsKey(VAULT), [mailbox("m2", "bert@example.com")]);
+    state.slots.set(mailSecretKey(VAULT, "m2"), { pass: "B1" });
+    await portFor(runtime).exportBundle();
+    state.refuseRetired = true;
+    await expect(removePimAccount(runtime, VAULT, "c1")).rejects.toThrow("store refused");
+    await expect(removeMailAccountOnPurpose(VAULT, "m2")).rejects.toThrow("store refused");
+    expect(rows.map((row) => row.id), "the calendar account stays").toEqual(["c1"]);
+    expect((state.store.get(mailAccountsKey(VAULT)) as MailAccountConfig[]).map((row) => row.id), "the mailbox stays").toEqual(["m2"]);
+    state.refuseRetired = false;
+    await removePimAccount(runtime, VAULT, "c1");
+    await removeMailAccountOnPurpose(VAULT, "m2");
+    const after = await portFor(runtime).exportBundle();
+    expect(after.entries[calId("anna")]?.tombstone).toBe(true);
+    expect(after.entries[mailId("bert@example.com")]?.tombstone).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 # Captura de correo
 
-Última actualización: 2026-11-25
+Última actualización: 2026-11-26
 
 Plainva puede leer tu buzón para sacar conocimiento del correo y llevarlo a tu vault, y — desde la 0.4.0 — también redactar y enviar correo. El foco sigue en la **captura** de mensajes como notas; un buzón conectado por **IMAP** solo se lee para la captura (nada en él cambia, ni siquiera las marcas de no leído) mientras no configures el envío.
 
@@ -20,7 +20,7 @@ Al conectar se valida el inicio de sesión antes de guardar nada; las credencial
 
 **Cuentas de correo sin contraseña.** Una configuración que falló al guardar podía dejar una entrada sin contraseña (Plainva 0.8.3 en el escritorio). El área **Correo** señala una vez las cuentas que no tienen contraseña en este dispositivo y que aquí nunca han recibido correo. **Ver** muestra la lista. Si usas una de esas cuentas en otro dispositivo, elige **Iniciar sesión**: ese es entonces el camino correcto. **Quitar** elimina la entrada tras preguntar, en todos los dispositivos que sincronizan los ajustes de este vault, nunca correos ni archivos. **Más tarde** oculta el aviso. Plainva nunca quita nada por su cuenta.
 
-**Cambiar los servidores de un buzón.** En el área **Correo**, **Editar** (el lápiz) junto a un buzón conectado por IMAP abre su formulario, en el escritorio igual que en el teléfono: la dirección, la contraseña y **Servidor IMAP**, **Puerto IMAP**, **Servidor SMTP** y **Puerto SMTP**, rellenados a partir del buzón. Si dejas vacío el campo de la contraseña, se mantiene la contraseña guardada. Un servidor que cambias ahí cuenta como escrito por ti; uno que dejas como estaba solo recibe la contraseña si este dispositivo lo ha confirmado (en un servidor de una red local).
+**Cambiar los servidores de un buzón.** En el área **Correo**, **Editar** (el lápiz) junto a un buzón conectado por IMAP abre su formulario: la dirección, la contraseña y **Servidor IMAP**, **Puerto IMAP**, **Servidor SMTP** y **Puerto SMTP**, rellenados a partir del buzón; en el teléfono, **Avanzado (servidor, puerto, SMTP)** muestra los cuatro campos de servidor. Si dejas vacío el campo de la contraseña, se mantiene la contraseña guardada, también para un servidor que cambies ahí: un servidor cambiado cuenta como escrito por ti y recibe la contraseña guardada. Uno que dejas como estaba solo la recibe si este dispositivo lo ha confirmado (en un servidor de una red local).
 
 Un servidor de correo en una red local solo recibe la contraseña de un dispositivo una vez que su dirección se ha confirmado allí: [Direcciones sin cifrar y locales](Sync_Setup.md#direcciones-sin-cifrar-y-locales).
 

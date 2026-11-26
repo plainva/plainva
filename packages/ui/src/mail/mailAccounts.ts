@@ -1,4 +1,5 @@
 import { reportingTo } from "../services/backgroundErrors";
+import { removeAfterSecretsNote } from "../lib/removeAfterSecretsNote";
 import { firstAngleValue, sameStoredValue, trimEndChars, trimChars } from "@plainva/core";
 import { getPlatformServices } from "../platform/services";
 import { readSlot, removeSlot, shellSlotName } from "../lib/keychainSlots";
@@ -478,15 +479,11 @@ export async function removeMailAccount(vaultPath: string, accountId: string): P
 export async function removeMailAccountOnPurpose(vaultPath: string, accountId: string): Promise<void> {
   const account = (await listMailAccounts(vaultPath)).find((a) => a.id === accountId);
   const retire = getPlatformServices().retireMailSecret;
-  let taken = false;
-  const take = async () => {
-    await removeMailAccount(vaultPath, accountId);
-    taken = true;
+  // The mailbox goes only once its removal is written (`removeAfterSecretsNote`).
+  const note = async (take: () => Promise<void>) => {
+    if (account && mailAccountKind(account) === "imap" && retire) await retire(vaultPath, { host: account.host, port: account.port, user: account.user }, take);
   };
-  if (account && mailAccountKind(account) === "imap" && retire) {
-    await retire(vaultPath, { host: account.host, port: account.port, user: account.user }, take).catch(reportingTo("mail:remove-secret"));
-  }
-  if (!taken) await take();
+  await removeAfterSecretsNote(note, () => removeMailAccount(vaultPath, accountId));
 }
 
 /**

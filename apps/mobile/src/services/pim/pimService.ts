@@ -23,7 +23,7 @@ import { buildPimAuthProvider } from "./pimAuth";
 import { calendarGrantProbe } from "../accountBroker";
 import { loadCloudAccounts, saveCloudAccounts } from "../cloudAccountsStore";
 import { recordConnectOutcome } from "../connectQueue";
-import { adoptedPimConfig, confirmationEndpoint, confirmEndpointsIn, confirmTypedEndpointsIn, adoptPreferenceForCard, droppingOwnConfirmedAccess, reportingTo, ownConfirmedAccessConfig, passwordAccountIdentity, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
+import { adoptedPimConfig, confirmationEndpoint, confirmEndpointsIn, confirmTypedEndpointsIn, adoptPreferenceForCard, droppingOwnConfirmedAccess, ownConfirmedAccessConfig, passwordAccountIdentity, removeAfterSecretsNote, pimPasswordAccesses, samePimPasswordAccount, assertConnectionIdentity, formatPimCycle, logDiagnostic, removeEmptyPasswordDuplicates, ServiceConnectionError, ServiceCheckError, timedDevicePimPort, withAccountCredentialLock, withBoundCard, type ServiceConnectionContext } from "@plainva/ui";
 import { devicePimPort, isDevicePimSupported, requestDevicePimAccess, type DevicePimStatus } from "../../platform/devicePim";
 import { Capacitor } from "@capacitor/core";
 import { mobileSyncDeviceId, noteAccountRemovedLocally } from "../mobileSettingsSync";
@@ -689,21 +689,21 @@ export async function forgetOwnPimAccess(accountId: string): Promise<void> {
 
 export async function removePimAccount(accountId: string): Promise<void> {
   if (!runtime) return;
-  // Before the account is gone: the tombstone is keyed on the shared id, and
-  // the map that translates the local id lives beside the account (P2).
-  await noteAccountRemovedLocally(runtime.vaultId, "pim", accountId).catch(() => {});
   // Its password leaves the secrets sync by this act, as on the desktop
   // (review 2026-11-18), the only act that writes a tombstone (review
-  // 2026-11-25); the account goes in the same line as the secrets rounds.
+  // 2026-11-25); the account goes in the same line as the secrets rounds, and
+  // only once that note is written (`removeAfterSecretsNote`), as on the desktop.
   const current = runtime;
-  let taken = false;
-  const take = async () => {
-    await clearPimCredentials(current.vaultId, accountId);
-    await current.cache.deleteAccount(accountId);
-    taken = true;
-  };
-  await retireRemovedCalDavSecret(current.vaultId, accountId, take).catch(reportingTo("pim:remove-secret"));
-  if (!taken) await take();
+  await removeAfterSecretsNote(
+    (take) => retireRemovedCalDavSecret(current.vaultId, accountId, take),
+    async () => {
+      // Before the account is gone: the tombstone is keyed on the shared id, and
+      // the map that translates the local id lives beside the account (P2).
+      await noteAccountRemovedLocally(current.vaultId, "pim", accountId).catch(() => {});
+      await clearPimCredentials(current.vaultId, accountId);
+      await current.cache.deleteAccount(accountId);
+    },
+  );
   if ((await runtime.cache.listAccounts()).length === 0) setPimState({ status: "off", message: null });
   pimSyncNow();
 }

@@ -1,6 +1,6 @@
 # Email capture
 
-Last reviewed: 2026-11-25
+Last reviewed: 2026-11-26
 
 Plainva can read your mailbox to get knowledge out of email and into your vault, and — since 0.4.0 — compose and send mail too. The focus stays on **capturing** messages as notes; a mailbox connected over **IMAP** is only ever read for capture (nothing in it changes, not even the unread markers) unless you configure sending.
 
@@ -20,7 +20,7 @@ Connecting validates the login before anything is saved; the credentials go into
 
 **Email accounts without a password.** A setup that failed while saving could leave an entry without a password behind (Plainva 0.8.3 on the desktop). The **Email** area points out, once, the accounts that have no password on this device and have never fetched mail here. **View** shows the list. If you use such an account on another device, choose **Sign in** — that is the right way then. **Remove** deletes the entry after asking, on every device that syncs this vault's settings, never mail or files. **Later** hides the notice. Plainva never removes anything on its own.
 
-**Changing a mailbox's servers.** In the **Email** area, **Edit** (the pencil) beside a mailbox connected over IMAP opens its form, on the desktop as on the phone: the address, the password and **IMAP server**, **IMAP port**, **SMTP server** and **SMTP port**, filled in from the mailbox. A password field left empty keeps the stored password. A server you change there counts as typed by you; one you leave as it was gets the password only if this device has confirmed it (for a server on a local network).
+**Changing a mailbox's servers.** In the **Email** area, **Edit** (the pencil) beside a mailbox connected over IMAP opens its form: the address, the password and **IMAP server**, **IMAP port**, **SMTP server** and **SMTP port**, filled in from the mailbox; on the phone, **Advanced (server, port, SMTP)** shows the four server fields. A password field left empty keeps the stored password, also for a server you change there: a changed server counts as typed by you and gets the stored password. One you leave as it was gets it only if this device has confirmed it (for a server on a local network).
 
 A mail server on a local network gets the password from a device only once its address is confirmed there: [Unencrypted and local addresses](Sync_Setup.md#unencrypted-and-local-addresses).
 
