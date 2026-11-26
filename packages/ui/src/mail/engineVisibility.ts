@@ -1,4 +1,7 @@
 import { applyFrameFit } from "./frameFit";
+import { mailReaderWidth } from "./readerWidth";
+
+export { forgetMailReaderWidth, mailReaderWidth, noteMailReaderWidth } from "./readerWidth";
 
 /**
  * Which words of a mail the engine itself hides (plan Umsetzung 0.9.x, B7; Fehlerliste 0.9.0 F23): words the walk over
@@ -37,12 +40,23 @@ export interface EngineHidden {
 /** The widths of the readers: the phone's frame and the desktop's. */
 export const ENGINE_WIDTHS = [343, 760] as const;
 
+/** The widths a mail is measured at: the two of the gate, and the width of this device's reader. */
+export function engineWidths(): number[] {
+  const own = mailReaderWidth();
+  return [...new Set([...ENGINE_WIDTHS, ...(own === null ? [] : [own])])].sort((a, b) => a - b);
+}
+
+/** The time the whole pass may take for one mail, all widths together; past it, nothing of the mail is read. */
+export const ENGINE_BUDGET_MS = 3000;
+/** The longest the pass holds the interface between two of its turns. */
+const SLICE_MS = 12;
+/** The height a picture from the network without a size of its own is measured with (it is not loaded). */
+const REMOTE_PICTURE_HEIGHT = 1000;
+
 /** A cover fainter than this lets the words below it through (`MIN_OPACITY` of the walk and of the gate). */
 const COVER_OPACITY = 0.1;
 /** How long the invisible frame may take to load before the pass gives up (and nothing is read). */
 const LOAD_WAIT_MS = 5000;
-/** Words asked of the engine between two turns of the interface. */
-const WORDS_PER_STEP = 400;
 /** How long the frame waits for its pictures (data: only; the assistant's view loads nothing from outside). */
 const IMAGES_WAIT_MS = 1000;
 /** Elements whose text no reader shows as words (the sanitizer takes most of them away). */
@@ -160,6 +174,20 @@ class LaterWords {
       }
     }
   }
+  /** Whether the ink of an entry after `k` meets the ink band of `box`. */
+  meets(k: number, box: Box): boolean {
+    const h = box.bottom - box.top;
+    const ink = { left: box.left, right: box.right, top: box.top + h * 0.35, bottom: box.bottom - h * 0.2 };
+    for (let cx = Math.floor(ink.left / CELL); cx <= Math.floor(ink.right / CELL); cx++) {
+      for (let cy = Math.floor(ink.top / CELL); cy <= Math.floor(ink.bottom / CELL); cy++) {
+        for (const entry of this.cells.get(`${cx},${cy}`) ?? []) {
+          if (entry.k > k && entry.box.left < ink.right && ink.left < entry.box.right && entry.box.top < ink.bottom && ink.top < entry.box.bottom) return true;
+        }
+      }
+    }
+    return false;
+  }
+
   /** Whether a word after the word `k` lies over the point (document coordinates). */
   over(k: number, x: number, y: number): boolean {
     for (const entry of this.cells.get(`${Math.floor(x / CELL)},${Math.floor(y / CELL)}`) ?? []) {
@@ -173,7 +201,7 @@ class LaterWords {
 const COVERED_POINTS_MAX = 6;
 
 /** Whether a person sees the word `k`: some box of it covered at no more than six of fifteen points, in a place a person reaches. */
-function wordSeen(frame: HTMLIFrameElement, word: Word, k: number, later: LaterWords): boolean {
+function wordSeen(frame: HTMLIFrameElement, word: Word, laterOver: (x: number, y: number) => boolean): boolean {
   const doc = frame.contentDocument!;
   const win = frame.contentWindow!;
   const root = doc.documentElement;
@@ -201,7 +229,7 @@ function wordSeen(frame: HTMLIFrameElement, word: Word, k: number, later: LaterW
         const vx = x - win.scrollX;
         const vy = y - win.scrollY;
         if (vx < 0 || vy < 0 || vx >= win.innerWidth || vy >= win.innerHeight) covered++;
-        else if (later.over(k, x, y) || coveredAt(doc, win, word.text, vx, vy)) covered++;
+        else if (laterOver(x, y) || coveredAt(doc, win, word.text, vx, vy)) covered++;
       }
     }
     if (win.scrollX !== 0 || win.scrollY !== 0) win.scrollTo(0, 0);
@@ -224,7 +252,10 @@ async function openFrame(frameDoc: string, width: number): Promise<HTMLIFrameEle
     new Promise<boolean>((resolve) => (timer = setTimeout(() => resolve(false), LOAD_WAIT_MS))),
   ]);
   // Every box answers the hit test: a mail cannot take a cover out of it.
-  frame.srcdoc = frameDoc.replace("</head>", "<style>*{pointer-events:auto!important}</style></head>");
+  // A picture from the network is never loaded here; one without a size of its own is measured as large as the frame
+  // lets it be (B7, review M8): in the flow it only pushes, and it covers what it would cover once the person loads it.
+  const remote = `img:not([src]):not([width]):not([style*="width"]){width:100%!important}img:not([src]):not([height]):not([style*="height"]){height:var(--pv-remote-height,${REMOTE_PICTURE_HEIGHT}px)!important}img:not([src]){display:inline-block}`;
+  frame.srcdoc = frameDoc.replace("</head>", `<style>*{pointer-events:auto!important}${remote}</style></head>`);
   document.body.append(frame);
   const came = await loaded;
   clearTimeout(timer);
@@ -243,11 +274,136 @@ async function openFrame(frameDoc: string, width: number): Promise<HTMLIFrameEle
     clearTimeout(timer);
   }
   applyFrameFit(frame, { growHeight: true });
+  // A picture from the network without a height of its own could be as tall as anything: it is made as tall as the
+  // whole mail laid out, so it reaches past every word before it that could run into it (B7, review M8). It is as
+  // wide as its box lets it be (the frame keeps every picture inside its box).
+  if (doc.querySelector("img:not([src])")) {
+    doc.documentElement.style.setProperty("--pv-remote-height", `${Math.max(doc.documentElement.scrollHeight, REMOTE_PICTURE_HEIGHT)}px`);
+    applyFrameFit(frame, { growHeight: true });
+  }
   return frame;
 }
 
 /** The hidden ranges of one width, added to `out`. Throws where the frame could not be laid out.  */
-async function hiddenAt(frameDoc: string, width: number, out: EngineHidden): Promise<void> {
+/** The boxes of a range in the frame's document coordinates; WebKit can give a drawn range at a text's end none of
+ * its client boxes, its bounding box stands in then. */
+function boxesOf(range: Range, win: Window): Box[] {
+  let rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+  if (rects.length === 0) {
+    const bound = range.getBoundingClientRect();
+    if (bound.width > 0 && bound.height > 0) rects = [bound];
+  }
+  return rects.map((r) => ({ left: r.left + win.scrollX, top: r.top + win.scrollY, right: r.right + win.scrollX, bottom: r.bottom + win.scrollY }));
+}
+
+/** How far to the right a person gets in the frame: where it scrolls to, else its width. */
+function reachOf(frame: HTMLIFrameElement): number {
+  const doc = frame.contentDocument!;
+  const root = doc.documentElement;
+  const scrollsX = ["auto", "scroll"].includes(frame.contentWindow!.getComputedStyle(root).overflowX);
+  return scrollsX ? Math.max(root.scrollWidth, frame.clientWidth) : frame.clientWidth;
+}
+
+/** Whether a box clipping its content (`overflow` other than visible) cuts into the text's lines. */
+function clipped(text: Text, lines: readonly Box[], win: Window): boolean {
+  for (let at = text.parentElement; at && at !== at.ownerDocument.body; at = at.parentElement) {
+    const style = win.getComputedStyle(at);
+    if (style.overflowX === "visible" && style.overflowY === "visible") continue;
+    const r = at.getBoundingClientRect();
+    const box = { left: r.left + win.scrollX, top: r.top + win.scrollY, right: r.right + win.scrollX, bottom: r.bottom + win.scrollY };
+    if (lines.some((line) => line.left < box.left || line.right > box.right || line.top < box.top || line.bottom > box.bottom)) return true;
+  }
+  return false;
+}
+
+/** Everything in the mail that paints its box — a background, a picture, a border —, found by where it lies. */
+function paintingBoxes(doc: Document, win: Window): { over(text: Text, lines: readonly Box[]): boolean } {
+  const cells = new Map<string, Array<{ element: Element; box: Box }>>();
+  for (const element of Array.from(doc.body.querySelectorAll("*"))) {
+    const style = win.getComputedStyle(element);
+    if (style.visibility !== "visible" || style.display === "none") continue;
+    const paints =
+      REPLACED.has(element.localName) ||
+      alpha(style.backgroundColor) > 0 ||
+      (style.backgroundImage && style.backgroundImage !== "none") ||
+      ["Top", "Right", "Bottom", "Left"].some((side) => parseFloat(style.getPropertyValue(`border-${side.toLowerCase()}-width`)) > 0);
+    if (!paints) continue;
+    for (const r of Array.from(element.getClientRects())) {
+      if (r.width <= 0 || r.height <= 0) continue;
+      const box = { left: r.left + win.scrollX, top: r.top + win.scrollY, right: r.right + win.scrollX, bottom: r.bottom + win.scrollY };
+      for (let cx = Math.floor(box.left / CELL); cx <= Math.floor(box.right / CELL); cx++) {
+        for (let cy = Math.floor(box.top / CELL); cy <= Math.floor(box.bottom / CELL); cy++) {
+          const key = `${cx},${cy}`;
+          let cell = cells.get(key);
+          if (!cell) cells.set(key, (cell = []));
+          cell.push({ element, box });
+        }
+      }
+    }
+  }
+  return {
+    over(text, lines) {
+      for (const line of lines) {
+        for (let cx = Math.floor(line.left / CELL); cx <= Math.floor(line.right / CELL); cx++) {
+          for (let cy = Math.floor(line.top / CELL); cy <= Math.floor(line.bottom / CELL); cy++) {
+            for (const { element, box } of cells.get(`${cx},${cy}`) ?? []) {
+              // A box that holds the text paints behind it; only another one can lie over it.
+              if (element.contains(text)) continue;
+              if (box.left < line.right && line.left < box.right && box.top < line.bottom && line.top < box.bottom) return true;
+            }
+          }
+        }
+      }
+      return false;
+    },
+  };
+}
+
+/** Code units of the text drawn under a direction override (U+202D, U+202E up to U+202C; `<bdo>`, `bidi-override`). */
+function overriddenRanges(text: Text, win: Window): Array<[number, number]> {
+  for (let at = text.parentElement; at; at = at.parentElement) {
+    const style = win.getComputedStyle(at);
+    if (at.localName === "bdo" || /override/.test(style.unicodeBidi)) return [[0, text.data.length]];
+  }
+  const out: Array<[number, number]> = [];
+  let open = -1;
+  for (let i = 0; i < text.data.length; i++) {
+    const c = text.data.charCodeAt(i);
+    if ((c === 0x202d || c === 0x202e) && open < 0) open = i;
+    else if (c === 0x202c && open >= 0) {
+      out.push([open, i]);
+      open = -1;
+    }
+  }
+  if (open >= 0) out.push([open, text.data.length]);
+  return out;
+}
+
+/** The pass ran out of its budget (B7, review M4): the mail is too long to check in time, not unsafe. */
+export class EngineBudgetError extends Error {
+  constructor() {
+    super("the mail's engine pass ran out of time");
+    this.name = "EngineBudgetError";
+  }
+}
+
+/** The pass's clock (B7, review M4): it gives the interface its turn every few milliseconds and stops at its budget. */
+class Pace {
+  private slice = now();
+  constructor(private readonly deadline: number) {}
+  async step(): Promise<void> {
+    const at = now();
+    if (at > this.deadline) throw new EngineBudgetError();
+    if (at - this.slice >= SLICE_MS) {
+      await turn();
+      this.slice = now();
+    }
+  }
+}
+
+const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+
+async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace: Pace): Promise<void> {
   const frame = await openFrame(frameDoc, width);
   if (!frame) throw new Error("the mail's frame did not load");
   try {
@@ -256,50 +412,73 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden): Pro
     const body = doc.body;
     // A frame that lays nothing out cannot say what shows: nothing is read (fail closed).
     if (body.getBoundingClientRect().width <= 0) throw new Error("the mail's frame laid nothing out");
+    win.scrollTo(0, 0);
+    const reachX = reachOf(frame);
+    const hide = (path: string, from: number, to: number) => {
+      let entry = out.parents.get(path);
+      if (!entry) out.parents.set(path, (entry = { text: "", hidden: [] }));
+      entry.hidden.push([from, to]);
+    };
+    // First the texts as a whole (B7, review M4): their line boxes, and what paints anywhere in the mail. Only a text
+    // whose lines meet something that paints and holds no part of it, a later text, a clipping box's edge or the
+    // frame's edge is asked word by word; every other text is seen as it stands — nothing lies over it.
+    const painters = paintingBoxes(doc, win);
     const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
     /** The offset of a text in its parent's own text, kept per parent while the walk is in it. */
     const offsets = new Map<Element, number>();
-    const words: Array<Word & { path: string; offset: number }> = [];
-    const later = new LaterWords();
-    let measured = 0;
-    win.scrollTo(0, 0);
+    const texts: Array<{ text: Text; path: string; offset: number; lines: Box[] }> = [];
+    const laterText = new LaterWords();
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
       const text = node as Text;
       const parent = text.parentElement;
       if (!parent) continue;
       const start = offsets.get(parent) ?? 0;
       offsets.set(parent, start + text.data.length);
-      if (NOT_WORDS.has(parent.localName)) continue;
+      if (NOT_WORDS.has(parent.localName) || !/\S/.test(text.data)) continue;
       const path = elementPath(parent, body);
       if (path === null) continue;
-      for (const { index, word } of wordsOf(text.data)) {
+      const range = doc.createRange();
+      range.selectNodeContents(text);
+      const lines = boxesOf(range, win);
+      const k = texts.length;
+      texts.push({ text, path, offset: start, lines });
+      for (const line of lines) laterText.add(k, line);
+      await pace.step();
+    }
+    for (let k = 0; k < texts.length; k++) {
+      const { text, path, offset, lines } = texts[k]!;
+      // Under a direction override a person sees the letters mirrored: none of it is read (B7, review H7).
+      const overridden = overriddenRanges(text, win);
+      for (const [from, to] of overridden) hide(path, offset + from, offset + to);
+      // Its own later lines over its earlier ones (lines laid on top of each other) count as well.
+      const own = new LaterWords();
+      lines.forEach((line, n) => own.add(n, line));
+      const plain =
+        lines.length > 0 &&
+        !lines.some((line) => line.left < 0 || line.top < 0 || line.right > reachX) &&
+        !clipped(text, lines, win) &&
+        !painters.over(text, lines) &&
+        !lines.some((line, n) => laterText.meets(k, line) || own.meets(n, line));
+      if (plain) {
+        await pace.step();
+        continue;
+      }
+      // Word by word: each one's boxes, and the words after it in this text, which paint over it where they meet.
+      const words = wordsOf(text.data).filter(({ index }) => !overridden.some(([from, to]) => index >= from && index < to));
+      const measured = words.map(({ index, word }) => {
         const range = doc.createRange();
         range.setStart(text, index);
         range.setEnd(text, index + word.length);
-        let rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
-        // WebKit can give a range at the end of a text no client boxes although it is drawn: its bounding box then.
-        if (rects.length === 0) {
-          const bound = range.getBoundingClientRect();
-          if (bound.width > 0 && bound.height > 0) rects = [bound];
-        }
-        const boxes = rects.map((r) => ({ left: r.left + win.scrollX, top: r.top + win.scrollY, right: r.right + win.scrollX, bottom: r.bottom + win.scrollY }));
-        const k = words.length;
-        words.push({ text, start: index, end: index + word.length, boxes, path, offset: start });
-        for (const box of boxes) later.add(k, box);
+        return { index, length: word.length, boxes: boxesOf(range, win) };
+      });
+      const laterWords = new LaterWords();
+      measured.forEach((word, n) => word.boxes.forEach((box) => laterWords.add(n, box)));
+      for (let n = 0; n < measured.length; n++) {
+        const { index, length, boxes } = measured[n]!;
+        const seen = wordSeen(frame, { text, start: index, end: index + length, boxes }, (x, y) => laterText.over(k, x, y) || laterWords.over(n, x, y));
+        if (!seen) hide(path, offset + index, offset + index + length);
+        await pace.step();
       }
-      if (words.length - measured >= WORDS_PER_STEP) {
-        measured = words.length;
-        await turn();
-      }
-    }
-    for (let k = 0; k < words.length; k++) {
-      const word = words[k]!;
-      if (!wordSeen(frame, word, k, later)) {
-        let entry = out.parents.get(word.path);
-        if (!entry) out.parents.set(word.path, (entry = { text: "", hidden: [] }));
-        entry.hidden.push([word.offset + word.start, word.offset + word.end]);
-      }
-      if ((k + 1) % WORDS_PER_STEP === 0) await turn();
     }
     // The parents' own texts, for the check that the reader's tree is the frame's.
     for (const [element, length] of offsets) {
@@ -318,14 +497,15 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden): Pro
  * The words the engine hides of a reader frame document (`buildMailFrameDoc`), at every reader width; null where
  * there is no engine to ask. Between steps the interface gets its turn.
  */
-export async function engineHiddenWords(frameDoc: string, widths: readonly number[] = ENGINE_WIDTHS): Promise<EngineHidden | null> {
+export async function engineHiddenWords(frameDoc: string, widths: readonly number[] = engineWidths(), budgetMs: number = ENGINE_BUDGET_MS): Promise<EngineHidden | null> {
   // No layout engine at all — the one place the walk's reading stands (a test runner; no runtime of the app).
   if (!hasLayoutEngine()) return null;
   if (!document.body) throw new Error("no document to lay the mail out in");
   const out: EngineHidden = { parents: new Map() };
+  const pace = new Pace(now() + budgetMs);
   for (const width of widths) {
-    await hiddenAt(frameDoc, width, out);
-    await turn();
+    await hiddenAt(frameDoc, width, out, pace);
+    await pace.step();
   }
   for (const entry of out.parents.values()) entry.hidden.sort((a, b) => a[0] - b[0]);
   return out;

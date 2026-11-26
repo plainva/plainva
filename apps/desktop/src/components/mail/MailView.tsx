@@ -1588,11 +1588,12 @@ export function MailView({ onOpenPath, isActivePane = true }: MailViewProps) {
     const doc = frame.contentDocument;
     if (!doc) return;
 
-    applyFrameFit(frame);
-    // Dragging the pane divider changes the width the message has to fit into.
+    // `reader`: the width a mail is shown in here is the one the assistant measures its mails at too (B7, review S2).
+    applyFrameFit(frame, { reader: true });
+    // Dragging the pane divider or the window changes the width the message has to fit into.
     fitObserver.current?.disconnect();
     if (typeof ResizeObserver !== "undefined") {
-      const observer = new ResizeObserver(() => applyFrameFit(frame));
+      const observer = new ResizeObserver(() => applyFrameFit(frame, { reader: true }));
       observer.observe(frame);
       fitObserver.current = observer;
     }

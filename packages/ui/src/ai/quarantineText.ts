@@ -1,5 +1,6 @@
 import { checkWebUrl, webAddressesIn } from "@plainva/core/ai";
 import { mailBodyView } from "../mail/messageText";
+import { EngineBudgetError } from "../mail/engineVisibility";
 
 /**
  * A stranger's text as a reader in quarantine takes it (plan KI-Harness
@@ -64,6 +65,12 @@ export function looksLikeHtml(text: string): boolean {
 export const UNREADABLE_BODY = "[Plainva could not display this message safely and shows none of its content.]";
 
 /**
+ * What the assistant reads of a message too long to check in time which of its words the reader shows (B7, review
+ * M4): nothing of its content. The message is not unsafe; the person reads it in the mail reader.
+ */
+export const TOO_LONG_TO_CHECK_BODY = "[This message is too long for Plainva to check in time which of its words the reader shows, so none of its content is given here. The person can read it in the mail reader.]";
+
+/**
  * `readableBody`, with what the reader shows judged by the engine of this device too (plan Umsetzung 0.9.x, B7;
  * F23): words that only the place of other boxes hides — run out of their box and painted over, or off the frame's
  * edge — are not read. What the assistant reads of a mail comes from here.
@@ -74,10 +81,10 @@ export async function readableBodyInEngine(input: { html?: string | null; text?:
   let shown: Awaited<ReturnType<typeof view.engineDocument>>;
   try {
     shown = await view.engineDocument(widths);
-  } catch {
-    // The engine could not say what the reader shows (B7, review): nothing of it is read, as for a body the reader
-    // could not make safe. Never the walk's reading in its stead.
-    return { text: UNREADABLE_BODY, links: [], truncated: false };
+  } catch (error) {
+    // The engine could not say what the reader shows (B7, review): nothing of it is read — never the walk's reading in
+    // its stead. A mail too long to check in time is said as that, not as one that cannot be shown safely.
+    return { text: error instanceof EngineBudgetError ? TOO_LONG_TO_CHECK_BODY : UNREADABLE_BODY, links: [], truncated: false };
   }
   const body = cut(shown.text.trim(), max);
   return { text: body.text, links: checkedLinks(shown.links), truncated: body.truncated };

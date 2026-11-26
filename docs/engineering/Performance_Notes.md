@@ -1317,3 +1317,24 @@ the review round (the suggestion mode loads its word diff with the mode; the att
 helpers stand apart from the mail text). The next steps, after the vault's close path of B2: the workspace's
 document hashing apart from its signing, the folder identities apart from the targets, the workspace lock and status
 apart from the workspace's runtime on the phone.
+
+## The mail engine pass for the assistant (B7, 2026-11-26)
+
+What the assistant reads of a mail is judged in the engine of the device (`packages/ui/src/mail/engineVisibility.ts`, [AI_Failed_Requests_and_Mail_Visibility.md](AI_Failed_Requests_and_Mail_Visibility.md)). Its cost decides its budget, not the other way round.
+
+**How it is spent.** Each width lays the reader's frame document out once. Every text node is first asked as a whole — its line boxes against every box that paints (a background, a picture, a border) and does not hold it, against later text, clipping boxes and the frame's edge; only a node that meets one of them is asked word by word, at fifteen points across each word (`elementsFromPoint`). Between steps the pass gives the interface its turn after at most 12 ms.
+
+**Measured** in Chromium (Playwright, this repository's dev server, Linux workstation) over the 118 mails of the gate's corpus (`apps/desktop/e2e/fixtures/mailFrameCorpus.ts`, at most 301 words each), and the largest of them repeated 20 and 60 times (6,020 and 18,060 words); CPU throttling 4× and 6× (`Emulation.setCPUThrottlingRate`) as an approximation of a phone. Milliseconds per mail, all widths together:
+
+| CPU | widths | median | 90th pct. | max (corpus) | 6,020 words | 18,060 words | longest task | over the budget |
+|---|---|---|---|---|---|---|---|---|
+| 1× | 2 (343, 760) | 18 | 24 | 48 | 23 | 48 | none over 50 ms | 0 of 118 |
+| 1× | 3 (+ reader 1240) | 23 | 27 | 46 | 39 | 68 | none | 0 |
+| 4× | 2 | 31 | 36 | 117 | 76 | 157 | none | 0 |
+| 4× | 3 | 43 | 48 | 89 | 112 | 239 | none | 0 |
+| 6× | 2 | 48 | 56 | 179 | 116 | 249 | none | 0 |
+| 6× | 3 | 66 | 74 | 142 | 169 | 364 | none | 0 |
+
+**Budget.** `ENGINE_BUDGET_MS = 3000` for one mail, all widths together: eight times the slowest measured case (18,060 words at 6×). Past it the assistant reads nothing of the mail and is told it was too long to check in time (`TOO_LONG_TO_CHECK_BODY`). Not measured on a real phone; the words-by-words path (a mail whose every text runs into something that paints) is the expensive one and is not in the corpus — such a mail is what the gate's cases are made of, each a few words.
+
+**Widths.** The reader's own width is measured besides 343 and 760 px (`engineWidths`). The fixed widths 600 and 1024 px are not added: the reader's width is the one the person sees; widths nobody shows would only cost.

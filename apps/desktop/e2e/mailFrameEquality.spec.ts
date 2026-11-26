@@ -116,6 +116,98 @@ for (const width of [343, 760] as const) {
 }
 
 /**
+ * The width of this device's reader (B7, review S2): a mail can hide a word only at one width — the desktop's column
+ * is as wide as the person makes it. Once the reader showed mails at that width, the assistant reads no word the frame
+ * hides there; each case below shows the word at the gate's widths and covers it at its own.
+ */
+const RED = "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGM4IScHRwzEcQCxYxBBO0tjggAAAABJRU5ErkJggg==";
+const AT_ONE_WIDTH = [
+  {
+    width: 600,
+    // The word starts at 110 px + 30 % of the line and is 28 px or so wide; the picture is 60 % of the line, at most
+    // 321 px. With W the line (the frame less its 24 px margins): at 343 px the picture ends at 191 px and the word
+    // starts at 206 px; at 600 px the picture ends at 321 px and the word lies at 283–311 px; at 760 px the word
+    // starts at 331 px, past the picture. Covered only between about 560 and 720 px.
+    name: "a word at 110 px + 30 % beside a picture of 60 % up to 321 px: covered only between about 560 and 720 px",
+    html: `<p>VISIBLEw600</p><div style="height:0;padding-left:30%;white-space:nowrap"><span style="padding-left:110px;font-size:6px">SECRETw6</span></div><div><img src="data:image/png;base64,${RED}" style="width:60%;max-width:321px;height:40px"></div>`,
+  },
+  {
+    width: 1100,
+    // The word at 400 px, the picture 50 % of the line: it reaches past the word from a line of about 990 px on.
+    name: "a word at 400 px beside a picture of 50 %: covered from about 1010 px on",
+    html: `<p>VISIBLEw1100</p><div style="height:0;padding-left:400px;white-space:nowrap">SECRETw1100</div><div><img src="data:image/png;base64,${RED}" style="width:50%;height:40px"></div>`,
+  },
+  {
+    width: 1200,
+    name: "review B7 c3b: a picture of 45 % covers a word at 400 px only on a wide column",
+    html: `<div style="height:0;padding-left:400px;white-space:nowrap">SECRETWIDEB</div><div><img src="data:image/png;base64,${RED}" style="width:45%;height:40px"></div><p>VISIBLEBASEB</p>`,
+  },
+];
+
+test("at the width this device's reader shows mails in, the assistant reads no word the frame hides there", async ({ page }) => {
+  test.setTimeout(300_000);
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await loadProbe(page);
+  const wrong: string[] = [];
+  for (const entry of AT_ONE_WIDTH) {
+    const secret = Array.from(entry.html.matchAll(/SECRET[A-Za-z0-9]+/g), (m) => m[0])[0]!;
+    // The case means something: at the gate's widths the frame shows the word.
+    for (const width of [343, 760]) {
+      await page.evaluate((w) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.readerWidth(w), width);
+      const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, width] as const);
+      const shares = await inkShares(page, open);
+      if (!open.frame.seen.includes(secret) || (shares.get(secret) ?? 0) < MIN_INK_SHARE) wrong.push(`${entry.name}: at ${width} px the frame already hides ${secret}`);
+    }
+    await page.evaluate((w) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.readerWidth(w), entry.width);
+    const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, entry.width] as const);
+    const shares = await inkShares(page, open);
+    const shown = open.frame.seen.includes(secret) && (shares.get(secret) ?? 0) >= MIN_INK_SHARE;
+    if (shown) wrong.push(`${entry.name}: at ${entry.width} px the frame shows ${secret} — the case covers nothing there`);
+    if (open.ai.includes(secret)) wrong.push(`${entry.name}: at ${entry.width} px the assistant reads ${secret}, the reader does not show it`);
+  }
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
+  expect(wrong).toEqual([]);
+});
+
+/**
+ * Text drawn under a direction override (B7, review H7): a person sees the letters mirrored, a machine reads them
+ * plainly — the assistant reads none of it. Right-to-left text as mail writes it — `dir="rtl"`, an embedding, an
+ * isolate — keeps every word.
+ */
+const DIRECTION = {
+  hidden: [
+    { name: "U+202E override", html: `<p>VISIBLEd1</p><p>&#x202E;SECRETd1 gnissim&#x202C; after</p>` },
+    { name: "bdo dir=rtl", html: `<p>VISIBLEd2</p><p><bdo dir="rtl">SECRETd2 words</bdo></p>` },
+    { name: "U+202D override", html: `<p>VISIBLEd3</p><p>&#x202D;SECRETd3&#x202C;</p>` },
+  ],
+  kept: [
+    { name: "dir=rtl paragraph with Latin words", html: `<p dir="rtl">VISIBLEr1 שלום עולם VISIBLEr1b</p>` },
+    { name: "U+202B embedding", html: `<p>&#x202B;VISIBLEr2 مرحبا&#x202C; VISIBLEr2b</p>` },
+    { name: "U+2067 isolate", html: `<p>start &#x2067;VISIBLEr3 مرحبا&#x2069; VISIBLEr3b</p>` },
+    { name: "Arabic newsletter row", html: `<table dir="rtl" width="100%"><tr><td>VISIBLEr4 النشرة الإخبارية</td><td>VISIBLEr4b</td></tr></table>` },
+  ],
+};
+
+test("text under a direction override is not read; right-to-left text, embeddings and isolates keep every word", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await loadProbe(page);
+  const wrong: string[] = [];
+  for (const entry of DIRECTION.hidden) {
+    const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
+    for (const word of open.ai) if (word.startsWith("SECRET")) wrong.push(`${entry.name}: the assistant reads ${word}, drawn mirrored`);
+    if (!open.ai.some((word) => word.startsWith("VISIBLE"))) wrong.push(`${entry.name}: the assistant lost the words around it`);
+  }
+  for (const entry of DIRECTION.kept) {
+    const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
+    const all = Array.from(entry.html.matchAll(/VISIBLE[a-z0-9]+/g), (m) => m[0]);
+    for (const word of all) if (!open.ai.includes(word)) wrong.push(`${entry.name}: the assistant does not read ${word}`);
+  }
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
+  expect(wrong).toEqual([]);
+});
+
+/**
  * The second measure (review of 2026-11-17, rule 3): ordinary newsletters,
  * which hide nothing, look as they do at `main`. Frozen is the frame document
  * `main` made of each case (`mailFrameCorpus.main.json`), not its sizes — a
@@ -164,16 +256,28 @@ for (const width of [343, 760] as const) {
       const cases = MAIL_CORPUS.map(({ name, html }) => ({ name, html }));
       const results = await page.evaluate(([c, w, p, d]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.corpus(c, w, p, d), [cases, width, pictures, docs] as const);
       const wrong: string[] = [];
+      /** The words the engine left out of an ordinary mail at this width, to be judged by their pixels (B7, review H8). */
+      const owed: { index: number; words: string[] }[] = [];
       results.forEach((result, index) => {
         for (const word of result.ai) if (!result.seen.includes(word)) wrong.push(`${result.name}: the assistant reads ${word}, the reader does not show it`);
         // An ordinary mail hides nothing by where its boxes lie: the engine takes no word of it away (B7, F23).
-        const hides = new Set(MAIL_CORPUS[index].layoutHides?.words ?? []);
-        const dropped = result.dropped.filter((word) => !hides.has(word));
-        if (dropped.length > 0) wrong.push(`${result.name}: the engine takes ${dropped.length} words the walk reads away (${dropped.slice(0, 8).join(", ")})`);
+        if (result.dropped.length > 0) owed.push({ index, words: result.dropped });
         const main = result.mainMeasured;
         if (!main) wrong.push(`${result.name}: no frame of main frozen`);
         else wrong.push(...corpusDeviations(result.name, main, result.measured, MAIL_CORPUS[index].differs ?? {}));
       });
+      // A word the engine leaves out is one a person does not see: less than half of its ink reaches the screen,
+      // judged by the pixels — not by the engine's own measure (B7, review H8).
+      for (const { index, words } of owed) {
+        const open = await page.evaluate(([h, w, only]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w, only), [MAIL_CORPUS[index].html, width, words] as const);
+        const shares = await inkShares(page, open);
+        for (const word of words) {
+          // Of the part of it the frame lets a person reach (a word cut off at its edge counts by what is inside).
+          const reach = Math.max(0, ...open.words.filter((w) => w.word === word).map((w) => w.reach));
+          const share = (shares.get(word) ?? 0) * reach;
+          if (share >= MIN_INK_SHARE) wrong.push(`${MAIL_CORPUS[index].name}: the engine takes ${word} away, ${Math.round(share * 100)} % of its ink is on the screen`);
+        }
+      }
       expect(wrong).toEqual([]);
       expect(results.length).toBe(MAIL_CORPUS.length);
     });

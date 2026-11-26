@@ -1,3 +1,4 @@
+import { noteMailReaderWidth } from "./readerWidth";
 /**
  * Fitting a mail message into the frame it was given.
  *
@@ -69,6 +70,12 @@ export interface ApplyFrameFitOptions {
    */
   growHeight?: boolean;
   minScale?: number;
+  /**
+   * The frame is a reader's that shows a mail to the person (B7, review S2): each fit — on load, on every resize
+   * (dragging the window or the column, turning the phone, a split view) — notes the frame's width as the width the
+   * assistant's engine pass measures mails at (`noteMailReaderWidth`).
+   */
+  reader?: boolean;
 }
 
 /**
@@ -126,5 +133,6 @@ export function applyFrameFit(
   }
 
   if (options?.growHeight) frame.style.height = `${fit.height}px`;
+  if (options?.reader) noteMailReaderWidth(frame.clientWidth);
   return fit;
 }

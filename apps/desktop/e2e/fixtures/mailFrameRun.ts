@@ -1,4 +1,4 @@
-import { inkCounts, judgeFrame, wordUnseen, markMode, markWords, MARKER, measureFrame, scrollToWord, type FrameSeen, type MarkedWord, type Measured, type PageBox } from "./mailFrameJudge";
+import { inkCounts, judgeFrame, markMode, markWords, MARKER, measureFrame, scrollToWord, type FrameSeen, type MarkedWord, type Measured, type PageBox } from "./mailFrameJudge";
 
 /** The parts of the mail code the run needs — the branch's, or another version's for the expectations. */
 export interface MailFrameApi {
@@ -68,7 +68,7 @@ const marked = () => document.getElementById(MARKED_FRAME) as HTMLIFrameElement;
  * Renders a case as `runMailFrames` does and leaves its frame on the page, its
  * marker words wrapped for the pixel judge (`markWords`); the test shoots it.
  */
-export async function openMarked(api: MailFrameApi, html: string, width: number): Promise<MarkedFrameResult> {
+export async function openMarked(api: MailFrameApi, html: string, width: number, only?: readonly string[]): Promise<MarkedFrameResult> {
   document.getElementById(MARKED_FRAME)?.remove();
   window.scrollTo(0, 0);
   const shown = api.mailBodyView ? api.mailBodyView({ html, text: null })?.html ?? "" : api.sanitizeEmailHtml(html).html;
@@ -76,7 +76,7 @@ export async function openMarked(api: MailFrameApi, html: string, width: number)
   const frame = await openFrame(api, api.buildMailFrameDoc(shown, {}), width);
   frame.id = MARKED_FRAME;
   const seen = judgeFrame(frame);
-  const words = markWords(frame);
+  const words = markWords(frame, only);
   const at = frame.getBoundingClientRect();
   return {
     name: "",
@@ -146,10 +146,14 @@ export async function runMailCorpus(api: MailFrameApi, cases: readonly MailFrame
     // What the engine takes away of the walk's reading at this frame's width, kept where this frame shows it (B7):
     // a word the frame does not show either — past its edge, clipped, without a box — is rightly not read.
     const walk = api.readableModel?.({ html }, 100_000) ?? null;
-    const words = (text: string) => new Set(text.split(/\s+/).filter(Boolean));
+    // Words as the engine separates them (`Intl.Segmenter`): an address cut off at the frame's edge loses its last
+    // part, not the whole address.
+    const segmenter = new Intl.Segmenter(undefined, { granularity: "word" });
+    const words = (text: string) => new Set(Array.from(segmenter.segment(text)).filter((part) => part.isWordLike).map((part) => part.segment));
     const here = await api.readableBody({ html }, 100_000, [width]);
     const kept = words(here.text);
-    const dropped = walk ? [...words(walk.text)].filter((word) => !kept.has(word) && wordUnseen(frame, word) === null) : [];
+    // Judged by the pixels in the spec (B7, review H8), not by the engine's own edge.
+    const dropped = walk ? [...words(walk.text)].filter((word) => !kept.has(word)) : [];
     frame.remove();
     let mainMeasured: Measured[] | null = null;
     if (mainDocs?.[name] !== undefined) {

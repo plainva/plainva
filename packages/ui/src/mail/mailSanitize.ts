@@ -1,6 +1,6 @@
 import createDOMPurify from "dompurify";
 import { keptMailStyle, MailShaper, ownsLineHeight, visibleDocumentOf, WHITE_SHEET, type MarkupReader, type ShapeState, type VisibleDocument } from "@plainva/core";
-import { blanked, ENGINE_WIDTHS, engineHiddenWords, type EngineHidden } from "./engineVisibility";
+import { blanked, engineHiddenWords, engineWidths, type EngineHidden } from "./engineVisibility";
 import { domReader, treeAccess, type TreeAccess } from "./mailTree";
 
 // The package's default export is a FACTORY in module environments — bind it
@@ -327,7 +327,7 @@ function makePass(raw: string): Pass {
       // may not show makes no link visible, so the assistant reads no more than either shows.
       document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false }),
       // One reading for both views too: the one without pictures, laid out as its frame is (F23).
-      engineDocument: (widths = ENGINE_WIDTHS) => {
+      engineDocument: (widths = engineWidths()) => {
         const key = widths.join(",");
         let reading = engine.get(key);
         if (!reading) {

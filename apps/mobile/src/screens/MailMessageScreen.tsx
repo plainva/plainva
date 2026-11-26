@@ -219,7 +219,9 @@ export function MailMessageScreen({
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const fitFrame = useCallback(() => {
     const el = frameRef.current;
-    if (el) applyFrameFit(el, { growHeight: true });
+    // `reader`: the width a mail is shown in here — portrait, landscape, split view, tablet — is the one the assistant
+    // measures its mails at too (B7, review S2).
+    if (el) applyFrameFit(el, { growHeight: true, reader: true });
   }, []);
 
   /**

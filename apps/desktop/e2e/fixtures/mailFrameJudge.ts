@@ -180,34 +180,6 @@ export function measureFrame(frame: HTMLIFrameElement): Measured[] {
   return out;
 }
 
-/**
- * Why a word of the frame is not seen (B7), or null where it is — or where it stands in no single text and cannot be
- * judged here (the pixels are the case test's): its first occurrence in a text of the body, judged as a marker word is.
- */
-export function wordUnseen(frame: HTMLIFrameElement, word: string): string | null {
-  const doc = frame.contentDocument!;
-  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-    const text = node as Text;
-    const at = text.data.indexOf(word);
-    if (at < 0 || !text.parentElement) continue;
-    const range = doc.createRange();
-    range.setStart(text, at);
-    range.setEnd(text, at + word.length);
-    // Less than half of it inside what the frame shows or scrolls to: cut off at its edge, as the engine counts it.
-    const win = frame.contentWindow!;
-    const root = doc.documentElement;
-    const scrollsX = ["auto", "scroll"].includes(win.getComputedStyle(root).overflowX);
-    const reachX = scrollsX ? root.scrollWidth : frame.clientWidth;
-    const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
-    const width = rects.reduce((sum, r) => sum + r.width, 0);
-    const inside = rects.reduce((sum, r) => sum + Math.max(0, Math.min(r.right + win.scrollX, reachX) - Math.max(r.left + win.scrollX, 0)), 0);
-    if (width > 0 && inside / width < 0.5) return `cut off at the frame's edge (${Math.round((inside / width) * 100)} % inside)`;
-    return unseen(frame, range, text.parentElement);
-  }
-  return null;
-}
-
 /** What a person sees in a fitted reader frame. */
 export function judgeFrame(frame: HTMLIFrameElement): FrameSeen {
   const doc = frame.contentDocument!;
@@ -269,6 +241,8 @@ export interface MarkedWord {
   box: PageBox | null;
   /** Shot on its own: it lies where the frame scrolls to, or across another marker word. */
   alone: boolean;
+  /** The share of its width that lies where a person gets to (B7, review H8): the frame cuts off the rest. */
+  reach: number;
 }
 
 const WORD_ATTR = "data-pv-ink";
@@ -297,7 +271,10 @@ export function wordBox(frame: HTMLIFrameElement, k: number): { box: PageBox | n
  * Wraps every marker word of the frame in a span of its own, for the pixel
  * judge. Call after `judgeFrame`: a span splits the text nodes it judged.
  */
-export function markWords(frame: HTMLIFrameElement): MarkedWord[] {
+export function markWords(frame: HTMLIFrameElement, only?: readonly string[]): MarkedWord[] {
+  // The marker words, or the words asked for (B7, review H8: the words the engine left out of an ordinary mail).
+  // Whole words only: "der" is not the one inside "Sonderangebote".
+  const pattern = only?.length ? new RegExp(`(?<![\\p{L}\\p{N}])(?:${only.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})(?![\\p{L}\\p{N}])`, "gu") : MARKER;
   const doc = frame.contentDocument!;
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
   const nodes: Text[] = [];
@@ -305,7 +282,7 @@ export function markWords(frame: HTMLIFrameElement): MarkedWord[] {
   const words: MarkedWord[] = [];
   let k = 0;
   for (const text of nodes) {
-    for (const m of Array.from(text.data.matchAll(MARKER)).reverse()) {
+    for (const m of Array.from(text.data.matchAll(pattern)).reverse()) {
       const range = doc.createRange();
       range.setStart(text, m.index!);
       range.setEnd(text, m.index! + m[0].length);
@@ -323,14 +300,22 @@ export function markWords(frame: HTMLIFrameElement): MarkedWord[] {
         span.setAttribute("data-pv-ink-ground", css(best));
       }
       range.surroundContents(span);
-      words.push({ k: k++, word: m[0], box: null, alone: false });
+      words.push({ k: k++, word: m[0], box: null, alone: false, reach: 1 });
     }
   }
   frame.contentWindow!.scrollTo(0, 0);
+  // (`doc` is the frame's document, read above.)
+  const root = doc.documentElement;
+  const scrolls = ["auto", "scroll"].includes(frame.contentWindow!.getComputedStyle(root).overflowX);
+  const reachX = scrolls ? root.scrollWidth : frame.clientWidth;
   for (const word of words) {
     const { box, whole } = wordBox(frame, word.k);
     word.box = box;
     word.alone = !whole;
+    const rects = Array.from(doc.querySelector(`[${WORD_ATTR}="${word.k}"]`)?.getClientRects() ?? []).filter((r) => r.width > 0 && r.height > 0);
+    const full = rects.reduce((sum, r) => sum + r.width, 0);
+    const inside = rects.reduce((sum, r) => sum + Math.max(0, Math.min(r.right, reachX) - Math.max(r.left, 0)), 0);
+    word.reach = full > 0 ? inside / full : 0;
   }
   const meets = (a: PageBox, b: PageBox) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
   for (const word of words) {
