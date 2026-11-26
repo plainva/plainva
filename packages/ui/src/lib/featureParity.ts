@@ -1370,22 +1370,30 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     title: "Leaving an encrypted workspace when the step is interrupted midway (decommission, lift)",
     area: "security",
     kind: "gap",
-    desktop: "yes",
+    desktop: "partial",
+    desktopReason:
+      "Interrupted before its last step (the keychain entry, its gate) goes, the " +
+      "vault stays a workspace that syncs encrypted, with its own buttons, and a " +
+      "lift can be pressed again: its runtime knows whether this device is the " +
+      "workspace's only one. Only where the app ends after the keychain entry " +
+      "went and before the folder's departure was noted does the vault open as " +
+      "no workspace with its folder still marked joined: the sync holds with " +
+      "the folder's \"join it\" notice, and no row offers to finish.",
     mobile: "partial",
     mobileReason:
-      "Both shells finish nothing by themselves and sync nothing plain while a " +
-      "leaving is half done. The desktop clears its gate (the keychain entry) " +
-      "last: interrupted before it, the vault stays a workspace that syncs " +
-      "encrypted, and a lift can be pressed again because its runtime knows " +
-      "whether this device is the workspace's only one. The phone clears its " +
-      "gate (the status) first, as it always did: interrupted past it, the vault " +
-      "opens without its workspace, its sync stays held, and the Security area " +
-      "says so (decommissionUnfinished, liftUnfinished). Without a runtime nobody " +
-      "can tell whether other devices use the folder, so a lift can only be " +
-      "finished as a decommission and the folder stays theirs (left). Closing " +
-      "the gap needs the phone to keep what it knew of the workspace past its " +
-      "gate. In the maintainer's open-items plan since 2026-11-26 (review B2, " +
-      "round 10, MG3).",
+      "Neither shell finishes anything by itself, and neither syncs plain or " +
+      "encrypted on a workspace half gone. The phone clears its gate (the " +
+      "status) first, as it always did: past it, the runtime that carried the " +
+      "workspace never syncs again and the vault opens anew without it; while " +
+      "the decommission has not finished, the Security area says so " +
+      "(decommissionUnfinished, liftUnfinished) and the sync stays held. Without " +
+      "a runtime nobody can tell whether other devices use the folder, so a " +
+      "lift can only be finished as a decommission and the folder stays theirs " +
+      "(left). A lift whose decommission finished and whose queueing failed " +
+      "opens plain, its files queued by the first plain sync. Closing the gap " +
+      "needs the phone to keep what it knew of the workspace past its gate. In " +
+      "the maintainer's open-items plan since 2026-11-26 (Sammelplan § 3.189 " +
+      "Nr. 23; review B2, rounds 10 and 11).",
     verified: "2026-11-26",
   },
   {

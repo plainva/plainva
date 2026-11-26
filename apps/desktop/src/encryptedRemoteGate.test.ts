@@ -143,21 +143,17 @@ describe("a held folder (R8)", () => {
     expect(await encryptedRemoteDismissable(locked.ports)).toBe(true);
   });
 
-  it("weaker knowledge never replaces stronger: a departure that cannot tell keeps the one noted before (review B2, round 10, MG2)", async () => {
+  it("G1 (review B2, round 11, SP-B): a departure that cannot tell writes \"left, unknown\" over an old \"released\" — the folder holds, never plain next to a workspace that lives again", async () => {
     expect.hasAssertions();
+    // The desktop was the workspace's only device and ended it: released. The workspace lives again (recovered on
+    // another device), the desktop joins it — joining writes no mark — and then decommissions it while locked.
     const ended = await workspace("Ended");
-    // The only device ended it: released. Pressed again without a runtime, nobody can tell — and the release stays.
     const m = memory();
     await markEncryptedRemoteDeparted(m.ports, workspaceDeparture(ended.runtime));
     await markEncryptedRemoteDeparted(m.ports, workspaceDeparture(null));
-    expect(await held(m, async () => ended.bytes)).toEqual({ kind: "plain" });
-    // The same for a departure that knew other devices use the folder.
-    const { runtime, bytes } = await workspace();
-    applyWorkspaceGovernanceUpdate(runtime, await inviteWorkspaceMember({ runtime, displayName: "Anna", role: "Editor" }));
-    const others = memory();
-    await markEncryptedRemoteDeparted(others.ports, workspaceDeparture(runtime));
-    await markEncryptedRemoteDeparted(others.ports, workspaceDeparture(null));
-    expect(await held(others, async () => bytes)).toEqual({ kind: "left", peers: "others" });
+    // THE DEFECT: an early return kept "released", and the plain worker ran next to the living workspace.
+    expect(await held(m, async () => ended.bytes)).toEqual({ kind: "left", peers: "unknown" });
+    expect(await encryptedRemoteDismissable(m.ports)).toBe(true);
   });
 
   it("a lifted workspace whose objects stay: plain for the device that ended it, pair-required for any other", async () => {

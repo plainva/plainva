@@ -940,10 +940,24 @@ async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, raw
     // held, and said, until the person finishes it in the Security area. Asked first, before the workspace a runtime
     // still carries in memory: past the gate that runtime is no valid one any more, and its encrypted worker never
     // runs again on a workspace half gone. Only that fact holds it, never leftovers.
-    const leaving = await mobileDecommissionUnfinished(v.vaultId).catch(() => null);
+    // A fact that cannot be read holds: it does not let through (review B2, round 11, MG-A).
+    const leaving = await mobileDecommissionUnfinished(v.vaultId).catch(() => "unreadable" as const);
+    if (leaving === "unreadable") {
+      held = { vaultId: v.vaultId, attempt: 0 };
+      setState({ status: "error", message: null });
+      return true;
+    }
     if (leaving) {
       held = { vaultId: v.vaultId, attempt: 0 };
       setState({ status: "error", message: i18n.t(leaving === "lift" ? "workspaceSecurity.liftUnfinished" : "workspaceSecurity.decommissionUnfinished"), errorKind: "pair-required" });
+      return true;
+    }
+    // A runtime that carries a workspace whose status went after it opened (the start loads the workspace only with
+    // its status) is past a decommission's gate, finished or not (review B2, round 11, SP-A): never its encrypted
+    // worker, and never "joined" over the departure. Only the vault opened anew syncs, as its own state has it.
+    if (v.workspaceRuntime && !(await getMobileWorkspaceStatus(v.vaultId).catch(() => null))) {
+      held = { vaultId: v.vaultId, attempt: 0 };
+      setState({ status: "off", message: null });
       return true;
     }
     if (v.workspaceRuntime) {

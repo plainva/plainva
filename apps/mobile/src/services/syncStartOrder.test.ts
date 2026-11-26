@@ -164,7 +164,14 @@ vi.mock("./mobileSettingsSync", () => ({
   mobileSyncDeviceId: async () => "phone",
   prepareMobileSettingsSync: async (_v: unknown, _p: unknown, raw: unknown) => ({ target: raw, runner: { run: async () => undefined } }),
 }));
+const r11 = vi.hoisted(() => ({
+  /** What the stand-in decommission does (`leaveWorkspaceStep` runs the real step around it). */
+  decomm: null as null | ((input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => Promise<void>),
+  liftMarkFails: false,
+}));
 vi.mock("./mobileWorkspaceSecurity", () => ({
+  decommissionMobileWorkspace: async (input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => { await r11.decomm!(input); },
+  markMobileEncryptionLift: async () => { if (r11.liftMarkFails) throw new Error("lift mark failed"); },
   loadMobilePublicationRuntime: async () => null,
   getMobileWorkspaceStatus: async () => state.wsStatus,
   mobileDecommissionUnfinished: async () => {
@@ -197,6 +204,7 @@ const vault = {
 } as unknown as MobileVault;
 
 import { retireWorkspaceRuntime } from "./syncService";
+import { leaveWorkspaceStep } from "./workspaceLeaving";
 import { connectProvider, detachSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep, withRuntimeStep, withVaultSyncStopped } from "./syncService";
 
 function holdTheStart(): void {
@@ -374,6 +382,8 @@ describe("an encrypted workspace's start that a stop overtakes (fourth review, f
     state.joinGate = { reached: false, release, promise };
     const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {} } as unknown as MobileVault;
     state.screen = workspaceVault;
+    // A runtime carries its workspace only with its status (the start loads them together).
+    state.wsStatus = { phase: "active" };
     const starting = startSyncIfConfigured(workspaceVault);
     await vi.waitFor(() => expect(state.joinGate?.reached).toBe(true));
     expect(getSyncStatus().status).toBe("syncing");
@@ -396,6 +406,7 @@ describe("an encrypted workspace's first cycle (3.119)", () => {
     const sweepOwedToRemote = vi.fn();
     const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {}, markFirstSyncComplete, sweepOwedToRemote } as unknown as MobileVault;
     state.screen = workspaceVault;
+    state.wsStatus = { phase: "active" };
     await startSyncIfConfigured(workspaceVault);
     const encrypted = state.workerHooks[state.workerHooks.length - 1];
     expect(encrypted?.onFirstCycleComplete).toBeTypeOf("function");
@@ -568,6 +579,117 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     expect(getSyncStatus().status).toBe("off");
   });
 
+  /*
+   * Review B2, round 11, SP-A (the reviewer's probes L-enqueue, L-liftMark, R-success, R-fail, R-reload-false,
+   * L-control), over the real `leaveWorkspaceStep` and the real `withRuntimeStep`; the decommission stands in for
+   * what it has done at the point of the failure — and tells its gate, as the real one does.
+   */
+  describe("past a decommission's gate, with or without its fact", () => {
+    const KEY = "encryptedRemote_v";
+    function wsVault(enqueue: () => Promise<void> = async () => undefined): MobileVault {
+      return { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {}, syncQueue: { ...(vault as unknown as { syncQueue: object }).syncQueue, enqueueAllLocalFiles: enqueue } } as unknown as MobileVault;
+    }
+    /** The real decommission run to its end: status gone, the fact of its gate gone, the departure noted. */
+    const completeDecommission = (departure: "released" | "left", gate = true) => async (input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => {
+      await input.stopSync();
+      if (gate) input.passedGate?.();
+      state.wsStatus = null;
+      state.decommissionUnfinished = null;
+      state.settings.set(KEY, departure === "released" ? { v: 2, state: "released", workspace: "unreadable-genesis" } : { v: 2, state: "left", peers: "others", workspace: "unreadable-genesis" });
+    };
+    /** A failure past the gate before the end: the fact of the gate set, the status gone. */
+    const failPastGate = (intent: "decommission" | "lift") => async (input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => {
+      await input.stopSync();
+      input.passedGate?.();
+      state.wsStatus = null;
+      state.decommissionUnfinished = intent;
+      throw new Error("keychain failed after the gate");
+    };
+    async function begin(ws: MobileVault): Promise<void> {
+      state.settings.set(KEY, { v: 2, state: "joined", workspace: "unreadable-genesis" });
+      state.screen = ws;
+      state.wsStatus = { phase: "active" };
+      state.genesis = "found";
+      await startSyncIfConfigured(ws).catch(() => undefined);
+      expect(running().workers).toBe(1);
+      vi.mocked(reloadActiveMobileVault).mockClear();
+    }
+    afterEach(() => { r11.decomm = null; r11.liftMarkFails = false; });
+
+    for (const variant of ["enqueue", "liftMark"] as const) {
+      for (const gate of [true, false]) {
+        it(`L-${variant}${gate ? "" : " (the gate not told)"}: a lift whose decommission finished, then ${variant} fails — no worker on the old runtime, "released" stays, the vault opens anew`, async () => {
+          expect.hasAssertions();
+          const ws = wsVault(variant === "enqueue" ? async () => { throw new Error("enqueue failed"); } : async () => undefined);
+          r11.liftMarkFails = variant === "liftMark";
+          r11.decomm = completeDecommission("released", gate);
+          await begin(ws);
+          const outcome = await leaveWorkspaceStep(ws, "lift").then(() => "done", (e: Error) => e.message);
+          await new Promise((r) => setTimeout(r, 50));
+          expect(outcome).not.toBe("done");
+          // THE DEFECT (SP-A): the release started the encrypted worker on the old runtime, and "released" became "joined".
+          expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+          expect(state.settings.get(KEY)).toMatchObject({ state: "released" });
+          if (gate) expect(reloadActiveMobileVault).toHaveBeenCalledWith("security-area", { runtime: ws });
+        });
+      }
+    }
+
+    it("R-success: a decommission that finished, whose own reload then fails — no worker on the old runtime, \"left\" stays", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("left");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      const outcome = await leaveWorkspaceStep(ws, "decommission").then(() => "done", (e: Error) => e.message);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(outcome).toBe("reload failed");
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+      expect(state.settings.get(KEY)).toMatchObject({ state: "left", peers: "others" });
+    });
+
+    for (const intent of ["decommission", "lift"] as const) {
+      it(`R-fail-${intent}: a failure past the gate whose reload fails too — held with the row's text, also after "Sync now" and coming online`, async () => {
+        expect.hasAssertions();
+        const ws = wsVault();
+        r11.decomm = failPastGate(intent);
+        await begin(ws);
+        vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+        await leaveWorkspaceStep(ws, intent).catch(() => undefined);
+        await new Promise((r) => setTimeout(r, 50));
+        syncNow();
+        window.dispatchEvent(new Event("online"));
+        await new Promise((r) => setTimeout(r, 50));
+        expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+        expect(state.settings.get(KEY)).toMatchObject({ state: "joined" });
+      });
+    }
+
+    it("R-reload-false: past the gate, the reload waits behind someone's input — no worker", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = failPastGate("decommission");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => false);
+      await leaveWorkspaceStep(ws, "decommission").catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    });
+
+    it("L-control: the same lift without a failure — the reload replaces the runtime, and the new one syncs plain", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("released");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { state.screen = { ...vault } as unknown as MobileVault; return true; });
+      expect(await leaveWorkspaceStep(ws, "lift").then(() => "done", (e: Error) => e.message)).toBe("done");
+      await new Promise((r) => setTimeout(r, 50));
+      expect(state.settings.get(KEY)).toMatchObject({ state: "released" });
+      await startSyncIfConfigured(state.screen as MobileVault);
+      expect(running().workers).toBe(1);
+    });
+  });
+
   it("S2: the same vault opened anew, without its workspace in memory — held, with the row's text", async () => {
     expect.hasAssertions();
     state.screen = vault;
@@ -600,11 +722,23 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     await vi.waitFor(() => expect(running().workers).toBe(1));
   });
 
-  it("a fact that cannot be read holds nothing: the start goes on as before (N11)", async () => {
+  it("a fact that cannot be read holds — it never lets a sync through (N11, review B2, round 11, MG-A)", async () => {
     expect.hasAssertions();
     state.decommissionUnfinished = "unreadable";
     await startSyncIfConfigured(vault);
-    expect(running().workers).toBe(1);
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    expect(getSyncStatus().status).toBe("error");
+  });
+
+  it("MG-A: a step's question that fails after its failure counts as past the gate — the vault opens anew", async () => {
+    expect.hasAssertions();
+    vi.mocked(reloadActiveMobileVault).mockClear();
+    const outcome = await withRuntimeStep({ vaultId: "v", runtime: vault }, {
+      work: async (stop) => { await stop(); throw new Error("keychain failed"); },
+      reload: { own: "security-area", afterFailure: async () => { throw new Error("preferences unreadable"); } },
+    }).then(() => "done", (e: Error) => e.message);
+    expect(outcome).toBe("keychain failed");
+    expect(reloadActiveMobileVault).toHaveBeenCalledWith("security-area", { runtime: vault });
   });
 
   it("a store that fails inside the rule does not stop the start", async () => {
@@ -624,6 +758,7 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     known();
     const joined = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
     state.screen = joined;
+    state.wsStatus = { phase: "active" };
     await startSyncIfConfigured(joined).catch(() => undefined);
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
   });

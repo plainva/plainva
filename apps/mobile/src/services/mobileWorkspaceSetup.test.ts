@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * First setup on the phone (2026-07-25): the draft lifecycle and the activation
@@ -185,6 +185,22 @@ describe("mobile encrypted-workspace first setup", () => {
  */
 describe("mobile encrypted-workspace decommission", () => {
   beforeEach(() => { prefs.clear(); secrets.clear(); keystoreError = null; failRemove = null; failSet = null; });
+  // The app's settings, where the folder's departure is noted: a decommission that cannot note it is unfinished
+  // (review B2, round 11, H-7), so every test here has a store.
+  let platformBefore: unknown;
+  beforeEach(async () => {
+    const { getPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    try { platformBefore = getPlatformServices(); } catch { platformBefore = undefined; }
+    const settings = new Map<string, unknown>();
+    setPlatformServices({ ...(platformBefore as object), loadSettings: async () => ({
+      keys: async () => [...settings.keys()], get: async (key: string) => settings.get(key) ?? null,
+      set: async (key: string, value: unknown) => { settings.set(key, value); }, delete: async (key: string) => settings.delete(key), save: async () => {},
+    }) } as Parameters<typeof setPlatformServices>[0]);
+  });
+  afterEach(async () => {
+    const { setPlatformServices } = await import("@plainva/ui");
+    if (platformBefore) setPlatformServices(platformBefore as Parameters<typeof setPlatformServices>[0]);
+  });
 
   /** A joined workspace as it looks on disk: status, device key, state rows. */
   async function joined(): Promise<MemoryWorkspaceStateStore> {
@@ -383,6 +399,40 @@ describe("mobile encrypted-workspace decommission", () => {
       expect(settings.get("encryptedRemote_v1")).toMatchObject({ state: "released" });
       expect(await mobileDecommissionUnfinished("v1")).toBeNull();
     });
+  });
+
+  it("H-7: a departure that cannot be noted leaves the decommission unfinished — the fact stays, and pressing again notes it", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    const runtime = await loadMobileWorkspaceRuntime("v1");
+    const { getPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try { previous = getPlatformServices(); } catch { previous = undefined; }
+    setPlatformServices({ ...previous, loadSettings: async () => { throw new Error("settings unreachable"); } } as Parameters<typeof setPlatformServices>[0]);
+    try {
+      // THE DEFECT (H-7): the failure was swallowed, the fact taken away — "joined" stayed, and no row said anything.
+      await expect(decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {}, runtime })).rejects.toThrow("settings unreachable");
+    } finally { if (previous) setPlatformServices(previous); }
+    expect(await mobileDecommissionUnfinished("v1")).toBe("decommission");
+    await withSettings(async (settings) => {
+      await decommissionMobileWorkspace({ vaultId: "v1", state: new MemoryWorkspaceStateStore(), stopSync: async () => {} });
+      expect(settings.get("encryptedRemote_v1")).toMatchObject({ state: "left", peers: "unknown" });
+      expect(await mobileDecommissionUnfinished("v1")).toBeNull();
+    });
+  });
+
+  it("H-3 (X9): a new setup whose removal of an old fact fails writes no key — the old row never takes a new key along", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    await expect(decommissionMobileWorkspace({ vaultId: "v1", state: stopsAfterTheGate(state), stopSync: async () => {} })).rejects.toThrow();
+    expect(secrets.has("workspace_runtime_mobile_v1")).toBe(false);
+    const prepared = await prepareMobileWorkspace({ vaultId: "v1", ownerDisplayName: "Marco", deviceDisplayName: "Pixel" });
+    failRemove = "workspace_leaving_mobile_";
+    await activatePreparedMobileWorkspace({ vaultId: "v1", draftId: prepared.draftId, store: new FakeWorkspaceObjectStore(), vault: vaultWith({ "Note.md": "hello" }), state: new MemoryWorkspaceStateStore() }).catch(() => undefined);
+    failRemove = null;
+    // The fact goes before the key: where it cannot go, no key is written under the old row.
+    expect(secrets.has("workspace_runtime_mobile_v1") && (await mobileDecommissionUnfinished("v1")) !== null).toBe(false);
+    expect(secrets.has("workspace_runtime_mobile_v1")).toBe(false);
   });
 
   it("W3: a fact dormant under a whole workspace is taken away by the next status written (a lock)", async () => {

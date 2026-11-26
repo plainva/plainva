@@ -1023,6 +1023,30 @@ describe("review B2, round 8", () => {
     expect(h.violations).toEqual([]);
   });
 
+  it("H-3 (X13): a registry write that wrote the other vault and threw, and a way back that holds — the runtime stays open, nothing is left for good", async () => {
+    expect.hasAssertions();
+    const h = harness();
+    const first = await openFirst(h);
+    const orig = m.wait;
+    let once = false;
+    m.wait = (label) => {
+      if (label === "registry write" && !once) {
+        once = true;
+        return orig(label).then(() => { m.active = "work"; throw new Error("registry write lost its answer"); });
+      }
+      return orig(label);
+    };
+    const failing = h.api.switchVault("work").then(() => "switched", (e: Error) => e.message);
+    await until(h, failing);
+    await h.drain(() => runningOn().length > 0);
+    expect(await failing).toBe("registry write lost its answer");
+    expect(m.active, "the way back set the registry back").toBe("notes");
+    expect(h.api.runtimeOnScreen()).toBe(first);
+    expect(first.disposed).toBe(0);
+    expect(runningOn().map((w) => w.runtime)).toEqual([first]);
+    expect(h.violations).toEqual([]);
+  });
+
   for (const answers of [false, true]) {
     it(`D1${answers ? "b" : ""} (MG1): a switch made while the delete's removal turn finds the local start opening ${answers ? "— and that start answers later" : "— a start that does not answer"}: nothing in the turn waits for the start`, async () => {
       expect.hasAssertions();

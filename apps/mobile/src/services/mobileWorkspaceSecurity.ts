@@ -1180,7 +1180,8 @@ export async function decommissionMobileWorkspace(input: {
   const runtime = await secureCredentialStore.readSecret<ReturnType<typeof serializePersonalWorkspaceRuntime>>(runtimeKey(vaultId));
   // Pressed again after a run that stopped after its gate (review B2, round 9): one that began is still one to
   // finish, never "not a workspace". Leftovers alone (a device key a reinstall kept) are no such fact.
-  if (!runtime && !(await getMobileWorkspaceStatus(vaultId)) && !(await leavingOf(vaultId))) throw new Error("this vault is not an encrypted workspace on this device");
+  const begun = await leavingFactOf(vaultId);
+  if (!runtime && !(await getMobileWorkspaceStatus(vaultId)) && !begun) throw new Error("this vault is not an encrypted workspace on this device");
   // Whether this device is the workspace's only one, asked at this press, of the runtime the vault has open. Pressed
   // again after a run that stopped midway, the vault opened without its workspace: nobody can tell then whether other
   // devices still use it, and the folder stays theirs (R8) — never an answer frozen from before.
@@ -1191,7 +1192,9 @@ export async function decommissionMobileWorkspace(input: {
   if (renewed) state = renewed.state;
   // (2) The gate. First the fact that it opens (`leavingKey`): from here on a run that stops is said as one that did
   // not finish — and only shown, never finished by itself. Where writing it fails, nothing has changed.
-  await Preferences.set({ key: leavingKey(vaultId), value: input.intent ?? "decommission" });
+  // A run pressed again keeps what the one before had done: that the folder's departure is noted already.
+  const intent = input.intent ?? "decommission";
+  await Preferences.set({ key: leavingKey(vaultId), value: begun?.departed ? `${intent}${DEPARTED}` : intent });
   input.passedGate?.();
   await Preferences.remove({ key: statusKey(vaultId) });
   cache.delete(vaultId); locked.delete(vaultId);
@@ -1207,14 +1210,16 @@ export async function decommissionMobileWorkspace(input: {
   // touched - its `.pvws/` objects are immutable and the workspace lives on for
   // every other device. Only this workspace's single device of its single
   // member ended it, and may sync the folder plainly next to exactly that
-  // genesis; any other device LEFT, and the folder stays theirs. Without the
-  // mark the next start stays held (fail closed): the workspace is gone from
-  // this device either way, so a settings store that cannot be reached does
-  // not undo the decommission.
-  try {
+  // genesis; any other device LEFT, and the folder stays theirs. A mark that
+  // cannot be written leaves the decommission unfinished (review B2, round 11,
+  // H-7): the fact stays, its row says so, and pressing again notes it. A
+  // departure this decommission noted already (its fact says so) is never
+  // noted again: a press without a runtime would replace the only device's
+  // "released" with "left" — and only this decommission knows its note still
+  // holds (review B2, round 11, SP-B), never the shared mark itself.
+  if (!begun?.departed) {
     await markEncryptedRemoteDeparted(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), vaultId), departure);
-  } catch (error) {
-    console.warn("[mobileWorkspaceSecurity] could not record the released workspace", error);
+    await Preferences.set({ key: leavingKey(vaultId), value: `${intent}${DEPARTED}` });
   }
   await Preferences.remove({ key: leavingKey(vaultId) });
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
@@ -1223,9 +1228,18 @@ export async function decommissionMobileWorkspace(input: {
 /** What a decommission that passed its gate was asked for (`decommissionMobileWorkspace`, `intent`). */
 export type MobileLeaving = "decommission" | "lift";
 
-async function leavingOf(vaultId: string): Promise<MobileLeaving | null> {
+/** The fact's suffix once the decommission noted the folder's departure (`decommissionMobileWorkspace`). */
+const DEPARTED = "+departed";
+
+/** The fact of a gate passed: what was asked for, and whether the departure is noted already. */
+async function leavingFactOf(vaultId: string): Promise<{ intent: MobileLeaving; departed: boolean } | null> {
   const value = (await Preferences.get({ key: leavingKey(vaultId) })).value;
-  return value === "lift" ? "lift" : value ? "decommission" : null;
+  if (!value) return null;
+  return { intent: value.startsWith("lift") ? "lift" : "decommission", departed: value.endsWith(DEPARTED) };
+}
+
+async function leavingOf(vaultId: string): Promise<MobileLeaving | null> {
+  return (await leavingFactOf(vaultId))?.intent ?? null;
 }
 
 /**
