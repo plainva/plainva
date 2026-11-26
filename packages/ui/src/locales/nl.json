@@ -5826,7 +5826,6 @@
     "alsoCreateAt": "Ook aanmaken in “{{list}}”",
     "providerCreateFailed": "De taak is lokaal aangemaakt, maar niet bij de provider.",
     "providerAnchorFailed": "De taak is bij de provider aangemaakt, maar kon niet aan de notitie worden gekoppeld — anders maakt de volgende synchronisatie een tweede notitie voor de taak aan.",
-    "providerKeptAsIs": "De taak staat bij je provider al anders. Je wijziging is daar niet overgenomen.",
     "deletingWithUndo_one": "Taak verwijderd. Wordt over {{seconds}} s ook bij de aanbieder verwijderd.",
     "deleteCancelled_one": "Verwijderen ongedaan gemaakt — de notitie is terug.",
     "deletingWithUndo_other": "{{count}} taken verwijderd. Worden over {{seconds}} s ook bij de aanbieder verwijderd.",

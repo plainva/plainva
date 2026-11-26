@@ -5826,7 +5826,6 @@
     "alsoCreateAt": "Auch anlegen bei „{{list}}“",
     "providerCreateFailed": "Die Aufgabe wurde lokal angelegt, aber nicht beim Anbieter.",
     "providerAnchorFailed": "Die Aufgabe wurde beim Anbieter angelegt, konnte aber nicht mit der Notiz verknüpft werden — beim nächsten Abgleich entsteht sonst eine zweite Notiz dafür.",
-    "providerKeptAsIs": "Die Aufgabe steht bei Deinem Anbieter schon anders. Deine Änderung wurde dort nicht übernommen.",
     "deletingWithUndo_one": "Aufgabe gelöscht. Wird in {{seconds}} s auch beim Anbieter gelöscht.",
     "deleteCancelled_one": "Löschen rückgängig gemacht — die Notiz ist zurück.",
     "deletingWithUndo_other": "{{count}} Aufgaben gelöscht. Werden in {{seconds}} s auch beim Anbieter gelöscht.",

@@ -1,4 +1,4 @@
-import { createTryFor, forgetCreateUid } from "./createUids";
+import { createTryFor, createVaultKey, forgetCreateUid } from "./createUids";
 import {
   setFrontmatterPath,
   readFrontmatterPath,
@@ -144,8 +144,9 @@ export async function createEntryEvent(opts: CreateEntryEventOptions): Promise<C
     noteTarget,
   });
   // The same appointment tried again keeps its uid (issue 119).
-  const res = await opts.createEvent(opts.calendarKey, { ...draft, ...createTryFor("entry-event", opts.calendarKey, { note: opts.notePath, draft }, draft) });
-  forgetCreateUid("entry-event", opts.calendarKey, { note: opts.notePath, draft });
+  const where = `${createVaultKey(opts.adapter)} ${opts.calendarKey}`;
+  const res = await opts.createEvent(opts.calendarKey, { ...draft, ...createTryFor("entry-event", where, { note: opts.notePath, draft }, draft) });
+  forgetCreateUid("entry-event", where, { note: opts.notePath, draft });
 
   // `anchored` is decided here and nowhere else: the appointment already
   // exists, so a note that cannot be written is a warning, not a rollback.

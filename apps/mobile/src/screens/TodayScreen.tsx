@@ -1,3 +1,4 @@
+import { usePimTick } from "../hooks/usePimTick";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AreaBoundary, consumePendingNew, consumeEventSeed, getPlatformServices } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
@@ -347,12 +348,7 @@ export function TodayScreen({
 
   // A sync or a write on its way changes the day's appointments, as on the
   // desktop (issue 119): the phone's runtime sends `m-pim-changed` for both.
-  const [pimTick, setPimTick] = useState(0);
-  useEffect(() => {
-    const onChanged = () => setPimTick((v) => v + 1);
-    window.addEventListener("m-pim-changed", onChanged);
-    return () => window.removeEventListener("m-pim-changed", onChanged);
-  }, []);
+  const pimTick = usePimTick();
 
   // The day's appointments. Best-effort: a vault without a calendar account
   // simply contributes nothing, and it may not keep the daily note from

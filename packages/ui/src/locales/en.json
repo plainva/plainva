@@ -5826,7 +5826,6 @@
     "alsoCreateAt": "Also create in “{{list}}”",
     "providerCreateFailed": "The task was created locally but not at the provider.",
     "providerAnchorFailed": "The task was created at the provider but could not be linked to the note — the next sync would otherwise import a second note for it.",
-    "providerKeptAsIs": "The task already stands differently at your provider. Your change was not taken over there.",
     "deletingWithUndo_one": "Task deleted. Removing it at the provider in {{seconds}}s.",
     "deleteCancelled_one": "Deletion undone — the note is back.",
     "deletingWithUndo_other": "{{count}} tasks deleted. Removing them at the provider in {{seconds}}s.",

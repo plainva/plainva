@@ -646,7 +646,7 @@ describe("review 5 of issue 119: one clock, nothing after leaving, nothing drawn
     error.mock.calls[1]![1]!.run();
     await vi.waitFor(() => expect(createEvent).toHaveBeenCalledTimes(1));
     const { createAs: _a, ...sent } = single;
-    expect(createEvent.mock.calls[0]![1].createBefore).toEqual(sent);
+    expect(createEvent.mock.calls[0]![1].createSent).toEqual([sent]);
     error.mockRestore();
   });
 
@@ -685,8 +685,10 @@ describe("review 5 of issue 119: one clock, nothing after leaving, nothing drawn
     expect.hasAssertions();
     const next = formCreateTries(single);
     const { createAs: _a, ...sent } = single;
-    expect(next().createBefore).toBeUndefined();
-    expect(next().createBefore).toEqual(sent);
+    expect(next().createSent).toBeUndefined();
+    expect(next().createSent).toEqual([sent]);
+    // The same draft every try: one version, never a list that grows.
+    expect(next().createSent).toEqual([sent]);
     expect(next().createAs).toBe("plainva-r5");
   });
 });

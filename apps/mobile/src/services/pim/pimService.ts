@@ -1,3 +1,4 @@
+import { announceStoreChanges, onPimChanged } from "./pimChanged";
 import { confirmedAccessOf, sameStoredValue, withOwnConfirmedAccess, CONFIRMED_ACCESS_KEY } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import type { TaskListRuntime } from "@plainva/ui";
@@ -344,8 +345,8 @@ let pendingWritesWired = false;
 function wirePendingEventWrites(): void {
   if (pendingWritesWired || typeof window === "undefined") return;
   pendingWritesWired = true;
-  pendingEventWrites.subscribe(() => window.dispatchEvent(new CustomEvent("m-pim-changed")));
-  window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
+  announceStoreChanges(pendingEventWrites, window);
+  onPimChanged(window, () => void reconcilePendingEventWrites());
 }
 
 /**

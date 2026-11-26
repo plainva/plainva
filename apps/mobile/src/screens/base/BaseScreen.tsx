@@ -1,3 +1,4 @@
+import { usePimTick } from "../../hooks/usePimTick";
 import { BaseConfigChangeRefusedError, composeLineage, lineageBetween, readContentBinary, reportingTo, type ViewLineage, type ViewsChange } from "@plainva/ui";
 import { AreaBoundary, baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore, type ReactNode } from "react";
@@ -309,12 +310,7 @@ export function BaseScreen({
   const [eventBackdrop, setEventBackdrop] = useState<Map<string, { count: number }>>(new Map());
   // A sync or a write on its way changes the backdrop, as on the desktop (issue 119):
   // the phone's runtime sends `m-pim-changed` for both.
-  const [pimTick, setPimTick] = useState(0);
-  useEffect(() => {
-    const onChanged = () => setPimTick((v) => v + 1);
-    window.addEventListener("m-pim-changed", onChanged);
-    return () => window.removeEventListener("m-pim-changed", onChanged);
-  }, []);
+  const pimTick = usePimTick();
   useEffect(() => {
     let alive = true;
     if (!showEvents) {

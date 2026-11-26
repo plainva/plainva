@@ -182,8 +182,8 @@ export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<Cre
   const draft = created.draft;
   if (!draft?.createAs) return;
   // A later try of the same create: the earlier one sent this same draft.
-  const { createAs: _as, createBefore: _before, ...sent } = draft as PimEventDraft & { createAs: string; createBefore?: unknown };
-  const create = { ...sent, createAs: draft.createAs, createBefore: sent };
+  const { createAs: _as, createSent: _sent, ...sent } = draft as PimEventDraft & { createAs: string; createSent?: unknown };
+  const create = { ...sent, createAs: draft.createAs, createSent: [sent] };
   const fail = (error: unknown) => {
     if (stillCurrent(deps)) say(eventWriteRefusalText(error, "save"), { label: i18n.t("pim.eventWriteRetry"), run: again });
   };

@@ -4,8 +4,7 @@ import { splitAtWordTags, tagAttributeWords, wordTagContent } from "./davTagScan
 import { trimEndChars } from "../textScan.js";
 import ICAL from "ical.js";
 import { recurrenceToRRule } from "./recurrence.js";
-import { NOT_SHOWN_YET_MS } from "./createUid.js";
-import { sameStoredValue } from "../storedValue.js";
+import { NOT_SHOWN_YET_MS, newPimCreateUid } from "./createUid.js";
 import type { FetchFn, WebDavCredentials } from "../sync/WebDavSyncTarget.js";
 import type { ConfirmedAccess } from "./confirmedAccess.js";
 import type {
@@ -111,27 +110,38 @@ function uidOfObject(text: string): string | null {
 
 /**
  * Whether two calendar objects say the same (issue 119): what a later try
- * compares the object it meets with what the earlier try sent. A server
- * rewrites what it stores - stamps, ids, its own extras - so those are left
- * out; everything a person or another device may change is compared: titles,
- * times, rules, removed occurrences, attendees and their answers, status,
- * completion, alarms. Anything that cannot be read counts as changed.
+ * compares the object it meets with what its earlier tries sent. Strict: the
+ * only lines left out are the stamps a server sets on every store (`DTSTAMP`,
+ * `CREATED`, `LAST-MODIFIED`); every other line counts with its parameters and
+ * values - `X-` extras too (another Plainva device keeps its blockers in
+ * `X-PLAINVA-BLOCKS`), alarms with their content, each occurrence on its own.
+ * `SEQUENCE:0` is the same as no `SEQUENCE`. Anything that cannot be read
+ * counts as changed. A server that rewrites what it stores therefore makes
+ * its own object look changed: the later try then creates anew, as before
+ * this change (`docs/engineering/Calendar_Create_Tries.md`) - a duplicate,
+ * never a loss.
  */
-const SERVER_OWNED = new Set(["dtstamp", "created", "last-modified", "sequence", "prodid", "version", "calscale"]);
+const SERVER_STAMPS = new Set(["dtstamp", "created", "last-modified"]);
+
+function componentContent(comp: InstanceType<typeof ICAL.Component>): string {
+  const props = comp
+    .getAllProperties()
+    .filter((p) => !SERVER_STAMPS.has(p.name) && !(p.name === "sequence" && Number(p.getFirstValue()) === 0))
+    .map((p) => {
+      const [name, params, type, ...values] = p.toJSON() as [string, Record<string, unknown>, string, ...unknown[]];
+      const sortedParams = Object.keys(params).sort().map((key) => [key, params[key]]);
+      return JSON.stringify([name, sortedParams, type, values]);
+    })
+    .sort();
+  const inner = comp.getAllSubcomponents().map(componentContent).sort();
+  return JSON.stringify([comp.name, props, inner]);
+}
 
 function contentOf(text: string): string | null {
   try {
     const cal = new ICAL.Component(ICAL.parse(text));
-    const parts = [...cal.getAllSubcomponents("vevent"), ...cal.getAllSubcomponents("vtodo")].map((comp) => {
-      const props = comp
-        .getAllProperties()
-        .filter((p) => !SERVER_OWNED.has(p.name) && !p.name.startsWith("x-"))
-        .map((p) => `${p.name}=${JSON.stringify(p.getValues().map((v) => String(v)))};${JSON.stringify(p.getParameter("partstat") ?? "")}`)
-        .sort();
-      const alarms = comp.getAllSubcomponents("valarm").length;
-      return `${comp.name}|${alarms}|${props.join("|")}`;
-    });
-    return parts.sort().join("\n");
+    const parts = [...cal.getAllSubcomponents("vevent"), ...cal.getAllSubcomponents("vtodo")].map(componentContent);
+    return parts.length > 0 ? parts.sort().join("\n") : null;
   } catch {
     return null;
   }
@@ -142,17 +152,8 @@ function sameObjectContent(a: string, b: string): boolean {
   return left !== null && left === contentOf(b);
 }
 
-function sameEventDraft(a: PimEventDraft, b: PimEventDraft): boolean {
-  const { createAs: _a, createBefore: _b, ...x } = a as PimEventDraft & { createAs?: string; createBefore?: unknown };
-  const { createAs: _c, createBefore: _d, ...y } = b as PimEventDraft & { createAs?: string; createBefore?: unknown };
-  return sameStoredValue(x, y);
-}
-
-function sameTaskDraft(a: PimTaskDraft, b: PimTaskDraft): boolean {
-  const { createAs: _a, createBefore: _b, ...x } = a as PimTaskDraft & { createAs?: string; createBefore?: unknown };
-  const { createAs: _c, createBefore: _d, ...y } = b as PimTaskDraft & { createAs?: string; createBefore?: unknown };
-  return sameStoredValue(x, y);
-}
+/** What a later try found at its address was not provably one of its own: it creates anew. */
+const NOT_PROVABLY_OURS = Symbol("not provably ours");
 
 const xmlText = (text: string): string => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -514,16 +515,15 @@ export class CalDavPimTarget implements IPimTarget {
   }
 
   async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
-    const uid = draft.createAs;
-    const build = (d: PimEventDraft) => buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, d));
-    const placed = await this.createObject(calendarId, uid, "event", build(draft), draft.createBefore ? { before: build(draft.createBefore), same: sameEventDraft(draft, draft.createBefore) } : null);
-    return { uid, href: placed.href, ...(placed.etag ? { etag: placed.etag } : {}), ...(placed.notApplied ? { notApplied: true as const } : {}) };
+    const build = (uid: string, d: PimEventDraft) => buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, d));
+    const placed = await this.createObject(calendarId, draft.createAs, "event", (uid) => build(uid, draft), (draft.createSent ?? []).map((d) => build(draft.createAs, d)));
+    return { uid: placed.uid, href: placed.href, ...(placed.etag ? { etag: placed.etag } : {}) };
   }
 
   /**
-   * PUTs a new object (issue 119) and hands back where it stands and, where
-   * the server shows it, its etag. One send per call; the rules of a later try
-   * are in `docs/engineering/Calendar_Create_Tries.md`.
+   * PUTs a new object (issue 119) and hands back its uid, where it stands and,
+   * where the server shows it, its etag. The rules of a later try are in
+   * `docs/engineering/Calendar_Create_Tries.md`.
    *
    * A server that rewrites what it is sent names no etag in its answer (RFC
    * 4791 5.3.4), so the object is read back - with patience, as iCloud answers
@@ -537,26 +537,36 @@ export class CalDavPimTarget implements IPimTarget {
    *
    * Every send carries `If-None-Match: *`, so nothing that stands at the
    * address is ever written over blindly. A 412 on a first try is not this
-   * create's object - an error, as on main. On a later try (`later`: what the
-   * earlier try sent) it is the earlier try's object, landed: read, and
-   *  - shown and still what the earlier try sent: written with `If-Match` where
-   *    the person changed something since, else left as it is;
-   *  - shown and changed elsewhere since: left as it is - nothing anyone wrote
-   *    there is lost; where the person changed something too, `notApplied`
-   *    says their change was not taken over;
-   *  - not shown yet: held, not written (`notApplied` where they changed
-   *    something).
+   * create's object - an error, as on main. On a later try (`sentBefore`: what
+   * its earlier tries sent, or set out to send) something stands at the
+   * create's own address: read, and
+   *  - it says what this try sends: held as it is;
+   *  - it says what one of the earlier tries sent: this try's draft is written
+   *    over it, with `If-Match` on the etag the read named;
+   *  - anything else - changed elsewhere since, not readable yet, or changed
+   *    between the read and the write: not provably this create's, so nothing
+   *    is written there, and the create is made anew under a uid of its own,
+   *    exactly as on main. Whatever happens after the create (a sync that
+   *    takes the provider's state for the note's, a follower of the event)
+   *    then meets an object that is the person's draft and nothing else.
    */
   private async createObject(
     collection: string,
     uid: string,
     what: "event" | "task",
-    body: string,
-    later: { before: string; same: boolean } | null,
-  ): Promise<{ href: string; etag?: string; notApplied?: boolean }> {
-    const placed = await this.putNewObject(collection, uid, what, body, later);
-    if (!placed.etag && !placed.notApplied) noteCreated(placed.href, Date.now());
-    return placed;
+    bodyFor: (uid: string) => string,
+    sentBefore: string[],
+  ): Promise<{ uid: string; href: string; etag?: string }> {
+    const placed = await this.putNewObject(collection, uid, what, bodyFor(uid), sentBefore.length > 0 ? sentBefore : null);
+    if (placed === NOT_PROVABLY_OURS) {
+      const fresh = newPimCreateUid();
+      const anew = await this.putNewObject(collection, fresh, what, bodyFor(fresh), null);
+      if (anew === NOT_PROVABLY_OURS) throw new Error(`caldav create ${what}: refused`);
+      if (!anew.etag && !anew.shown) noteCreated(anew.href, Date.now());
+      return { uid: fresh, href: anew.href, ...(anew.etag ? { etag: anew.etag } : {}) };
+    }
+    if (!placed.etag && !placed.shown) noteCreated(placed.href, Date.now());
+    return { uid, href: placed.href, ...(placed.etag ? { etag: placed.etag } : {}) };
   }
 
   private async putNewObject(
@@ -564,8 +574,8 @@ export class CalDavPimTarget implements IPimTarget {
     uid: string,
     what: "event" | "task",
     body: string,
-    later: { before: string; same: boolean } | null,
-  ): Promise<{ href: string; etag?: string; notApplied?: boolean }> {
+    sentBefore: string[] | null,
+  ): Promise<{ href: string; etag?: string; shown?: true } | typeof NOT_PROVABLY_OURS> {
     const href = this.resolve(joinCollection(collection, `${uid}.ics`));
     const res = await this.rawRequest(href, {
       method: "PUT",
@@ -573,8 +583,8 @@ export class CalDavPimTarget implements IPimTarget {
       body,
     });
     if (res.status === 412) {
-      if (!later) throw await pimRequestError(`caldav create ${what}`, res);
-      return this.settleLaterTry(href, what, body, later);
+      if (!sentBefore) throw await pimRequestError(`caldav create ${what}`, res);
+      return this.settleLaterTry(href, what, body, sentBefore);
     }
     if (!res.ok) throw await pimRequestError(`caldav create ${what}`, res);
     // A server that names the address it chose is read there.
@@ -590,7 +600,7 @@ export class CalDavPimTarget implements IPimTarget {
     }
     if (read.ok) {
       const etag = read.headers.get("ETag");
-      return { href: at, ...(etag ? { etag } : {}) };
+      return { href: at, shown: true, ...(etag ? { etag } : {}) };
     }
     if (!isMissing(read.status) || at !== href) return { href: at };
     // A server may keep the object under an address of its own without
@@ -599,29 +609,37 @@ export class CalDavPimTarget implements IPimTarget {
     return { href: elsewhere?.inCalendar ?? href };
   }
 
-  /** A later try met the earlier try's object (412): see `createObject`. */
-  private async settleLaterTry(href: string, what: "event" | "task", body: string, later: { before: string; same: boolean }): Promise<{ href: string; etag?: string; notApplied?: boolean }> {
-    let read: Response;
-    try {
-      read = await this.readAfterWrite(href);
-    } catch {
-      return { href, ...(later.same ? {} : { notApplied: true }) };
+  /** A later try met an object at its own address (412): see `createObject`. */
+  private async settleLaterTry(
+    href: string,
+    what: "event" | "task",
+    body: string,
+    sentBefore: string[],
+  ): Promise<{ href: string; etag?: string; shown: true } | typeof NOT_PROVABLY_OURS> {
+    // A read that fails is no answer: the create fails, as a send would.
+    const read = await this.readAfterWrite(href);
+    if (!read.ok) {
+      if (isMissing(read.status)) return NOT_PROVABLY_OURS;
+      throw await pimRequestError(`caldav create ${what}`, read);
     }
-    if (!read.ok) return { href, ...(later.same ? {} : { notApplied: true }) };
     const etag = read.headers.get("ETag") ?? undefined;
     const stands = await read.text();
-    if (!sameObjectContent(stands, later.before)) return { href, ...(etag ? { etag } : {}), ...(later.same ? {} : { notApplied: true }) };
-    if (later.same || !etag) return { href, ...(etag ? { etag } : {}), ...(later.same ? {} : { notApplied: true }) };
+    if (sameObjectContent(stands, body)) return { href, shown: true, ...(etag ? { etag } : {}) };
+    if (!sentBefore.some((sent) => sameObjectContent(stands, sent))) return NOT_PROVABLY_OURS;
+    // One of this create's own earlier versions: this try's draft goes over
+    // it. Without an etag the write goes without a precondition, as an
+    // ordinary change does (`readModifyPutObject`) - the read just showed the
+    // object is this create's own.
     const put = await this.rawRequest(href, {
       method: "PUT",
-      headers: { "Content-Type": "text/calendar; charset=utf-8", "If-Match": etag },
+      headers: { "Content-Type": "text/calendar; charset=utf-8", ...(etag ? { "If-Match": etag } : {}) },
       body,
     });
-    // Changed between the read and the write: left as it is.
-    if (put.status === 412) return { href, notApplied: true };
+    // Changed between the read and the write: no longer provably ours.
+    if (put.status === 412) return NOT_PROVABLY_OURS;
     if (!put.ok) throw await pimRequestError(`caldav create ${what}`, put);
     const written = await this.etagAfterWrite(href, put);
-    return { href, ...(written ? { etag: written } : {}) };
+    return { href, shown: true, ...(written ? { etag: written } : {}) };
   }
 
   /**
@@ -812,10 +830,9 @@ export class CalDavPimTarget implements IPimTarget {
   }
 
   async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
-    const uid = draft.createAs;
-    const build = (d: PimTaskDraft) => buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, d));
-    const placed = await this.createObject(listId, uid, "task", build(draft), draft.createBefore ? { before: build(draft.createBefore), same: sameTaskDraft(draft, draft.createBefore) } : null);
-    return { uid, href: placed.href, ...(placed.etag ? { etag: placed.etag } : {}), ...(placed.notApplied ? { notApplied: true as const } : {}) };
+    const build = (uid: string, d: PimTaskDraft) => buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, d));
+    const placed = await this.createObject(listId, draft.createAs, "task", (uid) => build(uid, draft), (draft.createSent ?? []).map((d) => build(draft.createAs, d)));
+    return { uid: placed.uid, href: placed.href, ...(placed.etag ? { etag: placed.etag } : {}) };
   }
 
   async updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<{ etag?: string }> {

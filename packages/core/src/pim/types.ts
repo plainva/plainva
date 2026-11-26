@@ -348,13 +348,15 @@ export interface PimTaskDraft {
  * again" sends the same uid, and a provider that lets the client name the
  * event (CalDAV) finds the event the first try left instead of making a
  * second one. `newPimCreateUid` makes one; `createUidFor` keeps one per
- * action across tries. `createBefore` says a try is not the first of its
- * create, and carries what the earlier try sent: CalDAV compares the object
- * it meets at the address with it, and writes over it only where nobody has
- * changed it since (`docs/engineering/Calendar_Create_Tries.md`).
+ * action across tries. `createSent` says a try is not the first of its
+ * create, and carries every version its earlier tries sent or set out to send
+ * (a try that failed may still have landed): CalDAV writes over the object it
+ * meets at the address only where it says one of them, and otherwise creates
+ * anew under a uid of its own (`docs/engineering/Calendar_Create_Tries.md`).
+ * The uid in the result is the one the provider holds the create under.
  */
-export type PimEventCreate = PimEventDraft & { createAs: string; createBefore?: PimEventDraft };
-export type PimTaskCreate = PimTaskDraft & { createAs: string; createBefore?: PimTaskDraft };
+export type PimEventCreate = PimEventDraft & { createAs: string; createSent?: PimEventDraft[] };
+export type PimTaskCreate = PimTaskDraft & { createAs: string; createSent?: PimTaskDraft[] };
 
 /**
  * What a task update reports back.
@@ -381,12 +383,6 @@ export interface PimWriteResult {
   uid: string;
   etag?: string;
   href?: string;
-  /**
-   * A later try of a create met the earlier try's object changed elsewhere
-   * (or not shown yet) and left it as it stands: what the person changed
-   * since the earlier try is not at the provider (issue 119).
-   */
-  notApplied?: true;
 }
 
 /** The `PimNotShownYetError` an error is or carries in its message (over the bus only the message crosses). */

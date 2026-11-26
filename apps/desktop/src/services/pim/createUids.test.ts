@@ -106,12 +106,34 @@ describe("the uid of a create survives its tries and ends with its landing", () 
     expect(p.uids[0]).toBe(p.uids[1]);
   });
 
-  it("a later try names what the try before it sent (`createBefore`), so the provider can compare", () => {
+  it("a later try names every version the tries before it sent or set out to send (`createSent`): a try that failed may have landed", () => {
     expect.hasAssertions();
-    const first = createTryFor("probe-again", "acc cal", { title: "A" }, { title: "A", due: "2026-12-01" }, 0);
-    const second = createTryFor("probe-again", "acc cal", { title: "A" }, { title: "A", due: "2026-12-09" }, 1_000);
-    const third = createTryFor("probe-again", "acc cal", { title: "A" }, { title: "A", due: "2026-12-10" }, 2_000);
-    expect([first.createBefore, second.createBefore, third.createBefore, second.createAs]).toEqual([undefined, { title: "A", due: "2026-12-01" }, { title: "A", due: "2026-12-09" }, first.createAs]);
+    const monday = { title: "A", due: "2026-11-30" };
+    const tuesday = { title: "A", due: "2026-12-01" };
+    const first = createTryFor("probe-again", "acc cal", { title: "A" }, monday, 0);
+    const second = createTryFor("probe-again", "acc cal", { title: "A" }, tuesday, 1_000);
+    const third = createTryFor("probe-again", "acc cal", { title: "A" }, monday, 2_000);
+    const fourth = createTryFor("probe-again", "acc cal", { title: "A" }, tuesday, 3_000);
+    expect([first.createSent, second.createSent, third.createSent, fourth.createSent]).toEqual([undefined, [monday], [monday, tuesday], [tuesday, monday]]);
+    expect(new Set([first.createAs, second.createAs, third.createAs, fourth.createAs]).size).toBe(1);
+    forgetCreateUid("probe-again", "acc cal", { title: "A" });
+  });
+
+  it("a task sent to a list belongs to its vault: the same note path and title in another vault is another create (H-F)", async () => {
+    expect.hasAssertions();
+    const uids: string[] = [];
+    const createTask = vi.fn(async (_list: string, d: { createAs: string }) => {
+      uids.push(d.createAs);
+      throw new Error("network connection was lost");
+    });
+    const one = adapter();
+    const other = adapter();
+    const opts = { notePath: "T/milk.md", accountId: "g1", listId: "@default", draft: { title: "Buy milk" }, createTask };
+    await createProviderTask({ ...opts, adapter: one });
+    await createProviderTask({ ...opts, adapter: other });
+    await createProviderTask({ ...opts, adapter: one });
+    expect(uids[1]).not.toBe(uids[0]);
+    expect(uids[2]).toBe(uids[0]);
   });
 
   it("a move that landed lets its uid go: the same move again is a new create", async () => {

@@ -5950,7 +5950,6 @@
     "alsoCreateAt": "Crea anche in “{{list}}”",
     "providerCreateFailed": "L'attività è stata creata localmente, ma non presso il provider.",
     "providerAnchorFailed": "L'attività è stata creata presso il provider, ma non è stato possibile collegarla alla nota — altrimenti la prossima sincronizzazione crea una seconda nota per l'attività.",
-    "providerKeptAsIs": "L’attività risulta già diversa presso il tuo provider. La tua modifica non è stata applicata lì.",
     "deletingWithUndo_one": "Attività eliminata. Verrà eliminata anche presso il fornitore tra {{seconds}} s.",
     "deleteCancelled_one": "Eliminazione annullata: la nota è tornata.",
     "deletingWithUndo_many": "{{count}} attività eliminate. Verranno eliminate anche presso il fornitore tra {{seconds}} s.",

@@ -1,4 +1,4 @@
-import { createTryFor, forgetCreateUid } from "./createUids";
+import { createTryFor, createVaultKey, forgetCreateUid } from "./createUids";
 import { readFrontmatterPath, setFrontmatterPath, updateVaultText, type TextUpdateFiles } from "@plainva/core";
 import { verifiedProviderIdentityOf } from "../lib/accountProfile";
 
@@ -148,13 +148,12 @@ export interface CreateProviderTaskOptions {
    * and can be tested without one. */
   createTask(
     listId: string,
-    draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string; createBefore?: { title: string; due?: string; notes?: string; completed: boolean } },
-  ): Promise<{ uid: string; notApplied?: true }>;
+    draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string; createSent?: { title: string; due?: string; notes?: string; completed: boolean }[] },
+  ): Promise<{ uid: string }>;
 }
 
 export type CreateProviderTaskResult =
-  /** `notApplied`: the task stood at the provider changed already, and this send did not write over it. */
-  | { ok: true; uid: string; accountId: string; listId: string; anchored: boolean; notApplied?: true }
+  | { ok: true; uid: string; accountId: string; listId: string; anchored: boolean }
   | { ok: false; reason: "createFailed" };
 
 /**
@@ -169,9 +168,8 @@ export async function createProviderTask(
   opts: CreateProviderTaskOptions
 ): Promise<CreateProviderTaskResult> {
   let uid: string;
-  let notApplied: boolean;
-  // The task of this note in this list, the same uid for every try (issue 119).
-  const where = `${opts.accountId} ${opts.listId}`;
+  // The task of this note in this list and vault, the same uid for every try (issue 119).
+  const where = `${createVaultKey(opts.adapter)} ${opts.accountId} ${opts.listId}`;
   const what = { note: opts.notePath, title: opts.draft.title };
   try {
     const task = {
@@ -182,10 +180,11 @@ export async function createProviderTask(
       // order to have it already done.
       completed: false,
     };
-    // A later try names what the try before it sent: the provider compares,
-    // and writes over the task only where nobody changed it since.
+    // A later try names every version sent before: the provider writes over
+    // the task it meets only where it is one of them, and otherwise creates
+    // anew - the note is anchored to the uid the provider answers with, so
+    // the sync never takes a task changed elsewhere for this note's.
     const res = await opts.createTask(opts.listId, { ...task, ...createTryFor("provider-task", where, what, task) });
-    notApplied = res.notApplied === true;
     uid = res.uid;
     forgetCreateUid("provider-task", where, what);
   } catch {
@@ -208,7 +207,7 @@ export async function createProviderTask(
     anchored = false;
   }
 
-  return { ok: true, uid, accountId: opts.accountId, listId: opts.listId, anchored, ...(notApplied ? { notApplied: true as const } : {}) };
+  return { ok: true, uid, accountId: opts.accountId, listId: opts.listId, anchored };
 }
 
 /** The provider anchor of a note, or null when it carries none. Used to avoid

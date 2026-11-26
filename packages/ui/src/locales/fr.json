@@ -5950,7 +5950,6 @@
     "alsoCreateAt": "Créer aussi dans « {{list}} »",
     "providerCreateFailed": "La tâche a été créée localement, mais pas chez le fournisseur.",
     "providerAnchorFailed": "La tâche a été créée chez le fournisseur, mais n'a pas pu être liée à la note — sinon, la prochaine synchronisation crée une deuxième note pour la tâche.",
-    "providerKeptAsIs": "La tâche figure déjà autrement chez votre fournisseur. Votre modification n’y a pas été reprise.",
     "deletingWithUndo_one": "Tâche supprimée. Elle sera aussi supprimée chez le fournisseur dans {{seconds}} s.",
     "deleteCancelled_one": "Suppression annulée — la note est de retour.",
     "deletingWithUndo_many": "{{count}} tâches supprimées. Elles seront aussi supprimées chez le fournisseur dans {{seconds}} s.",
