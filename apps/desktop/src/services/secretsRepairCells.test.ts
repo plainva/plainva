@@ -105,7 +105,7 @@ async function round(d: Device): Promise<SecretsBundle> {
   const port = createSecretsPort(host(d));
   const local = await port.exportBundle();
   const merged = mergeSecretsBundles(local, doc, now());
-  if (stableStringify(merged.entries) !== stableStringify(local.entries) || port.awaitsDocument()) await port.importBundle(merged);
+  if (stableStringify(merged.entries) !== stableStringify(local.entries) || port.awaitsDocument?.()) await port.importBundle(merged);
   doc = merged;
   return local;
 }
