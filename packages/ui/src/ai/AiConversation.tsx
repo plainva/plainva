@@ -124,12 +124,20 @@ export function withReturned(current: string, text: string): string {
  * kept a moment after each key and when the conversation changes, and a question that went back into the field taken
  * in once. What was typed meanwhile stays first.
  */
-function useComposerDraft(session: AiSession | null, state: ReturnType<typeof useAiState> | null, draft: string, setDraft: (update: (current: string) => string) => void): void {
+function useComposerDraft(
+  session: AiSession | null,
+  state: ReturnType<typeof useAiState> | null,
+  draft: string,
+  setDraft: (update: (current: string) => string) => void,
+  touched: { current: boolean },
+): void {
   const key = state?.active?.id ?? "";
   const ready = Boolean(session && state?.loaded && state.hasVault);
   const epoch = state?.vaultEpoch ?? 0;
   // What the field shows belongs to this conversation once its draft was read: nothing is kept for it before.
   const loadedFor = useRef<string | null>(null);
+  // How many Delete alls of the vault there were when the draft was read (M1): one since, and nothing of before is kept.
+  const since = useRef(0);
   const latest = useRef({ key, draft });
   // What the field holds now, for the moment a conversation is left (read in an effect's clean-up, never in render).
   useLayoutEffect(() => {
@@ -138,35 +146,46 @@ function useComposerDraft(session: AiSession | null, state: ReturnType<typeof us
   useEffect(() => {
     if (!session || !ready) return;
     loadedFor.current = null;
+    // Only what the person changes in THIS field is kept by it (B7, review M2): another surface of the same session
+    // that shows the same conversation with an empty field does not write its emptiness over the words.
+    touched.current = false;
     let live = true;
     const own = `${epoch}:${key}`;
     void session.composerDraft(key).then((kept) => {
       if (!live) return;
       loadedFor.current = own;
+      since.current = session.composerDraftEpoch();
       if (kept?.text) setDraft((current) => (current.trim() ? current : kept.text));
       if (kept && !key) session.restoreStartDrafts(kept);
       const back = session.takeReturned(key);
-      if (back) setDraft((current) => withReturned(current, back));
+      if (back) {
+        touched.current = true;
+        setDraft((current) => withReturned(current, back));
+      }
     });
     return () => {
       live = false;
-      // Leaving a conversation keeps what its field holds; the next one starts from its own.
-      if (loadedFor.current === own) session.keepComposerDraft(key, latest.current.draft);
+      // Leaving a conversation keeps what its field holds, where the person changed it here; the next one starts from its own.
+      if (loadedFor.current === own && touched.current) session.keepComposerDraft(key, latest.current.draft, since.current);
       loadedFor.current = null;
+      touched.current = false;
       setDraft(() => "");
     };
-  }, [session, ready, key, epoch, setDraft]);
+  }, [session, ready, key, epoch, setDraft, touched]);
   const returned = state?.returned;
   useEffect(() => {
     if (!session || !returned || returned.conversationId !== key || loadedFor.current === null) return;
     const back = session.takeReturned(key);
-    if (back) setDraft((current) => withReturned(current, back));
-  }, [session, returned, key, setDraft]);
+    if (back) {
+      touched.current = true;
+      setDraft((current) => withReturned(current, back));
+    }
+  }, [session, returned, key, setDraft, touched]);
   useEffect(() => {
-    if (!session || !ready || loadedFor.current !== `${epoch}:${key}`) return;
-    const timer = setTimeout(() => session.keepComposerDraft(key, draft), COMPOSER_DRAFT_MS);
+    if (!session || !ready || loadedFor.current !== `${epoch}:${key}` || !touched.current) return;
+    const timer = setTimeout(() => session.keepComposerDraft(key, draft, since.current), COMPOSER_DRAFT_MS);
     return () => clearTimeout(timer);
-  }, [session, ready, key, epoch, draft]);
+  }, [session, ready, key, epoch, draft, touched]);
 }
 
 /** Seconds of silence after which the line of a model on this device says where the thinking happens, and counts. */
@@ -331,7 +350,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const pendingRef = useRef<HTMLDivElement | null>(null);
   usePendingMore(pendingRef, Boolean(state?.consent || state?.effect || state?.question || extPrompt));
   // The field's draft per conversation, kept on this device (B7), and a question that went back into it.
-  useComposerDraft(session ?? null, state ?? null, draft, setDraft);
+  const draftTouched = useRef(false);
+  useComposerDraft(session ?? null, state ?? null, draft, setDraft, draftTouched);
   if (!session || !state || !state.loaded) return null;
 
   if (!state.settings.enabled) {
@@ -834,7 +854,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     ? notice.kind === "failed"
       ? providerWords
         ? t(notice.failure.kind === "refused_by_provider" ? "ai.error.refusedShort" : "ai.error.providerErrorShort", { provider: provider.label })
-        : conversationFailureText(t, notice.failure, failureRecipient(provider), choice.model, { returned: shownNotice?.returned === true, images: retryable?.images ?? 0 })
+        : conversationFailureText(t, notice.failure, failureRecipient(provider), choice.model, { returned: shownNotice?.returned === true, images: retryable?.images ?? 0, departed: Boolean(shownNotice?.departedTo?.length) })
       : STOP_KEYS[notice.kind]
         ? t(STOP_KEYS[notice.kind]!)
         : null
@@ -1266,7 +1286,10 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             value={draft}
             placeholder={inputHint}
             aria-label={inputHint}
-            onChange={(event) => setDraft(event.target.value)}
+            onChange={(event) => {
+              draftTouched.current = true;
+              setDraft(event.target.value);
+            }}
             onKeyDown={onKeyDown}
             data-testid="ai-input"
           />

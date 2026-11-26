@@ -1,4 +1,4 @@
-import { BUILTIN_PROVIDERS, DEFAULT_AI_APP_SETTINGS, providerById, runsOnDevice, type AiAppSettings, type ModelFailure, type ProviderInfo } from "@plainva/core/ai";
+import { BUILTIN_PROVIDERS, DEFAULT_AI_APP_SETTINGS, failureClassOf, providerById, runsOnDevice, type AiAppSettings, type ModelFailure, type ProviderInfo } from "@plainva/core/ai";
 import { buildInfo, type BuildInfo } from "../lib/buildInfo";
 import type { AiState, ProviderTest } from "./aiSession";
 
@@ -107,8 +107,11 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
  * question is back in the field" stand only over a request of the first class whose question went back (`returned`);
  * a request that may have arrived says so. `images`: the pictures of the turn that failed.
  */
-export function conversationFailureText(t: T, failure: ModelFailure, recipient: FailureRecipient, model: string, how: { returned?: boolean; images?: number } = {}): string {
+export function conversationFailureText(t: T, failure: ModelFailure, recipient: FailureRecipient, model: string, how: { returned?: boolean; images?: number; departed?: boolean } = {}): string {
   const provider = recipient.label;
+  // The model call never went, but the run handed something on before it (B7, review S1: the question embedded for
+  // the search at a cloud model). No text may say "nothing was sent" then: the reasons that say so are not used.
+  if (how.departed && failureClassOf(failure) === "never_sent" && SAYS_NOTHING_SENT.has(failure.kind)) return t("errors.somethingWentWrong");
   if (failure.kind === "unreachable" && how.returned) return t("ai.error.unreachable", { provider });
   // No answer, or one that broke off, from a provider elsewhere: the request may have arrived. A server on this device
   // and a device without any network keep their own words.
@@ -117,6 +120,9 @@ export function conversationFailureText(t: T, failure: ModelFailure, recipient: 
   if (failure.kind === "context_too_long" && (how.images ?? 0) > 0) return `${aiFailureText(t, failure, recipient, model)} ${t("ai.error.imageTooBig")}`;
   return aiFailureText(t, failure, recipient, model);
 }
+
+/** The failures whose words say that nothing was sent (`ai.error.*`). */
+const SAYS_NOTHING_SENT: ReadonlySet<ModelFailure["kind"]> = new Set<ModelFailure["kind"]>(["too_large", "invalid_request", "window_too_small", "local_only"]);
 
 /** Whether this device has no network at all, as far as the browser knows. */
 function deviceOffline(): boolean {

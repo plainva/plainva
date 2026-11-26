@@ -68,7 +68,11 @@ Una pregunta que espera tu respuesta —el resumen previo al envío, una página
 
 Si algo falla, el mensaje indica de quién viene —de este dispositivo, de la red, del proveedor o de Plainva— y ofrece el remedio adecuado: **Introducir una clave nueva** en caso de una clave, **Cambiar de modelo** en caso de un modelo desconocido. El texto de error propio de un proveedor está tras **Detalles**. Sin red, el mensaje dice que este dispositivo está sin conexión y que debes volver a enviar la pregunta después.
 
-**Una solicitud que nunca salió del dispositivo.** Cuando Plainva decidió antes de enviar nada —ninguna conexión con el proveedor, una solicitud demasiado grande para enviarla, una clave que falta—, el mensaje dice que no se envió nada, y una pregunta que escribiste vuelve al campo: **Enviar de nuevo** la envía en cuanto vuelve la conexión. **Una solicitud que puede haber llegado.** Cuando el proveedor no respondió, o la conexión se cortó después de establecerse, la pregunta y su registro se quedan en la conversación, porque el proveedor puede haberla recibido; **Enviar de nuevo** envía la misma pregunta otra vez en su sitio, sin una segunda copia. Cuando una solicitud con una imagen era demasiado grande, **Omitir la imagen** la envía de nuevo sin la imagen; la imagen se queda en la conversación, marcada como **no enviada**. Lo que escribes en el campo se guarda en este dispositivo para cada conversación hasta que lo envías, también tras un reinicio.
+**Una solicitud que nunca salió del dispositivo.** Cuando Plainva decidió antes de enviar nada —ninguna conexión con el proveedor, una solicitud demasiado grande para enviarla, una clave que falta—, el mensaje dice que no se envió nada, y una pregunta que escribiste vuelve al campo: **Enviar de nuevo** la envía en cuanto vuelve la conexión.
+
+**Una solicitud que puede haber llegado.** Cuando el proveedor no respondió, o la conexión se cortó después de establecerse, la pregunta y su registro se quedan en la conversación, porque el proveedor puede haberla recibido; **Enviar de nuevo** envía la misma pregunta otra vez en su sitio, sin una segunda copia. Cuando una solicitud con una imagen era demasiado grande, **Omitir la imagen** la envía de nuevo sin la imagen; la imagen se queda en la conversación, marcada como **no enviada**.
+
+Lo que escribes en el campo se guarda en este dispositivo para cada conversación hasta que lo envías, también tras un reinicio.
 
 Un enlace en una respuesta se abre solo después de que confirmes su dirección, y las imágenes en las respuestas nunca se cargan.
 

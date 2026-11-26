@@ -68,7 +68,11 @@ Una domanda che attende la tua risposta — il riepilogo prima dell'invio, una p
 
 Se qualcosa va storto, il messaggio nomina chi ne è l'origine (questo dispositivo, la rete, il provider o Plainva) e offre la correzione esatta; su un dispositivo senza connessione lo dice.
 
-**Una richiesta che non ha mai lasciato il dispositivo.** Quando Plainva ha deciso prima che partisse qualcosa — nessuna connessione al provider, una richiesta troppo grande da inviare, una chiave mancante —, il messaggio dice che non è stato inviato nulla, e una domanda che hai digitato torna nel campo: **Invia di nuovo** la invia appena la connessione torna. **Una richiesta che potrebbe essere arrivata.** Quando il provider non ha risposto, o la connessione si è interrotta dopo essersi stabilita, la domanda e il suo registro restano nella conversazione, perché il provider potrebbe averla ricevuta; **Invia di nuovo** invia la stessa domanda ancora una volta al suo posto, senza una seconda copia. Quando una richiesta con un'immagine era troppo grande, **Ometti l'immagine** la invia di nuovo senza l'immagine; l'immagine resta nella conversazione, segnata come **non inviata**. Ciò che digiti nel campo resta su questo dispositivo per ogni conversazione finché non lo invii, anche dopo un riavvio.
+**Una richiesta che non ha mai lasciato il dispositivo.** Quando Plainva ha deciso prima che partisse qualcosa — nessuna connessione al provider, una richiesta troppo grande da inviare, una chiave mancante —, il messaggio dice che non è stato inviato nulla, e una domanda che hai digitato torna nel campo: **Invia di nuovo** la invia appena la connessione torna.
+
+**Una richiesta che potrebbe essere arrivata.** Quando il provider non ha risposto, o la connessione si è interrotta dopo essersi stabilita, la domanda e il suo registro restano nella conversazione, perché il provider potrebbe averla ricevuta; **Invia di nuovo** invia la stessa domanda ancora una volta al suo posto, senza una seconda copia. Quando una richiesta con un'immagine era troppo grande, **Ometti l'immagine** la invia di nuovo senza l'immagine; l'immagine resta nella conversazione, segnata come **non inviata**.
+
+Ciò che digiti nel campo resta su questo dispositivo per ogni conversazione finché non lo invii, anche dopo un riavvio.
 
 Un link in una risposta si apre solo dopo che ne hai confermato l'indirizzo, e le immagini nelle risposte non vengono mai caricate.
 

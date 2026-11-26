@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readConversationRecord, type EgressChunk } from "@plainva/core/ai";
-import { transcriptOf } from "@plainva/ui/ai";
+import { departingEgress, transcriptOf } from "@plainva/ui/ai";
 import { answer, brokeOff, session, settled, unreachable, vaultHost } from "./failureClassHarness";
 
 /**
@@ -148,5 +148,92 @@ describe("a start nobody typed", () => {
     expect(s.getState().notice?.returned).toBeUndefined();
     expect(s.getState().returned).toBeNull();
     expect(vault.saved.size).toBe(1);
+  });
+});
+
+/**
+ * "Nothing was sent" is a fact of the whole run, not of the model call (B7, review S1): the question of a typed
+ * message is embedded for the search before the model is asked, and with a cloud search model it leaves the device
+ * then — through the session's egress, as `useDesktopEmbeddings`/`mobileEmbeddings` hand the search its
+ * `session.egress`. Then the model call failing "never sent" withdraws nothing and says no "nothing was sent".
+ */
+describe("what left the device before the model call", () => {
+  /** A search model's answer: one vector. */
+  const vector: EgressChunk[] = [{ type: "open", status: 200 }, { type: "data", text: JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }) }, { type: "done" }];
+
+  function embeddingSearch(vault: ReturnType<typeof vaultHost>, s: ReturnType<typeof session>["s"], endpointId: string) {
+    const handed: string[] = [];
+    vault.host.candidates = async (question) => {
+      handed.push(question);
+      // As the search with a provider's model does it: one request through the session's egress.
+      await s.egress.send(`emb-${handed.length}`, { endpointId, url: "https://api.openai.com/v1/embeddings", method: "POST", headers: {}, body: { input: [question] }, auth: "bearer", stream: false } as never, () => undefined);
+      return [];
+    };
+    return handed;
+  }
+
+  it("keeps the turn, and says no 'nothing was sent', where the question went to a cloud search model", async () => {
+    const { s, fake } = session([vector, unreachable]);
+    await s.load();
+    const vault = vaultHost();
+    const handed = embeddingSearch(vault, s, "openai");
+    await s.attachVault(vault.host);
+    await s.send("Where is the offer?");
+    expect(handed).toEqual(["Where is the offer?"]);
+    expect(fake.sent).toHaveLength(2);
+    const state = s.getState();
+    expect(state.notice?.returned).toBeUndefined();
+    expect(state.notice?.departedTo).toEqual(["openai"]);
+    expect(state.returned).toBeNull();
+    // The turn stays, with its record: it may be sent again where it stands.
+    expect(state.active!.conversation.turns.map((t) => t.role)).toEqual(["user"]);
+    expect(s.retryable()).toMatchObject({ userTurn: 0 });
+  });
+
+  it("still withdraws where the search model is this device's own: nothing left it", async () => {
+    const { s } = session([vector, unreachable]);
+    await s.load();
+    const vault = vaultHost();
+    embeddingSearch(vault, s, "ollama");
+    await s.attachVault(vault.host);
+    await s.send("Where is the offer?");
+    expect(s.getState().notice?.returned).toBe(true);
+    expect(s.getState().active).toBeNull();
+  });
+
+  it("counts a request as gone unless the egress refused it as never sent before anything came back", async () => {
+    const gone: string[] = [];
+    const answers: Record<string, EgressChunk[] | "throw"> = {
+      refused: unreachable,
+      local: [{ type: "failed", code: "local_only", message: "x" }],
+      broke: brokeOff,
+      answered: vector,
+      threw: "throw",
+      timeout: [{ type: "failed", code: "idle_timeout", message: "x" }],
+      refusedAfterOpen: [{ type: "open", status: 200 }, { type: "failed", code: "unreachable", message: "x" }],
+    };
+    const inner = {
+      async send(requestId: string, _spec: unknown, onChunk: (chunk: EgressChunk) => void) {
+        const script = answers[requestId]!;
+        if (script === "throw") throw new Error("bridge");
+        for (const chunk of script) onChunk(chunk);
+      },
+      async cancel() {},
+      async setKey() {},
+      async hasKey() {
+        return true;
+      },
+      async deleteKey() {},
+      async addEndpoint() {
+        return true;
+      },
+      async removeEndpoint() {},
+      rest() {},
+    };
+    const egress = departingEgress(inner as never, (endpointId) => gone.push(endpointId));
+    for (const id of Object.keys(answers)) {
+      await egress.send(id, { endpointId: id, url: "https://x.example/v1", method: "POST", headers: {}, body: {} } as never, () => undefined).catch(() => undefined);
+    }
+    expect(gone).toEqual(["broke", "answered", "threw", "timeout", "refusedAfterOpen"]);
   });
 });

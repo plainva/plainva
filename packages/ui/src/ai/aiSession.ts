@@ -209,6 +209,7 @@ import {
   imageRoute,
   imagesOf,
   failureClassOf,
+  failureFromChunk,
   imageTokens,
   isAiHiddenPath,
   TRANSCRIPTION_MAX_BYTES,
@@ -1056,6 +1057,11 @@ export interface AiState {
      * on this device, nothing left it — and the user typed it. The turn and its run were withdrawn.
      */
     returned?: true;
+    /**
+     * The model call never went, but something of the run left the device before it — the question embedded for the
+     * search at a cloud model (B7, review S1): the endpoints it went to. The notice then says no "nothing was sent".
+     */
+    departedTo?: string[];
   } | null;
   /**
    * A typed question that went back into the field (B7): the composer of the conversation it was for takes it once —
@@ -1263,6 +1269,15 @@ function withChoicesOf(record: ConversationRecord, from: ConversationChoices): C
   if (from.redact) next.redact = from.redact;
   else delete next.redact;
   return next;
+}
+
+/**
+ * The run that stands for a user turn: the latest of its runs. "Send again" in place (B7) adds a run to the same turn,
+ * and the earlier one — failed — keeps its record beside it (review M3).
+ */
+export function latestRunOf(record: ConversationRecord, userTurn: number): RunMeta | undefined {
+  for (let index = record.runs.length - 1; index >= 0; index--) if (record.runs[index]!.userTurn === userTurn) return record.runs[index];
+  return undefined;
 }
 
 /**
@@ -1567,6 +1582,44 @@ type ConsentAnswer = "send" | "cancel" | { leaveOut: string } | { redact: string
 
 const sortSummaries = (list: ConversationSummary[]) => [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
+/** How many recipients of departures a session remembers (`departedTo`). */
+const DEPARTED_KEPT = 200;
+
+/**
+ * The session's egress, counting what may leave the device (B7, review S1): `onDeparture` is told of every request
+ * the inner egress did not answer as never sent — a refusal of the first class before anything came back
+ * (`failureClassOf`). A request that throws, is cancelled, or ends in any other way may have gone.
+ */
+export function departingEgress(inner: LocalOnlyEgress, onDeparture: (endpointId: string) => void): LocalOnlyEgress {
+  return {
+    ...inner,
+    rest: () => inner.rest(),
+    cancel: (requestId) => inner.cancel(requestId),
+    setKey: (endpointId, key) => inner.setKey(endpointId, key),
+    hasKey: (endpointId) => inner.hasKey(endpointId),
+    deleteKey: (endpointId) => inner.deleteKey(endpointId),
+    addEndpoint: (endpointId, baseUrl) => inner.addEndpoint(endpointId, baseUrl),
+    removeEndpoint: (endpointId) => inner.removeEndpoint(endpointId),
+    async send(requestId, spec, onChunk) {
+      let decided = false;
+      const depart = () => {
+        if (decided) return;
+        decided = true;
+        onDeparture(spec.endpointId);
+      };
+      try {
+        await inner.send(requestId, spec, (chunk) => {
+          if (!decided && chunk.type === "failed" && failureClassOf(failureFromChunk(chunk.code, chunk.message)) === "never_sent") decided = true;
+          else depart();
+          onChunk(chunk);
+        });
+      } finally {
+        depart();
+      }
+    },
+  };
+}
+
 export class AiSession {
   private state: AiState;
   private readonly listeners = new Set<Listener>();
@@ -1633,6 +1686,15 @@ export class AiSession {
   private sending = false;
   /** Counts the questions that went back into the field (B7). */
   private returnSeq = 0;
+  /**
+   * Counts the requests that may have left this device (plan Umsetzung 0.9.x, B7, review S1): every request of the
+   * session to any model — the chat, embedding a question for the search, the reader without tools, a page's
+   * processing, a transcription — passes `this.out`, and each that is not answered "never sent" by the egress counts
+   * here, at that one place. A run notes the count when it begins: a run during which it grew has sent something.
+   */
+  private departures = 0;
+  /** The recipients of the latest departures, with their count: who a run's question went to. */
+  private readonly departedTo: Array<{ at: number; endpointId: string }> = [];
   /** Recordings being transcribed now: one run per file. */
   private transcribing = new Set<string>();
   /** Ends the run that fills a column, between two of its entries. */
@@ -1689,10 +1751,19 @@ export class AiSession {
   private readonly out: LocalOnlyEgress;
 
   constructor(private readonly host: AiSessionHost) {
-    this.out = localOnlyEgress(host.egress, {
-      on: () => !this.state.loaded || this.state.settings.localOnly,
-      onDevice: (endpointId) => runsOnDevice(providerById(endpointId, this.state.settings.custom)),
-    });
+    this.out = departingEgress(
+      localOnlyEgress(host.egress, {
+        on: () => !this.state.loaded || this.state.settings.localOnly,
+        onDevice: (endpointId) => runsOnDevice(providerById(endpointId, this.state.settings.custom)),
+      }),
+      (endpointId) => {
+        // What went to this device's own model never left it.
+        if (runsOnDevice(providerById(endpointId, this.state.settings.custom))) return;
+        this.departures++;
+        this.departedTo.push({ at: this.departures, endpointId });
+        if (this.departedTo.length > DEPARTED_KEPT) this.departedTo.splice(0, this.departedTo.length - DEPARTED_KEPT);
+      },
+    );
     // Foreign servers and external agents rest while the device is fully local: each has a way out of its own.
     const resting = () => this.state.settings.localOnly;
     this.mcp = new AiMcp(
@@ -1991,6 +2062,10 @@ export class AiSession {
   async testProvider(providerId: string): Promise<ProviderTest> {
     const provider = providerById(providerId, this.state.settings.custom);
     const at = this.host.now().toISOString();
+    // While the AI is off on this device nothing is asked of any provider, also not by a test (B7, review M7): the
+    // switch is the promise, whichever door led here.
+    // Before the settings are read the switch is not known: the egress holds that (`local_only`), nothing leaves.
+    if (this.state.loaded && !this.state.settings.enabled) return { state: "failed", at, failure: { kind: "invalid_request", message: "the AI is off on this device" } };
     if (!provider) return { state: "failed", at, failure: { kind: "unknown_endpoint", message: providerId } };
     this.set({ tests: { ...this.state.tests, [providerId]: { ...this.state.tests[providerId], state: "testing" } } });
     let test: ProviderTest;
@@ -4501,7 +4576,8 @@ export class AiSession {
     try {
       // One not on screen is read once its writes have landed.
       const record = this.state.active?.id === conversationId ? this.state.active : await this.loaded(vault, conversationId).catch(() => null);
-      const run = record?.runs.find((candidate) => candidate.userTurn === userTurn);
+      // A turn sent again in place has two runs (B7, review M3): the latest is the one that stands.
+      const run = record ? latestRunOf(record, userTurn) : undefined;
       if (!record || !run) return null;
       const request = replayRequest(record, run);
       if (!request.ok) return null;
@@ -5416,7 +5492,12 @@ export class AiSession {
       this.dropWriteQuestion();
       this.leaveComposerMessage();
     }
+    // The words kept for its field go with it (B7, review M1): a deleted conversation leaves no text behind.
+    const draft = vault.composerDrafts?.clear(id).catch(() => {
+      /* silent: the store keeps a draft at most thirty days; a failed removal is tried again by the next Delete all */
+    });
     await this.deleteStored(vault, id);
+    await draft;
   }
 
   async removeAll(): Promise<void> {
@@ -5442,6 +5523,8 @@ export class AiSession {
     const clearing = Promise.all([this.clearings.get(key), ...before]).then(async () => {
       try {
         await vault.conversations.removeAll();
+        // Every field's kept words go too, the new conversation's included (B7, review M1).
+        await vault.composerDrafts?.clearAll();
       } catch (error) {
         for (const id of ids) this.settleDeletion(id, false);
         throw error;
@@ -6312,7 +6395,8 @@ export class AiSession {
     const refused = (reason: Extract<CaptureOutcome, { kind: "refused" }>["reason"], message?: string): CaptureOutcome => ({ kind: "refused", reason, ...(message ? { message } : {}) });
     const capture = vault.capture;
     if (!capture) return refused("unavailable");
-    const run = record.runs.find((candidate) => candidate.userTurn === userTurn);
+    // The answer is the latest run's: a turn sent again in place has an earlier one that failed (B7, review M3).
+    const run = latestRunOf(record, userTurn);
     if (!run || run.stop !== "answered") return refused("nothing");
     const turns = record.conversation.turns;
     const next = record.runs.map((other) => other.userTurn).filter((turn) => turn > userTurn).sort((a, b) => a - b)[0] ?? turns.length;
@@ -7052,6 +7136,11 @@ export class AiSession {
     }
   }
 
+  /** How many "Delete all"s of the open vault were asked for: a composer notes it when it reads its draft (M1). */
+  composerDraftEpoch(): number {
+    return this.vault ? this.clearsOf(this.vault) : 0;
+  }
+
   /** The composer's kept draft of a conversation ("" for one not begun), on this device (B7). */
   composerDraft(conversationId: string): Promise<ComposerDraft | null> {
     return this.vault?.composerDrafts?.load(conversationId || NEW_COMPOSER_DRAFT).catch(() => null) ?? Promise.resolve(null);
@@ -7061,9 +7150,14 @@ export class AiSession {
    * Keeps what the composer holds (B7): its words, and for a conversation not begun yet the choices of its start —
    * pins, model, the switches. An empty one is removed.
    */
-  keepComposerDraft(conversationId: string, text: string): void {
-    const store = this.vault?.composerDrafts;
-    if (!store) return;
+  keepComposerDraft(conversationId: string, text: string, since?: number): void {
+    const vault = this.vault;
+    const store = vault?.composerDrafts;
+    if (!vault || !store) return;
+    // Nothing is kept for a conversation whose deletion was asked for, nor what a field held before a Delete all of
+    // its vault (B7, review M1): what the user deleted does not come back as a draft.
+    if (conversationId && this.gone(conversationId)) return;
+    if (since !== undefined && this.clearsOf(vault) !== since) return;
     const s = this.state;
     const start: Partial<ComposerDraft> = conversationId
       ? {}
@@ -7147,6 +7241,9 @@ export class AiSession {
     // Typed in the composer (B7): only such a question goes back into the field. A skill, an action at a selection, a
     // routine, learning, a replay, the setup's greeting and a "Send again" never withdraw what they started.
     const typed = !door && !detached && !routine && !replay && !skills && !greeting && !retry;
+    // What has left the device before this run began (S1): whatever leaves from here on is this run's — or, in doubt,
+    // something else's at the same time, which keeps the run from claiming that nothing was sent.
+    const departedAt = this.departures;
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
     const apart = door ?? detached ?? routine ?? replay ?? null;
     // A message of the composer goes nowhere once the user left what it is put together for, and a message of any kind
@@ -7631,6 +7728,7 @@ export class AiSession {
       // A message typed in the composer used the drafts; a door or a regression run leaves them for the next one.
       usedDrafts: !apart,
       ...(typed ? { typed: { text: message } } : {}),
+      departedAt,
       begun,
       created,
       redactFrom,
@@ -7927,6 +8025,8 @@ export class AiSession {
      * then, and `text` goes back into the field.
      */
     typed?: { text: string };
+    /** The session's count of departures when the run began (S1). */
+    departedAt?: number;
     /** The conversation's last turn once more (B7): no new turn, a second run of it, with what the failed run carried. */
     retry?: { userTurn: number; withoutImages: boolean; sent: readonly string[]; kept: readonly string[] };
     /** What went redacted as the send overview began (step 8): what it changed of that counts for the conversation too. */
@@ -8160,13 +8260,22 @@ export class AiSession {
     // device, or a connection that provably never stood —, no model call was made again after a provider answered, and
     // no tool ran. Then nothing of it reached anyone: the turn and its run are withdrawn, the conversation stays as it
     // was stored before, and the question goes back into the field. In doubt, the second class: everything stays.
+    // Nothing of the run left the device (S1): no request of it — the question embedded for the search included —
+    // was handed to anyone outside it. Asked of the one place every request passes, not of the ways one by one.
+    const departed = input.departedAt === undefined || this.departures > input.departedAt;
     const neverSent =
       result.stop.kind === "failed" &&
       failureClassOf(result.stop.failure) === "never_sent" &&
+      !departed &&
       !received &&
       !retried &&
       result.usage.steps <= 1 &&
       result.conversation.turns.length === userTurn + 1;
+    // Who got something of the run although the model call itself never went (S1): the notice says no "nothing was sent".
+    const departedTo =
+      result.stop.kind === "failed" && failureClassOf(result.stop.failure) === "never_sent" && departed && input.departedAt !== undefined
+        ? [...new Set(this.departedTo.filter((entry) => entry.at > input.departedAt!).map((entry) => entry.endpointId))]
+        : [];
     if (input.typed && !retry && neverSent && !input.background) {
       const before = this.running.get(record.id);
       if (before) this.running.delete(record.id);
@@ -8191,6 +8300,17 @@ export class AiSession {
       }
       const shown = this.state.active?.id === record.id;
       const conversationId = input.created ? "" : record.id;
+      // A conversation the run began: what the user chose on screen while it ran — pins, the model, what goes redacted —
+      // goes back onto the start with the question (B7, review H4), not only what the start held when it went.
+      const chosen = input.created ? before?.choices ?? null : null;
+      const startDrafts: ComposerDraft | null = draftsBefore && chosen
+        ? {
+            ...draftsBefore,
+            pins: [...chosen.pins],
+            choice: { providerId: chosen.providerId, model: chosen.model },
+            redact: [...(chosen.redact ?? [])],
+          }
+        : draftsBefore;
       // Back as it was stored, with what the user chose while it was on its way; a conversation never begun is none.
       const restored = input.created ? null : (before?.stored ?? input.record);
       this.set({
@@ -8198,22 +8318,22 @@ export class AiSession {
         live: this.state.live?.conversationId === record.id ? null : this.state.live,
         notice: { conversationId, stop: result.stop, returned: true },
         // The drafts a conversation never begun carried go back with its question.
-        ...(draftsBefore && shown
+        ...(startDrafts && shown
           ? {
-              draftPins: draftsBefore.pins ?? [],
-              draftChoice: this.state.draftChoice ?? (draftsBefore.choice ? { providerId: draftsBefore.choice.providerId, model: draftsBefore.choice.model } : null),
-              draftWeb: Boolean(draftsBefore.web),
-              draftStyle: Boolean(draftsBefore.style),
-              draftDirect: Boolean(draftsBefore.direct),
-              excludeActive: Boolean(draftsBefore.excludeActive),
-              draftRedact: draftsBefore.redact ?? [],
-              leaveOutNext: draftsBefore.leaveOut ?? [],
-              originalsNext: draftsBefore.originals ?? [],
+              draftPins: startDrafts.pins ?? [],
+              draftChoice: chosen ? { providerId: chosen.providerId, model: chosen.model } : (this.state.draftChoice ?? (startDrafts.choice ? { providerId: startDrafts.choice.providerId, model: startDrafts.choice.model } : null)),
+              draftWeb: Boolean(startDrafts.web),
+              draftStyle: Boolean(startDrafts.style),
+              draftDirect: Boolean(startDrafts.direct),
+              excludeActive: Boolean(startDrafts.excludeActive),
+              draftRedact: startDrafts.redact ?? [],
+              leaveOutNext: startDrafts.leaveOut ?? [],
+              originalsNext: startDrafts.originals ?? [],
               directChats: this.state.directChats.filter((id) => id !== record.id),
             }
           : {}),
       });
-      this.returnToField(vault, conversationId, input.typed.text, draftsBefore);
+      this.returnToField(vault, conversationId, input.typed.text, startDrafts);
       return { stop: result.stop, record: restored ?? input.record, answer: "", withdrawn: true };
     }
     // The conversation as the user has it now, with what this run brings (step 8). Until its end is decided, a choice
@@ -8326,7 +8446,14 @@ export class AiSession {
         live: null,
         // No answer from the model is never a dead end (plan §19.4): the notes that match the question best go with the notice.
         notice:
-          result.stop.kind === "answered" ? null : { conversationId: record.id, stop: result.stop, ...(result.stop.kind === "failed" && input.related?.length ? { related: input.related } : {}) },
+          result.stop.kind === "answered"
+            ? null
+            : {
+                conversationId: record.id,
+                stop: result.stop,
+                ...(result.stop.kind === "failed" && input.related?.length ? { related: input.related } : {}),
+                ...(departedTo.length ? { departedTo } : {}),
+              },
         summaries: sortSummaries([conversationSummaryOf(latest), ...this.state.summaries.filter((s) => s.id !== record.id)]),
       });
       return { stop: result.stop, record: latest, answer };

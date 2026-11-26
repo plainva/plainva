@@ -723,8 +723,10 @@ export interface ComposerDraftStore {
   load(key: string): Promise<ComposerDraft | null>;
   /** Keeps the draft; an empty one is removed. */
   save(key: string, draft: ComposerDraft): Promise<void>;
-  /** Removes the draft (it was sent). */
+  /** Removes the draft (it was sent, or its conversation was deleted). */
   clear(key: string): Promise<void>;
+  /** Removes every draft of the vault ("Delete all"), the file with them. */
+  clearAll(): Promise<void>;
 }
 
 /** A draft holds nothing worth keeping. */
@@ -869,6 +871,14 @@ export function createComposerDraftStore(options: ComposerDraftStoreOptions): Co
         await store(map);
       }).catch(() => {
         // Best effort, like every draft: the field still holds the words. The next read goes to the disk.
+        held = null;
+      });
+    },
+    clearAll() {
+      return serial(async () => {
+        held = new Map();
+        await options.storage.remove(options.file);
+      }).catch(() => {
         held = null;
       });
     },

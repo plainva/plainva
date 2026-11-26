@@ -310,7 +310,8 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "Ollama and LM Studio are servers that run on a computer; neither exists " +
       "for a phone, and a phone cannot reach a computer's localhost. A server " +
       "elsewhere is added as an OpenAI-compatible server over https, which " +
-      "both shells offer.",
+      "both shells offer. The guided setup follows this (aiSetupOffer): on the " +
+      "phone its own server is an address, never a server on this device.",
     verified: "2026-09-24",
   },
   {
@@ -376,7 +377,9 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "Apple-silicon Macs, but the desktop's way without a key is a model of " +
       "the user's choice on the computer itself, through Ollama or LM Studio " +
       "(ADR 0021, decision 5); a second, smaller system model would add a " +
-      "native bridge for less than that path already gives.",
+      "native bridge for less than that path already gives. The guided setup " +
+      "follows this (aiSetupOffer): \"On this device\" is offered only where " +
+      "the system has a model, on the desktop the way without a key is \"Own server\".",
     mobile: "yes",
     verified: "2026-10-01",
   },

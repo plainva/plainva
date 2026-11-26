@@ -68,7 +68,11 @@ Pytanie, które czeka na Twoją odpowiedź — przegląd przed wysłaniem, stron
 
 Gdy coś pójdzie źle, komunikat nazywa źródło (to urządzenie, sieć, dostawca lub Plainva) i podaje dokładne rozwiązanie; bez połączenia na urządzeniu też to mówi.
 
-**Zapytanie, które nigdy nie opuściło urządzenia.** Gdy Plainva zdecydowała, zanim cokolwiek wysłano — brak jakiegokolwiek połączenia z dostawcą, zapytanie za duże do wysłania, brakujący klucz — komunikat mówi, że nic nie zostało wysłane, a pytanie, które wpisano, wraca do pola: **Wyślij ponownie** wysyła je, gdy połączenie wróci. **Zapytanie, które mogło dotrzeć.** Gdy dostawca nie odpowiedział albo połączenie zerwało się po nawiązaniu, pytanie i jego zapis zostają w rozmowie, bo dostawca mógł je otrzymać; **Wyślij ponownie** wysyła to samo pytanie jeszcze raz w tym samym miejscu, bez drugiej kopii. Gdy zapytanie z obrazem było za duże, **Pomiń obraz** wysyła je ponownie bez obrazu; obraz zostaje w rozmowie z oznaczeniem **nie wysłano**. To, co wpisujesz w pole, zostaje na tym urządzeniu dla każdej rozmowy, dopóki tego nie wyślesz, także po ponownym uruchomieniu.
+**Zapytanie, które nigdy nie opuściło urządzenia.** Gdy Plainva zdecydowała, zanim cokolwiek wysłano — brak jakiegokolwiek połączenia z dostawcą, zapytanie za duże do wysłania, brakujący klucz — komunikat mówi, że nic nie zostało wysłane, a pytanie, które wpisano, wraca do pola: **Wyślij ponownie** wysyła je, gdy połączenie wróci.
+
+**Zapytanie, które mogło dotrzeć.** Gdy dostawca nie odpowiedział albo połączenie zerwało się po nawiązaniu, pytanie i jego zapis zostają w rozmowie, bo dostawca mógł je otrzymać; **Wyślij ponownie** wysyła to samo pytanie jeszcze raz w tym samym miejscu, bez drugiej kopii. Gdy zapytanie z obrazem było za duże, **Pomiń obraz** wysyła je ponownie bez obrazu; obraz zostaje w rozmowie z oznaczeniem **nie wysłano**.
+
+To, co wpisujesz w pole, zostaje na tym urządzeniu dla każdej rozmowy, dopóki tego nie wyślesz, także po ponownym uruchomieniu.
 
 Link w odpowiedzi otwiera się dopiero po potwierdzeniu jego adresu, a obrazy w odpowiedziach nigdy nie są wczytywane.
 

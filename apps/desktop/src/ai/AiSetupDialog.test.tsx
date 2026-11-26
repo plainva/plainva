@@ -188,4 +188,30 @@ describe("the AI setup on the desktop", () => {
     expect(settingsOpened).toBe(1);
     expect(q("ai-setup-dialog")).toBeNull();
   });
+
+  it("opens the settings, where the switch is, while the AI is off on this device — even with a step missing (review M7)", async () => {
+    const { s, sent } = bareSession([]);
+    await s.load();
+    await s.updateSettings((x) => ({ ...x, enabled: false }));
+    let settingsOpened = 0;
+    function Probe() {
+      const setup = useAiSetupDoor(s, () => settingsOpened++);
+      return (
+        <>
+          <button type="button" onClick={setup.open} data-testid="probe-set-up">
+            Set up
+          </button>
+          {setup.dialog}
+        </>
+      );
+    }
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    await act(async () => root!.render(<Probe />));
+    await click("probe-set-up");
+    expect(settingsOpened).toBe(1);
+    expect(q("ai-setup-dialog")).toBeNull();
+    expect(sent).toHaveLength(0);
+  });
 });
