@@ -129,7 +129,7 @@ function useComposerDraft(
   state: ReturnType<typeof useAiState> | null,
   draft: string,
   setDraft: (update: (current: string) => string) => void,
-  touched: { current: boolean },
+  touchedRef: { current: boolean },
 ): void {
   const key = state?.active?.id ?? "";
   const ready = Boolean(session && state?.loaded && state.hasVault);
@@ -148,7 +148,7 @@ function useComposerDraft(
     loadedFor.current = null;
     // Only what the person changes in THIS field is kept by it (B7, review M2): another surface of the same session
     // that shows the same conversation with an empty field does not write its emptiness over the words.
-    touched.current = false;
+    touchedRef.current = false;
     let live = true;
     const own = `${epoch}:${key}`;
     void session.composerDraft(key).then((kept) => {
@@ -159,33 +159,33 @@ function useComposerDraft(
       if (kept && !key) session.restoreStartDrafts(kept);
       const back = session.takeReturned(key);
       if (back) {
-        touched.current = true;
+        touchedRef.current = true;
         setDraft((current) => withReturned(current, back));
       }
     });
     return () => {
       live = false;
       // Leaving a conversation keeps what its field holds, where the person changed it here; the next one starts from its own.
-      if (loadedFor.current === own && touched.current) session.keepComposerDraft(key, latest.current.draft, since.current);
+      if (loadedFor.current === own && touchedRef.current) session.keepComposerDraft(key, latest.current.draft, since.current);
       loadedFor.current = null;
-      touched.current = false;
+      touchedRef.current = false;
       setDraft(() => "");
     };
-  }, [session, ready, key, epoch, setDraft, touched]);
+  }, [session, ready, key, epoch, setDraft, touchedRef]);
   const returned = state?.returned;
   useEffect(() => {
     if (!session || !returned || returned.conversationId !== key || loadedFor.current === null) return;
     const back = session.takeReturned(key);
     if (back) {
-      touched.current = true;
+      touchedRef.current = true;
       setDraft((current) => withReturned(current, back));
     }
-  }, [session, returned, key, setDraft, touched]);
+  }, [session, returned, key, setDraft, touchedRef]);
   useEffect(() => {
-    if (!session || !ready || loadedFor.current !== `${epoch}:${key}` || !touched.current) return;
+    if (!session || !ready || loadedFor.current !== `${epoch}:${key}` || !touchedRef.current) return;
     const timer = setTimeout(() => session.keepComposerDraft(key, draft, since.current), COMPOSER_DRAFT_MS);
     return () => clearTimeout(timer);
-  }, [session, ready, key, epoch, draft, touched]);
+  }, [session, ready, key, epoch, draft, touchedRef]);
 }
 
 /** Seconds of silence after which the line of a model on this device says where the thinking happens, and counts. */
@@ -350,8 +350,8 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const pendingRef = useRef<HTMLDivElement | null>(null);
   usePendingMore(pendingRef, Boolean(state?.consent || state?.effect || state?.question || extPrompt));
   // The field's draft per conversation, kept on this device (B7), and a question that went back into it.
-  const draftTouched = useRef(false);
-  useComposerDraft(session ?? null, state ?? null, draft, setDraft, draftTouched);
+  const draftTouchedRef = useRef(false);
+  useComposerDraft(session ?? null, state ?? null, draft, setDraft, draftTouchedRef);
   if (!session || !state || !state.loaded) return null;
 
   if (!state.settings.enabled) {
@@ -1287,7 +1287,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
             placeholder={inputHint}
             aria-label={inputHint}
             onChange={(event) => {
-              draftTouched.current = true;
+              draftTouchedRef.current = true;
               setDraft(event.target.value);
             }}
             onKeyDown={onKeyDown}
