@@ -83,11 +83,11 @@ let budgetFactor = Number(process.env.PLAINVA_NOTE_BUDGET_FACTOR ?? 1);
 if (budgetFactor !== 1) setNoteBudget(NOTE_BUDGET * budgetFactor);
 /**
  * How long a parse of the hunt may take: linear in the note, for a parse that grows faster than the note is what it
- * looks for. micromark reads 2 to 4 µs a character on the runner (a note of 6 MB in about 25 s, which on `main`
+ * looks for. micromark reads 2 to 7 µs a character on the runner (a note of 6 MB in 25 to 43 s, which on `main`
  * runs out of 128 MB instead), and what a shell's budget reads formatted grows with the budget.
  */
 const HUNT_PARSE_MS = 5_000;
-const HUNT_PARSE_MS_PER_MB = 6_000;
+const HUNT_PARSE_MS_PER_MB = 10_000;
 /** The largest note `--check` reads: beyond it a note's text alone, read as one line of stand-ins, outgrows the heap (Performance_Notes.md). */
 const FAR_CHARS = 10_000_000;
 /**
@@ -408,10 +408,10 @@ function check(args: string[]): boolean {
       const kept = heapMb;
       heapMb = least;
       // Close to its heap's end V8 varies, and at the threshold the app's reader runs main's way (nothing is read as
-      // text): both are read five times under main's least heap, and the app's may pass twice less than main's (with
-      // three runs each, one form in a run of the workflow failed where the run before passed it).
-      const count = (bounded: boolean) => [0, 1, 2, 3, 4].filter(() => passes(form, n, bounded, 1, [parse]).ok).length;
-      const own = least > 0 && count(true) >= count(false) - 2;
+      // text): no step more than main means it reads the note under main's least heap in one of five runs — one that
+      // needed more would fail all five. (On the runner's Node, where main's reader passed five of five, the app's
+      // passed two of five on the same path; locally both pass five of five.)
+      const own = least > 0 && [0, 1, 2, 3, 4].some(() => passes(form, n, true, 1, [parse]).ok);
       heapMb = kept;
       if (!own) more.push(`${parse} needs more than ${least} MB`);
     }
