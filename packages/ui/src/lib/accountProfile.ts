@@ -150,11 +150,13 @@ export interface AccountImportPorts {
   listMailAccounts(): Promise<MailAccountConfig[]>;
   replaceMailAccounts(accounts: MailAccountConfig[]): Promise<void>;
   /**
-   * Removes the stored sign-in of a mailbox (both slot names). A mailbox the
-   * document removed takes it along, as a calendar account does through
-   * `deletePimAccount` — a slot left behind kept a password no account used.
+   * Removes the stored sign-in of a mailbox the document removed (both slot
+   * names), as a calendar account's goes through `deletePimAccount` — a slot
+   * left behind kept a password no account used. The shell tells its secrets
+   * sync that the profile took the mailbox (`noteSecretLeftWithProfile`), as
+   * `deletePimAccount` does for a calendar account.
    */
-  removeMailSecret(accountId: string): Promise<void>;
+  removeMailSecret(account: MailAccountConfig): Promise<void>;
   listCloudAccounts(): Promise<CloudAccountRecord[]>;
   replaceCloudAccounts(accounts: CloudAccountRecord[]): Promise<void>;
   pimSecretSlot(accountId: string): string;
@@ -1026,7 +1028,7 @@ export async function importAccountMetadata(
     // account does through `deletePimAccount`). The deletion stays in the
     // document: should this fail, the next application tries again.
     for (const gone of existing.filter((a) => removedMailLocals.has(a.id) && !importedIds.has(a.id))) {
-      await ports.removeMailSecret(gone.id).catch(reportingTo("account:profile-removal"));
+      await ports.removeMailSecret(gone).catch(reportingTo("account:profile-removal"));
     }
   }
 

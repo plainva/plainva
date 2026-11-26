@@ -75,7 +75,7 @@ import {
   type ProfileAccountMap,
   type SyncDiagnostics,
 } from "@plainva/ui";
-import { legacyMailSecretKey, listMailAccounts, mailSecretKey, replaceMailAccounts } from "@plainva/ui/mail";
+import { legacyMailSecretKey, listMailAccounts, mailAccountKind, mailSecretKey, replaceMailAccounts } from "@plainva/ui/mail";
 import {
   barDef,
   adoptNewBarAreas,
@@ -101,13 +101,13 @@ import {
   restoreProfileSnapshot,
   writeProfileJournal,
 } from "./profileImportJournal";
-import { createMobileSecretsPort } from "./mobileSecretsPort";
+import { createMobileSecretsPort, noteCalDavSecretLeftWithProfile, noteImapSecretLeftWithProfile } from "./mobileSecretsPort";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
 import type { MobileSyncProvider } from "./syncService";
 import type { MobileVault } from "./vaultService";
 import { readDriveDestination, readSyncRootFolder } from "./syncRootFolder";
 import { mobileKeyringCacheKey } from "./vaultForget";
-import { clearPimCredentials, pimSecretKey } from "./pim/pimCredentials";
+import { clearPimCredentials, getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
 import { recoverMobileAccountRepair, repairMobileAccounts } from "./accountRepair";
 import { isMemberProfileField } from "@plainva/ui";
 import { accountFieldsHeldBack, fillHeldAccountField, restoreAccountsAfterRebuild, settleAccountsAfterRebuild } from "@plainva/ui";
@@ -509,6 +509,16 @@ function mobileAccountPorts(vault: MobileVault): AccountImportPorts {
   return accountPortsOver(vault.vaultId, vault.db ? new PimCacheRepository(vault.db) : null);
 }
 
+/** The profile import removes a CalDAV account: the secrets sync is told, with the address its password was named by. */
+async function noteCalDavLeft(vaultId: string, cache: PimCacheRepository | null, accountId: string): Promise<void> {
+  const row = cache ? (await cache.listAccounts()).find((account) => account.id === accountId) : undefined;
+  if (row?.provider !== "caldav") return;
+  const creds = await getPimCredentials(vaultId, accountId).catch(() => null);
+  const url = creds?.kind === "caldav" ? creds.url : typeof row.config.url === "string" ? row.config.url : "";
+  const user = creds?.kind === "caldav" ? creds.user : typeof row.config.user === "string" ? row.config.user : "";
+  if (url && user) await noteCalDavSecretLeftWithProfile(vaultId, url, user);
+}
+
 function accountPortsOver(vaultId: string, cache: PimCacheRepository | null): AccountImportPorts {
   return {
     listPimAccounts: async () => (cache ? cache.listAccounts() : []),
@@ -516,6 +526,8 @@ function accountPortsOver(vaultId: string, cache: PimCacheRepository | null): Ac
       if (cache) await cache.upsertAccount(row);
     },
     deletePimAccount: async (accountId) => {
+      // Removed elsewhere: the secrets sync is told so before the row goes (`noteSecretLeftWithProfile`).
+      await noteCalDavLeft(vaultId, cache, accountId).catch(reportingTo("pim:profile-left"));
       if (cache) await cache.deleteAccount(accountId);
       await clearPimCredentials(vaultId, accountId).catch(reportingTo("credentials:pim-clear"));
     },
@@ -529,7 +541,10 @@ function accountPortsOver(vaultId: string, cache: PimCacheRepository | null): Ac
     },
     listMailAccounts: () => listMailAccounts(vaultId),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultId, accounts),
-    removeMailSecret: (accountId) => removeSlot(getPlatformServices().credentials, mailSecretKey(vaultId, accountId), legacyMailSecretKey(vaultId, accountId)),
+    removeMailSecret: async (account) => {
+      if (mailAccountKind(account) === "imap") await noteImapSecretLeftWithProfile(vaultId, account).catch(reportingTo("mail:profile-left"));
+      await removeSlot(getPlatformServices().credentials, mailSecretKey(vaultId, account.id), legacyMailSecretKey(vaultId, account.id));
+    },
     listCloudAccounts: () => loadCloudAccounts(vaultId),
     replaceCloudAccounts: (accounts) => saveCloudAccounts(vaultId, accounts),
     pimSecretSlot: (accountId) => pimSecretKey(vaultId, accountId),

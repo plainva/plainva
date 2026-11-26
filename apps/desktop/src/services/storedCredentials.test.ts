@@ -153,6 +153,21 @@ describe("listStoredCredentials", () => {
     expect((await listStoredCredentials()).some((entry) => entry.slot === mail)).toBe(false);
   });
 
+  // Of a vault no longer in the list the slot is deleted: no sync of that
+  // vault runs here to fill it again, and a mark kept would stay unseen.
+  it("deletes a calendar or mailbox password of a vault no longer in the list", async () => {
+    store.set("recentVaults", [LIVE]);
+    store.set(`mailAccounts_${b64(GONE)}`, [{ id: "m1", label: "a", host: "imap.example.com", port: 993, user: "a@example.com" }]);
+    const mail = mailSecretKey(GONE, "m1");
+    slots.set(mail, { pass: "app-password" });
+    const listed = (await listStoredCredentials()).find((entry) => entry.slot === mail);
+    expect(listed).toMatchObject({ kind: "mail", orphaned: true });
+
+    await removeStoredCredential(mail, "mail", true);
+
+    expect(slots.has(mail)).toBe(false);
+  });
+
   it("removes exactly the one slot it was asked to", async () => {
     slots.set(`mkcache_${b64(LIVE)}`, "cached-key");
     slots.set(`mkcache_${b64(GONE)}`, "cached-key");

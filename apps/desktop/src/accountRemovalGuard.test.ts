@@ -79,16 +79,16 @@ const ALLOWED: ReadonlyArray<readonly [file: string, fragment: string, kind: Kin
   // Taken away by the settings profile (the removal came from another device), and its undo
   ["packages/ui/src/lib/accountProfile.ts", "await ports.deletePimAccount(local).catch(reportingTo(\"account:profile-removal\"));", "caldav", 1, "profile"],
   ["packages/ui/src/lib/accountProfile.ts", "await ports.replaceMailAccounts([", "imap", 1, "profile"],
-  ["packages/ui/src/lib/accountProfile.ts", "await ports.removeMailSecret(gone.id).catch(reportingTo(\"account:profile-removal\"));", "imap", 1, "profile"],
+  ["packages/ui/src/lib/accountProfile.ts", "await ports.removeMailSecret(gone).catch(reportingTo(\"account:profile-removal\"));", "imap", 1, "profile"],
   ["apps/desktop/src/services/settingsProfile.ts", "if (cache) await cache.deleteAccount(accountId);", "caldav", 1, "profile"],
   ["apps/desktop/src/services/settingsProfile.ts", "await clearPimCredentials(vaultPath, accountId).catch(reportingTo(\"pim:remove-credentials\"));", "caldav", 1, "profile"],
   ["apps/desktop/src/services/settingsProfile.ts", "replaceMailAccounts: (accounts) => replaceMailAccounts(vaultPath, accounts),", "imap", 1, "profile"],
-  ["apps/desktop/src/services/settingsProfile.ts", "removeMailSecret: (accountId) => removeSlot(credentialManager, mailSecretKey(vaultPath, accountId)", "imap", 1, "profile"],
+  ["apps/desktop/src/services/settingsProfile.ts", "await removeSlot(credentialManager, mailSecretKey(vaultPath, account.id), legacyMailSecretKey(vaultPath, account.id));", "imap", 1, "profile"],
   ["apps/desktop/src/services/settingsProfile.ts", "if (!previousIds.has(current.id)) await context.pimRuntime.cache.deleteAccount(current.id);", "caldav", 1, "profile"],
   ["apps/mobile/src/services/mobileSettingsSync.ts", "if (cache) await cache.deleteAccount(accountId);", "caldav", 1, "profile"],
   ["apps/mobile/src/services/mobileSettingsSync.ts", "await clearPimCredentials(vaultId, accountId).catch(reportingTo(\"credentials:pim-clear\"));", "caldav", 1, "profile"],
   ["apps/mobile/src/services/mobileSettingsSync.ts", "replaceMailAccounts: (accounts) => replaceMailAccounts(vaultId, accounts),", "imap", 1, "profile"],
-  ["apps/mobile/src/services/mobileSettingsSync.ts", "removeMailSecret: (accountId) => removeSlot(getPlatformServices().credentials, mailSecretKey(vaultId, accountId)", "imap", 1, "profile"],
+  ["apps/mobile/src/services/mobileSettingsSync.ts", "await removeSlot(getPlatformServices().credentials, mailSecretKey(vaultId, account.id), legacyMailSecretKey(vaultId, account.id));", "imap", 1, "profile"],
   ["apps/mobile/src/services/profileImportJournal.ts", "await replaceMailAccounts(", "imap", 1, "profile"],
   ["apps/mobile/src/services/profileImportJournal.ts", "for (const row of currentRows) if (!kept.has(row.id)) await cache.deleteAccount(row.id);", "caldav", 1, "profile"],
   // An unfinished connect undone
@@ -224,9 +224,9 @@ describe("every way a calendar account or a mailbox goes away is listed with wha
     expect(body("apps/desktop/src/services/pim/pimAccounts.ts", "export async function removePimAccount(")).toMatch(/retireRemovedCalDavSecret\(runtime, vaultPath, accountId, take\)/);
     expect(body("apps/mobile/src/services/pim/pimService.ts", "export async function removePimAccount(")).toMatch(/retireRemovedCalDavSecret\(current\.vaultId, accountId, take\)/);
     expect(body("packages/ui/src/mail/mailAccounts.ts", "export async function removeMailAccountOnPurpose(")).toMatch(/await retire\(vaultPath, \{[^}]+\}, take\)/);
-    // Stored access signs a calendar or mailbox password out before anything is removed (maintainer, 2026-11-18).
+    // Stored access signs a calendar or mailbox password of a vault in use out before anything is removed (maintainer, 2026-11-18).
     expect(body("apps/desktop/src/services/storedCredentials.ts", "export async function removeStoredCredential(")).toMatch(
-      /if \(kind === "calendar" \|\| kind === "mail"\) \{\s*await signOutAccountHere\([\s\S]*?if \(isSignedOutSlot\(await credentialManager\.readSecret\(slot\)\)\) return;\s*\}\s*await credentialManager\.removeSecret\(slot\);/,
+      /if \(\(kind === "calendar" \|\| kind === "mail"\) && !orphaned\) \{\s*await signOutAccountHere\([\s\S]*?if \(isSignedOutSlot\(await credentialManager\.readSecret\(slot\)\)\) return;\s*\}\s*await credentialManager\.removeSecret\(slot\);/,
     );
     // Every line that reaches the act is one of the listed ones.
     const reaching: string[] = [];

@@ -13,7 +13,7 @@ import {
   type SecretEntry,
   type SecretsBundle,
 } from "@plainva/core";
-import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, secretsMarker, calDavSecretBinding, createSecretsPort, imapSecretBinding, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, mergeLegacySecretsMeta, secretsMarker, calDavSecretBinding, createSecretsPort, imapSecretBinding, noteSecretLeftWithProfile, retireSecret, type LocalSecretCandidate, type SecretsPortMeta } from "@plainva/ui";
 import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
 
 /**
@@ -38,7 +38,7 @@ import * as v087 from "../../../../packages/core/test/fixtures/secretsV087";
 
 const CAL = "https://cloud.example.com/remote.php/dav";
 const IMAP = { host: "imap.example.com", port: 993 };
-type Row = { id: string; user: string; kind?: "calendar" | "mail" };
+type Row = { id: string; user: string; kind?: "calendar" | "mail"; /** Repaired away from the usual address. */ moved?: true };
 
 let clock = 0;
 const tick = () => new Date(Date.parse("2026-11-18T00:00:00.000Z") + 1000 * clock++).toISOString();
@@ -48,8 +48,11 @@ const oldBinding = (row: Row): SecretBinding =>
   row.kind === "mail"
     ? { family: "imap", service: "mail", secretType: "imap-password", user: row.user.trim().toLowerCase(), endpoint: canonicalizeEndpoint(`imaps://${IMAP.host}:${IMAP.port}`) }
     : { family: "webdav", service: "calendar", secretType: "caldav-password", user: row.user.trim().toLowerCase(), endpoint: canonicalizeEndpoint(CAL) };
+const MOVED = { cal: "https://dav.example.org/remote.php/dav", imap: "mail.example.org" };
 const newBinding = (row: Row): SecretBinding =>
-  row.kind === "mail" ? imapSecretBinding("imap", IMAP.host, IMAP.port, row.user) : calDavSecretBinding("webdav", CAL, row.user);
+  row.kind === "mail"
+    ? imapSecretBinding("imap", row.moved ? MOVED.imap : IMAP.host, IMAP.port, row.user)
+    : calDavSecretBinding("webdav", row.moved ? MOVED.cal : CAL, row.user);
 
 interface Device {
   name: string;
@@ -769,12 +772,15 @@ describe("\"Remove account\" right after the update (round twelve)", () => {
       if (!order.startsWith("before")) await remove();
       await rounds([l, o, n], 3);
       const current = Object.values(remote!.entries).find((e) => e.binding.secretType === "caldav-password-2" && e.binding.user === "bert");
-      // The tombstone is written; the account leaves N with the settings
-      // profile, which takes its slot — a tombstone alone never empties the
-      // slot of an account still there (review 2026-11-25).
-      expect([current?.tombstone, current?.deviceId, n.slots.get("b"), n.slots.get("r")]).toEqual([true, "L", "B1", "A1"]);
+      // A tombstone never empties the slot of an account still there, and
+      // the password N holds for it goes out above the tombstone (review
+      // 2026-11-25, third round). The account leaves N with the settings
+      // profile, which takes its slot and says so to the secrets sync: N
+      // takes back what it put above the tombstone.
+      expect([!!current?.tombstone, current?.deviceId, n.slots.get("b"), n.slots.get("r")]).toEqual([false, "N", "B1", "A1"]);
       n.rows = n.rows.filter((r) => r.id !== "b");
       n.slots.delete("b");
+      await noteSecretLeftWithProfile(n.host, calDavSecretBinding("webdav", CAL, "bert"));
       await rounds([l, o, n], 3);
       const after = Object.values(remote!.entries).find((e) => e.binding.secretType === "caldav-password-2" && e.binding.user === "bert");
       expect([after?.tombstone, n.slots.get("r")]).toEqual([true, "A1"]);
@@ -949,5 +955,67 @@ describe("after a lost key: one baseline, never winning while it holds what it f
     // the old name of "alice" knew.
     expect(entryOf("Alice")).toBeUndefined();
     expect([l.slots.get("a"), o.slots.get("a")]).toEqual(["A1", "A1"]);
+  });
+});
+
+/**
+ * A repair changes the name, not the history (review 2026-11-25, third
+ * round). D1 typed m1, D0 received it, typed m2 and repaired the address; D1
+ * gets the repair through the settings profile. Before the repair the rule of
+ * every version holds: the document and D0 have m2, D1 keeps m1 (typed there,
+ * never received). After it, exactly the same. Before this round the slot
+ * forgot under the new name what it knew under the old one: D1's m1 went out
+ * there again as a new password, and a device that had received its
+ * password no longer followed a change.
+ */
+describe("a repaired address keeps what the slot knew", () => {
+  const kinds: Array<[string, Row["kind"]]> = [["a calendar", undefined], ["a mailbox", "mail"]];
+  const valueAt = (row: Row) => (remote?.entries[canonicalSecretId(newBinding(row))]?.secret as { pass?: string } | undefined)?.pass;
+  for (const [what, kind] of kinds) {
+    for (const published of [true, false]) {
+      it(`${what}: as before the repair${published ? "" : " (m2 typed and the address repaired in one go)"}`, async () => {
+        start();
+        const row = (moved = false): Row => ({ id: "r", user: "anna", ...(kind ? { kind } : {}), ...(moved ? { moved: true as const } : {}) });
+        const d1 = device("D1", false, [row()], { r: "m1" });
+        const d0 = device("D0", false, [row()]);
+        const d2 = device("D2", false, [row()]);
+        await rounds([d1, d0, d2], 2);
+        d0.slots.set("r", "m2");
+        if (published) {
+          await rounds([d0, d1, d2], 2);
+          expect([valueAt(row()), d0.slots.get("r"), d1.slots.get("r"), d2.slots.get("r")]).toEqual(["m2", "m2", "m1", "m2"]);
+        }
+        d0.rows = [row(true)];
+        await rounds([d0], 1);
+        d1.rows = [row(true)];
+        d2.rows = [row(true)];
+        await rounds([d1, d2, d0], 3);
+        expect([valueAt(row(true)), d0.slots.get("r"), d1.slots.get("r"), d2.slots.get("r")]).toEqual(["m2", "m2", "m1", "m2"]);
+        // D2 received its password: it follows a change made after the repair.
+        d0.slots.set("r", "m3");
+        await rounds([d0, d1, d2], 2);
+        expect([valueAt(row(true)), d0.slots.get("r"), d1.slots.get("r"), d2.slots.get("r")]).toEqual(["m3", "m3", "m1", "m3"]);
+        // …and nothing more goes up.
+        const pushes = [d0, d1, d2].map((d) => d.pushes);
+        await rounds([d0, d1, d2], 2);
+        expect([d0, d1, d2].map((d) => d.pushes)).toEqual(pushes);
+      });
+    }
+  }
+
+  it("back to the old address after two repairs, the slot still knows it received its password", async () => {
+    start();
+    const row = (moved = false): Row => ({ id: "r", user: "anna", ...(moved ? { moved: true as const } : {}) });
+    const d1 = device("D1", false, [row()], { r: "m1" });
+    const d2 = device("D2", false, [row()]);
+    await rounds([d1, d2], 2);
+    for (const moved of [true, false]) {
+      d1.rows = [row(moved)];
+      d2.rows = [row(moved)];
+      await rounds([d1, d2], 2);
+    }
+    d1.slots.set("r", "m2");
+    await rounds([d1, d2], 2);
+    expect([valueAt(row()), d1.slots.get("r"), d2.slots.get("r")]).toEqual(["m2", "m2", "m2"]);
   });
 });

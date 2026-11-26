@@ -8,6 +8,7 @@ import {
   getPlatformServices,
   isSignedOutSlot,
   migrateSecretsMetaToCanonicalIds,
+  noteSecretLeftWithProfile,
   retireSecret,
   mergeLegacySecretsMeta,
   sealSecretsMetaInStore,
@@ -204,6 +205,18 @@ export async function sealSecretsMetaAtStart(): Promise<number> {
  */
 export async function retireCalDavSecret(vaultId: string, url: string, user: string, remove: () => Promise<void>): Promise<void> {
   await retireSecret(retiredStore(vaultId), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user), remove);
+}
+
+/**
+ * The settings profile took this calendar account or IMAP mailbox away (it was
+ * removed elsewhere): said to the secrets sync, never read from a missing row
+ * (`noteSecretLeftWithProfile`), as on the desktop.
+ */
+export async function noteCalDavSecretLeftWithProfile(vaultId: string, url: string, user: string): Promise<void> {
+  await noteSecretLeftWithProfile(retiredStore(vaultId), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
+}
+export async function noteImapSecretLeftWithProfile(vaultId: string, mailbox: { host: string; port: number; user: string }): Promise<void> {
+  await noteSecretLeftWithProfile(retiredStore(vaultId), imapSecretBinding(familyOfImapHost(mailbox.host) ?? "imap", mailbox.host, mailbox.port, mailbox.user));
 }
 
 /** "Remove account" takes this IMAP mailbox out: the same act for its password (`retireSecret`), as on the desktop. */

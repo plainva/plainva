@@ -300,7 +300,9 @@ describe("an account removed on purpose stays removed everywhere", () => {
         if (order === "secrets first") for (const d of [n2, o9, o7]) removedByProfile(d, "r");
         await rounds(fleet, 3);
         // Up to 0.9.0 the profile took a mailbox's row and left its slot, which no account reads any more (their version).
-        for (const d of fleet) if (d.kind === "new" || kind !== "mail" || order === "secrets first") expect(d.slots.has("r"), d.name).toBe(false);
+        // Secrets first, 0.9.0 keeps it too: N2 still has the account when the tombstone comes, so its password goes
+        // out above it (a tombstone never empties the slot of an account still here) until the profile takes it there.
+        for (const d of fleet) if (d.kind === "new" || kind !== "mail" || (order === "secrets first" && d.kind === "v087")) expect(d.slots.has("r"), d.name).toBe(false);
         for (const d of fleet) expect(d.rows.some((item) => item.id === "r"), d.name).toBe(false);
         expect(entriesFor(r).length).toBeGreaterThanOrEqual(2);
         for (const [id, entry] of entriesFor(r)) expect(entry.tombstone, id).toBe(true);

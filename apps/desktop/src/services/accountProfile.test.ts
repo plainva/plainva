@@ -708,7 +708,7 @@ describe("account profile: deletions travel, identities survive", () => {
       map: { ...emptyAccountMap(), mailLocalToLogical: { "m-local": "logical-m", "m-kept": "logical-k" } },
     });
     const removedSecrets: string[] = [];
-    api.removeMailSecret = async (accountId) => void removedSecrets.push(accountId);
+    api.removeMailSecret = async (account) => void removedSecrets.push(account.id);
 
     await importAccountMetadata({ mailAccounts: [mail({ id: "logical-k", user: "kept@example.com" })], removedAccounts: { "logical-m": "2026-08-19T10:00:00.000Z" } }, api);
 

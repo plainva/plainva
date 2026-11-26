@@ -15,6 +15,7 @@ import {
   imapSecretBinding,
   mergeLegacySecretsMeta,
   migrateSecretsMetaToCanonicalIds,
+  noteSecretLeftWithProfile,
   retireSecret,
   type LocalSecretCandidate,
   type SecretsPortMeta,
@@ -89,10 +90,12 @@ interface Device {
   lagCycles: number;
   /** Slots a password was typed into on this device (not written by its port). */
   typed: Set<string>;
+  /** Accounts the settings profile took away, said to the secrets sync before its next step (`noteSecretLeftWithProfile`, both shells). */
+  left: SecretBinding[];
 }
 
 function device(name: string, kind: Kind, rows: Row[], skew: number, profile: Device["profile"]): Device {
-  return { name, kind, rows: rows.map((row) => ({ ...row })), slots: new Map(), keyring: new Map(), meta: null, retired: null, pushes: 0, reports: 0, emptiedByPort: [], skew, profile, pending: [], awayUntil: -1, lagCycles: 0, typed: new Set() };
+  return { name, kind, rows: rows.map((row) => ({ ...row })), slots: new Map(), keyring: new Map(), meta: null, retired: null, pushes: 0, reports: 0, emptiedByPort: [], skew, profile, pending: [], awayUntil: -1, lagCycles: 0, typed: new Set(), left: [] };
 }
 const nowOf = (d: Device) => () => new Date(tickRaw() + d.skew).toISOString();
 
@@ -165,6 +168,7 @@ async function round(d: Device): Promise<void> {
   await secretsRound(d);
 }
 async function secretsRound(d: Device): Promise<void> {
+  if (d.kind === "new") for (const binding of d.left.splice(0)) await noteSecretLeftWithProfile(retiredHost(d), binding);
   const port = portOf(d);
   const t = nowOf(d)();
   if (d.kind === "v087") {
@@ -216,6 +220,7 @@ function removedByProfile(d: Device, rowId: string): void {
   d.rows = d.rows.filter((item) => item.id !== rowId);
   if (row?.kind !== "mail" || d.kind === "new") d.slots.delete(rowId);
   d.typed.delete(rowId);
+  if (row && d.kind === "new") d.left.push(newBinding(row));
 }
 
 
@@ -432,7 +437,7 @@ describe("the review's probes (2026-11-25)", () => {
       expect(entryOf(row)?.tombstone, "password of a removed account left in the document").toBe(true);
     });
 
-    it(`P2 ${row.id}: a device with the profile off keeps a tombstoned account, then loses its mark key`, async () => {
+    it(`P2 ${row.id}: a device with the profile off keeps the account and publishes its password, then loses its mark key`, async () => {
       remote = null;
       clock = 0;
       const n1 = device("N1", "new", [row, { id: "k", user: "keep", kind: row.kind }], 0, "on");
@@ -441,9 +446,18 @@ describe("the review's probes (2026-11-25)", () => {
       await rr([n1, n2], 3);
       await removeOnPurpose(n1, row.id);
       await rr([n1, n2], 3);
+      // Named exception (`docs/engineering/Secrets_Removal_Rules.md`): the
+      // device whose profile never brings the removal keeps the account and
+      // publishes its password above the tombstone (statement 4 over 2).
+      const kept = entryOf(row);
+      expect([kept?.tombstone, kept?.deviceId, n1.rows.some((item) => item.id === row.id)]).toEqual([undefined, "N2", false]);
+      // A lost key there changes nothing of it: the same entry, no upload more.
       n2.keyring.delete(SECRETS_MARK_KEY_SLOT);
       await rr([n2, n1], 3);
-      expect(entryOf(row)?.tombstone, "password of a removed account back in the document after a key loss").toBe(true);
+      const pushes = [n1.pushes, n2.pushes];
+      await rr([n2, n1], 2);
+      expect(entryOf(row), "the entry after a key loss").toEqual(kept);
+      expect([n1.pushes, n2.pushes]).toEqual(pushes);
     });
 
     it(`P5 ${row.id}: no skew — the remover's secrets round runs only after the account was added again elsewhere`, async () => {
@@ -547,12 +561,13 @@ const NAMED: Array<[number, string, string]> = [
   [1829, "all", "two 0.9.0 devices after a repair on an updated one (the loss is between the two 0.9.0 devices)"],
 ];
 /**
- * Named limit: two acts that never saw each other — a password changed on
- * one device, the account removed on another that knew an older password of
- * it — are ordered by the clocks of the two devices, the last tie-breaker
- * (`RemovalState`). With clocks hours apart the later act can lose. Of
- * 13 000 seeds run for the review, 56 ended so, all with clocks apart; each
- * of these, run with the very same steps and the clocks together, holds.
+ * Two acts that never saw each other — a password changed on one device, the
+ * account removed on another that knew an older password of it — were
+ * ordered by the clocks of the two devices until the third round of the
+ * review (a named limit then: of 13 000 seeds, 56 ended so, all with clocks
+ * apart). No decision of the port compares two times any more
+ * (`docs/engineering/Secrets_Removal_Rules.md`): each of these holds with its
+ * clocks apart and with the very same steps and the clocks together.
  */
 const CLOCK_ORDERED: Array<[number, string]> = [[305, "skew"], [312, "skew"], [380, "skew"]];
 /** Seeds per mode in every CI run (about a minute on the CI runner). */
@@ -566,13 +581,12 @@ describe("random fleets around what takes an account away (review 2026-11-25)", 
     });
   }
   for (const [seed, mode] of CLOCK_ORDERED) {
-    it(`seed ${seed} (${mode}): only the order of two device clocks decides it (named limit)`, async () => {
+    it(`seed ${seed} (${mode}): the order of two device clocks decides nothing`, async () => {
       const apart = await fuzz(seed, mode);
       const together = await fuzz(seed, mode, true);
-      expect(apart.problems.length).toBeGreaterThan(0);
-      expect(apart.problems.every((line) => /still has a password|but the document has a tombstone/.test(line))).toBe(true);
       expect(together.log.slice(1)).toEqual(apart.log.slice(1));
-      expect(together.problems).toEqual([]);
+      expect(apart.problems, `seed ${seed}\n${apart.log.join("\n")}`).toEqual([]);
+      expect(together.problems, `seed ${seed}\n${together.log.join("\n")}`).toEqual([]);
     });
   }
   for (const [mode, count] of RANGES) {

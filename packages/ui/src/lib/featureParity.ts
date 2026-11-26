@@ -1302,6 +1302,24 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-02",
   },
   {
+    id: "settings-stored-access",
+    title: "Settings › Stored access: what Plainva placed in the keychain, with Remove",
+    area: "security",
+    kind: "decision",
+    desktop: "yes",
+    mobile: null,
+    mobileReason:
+      "The card exists for sign-ins left behind on the desktop: a vault dropped " +
+      "from the recent list keeps its keychain slots, and the OS keychain cannot " +
+      "be listed, so they are derived from the vault paths the settings still " +
+      "carry. On the phone a vault leaves the list only by being deleted, and " +
+      "that deletion takes its sign-ins along (vaultForget.ts, " +
+      "forgetVaultSecrets); signing out of an account is on its account page in " +
+      "both shells. Removing a calendar or mailbox password there counts as " +
+      "\"Sign out on this device\" for a vault in use (review 2026-11-25).",
+    verified: "2026-11-25",
+  },
+  {
     id: "suggest-mode-entry",
     title: "Where the suggestion mode is switched on",
     area: "security",

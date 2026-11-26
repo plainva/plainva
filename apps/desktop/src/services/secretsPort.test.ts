@@ -238,10 +238,10 @@ describe("shared secrets port (H2c)", () => {
    * (review 2026-11-25): the account leaves a device with the settings
    * profile, which takes its slot along, and a tombstone for an account still
    * here is another device's view — a device on 0.9.0 writes one for an
-   * address it repaired. Kept as seen, it goes out again as it came, and the
-   * password is not published again; a password typed here later is.
+   * address it repaired. The password this device holds goes out above it
+   * (statement 4 of `docs/engineering/Secrets_Removal_Rules.md`), once.
    */
-  it("keeps the slot of an account still here on a tombstone, and publishes the tombstone, not the password", async () => {
+  it("keeps the slot of an account still here on a tombstone, and publishes its password above it", async () => {
     const source = makeDevice("phone", () => [candidate()]);
     const bundle = await source.port.exportBundle();
     let targetSecret: Record<string, string> | null = null;
@@ -255,12 +255,10 @@ describe("shared secrets port (H2c)", () => {
     expect(target.keychain.get("pim_acc-1")).toEqual({ kind: "caldav", pass: "hunter2" });
     expect(result.entries).toContainEqual({ logicalId: "acc-1", status: "unchanged", reason: "account-still-here" });
     const next = await target.port.exportBundle();
-    expect(next.entries["acc-1"]).toEqual(tombstoned.entries["acc-1"]);
-
-    // Typed here later: a change, above the tombstone.
-    targetSecret = { pass: "typed-later" };
-    const typed = await target.port.exportBundle();
-    expect(typed.entries["acc-1"]).toMatchObject({ entryRev: 3, deviceId: "desktop", secret: { pass: "typed-later" } });
+    expect(next.entries["acc-1"]).toMatchObject({ entryRev: 3, deviceId: "desktop", secret: { pass: "hunter2" } });
+    expect(next.entries["acc-1"].tombstone).toBeUndefined();
+    // Once: the next export changes nothing.
+    expect((await target.port.exportBundle()).entries["acc-1"]).toEqual(next.entries["acc-1"]);
 
     // A device's OWN, never-imported secret survives it as well.
     const owner = makeDevice("desktop-2", () => [candidate({ secret: { pass: "mine" } })]);

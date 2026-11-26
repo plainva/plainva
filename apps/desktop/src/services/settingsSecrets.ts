@@ -6,6 +6,7 @@ import {
   familyOfCalDavUrl,
   familyOfImapHost,
   migrateSecretsMetaToCanonicalIds,
+  noteSecretLeftWithProfile,
   retireSecret,
   type CloudAccountRecord,
   type LocalSecretCandidate,
@@ -205,6 +206,18 @@ export async function ensureMarkKeyHome(): Promise<void> {
  */
 export async function retireCalDavSecret(vaultPath: string, url: string, user: string, remove: () => Promise<void>): Promise<void> {
   await retireSecret(retiredStore(vaultPath), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user), remove);
+}
+
+/**
+ * The settings profile took this calendar account or IMAP mailbox away (it was
+ * removed elsewhere): said to the secrets sync, never read from a missing row
+ * (`noteSecretLeftWithProfile`).
+ */
+export async function noteCalDavSecretLeftWithProfile(vaultPath: string, url: string, user: string): Promise<void> {
+  await noteSecretLeftWithProfile(retiredStore(vaultPath), calDavSecretBinding(familyOfCalDavUrl(url) ?? "webdav", url, user));
+}
+export async function noteImapSecretLeftWithProfile(vaultPath: string, mailbox: { host: string; port: number; user: string }): Promise<void> {
+  await noteSecretLeftWithProfile(retiredStore(vaultPath), imapSecretBinding(familyOfImapHost(mailbox.host) ?? "imap", mailbox.host, mailbox.port, mailbox.user));
 }
 
 /** "Remove account" takes this IMAP mailbox out: the same act for its password (`retireSecret`), as for a calendar. */

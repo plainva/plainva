@@ -149,15 +149,18 @@ export async function listStoredCredentials(): Promise<StoredCredentialEntry[]> 
 /**
  * Removes one stored access. Always explicit; nothing here is automatic (E2).
  *
- * The password of a calendar account or a mailbox counts as "Sign out on this
- * device" (maintainer, 2026-11-18): its slot keeps the sign-out mark
- * (`signOutAccountHere`), so the secrets sync never fills it again from
- * another device and writes no tombstone for it; only a sign-in here does.
- * A slot without a password to take (an OAuth leftover) and every other
- * kind are removed.
+ * The password of a calendar account or a mailbox of a vault still in the
+ * list counts as "Sign out on this device" (maintainer, 2026-11-18): its slot
+ * keeps the sign-out mark (`signOutAccountHere`), so the secrets sync never
+ * fills it again from another device and writes no tombstone for it; only a
+ * sign-in here does. Of a vault no longer in the list (`orphaned`) — what
+ * this card is there for — the slot is deleted: no sync of that vault runs
+ * here to fill it again, and a mark kept would stay in the keychain unseen
+ * for good. A slot without a password to take (an OAuth leftover) and every
+ * other kind are removed.
  */
-export async function removeStoredCredential(slot: string, kind?: StoredCredentialKind): Promise<void> {
-  if (kind === "calendar" || kind === "mail") {
+export async function removeStoredCredential(slot: string, kind?: StoredCredentialKind, orphaned = false): Promise<void> {
+  if ((kind === "calendar" || kind === "mail") && !orphaned) {
     await signOutAccountHere({ store: accountCredentialStore, serviceSlots: [{ keys: [slot] }], clearCardGrant: async () => undefined });
     if (isSignedOutSlot(await credentialManager.readSecret(slot))) return;
   }

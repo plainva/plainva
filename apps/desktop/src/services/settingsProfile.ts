@@ -111,7 +111,7 @@ import {
 } from "./encryptionManifest";
 import { cloudAccountsRegistryKey, loadCloudAccounts, saveCloudAccounts } from "./cloudAccounts";
 import { profileAccountMapKey } from "./profileAccountMap";
-import { clearPimCredentials } from "./pim/pimCredentials";
+import { clearPimCredentials, getPimCredentials } from "./pim/pimCredentials";
 import { getSyncRootFolder } from "./cloudAccountsActions";
 import {
   backupMaxAgeDaysKey,
@@ -122,8 +122,8 @@ import {
 } from "./backupPolicy";
 import type { PimRuntime } from "./pim/pimRuntime";
 import { credentialManager } from "./CredentialManager";
-import { legacyMailSecretKey, mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
-import { createDesktopSecretsPort } from "./settingsSecrets";
+import { legacyMailSecretKey, mailAccountKind, mailAccountsKey, mailSecretKey, listMailAccounts, replaceMailAccounts, type MailAccountConfig } from "@plainva/ui/mail";
+import { createDesktopSecretsPort, noteCalDavSecretLeftWithProfile, noteImapSecretLeftWithProfile } from "./settingsSecrets";
 import { pimSecretKey } from "./pim/pimCredentials";
 import { adoptNewBarAreas, BAR_LAYOUT_CHANGED_EVENT, barLayoutKey, WEEK_START_CHANGED_EVENT } from "@plainva/ui";
 import { weekStartKey } from "./weekStartVault";
@@ -836,6 +836,16 @@ export function sanitizeProfileValues(values: Record<string, unknown>): Sanitize
   return { values: out, preserve, skipped };
 }
 
+/** The profile import removes a CalDAV account: the secrets sync is told, with the address its password was named by. */
+async function noteCalDavLeft(vaultPath: string, cache: PimCacheRepository | null, accountId: string): Promise<void> {
+  const row = cache ? (await cache.listAccounts()).find((account) => account.id === accountId) : undefined;
+  if (row?.provider !== "caldav") return;
+  const creds = await getPimCredentials(vaultPath, accountId).catch(() => null);
+  const url = creds?.kind === "caldav" ? creds.url : typeof row.config.url === "string" ? row.config.url : "";
+  const user = creds?.kind === "caldav" ? creds.user : typeof row.config.user === "string" ? row.config.user : "";
+  if (url && user) await noteCalDavSecretLeftWithProfile(vaultPath, url, user);
+}
+
 /**
  * Desktop side of the shared account import. The judgement (identity matching,
  * id collisions, the map) lives in `@plainva/ui/accountProfile` so the phone
@@ -848,6 +858,8 @@ function desktopAccountPorts(store: ISettingsStore, vaultPath: string, cache: Pi
       if (cache) await cache.upsertAccount(row);
     },
     deletePimAccount: async (accountId) => {
+      // Removed elsewhere: the secrets sync is told so before the row goes (`noteSecretLeftWithProfile`).
+      await noteCalDavLeft(vaultPath, cache, accountId).catch(reportingTo("pim:profile-left"));
       if (cache) await cache.deleteAccount(accountId);
       await clearPimCredentials(vaultPath, accountId).catch(reportingTo("pim:remove-credentials"));
     },
@@ -861,7 +873,10 @@ function desktopAccountPorts(store: ISettingsStore, vaultPath: string, cache: Pi
     },
     listMailAccounts: () => listMailAccounts(vaultPath),
     replaceMailAccounts: (accounts) => replaceMailAccounts(vaultPath, accounts),
-    removeMailSecret: (accountId) => removeSlot(credentialManager, mailSecretKey(vaultPath, accountId), legacyMailSecretKey(vaultPath, accountId)),
+    removeMailSecret: async (account) => {
+      if (mailAccountKind(account) === "imap") await noteImapSecretLeftWithProfile(vaultPath, account).catch(reportingTo("mail:profile-left"));
+      await removeSlot(credentialManager, mailSecretKey(vaultPath, account.id), legacyMailSecretKey(vaultPath, account.id));
+    },
     listCloudAccounts: () => loadCloudAccounts(vaultPath),
     replaceCloudAccounts: (accounts) => saveCloudAccounts(vaultPath, accounts),
     pimSecretSlot: (accountId) => pimSecretKey(vaultPath, accountId),
