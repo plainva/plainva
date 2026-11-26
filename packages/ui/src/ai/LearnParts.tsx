@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { InstructionEntry, WriteDraft } from "@plainva/core";
+import type { InstructionEntry, WriteDraft } from "@plainva/core/ai";
 import { toast } from "../services/toastStore";
 import { AiDraftCard, AiDraftDone, machineAuthorLabel, useDraftActions } from "./AiWriteCards";
 import type { LearnOutcome, LearnPlanOutcome } from "./aiLearn";

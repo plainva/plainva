@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { qrMatrix } from "@plainva/ui";
-import { encodeWorkspaceInvite } from "@plainva/core";
+import { encodeWorkspaceInvite } from "@plainva/core/workspace";
 
 describe("qrMatrix (offline QR encoder)", () => {
   it("returns null for an empty value", () => {

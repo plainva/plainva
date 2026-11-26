@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus } from "lucide-react";
-import { Banner, Button, ICON, Modal, problemText, TextArea, TextInput, toast, useAiSession, useDiscardGuard } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, TextArea, TextInput, toast, useDiscardGuard } from "@plainva/ui";
+import { problemText, useAiSession } from "@plainva/ui/ai";
 
 /**
  * A new skill from three fields (plan KI-Harness P3-5): a name that becomes

@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { DEFAULT_AI_APP_SETTINGS, effectivePolicy, notePolicyFrom, readConversationRecord, type AiEgress, type ConversationRecord, type EgressChunk, type LedgerEntry } from "@plainva/core";
+import { DEFAULT_AI_APP_SETTINGS, effectivePolicy, notePolicyFrom, readConversationRecord, type AiEgress, type ConversationRecord, type EgressChunk, type LedgerEntry } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiConversation, AiSession, AiSessionContext, cacheShareText, savingsLine, usageRowLine, type AiVaultHost } from "@plainva/ui";
+import { AiConversation, AiSession, AiSessionContext, cacheShareText, savingsLine, usageRowLine, type AiVaultHost } from "@plainva/ui/ai";
 
 /**
  * What a request and a month cost, as the reader sees it (plan KI-Harness

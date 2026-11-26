@@ -16,13 +16,13 @@ import {
   type InstructionIO,
   type LedgerEntry,
   type SkillTestRecords,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
 import {
   AI_POLICY_FILE,
   AiSession,
   CHAT_TOOL_NAMES,
   EMPTY_WRITE_DRAFTS,
-  captureVocabularyOf,
   createDirectSandbox,
   createVaultPolicy,
   createVaultToolExecutor,
@@ -34,7 +34,7 @@ import {
   type VaultToolDeps,
   type VaultWriteDeps,
   type WriteDraftState,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { CLOUD, LOCAL, chat, fakeEgress, results, turn } from "./mcpSessionHarness";
 

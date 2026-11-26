@@ -5,37 +5,42 @@ import { dirname, join } from "node:path";
 import {
   BundleCommentStore,
   buildVaultChain,
-  DEFAULT_AI_APP_SETTINGS,
-  EMPTY_INSTRUCTION_APPROVALS,
-  EMPTY_SKILL_TESTS,
   SyncQueue,
   VersionHistoryService,
   buildLinkTargetIndex,
   linkTargetName,
   planCommentDecision,
-  readConversationRecord,
   readFrontmatterPath,
+  resolveLinkTargetIndexed,
+  type CommentOperationService,
+  type IDatabaseAdapter,
+} from "@plainva/core";
+import {
+  DEFAULT_AI_APP_SETTINGS,
+  EMPTY_INSTRUCTION_APPROVALS,
+  EMPTY_SKILL_TESTS,
+  readConversationRecord,
   readInstructionFile,
   scanInstruction,
   scanVaultInstructions,
-  resolveLinkTargetIndexed,
-  type CommentOperationService,
   type ConversationRecord,
   type DirectWriteFiles,
   type EgressChunk,
-  type IDatabaseAdapter,
   type DeviceScriptKey,
   type InstructionIO,
   type InstructionApprovals,
   type LedgerEntry,
   type SkillTestRecords,
-  type WorkspaceCommentRecord,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { type WorkspaceCommentRecord } from "@plainva/core/workspace";
+import {
+  captureVocabularyOf,
+  readTextShape,
+} from "@plainva/ui";
 import {
   AI_POLICY_FILE,
   AiSession,
   CHAT_TOOL_NAMES,
-  captureVocabularyOf,
   createDirectSandbox,
   createVaultPolicy,
   createVaultToolExecutor,
@@ -44,12 +49,11 @@ import {
   noteMovePlan,
   noteRenamePlan,
   proposeSuggestionRound,
-  readTextShape,
   type AiVaultHost,
   type DraftCreator,
   type VaultToolDeps,
   type VaultWriteDeps,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";

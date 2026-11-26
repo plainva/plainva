@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { gistsStatusLine, Row, Switch, useLocalGists, type AiSession } from "@plainva/ui";
+import { Row, Switch } from "@plainva/ui";
+import { gistsStatusLine, useLocalGists, type AiSession } from "@plainva/ui/ai";
 import { mConfirm } from "../services/mobileDialogs";
 
 /**

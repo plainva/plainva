@@ -2,9 +2,9 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { LONG_MEMORY_FILE, type EgressChunk } from "@plainva/core";
+import { LONG_MEMORY_FILE, type EgressChunk } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiSessionContext, closeLearnSurface, openLearnSurface, type AiSession, type LearnSurface } from "@plainva/ui";
+import { AiSessionContext, closeLearnSurface, openLearnSurface, type AiSession, type LearnSurface } from "@plainva/ui/ai";
 import { turn } from "../../ai/mcpSessionHarness";
 import { memorySession, memoryVault } from "../../ai/memorySessionHarness";
 import { LearnDialogs } from "./LearnDialogs";

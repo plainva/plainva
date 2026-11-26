@@ -35,9 +35,9 @@ import { webdavFetch } from "../adapters/webdavHttp";
 import { beginPimOAuth, setOAuthPurposeHandler } from "./pim/pimOAuth";
 import { clearAccountToken, getAccountToken, saveAccountToken } from "./accountBroker";
 import { getPimCredentials, pimSecretKey } from "./pim/pimCredentials";
-import { restartPimAccountAfterLogin } from "./pim/pimService";
 import { loadCloudAccounts, saveCloudAccounts } from "./cloudAccountsStore";
-import { getStoredProvider, switchProviderToAccountBroker } from "./syncService";
+// The sync and the calendars load when a sign-in reaches them, not with the start (performance plan L5).
+const syncServiceModule = () => import("./syncService");
 import type { MobileSyncProvider } from "./syncSlot";
 import { authorizeNativeGoogle } from "./googleNativeAuthorization";
 import { accountCredentialStore } from "./accountCredentialStore";
@@ -120,7 +120,7 @@ export async function readDeviceAccess(family: AccessFamily, vaultId?: string): 
 async function readDropboxDeviceAccess(stored: StoredOAuthAccess | null, vaultId?: string): Promise<StoredOAuthAccess | null> {
   if (stored || !vaultId) return stored;
   const records = await loadCloudAccounts(vaultId).catch(() => []);
-  const signedIn = await getStoredProvider(vaultId).catch(() => null);
+  const signedIn = await syncServiceModule().then(({ getStoredProvider }) => getStoredProvider(vaultId)).catch(() => null);
   const adopted = adoptedDropboxAccess([
     ...records.filter((record) => record.family === "dropbox").map((record) => record.byoClientId),
     signedIn?.provider === "dropbox" ? signedIn.creds.appKey : undefined,
@@ -231,7 +231,7 @@ export function registerSignInHandler(): void {
       setPending: () => undefined,
       bindFiles: async (cardId) => {
         const record = (await loadCloudAccounts(vaultId)).find((entry) => entry.id === cardId)!;
-        await switchProviderToAccountBroker(vaultId, record, completed.token.clientId, { clientSecret: completed.token.clientSecret });
+        await (await syncServiceModule()).switchProviderToAccountBroker(vaultId, record, completed.token.clientId, { clientSecret: completed.token.clientSecret });
         return { provider: family === "google" ? "drive" : "onedrive" };
       },
       bindCalendar: async (_cardId, _done, existing) => {
@@ -242,7 +242,7 @@ export function registerSignInHandler(): void {
           ...(family === "google" ? { clientSecret: completed.token.clientSecret ?? "", nativeGoogle: undefined } : {}),
           refreshToken: "", loginRevision: crypto.randomUUID(),
         });
-        await restartPimAccountAfterLogin(vaultId, existing);
+        await (await import("./pim/pimService")).restartPimAccountAfterLogin(vaultId, existing);
         return { pimAccountId: existing };
       },
       bindMail: async (_cardId, _done, existing) => {
@@ -313,7 +313,7 @@ export async function adoptAddedVaultSignIn(vaultId: string, access: OAuthAccess
     bindFiles: async (cardId) => {
       // The card is written after the binding; the slot only needs to know its id and provider.
       const record: CloudAccountRecord = { id: cardId, family, label: "", services: { files: { provider: files } } };
-      await switchProviderToAccountBroker(vaultId, record, access.clientId, { clientSecret: access.clientSecret });
+      await (await syncServiceModule()).switchProviderToAccountBroker(vaultId, record, access.clientId, { clientSecret: access.clientSecret });
       return { provider: files };
     },
     bindCalendar: () => Promise.reject(new Error("not part of a vault sign-in")),

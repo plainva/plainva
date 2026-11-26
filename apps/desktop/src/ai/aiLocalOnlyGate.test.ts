@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings, type AiEgress, type EgressChunk, type HttpRequestSpec } from "@plainva/core";
-import { AiSession } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS, type AiAppSettings, type AiEgress, type EgressChunk, type HttpRequestSpec } from "@plainva/core/ai";
+import { AiSession } from "@plainva/ui/ai";
 import { CLOUD, LOCAL, SEARCH, body, chat, connect, mcpSession, toolNames, turn, viaDispatch } from "./mcpSessionHarness";
 
 /**

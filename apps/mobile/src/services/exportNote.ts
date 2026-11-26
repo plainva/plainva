@@ -6,7 +6,7 @@ import {
   type CommentExportMode,
 } from "@plainva/ui";
 import { utf8ToBase64, type MailAttachment } from "@plainva/ui/mail";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import type { TFunction } from "i18next";
 import { mSelect } from "./mobileDialogs";
 import { listMobileCommentAuthors, listMobileComments } from "./mobileComments";

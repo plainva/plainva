@@ -1,6 +1,7 @@
 import { Check, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { machineAuthorKind, machineAuthorSubject, type WorkspaceCommentRecord } from "@plainva/core";
+import { machineAuthorKind, machineAuthorSubject } from "@plainva/core";
+import { type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";

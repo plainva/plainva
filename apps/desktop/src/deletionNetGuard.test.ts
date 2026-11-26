@@ -155,14 +155,15 @@ describe("every deletion goes through its net (D1)", () => {
     const desktop = asking("apps/desktop/src/contexts/VaultContext.tsx");
     expect(desktop).toMatch(/buildVaultChain\(desktopChainPorts\(\{\s*vaultPath: path,\s*storage: tauriVaultAdapter,/);
     expect(desktop).toMatch(/const backupVaultAdapter = chain\.belowChain;/);
-    expect(desktop).toMatch(/new SyncWorker\(engine, target, syncRepo, backupVaultAdapter,/);
+    // The sync's classes come from their own module, loaded with the first vault that syncs (performance plan L5).
+    expect(desktop).toMatch(/new sync\.SyncWorker\(engine, target, syncRepo, backupVaultAdapter,/);
     expect(desktop).not.toMatch(/tauriVaultAdapter\.deleteItem/);
 
     const phone = asking("apps/mobile/src/services/vaultService.ts");
     expect((phone.match(/buildVaultChain\(mobileChainPorts\(\{\s*storage: adapter,/g) ?? []).length).toBe(2);
     expect((phone.match(/backup = chain\.belowChain;/g) ?? []).length).toBe(2);
     expect(phone).toMatch(/^\s*belowChain: BackupVaultAdapter;$/m);
-    expect(asking("apps/mobile/src/services/syncService.ts")).toMatch(/new SyncWorker\(engine, target, v\.syncRepo!, v\.belowChain,/);
+    expect(asking("apps/mobile/src/services/syncService.ts")).toMatch(/new sync\.SyncWorker\(engine, target, v\.syncRepo!, v\.belowChain,/);
     // Nothing on the phone deletes on the raw storage.
     for (const file of files.filter((f) => f.rel.startsWith("apps/mobile/"))) {
       expect(file.text, file.rel).not.toMatch(/\b(v|vault)\.adapter\.deleteItem\(/);

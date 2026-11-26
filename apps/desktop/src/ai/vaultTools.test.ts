@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildLinkNameIndex, effectivePolicy, filesALinkCouldMean, notePolicyFrom, parsePolicyFile, SITUATION_SOURCE, toolByName, type EgressRecipient } from "@plainva/core";
-import { createVaultToolExecutor, outlineOf, safeRelPath, sectionOf, situationEvents, situationFrom, situationReach, withoutBrokenLinks, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
+import { buildLinkNameIndex, effectivePolicy, filesALinkCouldMean, notePolicyFrom, parsePolicyFile, SITUATION_SOURCE, toolByName, type EgressRecipient } from "@plainva/core/ai";
+import { type PlannerRow } from "@plainva/ui";
+import { createVaultToolExecutor, outlineOf, safeRelPath, sectionOf, situationEvents, situationFrom, situationReach, withoutBrokenLinks, type VaultToolDeps } from "@plainva/ui/ai";
 
 const files: Record<string, string> = {
   "Projects/Offer.md": "---\nstatus: draft\nclient: \"[[Private/Client]]\"\n---\n# Offer\n\nIntro\n\n## Costs\n\n### 2026\n\nRates as in [[Private/Client]].\n\n## Notes\n\nlater",

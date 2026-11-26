@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { readFrontmatterPath, type WorkspaceCommentRecord, type WriteDraft, type WriteDraftOutcome } from "@plainva/core";
-import { EMPTY_WRITE_DRAFTS, createWriteDraftStore, draftDetail, draftedEntryContent, draftedNoteContent, entryPlaceOf, machineProposals, serializeBaseConfig, stripFrontmatter } from "@plainva/ui";
+import { readFrontmatterPath } from "@plainva/core";
+import { type WorkspaceCommentRecord } from "@plainva/core/workspace";
+import { type WriteDraft, type WriteDraftOutcome } from "@plainva/core/ai";
+import { serializeBaseConfig, stripFrontmatter } from "@plainva/ui";
+import { EMPTY_WRITE_DRAFTS, createWriteDraftStore, draftDetail, draftedEntryContent, draftedNoteContent, entryPlaceOf, machineProposals } from "@plainva/ui/ai";
 import { memoryFiles } from "./mcpTestHost";
 
 /**

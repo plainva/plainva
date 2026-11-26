@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { previewPublishedProjection, type PublishedProjectionPreview, type PublishedSliceMode } from "@plainva/core";
+import { previewPublishedProjection, type PublishedProjectionPreview, type PublishedSliceMode } from "@plainva/core/workspace";
 import { publicationErrorText } from "@plainva/ui";
 import en from "../../../packages/ui/src/locales/en.json";
 import { WorkspaceGovernanceDialog } from "./components/security/WorkspaceGovernanceDialog";

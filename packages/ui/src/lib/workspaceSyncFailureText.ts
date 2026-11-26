@@ -1,4 +1,4 @@
-import type { WorkspaceSyncFailureKind } from "@plainva/core";
+import type { WorkspaceSyncFailureKind } from "@plainva/core/workspace";
 import i18n from "../i18n";
 import { connectionErrorText } from "./connectionErrorText";
 

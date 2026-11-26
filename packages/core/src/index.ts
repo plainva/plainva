@@ -1,5 +1,4 @@
 export * from "./crypto/index.js";
-export * from "./workspace/index.js";
 export * from "./markdown-ast.js";
 export * from "./markdown-parser.js";
 export * from "./inlineParseBudget.js";
@@ -8,7 +7,10 @@ export * from "./readerFormulas.js";
 export * from "./templateTokens.js";
 export * from "./noteLinkUrl.js";
 export * from "./journal.js";
-export * from "./ai/index.js";
+// What a note can say about the AI, and the properties a suggestion proposes: note format, read without the AI.
+export * from "./noteAiRules.js";
+export * from "./proposals/properties.js";
+export * from "./proposals/authors.js";
 export * from "./vault/searchOccurrences.js";
 export * from "./vault/spacelessText.js";
 export * from "./markdown-serializer.js";
@@ -143,7 +145,6 @@ export * from "./pim/GooglePimTarget.js";
 export * from "./pim/GraphPimTarget.js";
 export * from "./pim/DevicePimTarget.js";
 export * from "./pim/PimWorker.js";
-export * from "./import/index.js";
 export { foldPathForCollision, foldPathNormalization, toPathIdentity, isTwinSpelling, hasSpellingVariants } from "./sync/pathIdentity.js";
 export { PathSpellings, withStoredSpelling, isNotFoundError, type SpellingSource, type SpellingListingCache } from "./sync/pathSpellings.js";
 export { groupNameCollisions, freeCopyPath, type NameCollisionCase, type NameCollisionAction, type NameTwinResolution, type CollisionCopy } from "./sync/nameTwins.js";

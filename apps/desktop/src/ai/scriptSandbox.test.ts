@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { withinAsync } from "../../../../packages/core/test/helpers/timeBudget";
-import { SCRIPT_LIMIT_DEFAULTS, type SandboxEnd, type SandboxHost, type SandboxJob, type ScriptLimits } from "@plainva/core";
-import { createDirectSandbox } from "@plainva/ui";
+import { SCRIPT_LIMIT_DEFAULTS, type SandboxEnd, type SandboxHost, type SandboxJob, type ScriptLimits } from "@plainva/core/ai";
+import { createDirectSandbox } from "@plainva/ui/ai";
 
 /**
  * The gate of the script sandbox (plan KI-Harness P5.5, ADR 0020 decision 6):

@@ -1,4 +1,4 @@
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { AlertCircle, Send } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "./ui/Button";

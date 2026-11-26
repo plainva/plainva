@@ -6,7 +6,7 @@ import {
   type InstructionIO,
   type MemoryEntry,
   type MemoryPlace,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { AiFileStore } from "./aiStores";
 import type { InstructionWriter } from "./aiVaultHost";
 

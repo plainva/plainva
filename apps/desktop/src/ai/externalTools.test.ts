@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { approveMcpListing, EMPTY_MCP_GRANT, readMcpListing, reviewMcpListing, type McpFailure, type McpRegisteredServer } from "@plainva/core";
+import { approveMcpListing, EMPTY_MCP_GRANT, readMcpListing, reviewMcpListing, type McpFailure, type McpRegisteredServer } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
 import {
   externalAddProblemText,
@@ -22,7 +22,7 @@ import {
   externalTopFolders,
   withExternalFolders,
   type AiMcpServer,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * External tools as a person reads them (plan KI-Harness P4.5): the lines of

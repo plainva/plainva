@@ -101,6 +101,7 @@ describe("the events drawn from the overlay belong to the vault, not to the runt
     const read = (p: string) => readFileSync(join(__dirname, p), "utf8");
     expect(read("pimService.ts")).toContain("watchCreatedEvents: (cache, targetFor) => watchCreatedEvents(pendingEventWrites, { cache, targetFor })");
     expect(read("pimRuntime.ts")).toMatch(/stopCreatedEventWatch =\s*wiring\.watchCreatedEvents\?\.\(cache/);
+    expect(read("pimService.ts")).toContain("clearCreatedEvents: () => pendingEventWrites.clear()");
     expect(read("../../hooks/useVaultBoot.ts")).toContain("leavePimVault();");
   });
 });

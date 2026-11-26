@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROUTINE_RUN_LIMITS, routineTools, type EgressChunk } from "@plainva/core";
+import { ROUTINE_RUN_LIMITS, routineTools, type EgressChunk } from "@plainva/core/ai";
 import { CLOUD, LOCAL, chat, turn } from "./mcpSessionHarness";
 import { at, ownSkill, routineSession, routineVault, toolNames } from "./routineSessionHarness";
 

@@ -12,10 +12,10 @@
  * it is read from disk. Laying a suggestion on a note, keeping the drafts and
  * carrying a plan out is packages/ui/src/ai.
  */
-export * from "./authors.js";
+export * from "../../proposals/authors.js";
 export * from "./edits.js";
 export * from "./links.js";
-export * from "./properties.js";
+export * from "../../proposals/properties.js";
 export * from "./drafts.js";
 export * from "./sentences.js";
 export * from "./direct.js";

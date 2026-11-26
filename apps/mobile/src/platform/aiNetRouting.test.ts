@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { EgressChunk, HttpRequestSpec } from "@plainva/core";
+import type { EgressChunk, HttpRequestSpec } from "@plainva/core/ai";
 
 const calls: Array<{ plugin: string; method: string; url?: string; requestId?: string }> = [];
 

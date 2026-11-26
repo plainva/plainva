@@ -1,4 +1,4 @@
-import { TRANSCRIPTION_MAX_BYTES } from "@plainva/core";
+import { TRANSCRIPTION_MAX_BYTES } from "@plainva/core/ai";
 import { imageBasename, imageCandidates } from "../lib/imageTarget";
 import { toast } from "../services/toastStore";
 import type { AiSession, TranscriptionOutcome } from "./aiSession";
@@ -13,33 +13,8 @@ import { aiFailureText } from "./aiSettingsModel";
  * surface a voice note can stand on.
  */
 
-/** Where a sound stands: the note it is embedded in, and the embed's target as the note has it. */
-export interface AudioPlace {
-  notePath: string;
-  target: string;
-}
-
-export type AudioTranscriber = (place: AudioPlace) => Promise<void>;
-
-let current: AudioTranscriber | null = null;
-const listeners = new Set<() => void>();
-
-/** The shell's transcriber while the AI is on; `null` takes the door away again. */
-export function setAudioTranscriber(transcriber: AudioTranscriber | null): void {
-  current = transcriber;
-  for (const listener of listeners) listener();
-}
-
-export function audioTranscriber(): AudioTranscriber | null {
-  return current;
-}
-
-export function onAudioTranscriberChange(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-}
+export { setAudioTranscriber, audioTranscriber, onAudioTranscriberChange, type AudioPlace, type AudioTranscriber } from "../aiPorts/slots";
+import type { AudioPlace, AudioTranscriber } from "../aiPorts/slots";
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   m4a: "audio/mp4",

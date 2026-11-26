@@ -1,38 +1,41 @@
 import { Fragment, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, FlaskConical, Link2, Plus, RefreshCw } from "lucide-react";
-import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
-import { AreaBoundary,
+import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core/ai";
+import {
+  AreaBoundary,
   Button,
   GroupCard,
   ICON,
-  observedFailures,
-  openLearnSurface,
   Row,
   RowList,
   SectionLabel,
+  skillRowActions,
+  Switch,
+  toast,
+  type SkillRowCaps,
+} from "@plainva/ui";
+import {
+  observedFailures,
+  openLearnSurface,
   serverSkillGroupNote,
   serverSkillRefreshText,
   serverSkillRowDescription,
   skillRestoreRefusalText,
-  skillRowActions,
   skillRowDescription,
   skillTestOverview,
   skillTestPlanFor,
   skillView,
-  Switch,
   takeSharedUpkeepStep,
-  toast,
   useSkillTestPlan,
   useUpkeepRows,
   workshopSections,
   workshopTitle,
   workshopWaits,
   type AiServerSkills,
-  type SkillRowCaps,
   type UpkeepRow,
   startAiSkill,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { MobileUpkeepGroup } from "./MobileUpkeepGroup";
 import { RowActionSheet } from "./RowActionSheet";
 import { NewSkillSheet } from "./NewSkillSheet";

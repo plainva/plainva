@@ -2,30 +2,33 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useTranslation } from "react-i18next";
 import { ExternalLink, Plus } from "lucide-react";
-import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ModelChoice, type ProviderInfo } from "@plainva/core";
-import { AreaBoundary,
+import { AI_AUDIO_PROFILE, AI_EMBEDDING_PROFILE, AI_PROFILE_IDS, customEndpointId, normalizeBaseUrl, providerById, type AiProfileId, type AiProfileSlot, type ModelChoice, type ProviderInfo } from "@plainva/core/ai";
+import {
+  AreaBoundary,
+  getPlatformServices,
+  GroupCard,
+  ICON,
+  Row,
+  RowList,
+  SectionLabel,
+  Switch,
+  toast,
+} from "@plainva/ui";
+import {
   AI_FEEDBACK_URL,
   addableProviders,
   profilesInOrder,
   aiSetupStep,
   configuredProviders,
-  getPlatformServices,
-  GroupCard,
   HISTORY_DAY_CHOICES,
-  ICON,
   modeFacts,
   profileFacts,
   providerStatus,
-  Row,
-  RowList,
   savingsLine,
-  SectionLabel,
-  Switch,
   takeAiSettingsIntent,
-  toast,
   usageRowLine,
   type AiSession,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { AppBar } from "../components/AppBar";
 import { MobileSemanticSection } from "../components/MobileSemanticSection";
 import { MobileNoteHintsRows } from "../components/MobileNoteHintsSection";

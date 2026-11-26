@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { approvalSeen, createScriptedMcpServer, EMPTY_MCP_GRANT, type ScriptedSkill } from "@plainva/core";
-import { newSkillRunState, readStrangersText, readyServerSkills, serversLoadedIn, skillFileReadable, skillRunTools, SERVER_SKILL_REVIEW_LIMITS } from "@plainva/ui";
+import { approvalSeen, createScriptedMcpServer, EMPTY_MCP_GRANT, type ScriptedSkill } from "@plainva/core/ai";
+import { newSkillRunState, readStrangersText, readyServerSkills, serversLoadedIn, skillFileReadable, skillRunTools, SERVER_SKILL_REVIEW_LIMITS } from "@plainva/ui/ai";
 import { SEARCH, answering, body, close, connect, connectServer, mcpSession, results, search, turn, viaDispatch } from "./mcpSessionHarness";
 
 /**

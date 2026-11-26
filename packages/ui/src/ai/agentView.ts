@@ -1,4 +1,4 @@
-import type { AcpCommand, AcpConfigOption, AcpConfigValue, AcpPermissionOption, AcpToolKind } from "@plainva/core";
+import type { AcpCommand, AcpConfigOption, AcpConfigValue, AcpPermissionOption, AcpToolKind } from "@plainva/core/ai";
 import type { AcpAuthProblem, AcpSessionEvent, AcpSessionProblem, AcpThreadItem, AiAcpAgent } from "./acpSession";
 import type { AcpSessionEntry } from "./acpStores";
 

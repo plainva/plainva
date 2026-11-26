@@ -2,20 +2,22 @@ import { useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles } from "lucide-react";
 import {
-  AI_TRANSLATE_LANGUAGES,
-  aiStartBlocked,
-  askMessage,
   ICON,
   IconButton,
   MenuItem,
   MenuLabel,
   MenuSeparator,
   MenuSurface,
+} from "@plainva/ui";
+import {
+  AI_TRANSLATE_LANGUAGES,
+  aiStartBlocked,
+  askMessage,
   runSuggestAction,
   useAiSession,
   useAiState,
   type AiSuggestAction,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { AI_OPEN_EVENT } from "../../services/ai/desktopAi";
 import { readEditorRange, type EditorRange } from "../../services/editorSelection";
 

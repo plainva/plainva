@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import type { CommentLockState, CommentNotificationNote } from "@plainva/ui";
 
 /**

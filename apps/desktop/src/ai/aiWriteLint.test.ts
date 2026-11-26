@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { defuseNewAddresses, defuseNoteText } from "@plainva/ui";
+import { defuseNewAddresses, defuseNoteText } from "@plainva/ui/ai";
 
 /**
  * Plan KI-Harness P3-6 / ADR 0019 §6: what the AI writes into a note or a

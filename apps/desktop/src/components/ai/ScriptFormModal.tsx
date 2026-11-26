@@ -4,14 +4,23 @@ import { BookOpen, CodeXml, Plus, Trash2 } from "lucide-react";
 import { openExternalUrl } from "../../services/openExternal";
 import { sameStoredValue } from "@plainva/core";
 import {
-  addScriptParameter,
   Banner,
   Button,
-  changeScriptParameter,
   Checkbox,
   ICON,
   IconButton,
   Modal,
+  SCRIPTS_GUIDE,
+  Select,
+  TextArea,
+  TextInput,
+  toast,
+  useDiscardGuard,
+  userGuideUrl,
+} from "@plainva/ui";
+import {
+  addScriptParameter,
+  changeScriptParameter,
   newScriptForm,
   removeScriptParameter,
   SCRIPT_PARAMETER_TYPES,
@@ -22,19 +31,12 @@ import {
   scriptToolChoices,
   ScriptToolPicker,
   scriptTypeLabel,
-  SCRIPTS_GUIDE,
   scriptWriteError,
-  Select,
-  TextArea,
-  TextInput,
-  toast,
   toggleScriptTool,
   useAiSession,
   useAiState,
-  useDiscardGuard,
-  userGuideUrl,
   type ScriptFormState,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 const LIMIT_FIELDS = [
   { key: "seconds", label: "ai.scripts.form.seconds" },

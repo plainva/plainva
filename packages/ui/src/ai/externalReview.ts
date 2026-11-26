@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { asMcpError, mcpServerStanding, withMcpToolGrant, type McpFailure, type McpListing, type McpOAuthStatus, type McpSandboxInfo, type McpServerGrant, type McpSignInPlan } from "@plainva/core";
+import { asMcpError, mcpServerStanding, withMcpToolGrant, type McpFailure, type McpListing, type McpOAuthStatus, type McpSandboxInfo, type McpServerGrant, type McpSignInPlan } from "@plainva/core/ai";
 import type { AiSession } from "./aiSession";
 import {
   externalAddProblemText,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { groupQuarantine, isQuarantineGroupOpen, quarantineGroupActionIds, quarantineReasonKeys, quarantineTextVars } from "@plainva/ui";
-import type { WorkspaceQuarantineRecord } from "@plainva/core";
+import type { WorkspaceQuarantineRecord } from "@plainva/core/workspace";
 
 /**
  * The quarantine list as groups (finding 2026-09-03): one cause on one

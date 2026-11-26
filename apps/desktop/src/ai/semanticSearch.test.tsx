@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
-import { FoundChip, SearchModeSwitch, SemanticCoverage } from "@plainva/ui";
+import { FoundChip, SearchModeSwitch, SemanticCoverage } from "@plainva/ui/ai";
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;

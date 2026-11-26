@@ -3,7 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
-import type { WorkspaceQuarantineRecord } from "@plainva/core";
+import type { WorkspaceQuarantineRecord } from "@plainva/core/workspace";
 import { QuarantineCard } from "./QuarantineCard";
 
 /** Resolving through the real English catalogue: every key the card asks for must exist. */

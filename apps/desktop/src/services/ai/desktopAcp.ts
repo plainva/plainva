@@ -1,5 +1,5 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
-import { readAcpRegisteredAgents, type AcpNativeHost, type AcpPort, type EndpointConfirmText } from "@plainva/core";
+import { readAcpRegisteredAgents, type AcpNativeHost, type AcpPort, type EndpointConfirmText } from "@plainva/core/ai";
 
 /**
  * The desktop's native side of external agents (plan KI-Harness P4.6): the

@@ -2,7 +2,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { AI_COMMANDS, AI_WITHHELD_COMMANDS, aiNavigationCommands, CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "@plainva/ui";
+import { CALENDAR_GOTO_EVENT, consumePendingCalendarDay } from "@plainva/ui";
+import { AI_COMMANDS, AI_WITHHELD_COMMANDS, aiNavigationCommands } from "@plainva/ui/ai";
 import { buildMobileCommands, type MobileCommandHost } from "./mobileCommands";
 
 /**

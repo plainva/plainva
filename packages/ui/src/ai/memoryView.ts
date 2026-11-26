@@ -1,4 +1,4 @@
-import { MEMORY_LIMITS, type AiPolicyDimension, type MemoryEntry, type MemoryPlace } from "@plainva/core";
+import { MEMORY_LIMITS, type AiPolicyDimension, type MemoryEntry, type MemoryPlace } from "@plainva/core/ai";
 import type { AiMemoryState } from "./aiMemory";
 
 /**

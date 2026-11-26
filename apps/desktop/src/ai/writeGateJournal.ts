@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { FileCommentOperationJournal, createWorkspaceObjectId, type CommentOperationFiles, type CommentOperationJournal } from "@plainva/core";
+import { FileCommentOperationJournal, type CommentOperationFiles, type CommentOperationJournal } from "@plainva/core";
+import { createWorkspaceObjectId } from "@plainva/core/workspace";
 
 /**
  * The journal of comment operations for the write gate's tests: the real

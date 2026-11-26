@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { effectivePolicy, notePolicyFrom, parsePolicyFile, SCRIPT_READ_TOOL_NAMES, scriptCallResult, toolByName, type EgressRecipient, type ToolOutcome } from "@plainva/core";
-import { createVaultToolExecutor, situationEvents, type PlannerRow, type VaultToolDeps } from "@plainva/ui";
+import { effectivePolicy, notePolicyFrom, parsePolicyFile, SCRIPT_READ_TOOL_NAMES, scriptCallResult, toolByName, type EgressRecipient, type ToolOutcome } from "@plainva/core/ai";
+import { type PlannerRow } from "@plainva/ui";
+import { createVaultToolExecutor, situationEvents, type VaultToolDeps } from "@plainva/ui/ai";
 
 /**
  * The results of the read tools as values (plan KI-Harness P5.5): what a

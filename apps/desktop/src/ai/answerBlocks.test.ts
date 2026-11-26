@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAnswer } from "@plainva/ui";
+import { parseAnswer } from "@plainva/ui/ai";
 
 describe("answer blocks", () => {
   it("reads the Markdown an assistant writes", () => {

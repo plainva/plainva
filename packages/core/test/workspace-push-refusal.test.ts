@@ -11,7 +11,7 @@ import {
   MemoryWorkspaceStateStore,
   publishWorkspaceGovernanceUpdate,
   workspaceDocumentHash,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 import { live, MemoryVault, queued, synced, teamEditor } from "./helpers/workspaceReconcile.ts";
 import { createWorkspacePolicySuccessor } from "../src/workspace/policy.js";
 import { WORKSPACE_ROLE_CAPABILITIES } from "../src/workspace/authorization.js";

@@ -2,9 +2,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { AppliedWrite, RunWrites } from "@plainva/core";
+import type { AppliedWrite, RunWrites } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiRunWrites, EMPTY_WRITE_DRAFTS } from "@plainva/ui";
+import { AiRunWrites, EMPTY_WRITE_DRAFTS } from "@plainva/ui/ai";
 
 /**
  * "Changed" under an answer (plan "KI direkt schreiben", W2): what a run wrote

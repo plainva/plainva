@@ -10,8 +10,8 @@ import {
   type EgressChunk,
   type HttpRequestSpec,
   type SemanticSource,
-} from "@plainva/core";
-import { createAiVaultStores, createVaultPolicy, LocalEmbeddings, type AiFileStore, type LocalModelBridge, type ProviderEmbeddingHost } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { createAiVaultStores, createVaultPolicy, LocalEmbeddings, type AiFileStore, type LocalModelBridge, type ProviderEmbeddingHost } from "@plainva/ui/ai";
 import { until, vaultWith } from "./embeddingTestVault";
 
 /** App data in memory: the approvals and the ledger of one vault. */

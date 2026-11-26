@@ -1,7 +1,8 @@
 import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { SKILL_TEST_DEFAULT_COST_USD } from "@plainva/core";
-import { Banner, Button, GroupCard, Row, RowList, skillTestFacts, skillTestGroups, SkillTestLines, skillTestOutcomeText, TextInput, useSkillTestRun, type SkillTestPlan } from "@plainva/ui";
+import { SKILL_TEST_DEFAULT_COST_USD } from "@plainva/core/ai";
+import { Banner, Button, GroupCard, Row, RowList, TextInput } from "@plainva/ui";
+import { skillTestFacts, skillTestGroups, SkillTestLines, skillTestOutcomeText, useSkillTestRun, type SkillTestPlan } from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";

@@ -2,9 +2,10 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { RunWrites, WriteDraft, WriteDraftOutcome } from "@plainva/core";
+import type { RunWrites, WriteDraft, WriteDraftOutcome } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiDraftCard, AiEffectApproval, AiOpenPanel, AiOpenWrites, AiRunWrites, openWritesCount, toast, toastStore, type DraftOutcome, type EffectRequest, type OpenProposal, type WriteDraftState } from "@plainva/ui";
+import { toast, toastStore } from "@plainva/ui";
+import { AiDraftCard, AiEffectApproval, AiOpenPanel, AiOpenWrites, AiRunWrites, openWritesCount, type DraftOutcome, type EffectRequest, type OpenProposal, type WriteDraftState } from "@plainva/ui/ai";
 
 /**
  * What an assistant laid down, as the reader sees it (plan KI-Harness P5-2,

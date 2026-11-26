@@ -8,7 +8,7 @@ import {
   type WorkspaceCapability,
   type WorkspaceMutationAuthorizer,
   type WorkspaceStateStore,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import i18n from "../i18n";
 
 /** A question the permission check puts before a move goes through: its texts, ready for the shell's dialog. */

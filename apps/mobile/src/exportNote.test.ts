@@ -46,7 +46,7 @@ vi.mock("@plainva/ui", async (importOriginal) => ({
 
 import { exportNoteAsMarkdown } from "./services/exportNote";
 import type { MobileVault } from "./services/vaultService";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 
 /**
  * Exporting a note as a file from the phone (parity gap markdown-export-file).

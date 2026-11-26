@@ -1,4 +1,5 @@
 import { replaceDelimited, firstAngleValue } from "@plainva/core";
+import { utf8ToBase64 } from "./base64";
 import { markdownToHtml } from "../lib/markdownToHtml";
 import { markdownToPlainText } from "../lib/markdownToPlainText";
 import { upsertFrontmatterKeys } from "@plainva/core";
@@ -262,14 +263,9 @@ export function replyAllRecipients(message: Pick<MailMessage, "from" | "to">, se
   return out.join(", ");
 }
 
-/** Uint8Array -> base64 (chunked so a large attachment doesn't blow the stack). */
-export function bytesToBase64(bytes: Uint8Array): string {
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(bin);
-}
+// The base64 helpers stand on their own (`base64.ts`): a note's export asks them without this module's text and
+// sanitising (performance plan L5).
+export { bytesToBase64, utf8ToBase64 } from "./base64";
 
 /** Forwarded-message body (mail-client E1): the quoted original with a header
  * block, ready to drop into a compose draft. Pure. */
@@ -372,29 +368,9 @@ export function sortMailFolders(names: string[], delimiter?: string): string[] {
 }
 
 /** An outgoing attachment (mail-client E5): base64 payload decoded natively. */
-/**
- * The attachment's MIME type from its file name (S28).
- *
- * It decides how the RECIPIENT's client shows the file — inline, with the right
- * icon, or as an unnamed blob. Two shells guessing separately would mean the
- * same PDF arriving as `application/pdf` from one device and as
- * `application/octet-stream` from the other, so both ask here.
- */
-const MIME_BY_EXT: Record<string, string> = {
-  pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
-  webp: "image/webp", svg: "image/svg+xml", md: "text/markdown", txt: "text/plain", csv: "text/csv",
-  ics: "text/calendar", doc: "application/msword",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", zip: "application/zip",
-};
-
-export function guessAttachmentMime(name: string): string {
-  const ext = name.toLowerCase().split(".").pop() ?? "";
-  // An entry of the table itself, never one every object inherits: a file
-  // called `constructor` or `notes.__proto__` found a function or an object
-  // here, and that went on as the file's type. Names come from other people's
-  // mail since a forward carries their files.
-  return Object.prototype.hasOwnProperty.call(MIME_BY_EXT, ext) ? MIME_BY_EXT[ext] : "application/octet-stream";
-}
+// The attachment's MIME type stands on its own (`attachmentMime.ts`): the carried files of a forward ask it without
+// this module's text and sanitising (performance plan L5).
+export { guessAttachmentMime } from "./attachmentMime";
 
 export interface MailAttachment {
   name: string;
@@ -402,15 +378,6 @@ export interface MailAttachment {
   contentBase64: string;
 }
 
-/** UTF-8 string -> base64 (chunked so large notes don't blow the call stack). */
-export function utf8ToBase64(text: string): string {
-  const bytes = new TextEncoder().encode(text);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(bin);
-}
 
 /** Sends an outgoing message by the account's route (`mailSendRoute`): through
  * Microsoft Graph for a Microsoft mailbox, otherwise via the account's SMTP

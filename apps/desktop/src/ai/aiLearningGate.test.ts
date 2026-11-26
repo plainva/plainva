@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVE_MEMORY_FILE, AGENTS_FILE, LONG_MEMORY_FILE, addMemoryEntry, parseSkillFile, skillGrant, TOOL_MANIFESTS, type InstructionApprovals } from "@plainva/core";
-import type { AiSession, LearnOutcome } from "@plainva/ui";
+import { ACTIVE_MEMORY_FILE, AGENTS_FILE, LONG_MEMORY_FILE, addMemoryEntry, parseSkillFile, skillGrant, TOOL_MANIFESTS, type InstructionApprovals } from "@plainva/core/ai";
+import type { AiSession, LearnOutcome } from "@plainva/ui/ai";
 import { toolNames, turn } from "./mcpSessionHarness";
 import { memorySession, memoryVault, type MemoryVault } from "./memorySessionHarness";
 

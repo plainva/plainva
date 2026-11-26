@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Check, ChevronDown, ChevronUp, MoreHorizontal, RefreshCw, X } from "lucide-react";
 import { Button, ICON, IconButton, MenuItem, MenuSeparator, MenuSurface, Segmented, SettingCard, groupQuarantine, isQuarantineGroupOpen, quarantineGroupActionIds, quarantineKindKey, quarantineReasonKeys, quarantineTextVars, relativeTimeLabel, toast, type QuarantineGroup } from "@plainva/ui";
-import type { QuarantineRetryOutcome, WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core";
+import type { QuarantineRetryOutcome, WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core/workspace";
 
 /**
  * Integrity & local forks (finding 2026-09-03, Mockup A).

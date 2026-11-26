@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  type IVaultAdapter,
+  type VaultFileInfo,
+} from "../src/index.js";
+import {
   EncryptedWorkspaceWorker,
   FakeWorkspaceObjectStore,
   MemoryWorkspaceStateStore,
@@ -8,10 +12,8 @@ import {
   initializePersonalWorkspaceMigration,
   outboxEntryAsCommentRecord,
   personalWorkspaceRuntime,
-  type IVaultAdapter,
-  type VaultFileInfo,
   type WorkspaceCommentOutboxEntry,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 /**
  * The comment outbox (K6, finding 2026-09-03).

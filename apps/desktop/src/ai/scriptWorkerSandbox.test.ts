@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SCRIPT_LIMIT_DEFAULTS, type SandboxJob } from "@plainva/core";
-import { createWorkerSandbox, readSandboxEnd, type FromScriptWorker, type SandboxWorker, type ToScriptWorker } from "@plainva/ui";
+import { SCRIPT_LIMIT_DEFAULTS, type SandboxJob } from "@plainva/core/ai";
+import { createWorkerSandbox, readSandboxEnd, type FromScriptWorker, type SandboxWorker, type ToScriptWorker } from "@plainva/ui/ai";
 
 /**
  * The app's side of the script worker (plan KI-Harness P5.5): the watchdog

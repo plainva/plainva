@@ -12,10 +12,10 @@ import {
   readSkillImport,
   resolveInstructions,
   scanVaultInstructions,
-  utf8Encode,
   type InstructionIO,
   type SkillTestRecord,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { utf8Encode } from "@plainva/core/workspace";
 import {
   APP_SKILL_SOURCES,
   approvalFacts,
@@ -36,7 +36,7 @@ import {
   skillTestPlanFor,
   workshopSections,
   type SkillTestPlan,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /** The skills workshop's one model for both shells (plan KI-Harness P3-5). */
 

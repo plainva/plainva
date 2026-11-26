@@ -36,8 +36,7 @@ import { decodeBlockRefs, encodeBlockRefs } from "./blockLinks.js";
  */
 
 const GRAPH_BASE = "https://graph.microsoft.com/v1.0";
-// User.Read only feeds the account label (/me); calendar/tasks are the point.
-export const GRAPH_CALENDAR_SCOPES = "User.Read Calendars.ReadWrite Tasks.ReadWrite offline_access";
+export { GRAPH_CALENDAR_SCOPES } from "./scopes.js";
 
 interface GraphEventItem {
   id: string;

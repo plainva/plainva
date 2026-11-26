@@ -3,8 +3,8 @@ import { frontmatterSpan } from "../frontmatter-block.js";
 import { propertiesAsWritten, propertiesBlockOfKeys } from "../frontmatter-surgical.js";
 import { parseMarkdownAst } from "../markdown-parser.js";
 import { extractFrontmatter } from "../metadata-extractor.js";
-import { linkTargetsOfPlainBlock, mayHoldAWithheldLink, redactDeniedLinksIn } from "../ai/egressGate.js";
-import { ReaderView } from "../ai/readerView.js";
+import { linkTargetsOfPlainBlock, mayHoldAWithheldLink, redactDeniedLinksIn } from "../withholding/links.js";
+import { ReaderView } from "../withholding/readerView.js";
 import { findInlineTags } from "../tagRule.js";
 import { decodeIndexedProperty, encodeIndexedProperty } from "./indexedProperty.js";
 

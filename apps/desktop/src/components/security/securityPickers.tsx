@@ -2,7 +2,7 @@ import React from "react";
 import { Button, Checkbox, ICON, IconButton, Select, TextInput } from "@plainva/ui";
 import { Plus, X } from "lucide-react";
 import type { TFunction } from "i18next";
-import type { WorkspaceSliceObject } from "@plainva/core";
+import type { WorkspaceSliceObject } from "@plainva/core/workspace";
 import {
   emptySliceRuleRow,
   isSliceRuleRowComplete,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createPersonalWorkspaceBootstrap, encodeWorkspaceDocument, workspaceDocumentHash, FakeWorkspaceObjectStore, workspaceSha256Hex } from "@plainva/core";
+import { createPersonalWorkspaceBootstrap, encodeWorkspaceDocument, workspaceDocumentHash, FakeWorkspaceObjectStore, workspaceSha256Hex } from "@plainva/core/workspace";
 import { decodeWorkspaceInvite, encodeWorkspaceInvite, detectRemoteWorkspace } from "./workspacePairing";
 
 describe("workspace invite codec (package C3)", () => {

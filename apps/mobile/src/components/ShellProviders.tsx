@@ -1,5 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
-import { InlineSuggestProvider, LocalModelsProvider, type LocalEmbeddings, type LocalGists } from "@plainva/ui";
+import { InlineSuggestProvider } from "@plainva/ui";
+import { LocalModelsProvider } from "@plainva/ui";
+import type { LocalEmbeddings, LocalGists } from "@plainva/ui/ai";
 
 /**
  * What every surface of the shell reads beside its own screen, in one wrapper:

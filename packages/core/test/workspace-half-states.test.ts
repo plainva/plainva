@@ -2,14 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { realSqlite } from "./helpers/realSqlite.js";
 import { MemoryVault, ownerSecondDevice, queued, synced } from "./helpers/workspaceReconcile.js";
 import {
-  EncryptedWorkspaceWorker,
-  FakeWorkspaceObjectStore,
   OwnDeletionRegister,
-  SqlWorkspaceStateStore,
   adoptOwnRemovals,
   type IDatabaseAdapter,
   type IVaultAdapter,
 } from "../src/index.js";
+import {
+  EncryptedWorkspaceWorker,
+  FakeWorkspaceObjectStore,
+  SqlWorkspaceStateStore,
+} from "../src/workspace/index.js";
 import { crashable, removalLooks, type Crashable } from "./helpers/crashedRuntime.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 

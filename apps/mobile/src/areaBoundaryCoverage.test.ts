@@ -125,6 +125,7 @@ describe("every surface of the phone is an area of its own", () => {
       "editor:readSelectionBar": "appears with every text selection while reading",
       "shell:shareInbox": "a banner that appears when something is shared to the app",
       "shell:indexNotice": "a banner that appears while the first index is built",
+      "host:ai": "the AI's host, mounted on its own once the AI was asked for; it draws nothing",
     };
     const found = new Set<string>();
     for (const file of sources(SRC)) {

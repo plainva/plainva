@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
-import { FULL_TEXT_DAMAGED_TOOL_TEXT, WRITE_REFUSALS, contentPathRefusal, isDamagedFullText, isInternalSegment, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFoldersExactly, type EgressRecipient, type ToolOutcome } from "@plainva/core";
+import { contentPathRefusal, isDamagedFullText, isInternalSegment } from "@plainva/core";
+import { FULL_TEXT_DAMAGED_TOOL_TEXT, WRITE_REFUSALS, mcpAuthorId, mcpToolKind, parseToolInput, toolByName, toolInputJsonSchema, toolsFor, withinFoldersExactly, type EgressRecipient, type ToolOutcome } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { aiVaultKey, mcpSkillPrompts, type AiSession, type AiVaultHost, type PlanQuestion, type WriteRun } from "@plainva/ui";
+import { aiVaultKey, mcpSkillPrompts, type AiSession, type AiVaultHost, type PlanQuestion, type WriteRun } from "@plainva/ui/ai";
 import { samePlan, type McpPlanQuestion, type McpPlans } from "./mcpPlans";
 
 /**

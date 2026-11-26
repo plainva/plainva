@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link2 } from "lucide-react";
-import { Banner, Button, ICON, Modal, serverSkillAddText, TextInput, toast, useAiSession, useDiscardGuard } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, TextInput, toast, useDiscardGuard } from "@plainva/ui";
+import { serverSkillAddText, useAiSession } from "@plainva/ui/ai";
 
 /**
  * A skill of a connected server by its address (plan KI-Harness P9-4b, MCP

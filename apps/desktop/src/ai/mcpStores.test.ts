@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { approveMcpListing, EMPTY_MCP_GRANT, MCP_SKILL_LIMITS, readMcpListing, storedMcpSkillEntry, type McpListing, type McpSkillEntry } from "@plainva/core";
+import { approveMcpListing, EMPTY_MCP_GRANT, MCP_SKILL_LIMITS, readMcpListing, storedMcpSkillEntry, type McpListing, type McpSkillEntry } from "@plainva/core/ai";
 import {
   createMcpDeviceStore,
   createMcpVaultStore,
@@ -13,7 +13,7 @@ import {
   serializeMcpServerRecords,
   type McpAuditEntry,
   type McpServerRecord,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { memoryFiles } from "./mcpTestHost";
 
 /**

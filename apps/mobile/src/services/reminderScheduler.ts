@@ -20,7 +20,7 @@ import {
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { getMobileSettings } from "./mobileSettings";
-import { getPimCache } from "./pim/pimService";
+import { getPimCache } from "./pim/pimRuntime";
 
 /**
  * Mobile reminder scheduler (S10).

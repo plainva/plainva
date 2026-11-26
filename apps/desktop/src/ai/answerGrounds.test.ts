@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { type AnswerGrounding, type EgressManifest, type RunMeta } from "@plainva/core";
-import { answerLinksShown, conversationGrounding, groundTitles, unfoundedAmongShown } from "@plainva/ui";
+import { type AnswerGrounding, type EgressManifest, type RunMeta } from "@plainva/core/ai";
+import { answerLinksShown, conversationGrounding, groundTitles, unfoundedAmongShown } from "@plainva/ui/ai";
 
 const unfoundedNoteCitations = (answer: string, grounding: AnswerGrounding) => unfoundedAmongShown(answerLinksShown(answer), grounding);
 

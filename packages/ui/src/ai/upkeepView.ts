@@ -1,4 +1,4 @@
-import { UPKEEP, type InstructionEntry, type MemoryEntry, type UpkeepHint } from "@plainva/core";
+import { UPKEEP, type InstructionEntry, type MemoryEntry, type UpkeepHint } from "@plainva/core/ai";
 import { compareLines, type CompareLine } from "../lib/compareVersions";
 import type { AiMemoryState } from "./aiMemory";
 import { skillView } from "./aiSkills";

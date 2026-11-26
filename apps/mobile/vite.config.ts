@@ -2,22 +2,34 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
+import { packageBarrels } from "../../scripts/vite/packageBarrels.mjs";
+import { startChunk } from "../../scripts/vite/startChunk.mjs";
 import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
 import { e2eBuildDefine } from "./scripts/e2e-build-env.mjs";
 
 // Port 1430 on purpose: the desktop dev server owns 1420 and both run in
 // parallel during development.
 export default defineConfig(({ mode }) => {
+  const start = startChunk(/apps\/mobile\/src\/main\.tsx$/);
   // Unit tests run in one fixed zone, set before any worker starts (R9, scripts/test-clock.mjs).
   if (mode === "test") pinTestTimeZone();
   return {
-  plugins: [react()],
+  // Named imports of the shared packages go to the defining module in a build, and what the start loads statically
+  // forms one chunk (performance plan L5).
+  plugins: [packageBarrels(), start.plugin, react()],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   // The e2e build (`--mode e2e`, the smoke:prod script) also ships the fake
   // provider's standard Google client; every other mode gets nothing from it.
   define: { ...buildInfoDefine(), ...e2eBuildDefine(mode) },
   // Same canonical source module as desktop; no package build/HMR split.
-  resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) }] },
+  resolve: {
+    alias: [
+      { find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) },
+      // The parts of the core the start does not need have entries of their own, so a static import of the main entry
+      // never drags them into the start bundle (performance plan L5).
+      { find: /^@plainva\/core\/(ai|import|workspace)$/, replacement: fileURLToPath(new URL("../../packages/core/src/$1/index.ts", import.meta.url)) },
+    ],
+  },
   server: {
     port: 1430,
     strictPort: true,
@@ -99,11 +111,12 @@ export default defineConfig(({ mode }) => {
          * mobile has no editor or markdown stack to split.
          */
         manualChunks(id: string) {
-          if (!id.includes("node_modules")) return undefined;
+          // What the entry reaches through static imports goes into one chunk, `start` (startChunk.mjs).
+          if (!id.includes("node_modules")) return start.chunkOf(id);
           if (/[\\/]node_modules[\\/](react|react-dom|scheduler|react-i18next|i18next)[\\/]/.test(id)) {
             return "react";
           }
-          return undefined;
+          return start.chunkOf(id);
         },
       },
     },

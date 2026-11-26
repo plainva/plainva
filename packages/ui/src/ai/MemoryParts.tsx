@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MEMORY_LIMITS, cleanMemoryText, type AiPolicyDimension, type MemoryEntry, type MemoryPlace } from "@plainva/core";
+import { MEMORY_LIMITS, cleanMemoryText, type AiPolicyDimension, type MemoryEntry, type MemoryPlace } from "@plainva/core/ai";
 import type { AiMemoryState } from "./aiMemory";
 import type { AiSession } from "./aiSession";
 import { memoryProblemText } from "./memoryView";

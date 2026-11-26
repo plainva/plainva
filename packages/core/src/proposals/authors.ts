@@ -1,5 +1,3 @@
-import { acpAuthorId } from "../acp/agents.js";
-
 /**
  * Who a write that no person made is signed with (plan KI-Harness P5,
  * ADR 0023): Plainva's own assistant by its model, a program that reaches
@@ -8,6 +6,9 @@ import { acpAuthorId } from "../acp/agents.js";
  * started by its name (plan P5.5). The same ids sign a suggestion round, the
  * stamp `generated.by` of a note that was created from a draft, and the line
  * a plan is confirmed under.
+ *
+ * Part of the note format, not of the AI: a suggestion and a stamp carry these ids whether the AI is on or not,
+ * and the vault reads them without the harness (performance plan L5).
  *
  * None of them is a name. What the user reads is the name they know the
  * writer by — the model's, the paired client's, the one they gave an agent,
@@ -46,7 +47,7 @@ export function machineAuthorId(writer: MachineWriter): string {
     case "mcp":
       return mcpAuthorId(writer.clientId);
     case "acp":
-      return acpAuthorId(writer.agentId);
+      return `${ACP_PREFIX}${writer.agentId}`;
     case "script":
       return scriptAuthorId(writer.name);
   }

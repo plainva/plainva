@@ -2,27 +2,30 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { DEFAULT_AI_APP_SETTINGS, type EgressManifest } from "@plainva/core";
+import { DEFAULT_AI_APP_SETTINGS, type EgressManifest } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
 import {
-  AiSendOverview,
   FillPlanBody,
   FillProgressBanner,
-  FilterInWords,
   fillPlanLines,
-  filterRuleWords,
-  reportFill,
   toast,
   toastStore,
+  loadAiModule,
   useBaseAi,
+  type BaseAi,
+} from "@plainva/ui";
+import {
+  AiSendOverview,
+  FilterInWords,
+  filterRuleWords,
+  reportFill,
   type AiSession,
   type AiState,
-  type BaseAi,
   type FillColumn,
   type FillOutcome,
   type FilterSchemaColumn,
   type FilterWordsOutcome,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * The assistant at a database as both shells show it (plan KI-Harness P5-4,
@@ -37,6 +40,8 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 
 beforeAll(async () => {
+  // The assistant at a database reads the provider's name from the harness, which is loaded wherever it is offered.
+  await loadAiModule();
   await i18n.changeLanguage("en");
 });
 

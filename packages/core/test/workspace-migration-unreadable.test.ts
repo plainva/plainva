@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { type IVaultAdapter } from "../src/index.js";
 import {
   EncryptedWorkspaceWorker,
   FakeWorkspaceObjectStore,
@@ -6,8 +7,7 @@ import {
   createPersonalWorkspaceBootstrap,
   initializePersonalWorkspaceMigration,
   personalWorkspaceRuntime,
-  type IVaultAdapter,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 import { MemoryVaultAdapter } from "./helpers/memoryVault.js";
 
 /**

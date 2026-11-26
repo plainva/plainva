@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { readFrontmatterPath } from "@plainva/core";
 import {
   DEFAULT_AI_APP_SETTINGS,
   EFFECT_DECLINED,
@@ -11,7 +12,6 @@ import {
   notePolicyFrom,
   parsePolicyFile,
   readConversationRecord,
-  readFrontmatterPath,
   readInstructionFile,
   scanInstruction,
   scanVaultInstructions,
@@ -24,11 +24,11 @@ import {
   type LedgerEntry,
   type SkillTestRecords,
   type ToolResultPart,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
 import {
   AiSession,
   CHAT_TOOL_NAMES,
-  captureVocabularyOf,
   createVaultToolExecutor,
   createWriteDraftStore,
   entryPlaceOf,
@@ -43,7 +43,7 @@ import {
   type ProposalRound,
   type VaultToolDeps,
   type VaultWriteDeps,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { memoryFiles } from "./mcpTestHost";
 

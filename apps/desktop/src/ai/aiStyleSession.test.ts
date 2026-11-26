@@ -14,11 +14,11 @@ import {
   type InstructionIO,
   type LedgerEntry,
   type ModelChoice,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
 import {
   AiSession,
   CHAT_TOOL_NAMES,
-  captureVocabularyOf,
   createStylePrefStore,
   createVaultToolExecutor,
   createWriteDraftStore,
@@ -29,7 +29,7 @@ import {
   type AiVaultHost,
   type VaultToolDeps,
   type VaultWriteDeps,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { chat, CLOUD, fakeEgress, LOCAL, turn, viaDispatch } from "./mcpSessionHarness";
 import { memoryFiles } from "./mcpTestHost";

@@ -1,5 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
-import { initializeSchema, resetEmbeddingStores, sha256Hex, VaultQueryService, type IDatabaseAdapter, type SqlStatements } from "@plainva/core";
+import { initializeSchema, sha256Hex, VaultQueryService, type IDatabaseAdapter, type SqlStatements } from "@plainva/core";
+import { resetEmbeddingStores } from "@plainva/core/ai";
 
 /** The index database on real SQLite (node:sqlite), as the vault opens it. */
 export class NodeSqliteAdapter implements IDatabaseAdapter {

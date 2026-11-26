@@ -19,9 +19,9 @@ import {
   type LedgerEntry,
   EMPTY_INSTRUCTION_APPROVALS,
   EMPTY_SKILL_TESTS,
-} from "@plainva/core";
-import { AiSession, CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type VaultToolDeps } from "@plainva/ui";
-import { TRANSCRIPTION_MAX_BYTES } from "@plainva/core";
+} from "@plainva/core/ai";
+import { AiSession, CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, type AiVaultHost, type VaultToolDeps } from "@plainva/ui/ai";
+import { TRANSCRIPTION_MAX_BYTES } from "@plainva/core/ai";
 
 /** An Anthropic-shaped answer: text only. */
 function answer(text: string): EgressChunk[] {

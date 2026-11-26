@@ -11,7 +11,7 @@ import {
   WebDavWorkspaceObjectStore,
   workspaceSha256Hex,
   type WorkspaceObjectStore,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 class MemorySyncTarget implements ISyncTarget {
   protected readonly entries = new Map<string, { bytes: Uint8Array; revision: number }>();

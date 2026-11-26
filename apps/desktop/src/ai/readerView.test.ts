@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { effectivePolicy, mcpToolKind, notePolicyFrom, parsePolicyFile, toolByName, toolsFor, type EgressRecipient } from "@plainva/core";
-import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, type ToolScope, type VaultToolDeps } from "@plainva/ui";
+import { effectivePolicy, mcpToolKind, notePolicyFrom, parsePolicyFile, toolByName, toolsFor, type EgressRecipient } from "@plainva/core/ai";
+import { CHAT_TOOL_NAMES, createVaultToolExecutor, furtherToolNames, type ToolScope, type VaultToolDeps } from "@plainva/ui/ai";
 
 /**
  * One view per reader (decision A of 2026-11-13, review of R19, wave 2): every tool that shows a note's text to a

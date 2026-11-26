@@ -1,6 +1,5 @@
 import { documentDir, homeDir, join } from "@tauri-apps/api/path";
 import { exists } from "@tauri-apps/plugin-fs";
-import { isVaultFolderFreeFor } from "./vaultTemplates";
 import type { ScaffoldPlan } from "@plainva/ui";
 import { vaultHasAppData } from "./vaultForget";
 
@@ -106,5 +105,6 @@ export const tauriTourFolderProbe = (recent: readonly string[], planFor: (path: 
   isKnownVault: async (path) => recent.some((r) => samePath(r, path)) || (await vaultHasAppData(path)),
   join: (parent, name) => join(parent, name),
   exists: (path) => exists(path),
-  isEmptyUnknownFolder: (path) => isVaultFolderFreeFor(path, planFor(path)),
+  // The folder check stands beside the template catalogue, which loads with it (performance plan L5).
+  isEmptyUnknownFolder: (path) => import("./vaultTemplates").then(({ isVaultFolderFreeFor }) => isVaultFolderFreeFor(path, planFor(path))),
 });

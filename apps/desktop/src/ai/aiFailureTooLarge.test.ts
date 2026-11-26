@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
-import { aiFailureText, failureSender } from "@plainva/ui";
+import { aiFailureText, failureSender } from "@plainva/ui/ai";
 
 /**
  * A request the device does not send (F72 of release 0.9.0): said as what it is, from the device, with the truth that

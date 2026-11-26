@@ -1,8 +1,8 @@
 import { useRef, useSyncExternalStore, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { LayoutGrid, PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
-import { ICON, useAiAttention, useAiWaitingCount } from "@plainva/ui";
-import { getMobileAiSession } from "../services/ai/mobileAi";
+import { ICON } from "@plainva/ui";
+import { useAiBadge } from "../services/ai/mobileAiPorts";
 import { haptics } from "../services/haptics";
 import { useAutoHideChrome } from "../hooks/useAutoHideChrome";
 import { LONG_PRESS_MS } from "../lib/useLongPress";
@@ -73,8 +73,7 @@ export function NavBar({
   onToggleNav?: () => void;
 }) {
   const { t } = useTranslation();
-  const aiWaiting = useAiWaitingCount(getMobileAiSession());
-  const aiAttention = useAiAttention(getMobileAiSession());
+  const { waiting: aiWaiting, attention: aiAttention } = useAiBadge();
   const pressTimer = useRef<number | null>(null);
   // Reading downwards, the bar draws itself in to labels-off (S11 / the
   // mockup's retreating bar); it opens again on the way back up. Its

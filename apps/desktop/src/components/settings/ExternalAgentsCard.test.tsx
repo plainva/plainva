@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
-import type { AiSession } from "@plainva/ui";
+import type { AiSession } from "@plainva/ui/ai";
 import { acpHarness, lastOf, type AcpHarness } from "../../ai/acpTestHost";
 import { ExternalAgentsRows } from "./ExternalAgentsCard";
 
