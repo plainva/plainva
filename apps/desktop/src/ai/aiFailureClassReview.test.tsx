@@ -80,6 +80,25 @@ describe("the composer's draft when a conversation is deleted (M1)", () => {
     expect(vault.files.data.get("vault/composer-drafts.json") ?? null).toBeNull();
   });
 
+  it("deleting with the AI switched off on this device still removes the kept words", async () => {
+    const { s } = session([answer("ok"), answer("ok")]);
+    await s.load();
+    const vault = vaultHost();
+    await s.attachVault(vault.host);
+    await s.send("First");
+    await s.send("Second");
+    s.keepComposerDraft("id1", "words for id1");
+    s.keepComposerDraft("id2", "words for id2");
+    await settled();
+    await s.updateSettings((x) => ({ ...x, enabled: false }));
+    await s.remove("id1");
+    await settled();
+    expect(await vault.composerDrafts.load("id1")).toBeNull();
+    await s.removeAll();
+    await settled();
+    expect(vault.files.data.get("vault/composer-drafts.json") ?? null).toBeNull();
+  });
+
   it("deleting the conversation on screen writes no draft for it afterwards", async () => {
     const { s } = session([answer("ok")]);
     await s.load();
