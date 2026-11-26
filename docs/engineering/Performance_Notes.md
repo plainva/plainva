@@ -316,6 +316,157 @@ median 7.0 ms, p95 9.5 ms, search 73 ms, `listTasks` 615 ms, pass without change
 core baseline was recorded again on that state. Whether the short transactions cost the cold
 index that much or the machine was busier is not separated (one run each).
 
+## The task table (performance plan L8, 2026-11-25)
+
+`listTasks` read the text of every note from `fts_notes` and scanned it with `scanTasks` on every
+call; the tasks view calls it after every save, and so do reminders, widgets and the Tasks
+queries. Since L8 the index keeps each note's tasks as it read them (`note_tasks`,
+`packages/core/src/db/noteTasks.ts`): one row per note this build indexed, also for a note without
+a task (empty `tasks`), written in the same statements as the `files` row and the full-text row,
+from the very text that goes into `fts_notes`.
+
+**The key.** A row counts only where its row number, its `sha256` and its `reading` match: the
+`files` row's number and hash, and `TASK_READING`, the way this build reads tasks. Tasks are a
+function of the note's text alone — `scanTasks` and the `plainva.tasks` key of the properties
+block (`excluded`) — so a row that matches is right whatever wrote the `files` row. Neither number
+alone would do: SQLite hands out a `files` row number again (the largest one, once its row is
+gone), and the full-text row is numbered after it (`-files.rowid`). `TASK_READING` is raised with
+every change to what a row would hold for the same text (a field or rule of `scanTasks`, the
+reading of `plainva.tasks`, the text the indexer hands over); rows of another reading then no
+longer count, and the next full pass reads them anew. `note-tasks-reading.test.ts` holds the output
+for a fixed corpus by its hash under the number it belongs to and fails when the output changes
+while the number stays. What depends on more than the text stays in the query: the title (from the
+full-text row), hidden paths, daily notes and their journal stamps.
+
+**Reading.** A note without a row that counts is scanned from its text, as before; `listTasks`
+answers the same, byte for byte and in the same order, in every state the table can be in — none,
+half filled in, whole, rows of another reading, notes an older build wrote in between
+(`packages/core/test/helpers/taskListing.ts`, run in the core and over both shells' database
+adapters: `apps/desktop/src/adapters/noteTasksTable.test.ts`,
+`apps/mobile/src/noteTasksTable.test.ts`). It first asks whether any note lacks a row that counts
+(the question stops at the first one). If none does, the SQL joins `files` to the table first and
+looks up a note's full-text row only for a note with tasks (`CROSS JOIN`), and no note's text is
+read. If some do, it reads the full-text table in its own order as before the table and scans only
+the notes without a row that counts. Tests hold that a row that counts is taken at its word against
+another full-text row, and that a whole table brings no note's text.
+
+**Filling in.** No index format: the table is additive. An index from before it, notes an older
+build wrote and rows of another reading are filled in by the full pass once it has written
+everything it writes (`fillNoteTasks`), from the index's own text — no file is read, nothing is
+parsed but the task lines — in slices of 200 notes, each its own batch (on the phone one
+transaction holds one slice). Between slices it asks the pass's signal: a vault being closed is
+not filled in any further, and the next open goes on where it ended. A slice is written only for
+the text it read (the hash in the statement), so a note saved meanwhile keeps the row its save
+wrote.
+
+**Older builds** (tested with the schema and indexer of 0.9.0, frozen from the tag in
+`packages/core/test/fixtures/v090/`): 0.9.0 opens such a database, indexes, deletes, moves and
+rebuilds without a failure and leaves the table alone; a deleted `files` row takes its row along
+through the trigger `files_tasks_go`, which lives in the database and so fires for 0.9.0 as well.
+A `REPLACE` of an older build fires no delete trigger and leaves a row behind, and an older build
+that makes `files` anew drops the trigger with it: in both cases the hash keeps the rows left
+behind from ever counting for another text, and this build's next open creates the trigger again
+(`IF NOT EXISTS`).
+
+**Measured** on one machine (Linux, i9-13905H, Node 24; 10 000 notes, 32 046 tasks).
+`scripts/perf/task-list-cost.ts` lists in turns, on one index, in each state of the table and as
+the list was before it (that statement, word for word), the fastest of seven: whole 67 ms, half
+filled in 285 ms, without the table 487 ms, as before 479 ms — without the table the list costs
+what it did, the question first and the join on top within 2 %. That state lasts from an update
+until the end of the first full pass, and after a rise of `TASK_READING`. Filling in once from the
+index's own text: 680 ms for all 10 000 notes, 364 ms for half (`pnpm perf:core`, which also shows
+`listTasks` 484 -> 60-65 ms; cold index and the pass without changes unchanged within their spread).
+Of the 60 ms most is decoding the rows' JSON.
+
+**The save.** `pnpm perf:core` showed the p95 of 40 saves at 4.1 ms before and 6.7-7.9 ms after
+(one run each). `scripts/perf/save-cost.ts` compares this branch with and without the task row,
+not with `main`: one note saved 400 times each way, in blocks taking turns on the same index,
+gave p50 2.78 / 2.67 ms and p95 9.24 / 9.67 ms; the review's three runs of it put the row at
++0.06 to +0.11 ms per save in the mean, the trigger included. Reading that note's task lines alone
+costs 0.02 ms and the statement 0.01 ms. What moved the p95 between the two core runs is not
+measured; the row costs about a tenth of a millisecond.
+
+## Reading ahead in the full scan (performance plan L2, 2026-11-25)
+
+The full scan read one file, indexed it, read the next; on the desktop each note was three calls
+over the bridge into Rust (two path calls and the read), each attachment its whole bytes only to be
+hashed in JavaScript, and on the phone one call through the plugin bridge per file. Since L2 the
+files a transaction of the scan writes are read ahead of the loop that indexes them
+(`packages/core/src/vault/readAhead.ts`, `VaultIndexer.readScanGroup`):
+
+- **Which files, when.** Up to eight reads at a time — single files, or where the adapter reads
+  many files in one call (`readFilesForIndex`, the desktop) two calls of eight files each — and never
+  more readings ahead of the loop than that, in or not (8, on the desktop 16). One
+  bound holds what a transaction has, in characters of text: its readings taken and those still
+  ahead together at most the 16 M characters a transaction holds (`SCAN_TRANSACTION_TEXT`). A
+  reading counts by its text once it is in, taken or not; until then by the listing's size in
+  bytes, which is never below the characters of a UTF-8 text of that size; an attachment, only
+  hashed, holds nothing once it is in. A reading taken keeps its weight until the transaction
+  writes, so reads begun after the transaction's time is reached still fit the bound. A file
+  heavier than the bound is read on its own. **The true bound:** nothing new begins once the
+  bound is reached, but what is in flight is read to its end — at most 8 files at a time (16 on the
+  desktop, two calls of eight). Where those files' listing names a size below what they hold, a
+  transaction can hold up to those 8 or 16 files at their real size on top of the bound; there is
+  no limit per file for the index's reading (a note is read whole), so the largest possible is the
+  sum of the 8 or 16 largest files that a listing names too small. Only within a transaction: every read
+  begins after the transaction's change mark, so a save or move that lands during a read is seen
+  by `changesSince` and the file is read once more, as before. Once the transaction's time or text
+  is reached nothing new is begun, and what was begun is written in it. `scanTransactionMs: 0` (a
+  file per transaction, tests) reads nothing ahead.
+- **The same index.** Readings are handed out in the order of the pass, so rows are written in the
+  order they always were; `vault-indexer-read-ahead.test.ts` compares every table, row for row and
+  by rowid, with a scan that reads one file at a time (`scanReadsAhead: 1`), with reads answering
+  out of order, for single reads and for groups, and where the group call fails or answers what it
+  cannot mean. `stamp_vouched` is the one value that depends on when a file was read (a reading
+  that begins within a timestamp's tick of the listing is confirmed later), so the comparison runs
+  on a steady test clock; a scan that reads sooner after its listing confirms more files once
+  more afterwards, never fewer.
+- **A file that cannot be read** leaves only itself out and is named, in the order of the pass; the
+  group call answers `fallback` for it and the ordinary read decides, as for a file that is gone, no
+  UTF-8 text, or under another stored spelling.
+- **Closing.** A waiting take ends as soon as the pass's signal is aborted, however long the read
+  it waits for still runs (a drive that hangs); nothing new is begun after it. On the desktop the
+  Rust side looks each path up in the registry of read roots as its read begins, so a group in
+  flight reads nothing more once the vault's root is gone.
+- **Desktop:** `read_files_for_index` (`apps/desktop/src-tauri/src/index_read.rs`) reads a group on
+  up to eight threads and hashes in Rust; a note comes back with its text and the hash of its
+  bytes, an attachment with its hash alone (streamed). Every adapter that wraps another hands the
+  call on only where the inner one has it; the conflict-aware adapter notes the texts it hands out
+  as `readTextFile` does. The phone reads ahead with its ordinary single reads.
+
+**Measured** with `pnpm perf:core` on one machine (Linux, i9-13905H, Node 24, an NVMe disk; 10 000
+notes), the same run before and after: cold index 26.1 s -> 25.1 s (the ratio to the calibration
+37.7 -> 32.6), every other number unchanged within its spread. The core measurement reads through
+Node from a fast local disk, where a read costs little; what L2 removes is the waiting per file
+over a bridge — three calls per note into Rust on the desktop, one through the plugin on the phone
+— and a slow medium, which the core does not see. On Windows the first version of this change
+measured 71.3 -> 43.4 s at the core (`feature/w2-open`, 2026-11-11).
+
+**At the bridge of the built app** (native smoke, `apps/desktop/wdio/indexRead.e2e.ts`, GitHub
+runners, 2026-11-25, run 45678975296): the page reads the same 3 003 generated notes the three
+ways and every way hands back each file's hash. One by one in turn as the adapter read them (two
+path calls, the read, the hash in JavaScript) / one by one, eight at a time / in groups of eight
+through `read_files_for_index`, two calls at a time. This is the reading pattern at the bridge,
+not a run of the indexer: what the index's own first run in the app gains is not measured. The
+numbers are one run per platform. The first run below took the ways once each in a fixed order, so
+the first way also paid for the cold start; the second (run 45704713980, at `e209a141a`) took
+each way twice in turns, A B C C B A, both times given:
+
+| | one by one | eight at a time | in groups |
+|---|---|---|---|
+| Linux (WebKitGTK), first run | 11.52 s | 2.45 s | 0.57 s |
+| Linux, second run (A … A) | 11.72 / 4.55 s | 2.48 / 2.44 s | 0.56 / 0.54 s |
+| Windows (WebView2), first run | 4.60 s | 3.10 s | 1.24 s |
+| Windows, second run | 4.79 / 4.77 s | 3.22 / 3.30 s | 1.26 / 1.28 s |
+| macOS (WKWebView), first run | 4.54 s | 1.80 s | 0.32 s |
+| macOS, second run | 16.39 / 15.35 s | 6.01 / 5.93 s | 0.88 / 1.27 s |
+
+The macOS runner of the second run was about three times slower throughout; the ratios held. On
+Linux the first pass one by one paid for the cold start (11.7 s, 4.6 s the second time).
+
+Hashing 75 attachments in Rust took 14–77 ms. That is the reading of a first index of 3 003 notes,
+the part L2 changes; parsing and writing the index are not in it.
+
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 
 Core numbers from `pnpm perf:core` (10 000-note fixture, this machine, after L1); bundle numbers
@@ -328,7 +479,7 @@ Tauri stand-in — a lower bound).
 | Pass without changes | ≤ 500 ms | 692–907 ms (a plain walk of the folder: 813–834 ms) | core gate |
 | Re-reading after a save, p95 | ≤ 15 ms | 7.7–18.2 ms, median 5.5–7.0 ms (48.7 / 42.2 ms before L1) | core gate |
 | Full-text search, 50 hits (median of 6 queries) | ≤ 50 ms | 64–77 ms | core gate |
-| List every task | ≤ 100 ms (after L8) | 550–649 ms (32 046 tasks) | core gate |
+| List every task | ≤ 100 ms (after L8) | 550–649 ms (32 046 tasks); 60 ms after L8 (2026-11-25, another machine: 484 ms before) | core gate |
 | Start bytes per shell | ≤ 3.5 MB | desktop 7.49 MB (2.33 MB gzip, 98 files), phone 7.56 MB (2.30 MB gzip, 60 files) — on main of 2026-11-11; after L5 (2026-11-25): desktop 3.98 MB (1.21 MB gzip, 7 files), phone 4.45 MB (1.33 MB gzip, 5 files); shortly after the start 2.13 / 1.38 MB | bundle gate |
 | Phone entry file | ≤ 400 KB | 1 096 KB (desktop entry 93 KB); after L5: 4 KB (desktop 6 KB) — the start chunk holds the rest | bundle gate |
 | Typing latency p95, ~20 000 lines with tables | ≤ 16 ms | p95 966.2 ms, p50 57.3 ms, max 1275.6 ms over 59 keys (1963 lines, 8 tables) | browser report |

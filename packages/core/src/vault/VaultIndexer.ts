@@ -1,4 +1,5 @@
-import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip, vaultFolderIsThere } from "./IVaultAdapter.js";
+import { IVaultAdapter, VaultFileInfo, VaultListing, VaultWalkSkip, vaultFolderIsThere, type IndexReadRequest } from "./IVaultAdapter.js";
+import { createReadAhead } from "./readAhead.js";
 import { BatchStatement, IDatabaseAdapter, SqlStatements } from "../db/IDatabaseAdapter.js";
 import { hasAppleDoubleHeader, isAppleDoubleCompanion, isAppleDoubleName } from "./systemJunk.js";
 import { isInternalPath, isInternalSegment, isHiddenPath, visiblePathSql, INTERNAL_PATH_RULES, type InternalPathRules, contentPathRefusal, contentPathIsReal, checkedContentPath, foldSegment, isWindowsDeviceSegment, isShortNameAlias } from "./internalPath.js";
@@ -18,6 +19,7 @@ import { holdsTemplateToken } from "../templateTokens.js";
 import { indexedRowStamp, type IndexedRowStamp } from "./indexedRowStamp.js";
 import { segmentedIndexText } from "./spacelessText.js";
 import { fullTextRowOf, INSERT_FULL_TEXT_ROW } from "../db/fullTextRows.js";
+import { fillNoteTasks, noteTasksStatement } from "../db/noteTasks.js";
 import { INDEX_REMOVED_TABLE } from "../sync/owedToRemote.js";
 import { indexChangeMark, indexChangedSince, noteIndexChange, trimIndexChanges } from "../db/indexChanges.js";
 
@@ -240,6 +242,14 @@ export interface VaultIndexerOptions {
    * test sets 0: one file per transaction.
    */
   scanTransactionMs?: number;
+  /**
+   * How many reads of the full scan are in flight at once (default 8 single
+   * files; where the adapter reads many files in one call,
+   * `readFilesForIndex`, two calls of up to that many files each). 1 reads
+   * one file at a time, as the scan did before it read ahead; a test
+   * compares the two.
+   */
+  scanReadsAhead?: number;
 }
 
 /**
@@ -404,6 +414,32 @@ interface ScanReading {
   /** How many readings of the file this scan set aside before this one (`READS_PER_PATH`). */
   asideBefore: number;
 }
+
+/**
+ * What the read-ahead of the full scan hands out for one item, in the order
+ * of the pass (`readScanGroup`): the file as it was read (looked at once more
+ * where its earlier readings were set aside), its reading — null where it was
+ * gone or could not be read —, the place of its read among this indexer's
+ * reads (`readBegins`, taken as its read began), and what of it the pass
+ * names as unreadable.
+ */
+interface ScanGroupReading {
+  /** Null where a file looked at once more was gone, or a folder by now. */
+  file: VaultFileInfo | null;
+  reading: FileReading | null;
+  from: number;
+  unreadable: VaultWalkSkip[];
+}
+
+/** Reads in flight of the full scan by default (`VaultIndexerOptions.scanReadsAhead`). */
+const SCAN_READS_AHEAD = 8;
+/** Files in one call where the adapter reads many at once (`readFilesForIndex`). */
+const SCAN_GROUP_SIZE = 8;
+/** Calls in flight at once where the adapter reads many files in one call: two groups of eight. */
+const SCAN_GROUPS_AHEAD = 2;
+
+/** Whether a file is read as text for the index (a note, or text by its name), else only hashed. */
+const readsAsText = (file: VaultFileInfo): boolean => file.name.endsWith(".md") || isTextFile(file.path);
 
 /** A file the full scan reads (again, where `asideBefore`: that many of its readings were set aside, `changesSince`). */
 interface ScanWork {
@@ -1014,6 +1050,30 @@ export class VaultIndexer {
   /**
    * Generates a stable unique ID for a file based on its relative path.
    */
+  /**
+   * Fills in the task table's rows a note lacks — an index from before the
+   * table, rows an older build wrote — from the index's own text, once the
+   * pass is through (db/noteTasks.ts). Never fails the pass: the list of
+   * tasks reads a note without its row from its text, as it always did.
+   */
+  private async fillTaskTable(): Promise<void> {
+    const signal = this.options?.scanSignal;
+    try {
+      // Between its slices it asks the pass's signal: a vault being closed is
+      // not filled in any further, and the next open goes on where it ended.
+      await fillNoteTasks(this.dbAdapter, { signal });
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      console.warn("[VaultIndexer] could not fill in the task table; the list of tasks reads those notes' text", error);
+    }
+  }
+
+  /** Writes a note's row of the task table, after its `files` row (db/noteTasks.ts). */
+  private async writeNoteTasks(path: string, sha256: string | null, content: string, writer: SqlWriter): Promise<void> {
+    const statement = noteTasksStatement(path, sha256, content);
+    await writer.execute(statement.sql, statement.params as unknown[]);
+  }
+
   private async generateFileId(path: string): Promise<string> {
     return await sha256Hash(path);
   }
@@ -1465,6 +1525,8 @@ export class VaultIndexer {
         INSERT_FULL_TEXT_ROW,
         [content, title, fileInfo.path, segmentedIndexText(content), segmentedIndexText(String(title ?? "")), fileInfo.path]
       );
+      // The note's tasks, from the same text (db/noteTasks.ts).
+      await this.writeNoteTasks(fileInfo.path, sha256, content, writer);
 
       // Update sync state ONLY if this is a newly discovered file (an orphaned
       // row counts as none, see judgeSyncState). We must not overwrite
@@ -1529,6 +1591,7 @@ export class VaultIndexer {
         INSERT_FULL_TEXT_ROW,
         [content, fileInfo.name.replace(/\.md$/, ""), fileInfo.path, segmentedIndexText(content), segmentedIndexText(fileInfo.name.replace(/\.md$/, "")), fileInfo.path]
       );
+      await this.writeNoteTasks(fileInfo.path, sha256, content, writer);
       if (!oldSyncState) {
         await this.syncRepo.updateLocalHashAndUnsyncedBaseText(fileInfo.path, sha256, content, writer);
       }
@@ -1967,7 +2030,7 @@ export class VaultIndexer {
   private async readForIndex(fileInfo: VaultFileInfo, seenAt?: number): Promise<FileReading> {
     const began = this.clock();
     const seenSince = this.seenSince(fileInfo, Math.min(seenAt ?? began, began));
-    if (fileInfo.name.endsWith(".md") || isTextFile(fileInfo.path)) {
+    if (readsAsText(fileInfo)) {
       return { kind: "text", read: await readLocalText(this.vaultAdapter, fileInfo.path), began, seenSince };
     }
     // The hash only: on a phone the bytes of a picture would cross the WebView bridge for it.
@@ -2030,6 +2093,68 @@ export class VaultIndexer {
       unreadable.push({ path: fileInfo.path, reason: "unreadable" });
       return null;
     }
+  }
+
+  /**
+   * Reads one group of the full scan's files, ahead of the loop that writes
+   * them (`createReadAhead`): in one call where the adapter has one for it
+   * (`readFilesForIndex` — the desktop's bridge into Rust), one by one
+   * otherwise. Every file that one call does not answer goes the ordinary way
+   * (`readOrLeaveOut`), and so does the whole group where the call fails or
+   * answers something it cannot mean: what a file that is gone, refused or no
+   * UTF-8 text gets is decided in one place, and a file that cannot be read
+   * leaves only itself out. Each read takes its place among this indexer's
+   * reads as it begins (`readBegins`, `claimWrite`): the group's call as it
+   * is sent, a file sent the ordinary way afterwards as that read begins.
+   *
+   * Rejects only when the pass was called off.
+   */
+  private async readScanGroup(group: readonly ScanWork[]): Promise<ScanGroupReading[]> {
+    const signal = this.options?.scanSignal;
+    signal?.throwIfAborted();
+    // A file whose earlier readings were set aside is looked at once more, as
+    // it is now: moved or removed meanwhile, whoever did it follows the path.
+    const files = await Promise.all(group.map(async ({ file, seenAt, asideBefore = 0 }) => {
+      if (asideBefore === 0) return { file, seenAt };
+      const now = await this.lookAt(file.path).catch(() => null);
+      return now && !now.isDirectory ? { file: now, seenAt: this.clock() } : null;
+    }));
+    signal?.throwIfAborted();
+    const ordinary = async (file: VaultFileInfo, seenAt: number): Promise<ScanGroupReading> => {
+      const unreadable: VaultWalkSkip[] = [];
+      const from = this.readBegins();
+      const reading = await this.readOrLeaveOut(file, unreadable, seenAt);
+      return { file, reading, from, unreadable };
+    };
+    const asked = files.filter((entry): entry is { file: VaultFileInfo; seenAt: number } => entry !== null);
+    const many = this.vaultAdapter.readFilesForIndex;
+    const answers = new Map<VaultFileInfo, FileReading>();
+    let groupFrom = 0;
+    if (typeof many === "function" && asked.length > 0) {
+      const requests: IndexReadRequest[] = asked.map(({ file }) => ({ path: file.path, text: readsAsText(file) }));
+      const began = this.clock();
+      groupFrom = this.readBegins();
+      const answer = await many.call(this.vaultAdapter, requests).catch(() => null);
+      signal?.throwIfAborted();
+      if (Array.isArray(answer) && answer.length === requests.length) {
+        asked.forEach(({ file, seenAt }, i) => {
+          const one = answer[i];
+          const seenSince = this.seenSince(file, Math.min(seenAt, began));
+          if (one?.kind === "text" && requests[i].text && typeof one.text === "string" && typeof one.sha256 === "string") {
+            answers.set(file, { kind: "text", read: { text: one.text, sha256: one.sha256, exact: true }, began, seenSince });
+          } else if (one?.kind === "bytes" && !requests[i].text && typeof one.sha256 === "string") {
+            answers.set(file, { kind: "bytes", sha256: one.sha256, began, seenSince });
+          }
+        });
+      }
+    }
+    const out: ScanGroupReading[] = [];
+    for (const entry of files) {
+      if (!entry) { out.push({ file: null, reading: null, from: this.readBegins(), unreadable: [] }); continue; }
+      const answered = answers.get(entry.file);
+      out.push(answered ? { file: entry.file, reading: answered, from: groupFrom, unreadable: [] } : await ordinary(entry.file, entry.seenAt));
+    }
+    return out;
   }
 
   /**
@@ -2730,7 +2855,11 @@ export class VaultIndexer {
     try {
       const report = await this.scanFrom(pass, dbFiles, startsEmpty, startedAt, compareUnstamped);
       if (compareUnstamped) this.unstampedCompared = true;
-      if (!this.options?.hearsNoChanges || report.added + report.changed === 0) return report;
+      if (!this.options?.hearsNoChanges || report.added + report.changed === 0) {
+        // Once the pass has written all it writes.
+        await this.fillTaskTable();
+        return report;
+      }
       // Once more, against the rows as they are now (`hearsNoChanges`).
       signal?.throwIfAborted();
       const after = await this.dbAdapter.query<IndexedAtScanStart>(
@@ -2739,6 +2868,7 @@ export class VaultIndexer {
       // A pass of its own: what the first one wrote is what this one judges.
       // It does not compare the files without a timestamp again: the first one did (`hasStamp`).
       const again = await this.scanFrom({ newLocalFiles: [], externalMods: [], metadataChanged: true, since: this.touchClock }, after, false, Date.now(), false);
+      await this.fillTaskTable();
       return {
         ...again,
         added: report.added + again.added,
@@ -2947,6 +3077,10 @@ export class VaultIndexer {
     const TRANSACTION_MS = this.options?.scanTransactionMs ?? 100;
     // At most this many files are looked up for one transaction (bound parameters stay few).
     const LOOKUP_SLICE = 200;
+    // Reads in flight at once, and whether the adapter reads many files in one call (`readScanGroup`).
+    // A transaction of no time (`scanTransactionMs: 0`) is one file: nothing is read ahead of it.
+    const readsAhead = TRANSACTION_MS <= 0 ? 1 : Math.max(1, Math.floor(this.options?.scanReadsAhead ?? SCAN_READS_AHEAD));
+    const many = typeof this.vaultAdapter.readFilesForIndex === "function";
     // How far this scan's finds have been handed to the database
     // (`flushed`) and committed with a transaction that went through
     // (`committed`) - what stays when a later one fails (announceWhatStays).
@@ -2971,47 +3105,76 @@ export class VaultIndexer {
         // The change journal as these reads begin (`changesSince`).
         const { mark, release } = await this.takeChangeMark();
         try {
-          while (next < work.length && readings.length < LOOKUP_SLICE) {
-            const { attachment, asideBefore = 0 } = work[next];
-            let { file, seenAt } = work[next];
-            if (asideBefore > 0) {
-              next++;
-              // Read once more, as it is now: moved or removed meanwhile, whoever did it follows the path.
-              const now = await this.lookAt(file.path).catch(() => null);
+          // The files this transaction may read are read ahead of the loop
+          // below, a few at a time and bounded by bytes (`readAhead.ts`), and
+          // handed out in the order of the pass: the rows are written in the
+          // order they always were. Only within this transaction: every read
+          // begins after the change mark above, and once the transaction's
+          // time or text is reached nothing new is read — what was begun is
+          // written here.
+          const slice = work.slice(next, Math.min(work.length, next + LOOKUP_SLICE));
+          // What is held counts against one bound, in characters of text:
+          // the readings this transaction took and those still ahead,
+          // together at most `SCAN_TRANSACTION_TEXT` — the bound of what a
+          // transaction holds. A reading counts by its text once it is in,
+          // taken or not; until then by the listing's size in bytes, which is
+          // never below the characters of a UTF-8 text of that size. An
+          // attachment is only hashed: once in, it holds nothing.
+          const ahead = createReadAhead(slice, (group) => this.readScanGroup(group), {
+            groups: many ? (readsAhead > 1 ? SCAN_GROUPS_AHEAD : 1) : readsAhead,
+            groupSize: many ? Math.min(readsAhead, SCAN_GROUP_SIZE) : 1,
+            maxWeight: SCAN_TRANSACTION_TEXT,
+            weightOf: (item) => Math.max(0, item.file.size ?? 0),
+            weighResult: (read) => (read.reading?.kind === "text" ? read.reading.read.text.length : 0),
+            holdTaken: true,
+            signal,
+          });
+          let reached = false;
+          let taken = 0;
+          try {
+            for (; taken < slice.length; taken++) {
+              if (reached && !ahead.started(taken)) break;
+              const { attachment, asideBefore = 0 } = slice[taken];
+              if (asideBefore > 0) {
+                // Looked at once more as its read began (`readScanGroup`).
+              } else if (!attachment) {
+                if (this.options?.onProgress) {
+                  this.options.onProgress(mdDone + 1, mdToIndex.length, slice[taken].file.path);
+                }
+                if (mdDone % 10 === 0) {
+                  // Yield to event loop to allow UI updates
+                  await new Promise(r => setTimeout(r, 0));
+                  // A vault that is being left is not written any further (3.120):
+                  // the loop used to run to its end for a vault nobody had open, and
+                  // the open that was called off went on behind it.
+                  signal?.throwIfAborted();
+                }
+                mdDone++;
+              } else {
+                // Attachment registration (lightweight, no parsing/FTS)
+                if (attachmentsDone % 20 === 0) {
+                  await new Promise(r => setTimeout(r, 0));
+                  signal?.throwIfAborted();
+                }
+                attachmentsDone++;
+              }
+              const { file, reading, from, unreadable: notRead } = await ahead.take(taken);
               signal?.throwIfAborted();
-              if (!now || now.isDirectory) continue;
-              file = now;
-              seenAt = this.clock();
-            } else if (!attachment) {
-              if (this.options?.onProgress) {
-                this.options.onProgress(mdDone + 1, mdToIndex.length, file.path);
+              // Named in the order of the pass, whatever order the reads came back in.
+              unreadable.push(...notRead);
+              if (!file) continue;
+              // The last reading is written whatever changed under it (`READS_PER_PATH`) — not for a file removed or moved during it.
+              if (reading && asideBefore + 1 >= READS_PER_PATH && !(await this.stillThere(file.path))) continue;
+              readings.push({ file, attachment, reading, from, mark, asideBefore });
+              if (reading?.kind === "text") text += reading.read.text.length;
+              if (!reached && (Date.now() - began >= TRANSACTION_MS || text >= SCAN_TRANSACTION_TEXT)) {
+                reached = true;
+                ahead.stop();
               }
-              if (mdDone % 10 === 0) {
-                // Yield to event loop to allow UI updates
-                await new Promise(r => setTimeout(r, 0));
-                // A vault that is being left is not written any further (3.120):
-                // the loop used to run to its end for a vault nobody had open, and
-                // the open that was called off went on behind it.
-                signal?.throwIfAborted();
-              }
-              mdDone++;
-            } else {
-              // Attachment registration (lightweight, no parsing/FTS)
-              if (attachmentsDone % 20 === 0) {
-                await new Promise(r => setTimeout(r, 0));
-                signal?.throwIfAborted();
-              }
-              attachmentsDone++;
             }
-            if (asideBefore === 0) next++;
-            // The read's place among this indexer's reads, taken as it begins (`claimWrite`).
-            const from = this.readBegins();
-            const reading = await this.readOrLeaveOut(file, unreadable, seenAt);
-            // The last reading is written whatever changed under it (`READS_PER_PATH`) — not for a file removed or moved during it.
-            if (reading && asideBefore + 1 >= READS_PER_PATH && !(await this.stillThere(file.path))) continue;
-            readings.push({ file, attachment, reading, from, mark, asideBefore });
-            if (reading?.kind === "text") text += reading.read.text.length;
-            if (Date.now() - began >= TRANSACTION_MS || text >= SCAN_TRANSACTION_TEXT) break;
+          } finally {
+            ahead.stop();
+            next += taken;
           }
           signal?.throwIfAborted();
           const claims: Array<() => void> = [];

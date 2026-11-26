@@ -19,6 +19,7 @@ import type { BatchStatement, IDatabaseAdapter, SqlStatements } from "../../src/
 import { LocalVaultAdapter } from "../../src/vault/LocalVaultAdapter.js";
 import { VaultIndexer } from "../../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../../src/vault/VaultQueryService.js";
+import { fillNoteTasks } from "../../src/db/noteTasks.js";
 import { parseMarkdownAst } from "../../src/markdown-parser.js";
 import { writeFixtureVault, type FixtureSummary } from "./fixtureVault.js";
 
@@ -247,6 +248,27 @@ export async function runCoreBenchmark(options: CoreBenchmarkOptions): Promise<C
   }
   extra.tasksListed = taskCount;
   log(`listTasks ${Math.min(...tasks).toFixed(0)} ms, fastest of 9 (${taskCount} tasks)`);
+
+  // The task table half filled in (db/noteTasks.ts): what an index from
+  // before it answers until its first full pass is through, and what filling
+  // in costs once, from the index's own text — for half of it and for all.
+  await db.execute(`DELETE FROM note_tasks WHERE file_rowid % 2 = 0`);
+  const half: number[] = [];
+  for (let k = 0; k < 6; k++) {
+    const [ms] = await time(() => service.listTasks());
+    if (k > 0) half.push(ms);
+  }
+  extra.listTasksHalfFilledMs = round(Math.min(...half));
+  extra.fillHalfMs = round((await time(() => fillNoteTasks(db)))[0]);
+  await db.execute(`DELETE FROM note_tasks`);
+  const none: number[] = [];
+  for (let k = 0; k < 4; k++) {
+    const [ms] = await time(() => service.listTasks());
+    if (k > 0) none.push(ms);
+  }
+  extra.listTasksWithoutTableMs = round(Math.min(...none));
+  extra.fillWholeMs = round((await time(() => fillNoteTasks(db)))[0]);
+  log(`listTasks half filled in ${extra.listTasksHalfFilledMs} ms, without the table ${extra.listTasksWithoutTableMs} ms; filling in half ${extra.fillHalfMs} ms, all ${extra.fillWholeMs} ms`);
 
   const [occurrenceMs] = await time(() => service.searchOccurrencesPage("project"));
   extra.occurrencePageMs = round(occurrenceMs);

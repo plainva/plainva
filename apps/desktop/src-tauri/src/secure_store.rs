@@ -23,17 +23,26 @@ fn on_lane<T: Send + 'static>(run: impl FnOnce() -> Result<T, String> + Send + '
         // reentrant): it runs here and now, or it would wait for itself.
         return run();
     }
+    let answered = queue_on_lane(run)?;
+    let wait = move || answered.recv().map_err(|_| "a keychain step ended without an answer".to_string())?;
+    match tokio::runtime::Handle::try_current() {
+        Ok(runtime) if runtime.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => tokio::task::block_in_place(wait),
+        _ => wait(),
+    }
+}
+
+/// Puts the step of `on_lane` into the keychain's queue; its answer comes on
+/// the receiver. The step's place in the queue is fixed when this returns.
+fn queue_on_lane<T: Send + 'static>(
+    run: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<std::sync::mpsc::Receiver<Result<T, String>>, String> {
     let (answer, answered) = std::sync::mpsc::channel();
     lane()
         .send(Box::new(move || {
             let _ = answer.send(locked(run));
         }))
         .map_err(|_| "the keychain's thread is gone".to_string())?;
-    let wait = move || answered.recv().map_err(|_| "a keychain step ended without an answer".to_string())?;
-    match tokio::runtime::Handle::try_current() {
-        Ok(runtime) if runtime.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread => tokio::task::block_in_place(wait),
-        _ => wait(),
-    }
+    Ok(answered)
 }
 
 const LANE_NAME: &str = "plainva-keychain";
@@ -45,11 +54,12 @@ const LANE_NAME: &str = "plainva-keychain";
 /// the app stood still. A keychain call that waits now only makes its own
 /// caller wait.
 ///
-/// One thread, one queue: the steps run in the order they are handed over,
-/// which is the order the commands arrive in — two writes to one slot sent
-/// right after each other land in that order (a thread per call, all waiting
-/// for the lock, would let them overtake each other). The step is queued when
-/// this is called, not when the future is first polled.
+/// One thread, one queue: the steps run in the order they are handed over —
+/// two writes to one slot, the second queued after the first, land in that
+/// order (a thread per call, all waiting for the lock, would let them
+/// overtake each other). The step is queued when this is called, not when
+/// the future is first polled. Which of two commands started at the same
+/// instant is queued first is the async runtime's choice.
 fn off_main<T: Send + 'static>(run: impl FnOnce() -> Result<T, String> + Send + 'static) -> impl std::future::Future<Output = Result<T, String>> {
     let (answer, answered) = tokio::sync::oneshot::channel();
     let queued = lane().send(Box::new(move || {
@@ -1412,55 +1422,48 @@ mod tests {
         assert!(!is_refusal(&keyring::Error::NoEntry));
     }
 
-    /// A command as Tauri runs it: an async task, spawned as its message
-    /// arrives, whose body reaches the keychain once it runs — a generic
-    /// keychain command through `off_main`, a command of the AI egress or the
-    /// MCP client through `read_slot`/`write_slot` (`on_lane`).
-    fn command(generic: bool, step: impl FnOnce() + Send + 'static) -> tauri::async_runtime::JoinHandle<Result<(), String>> {
-        tauri::async_runtime::spawn(async move {
-            if generic {
-                off_main(move || {
-                    step();
-                    Ok(())
-                })
-                .await
-            } else {
-                on_lane(move || {
-                    step();
-                    Ok(())
-                })
-            }
-        })
-    }
-
     #[test]
-    fn keychain_steps_run_in_the_order_the_commands_arrive() {
-        // The first command holds the keychain (its dialog open); forty more arrive meanwhile,
-        // a millisecond apart, of both kinds — the order their messages came in is the order they run.
+    fn keychain_steps_run_in_the_order_they_are_queued() {
+        // The promise: the order in which steps are put into the queue is the order they run in —
+        // of both kinds, a generic command's (`off_main`, queued when it is called) and a waiting
+        // caller's (`on_lane`, queued by `queue_on_lane`). Which of two commands that Tauri starts
+        // at the same instant reaches the queue first is the runtime's choice and not promised.
+        // The first step holds the keychain (its dialog open) while forty more are queued behind it,
+        // one after the other from this thread: when each call returns, its place is fixed.
         let order = Arc::new(Mutex::new(Vec::new()));
         let (release, released) = std::sync::mpsc::channel::<()>();
         let first = {
             let order = Arc::clone(&order);
-            command(true, move || {
+            off_main(move || {
                 let _ = released.recv();
                 order.lock().unwrap().push(0);
+                Ok(())
             })
         };
-        std::thread::sleep(std::time::Duration::from_millis(5));
-        let mut commands = Vec::new();
+        let mut generic = Vec::new();
+        let mut waiting = Vec::new();
         for n in 1..=40 {
             let order = Arc::clone(&order);
-            commands.push(command(n % 2 == 0, move || order.lock().unwrap().push(n)));
-            std::thread::sleep(std::time::Duration::from_millis(1));
+            let step = move || {
+                order.lock().unwrap().push(n);
+                Ok(())
+            };
+            if n % 2 == 0 {
+                generic.push(off_main(step));
+            } else {
+                waiting.push(queue_on_lane(step).unwrap());
+            }
         }
-        std::thread::sleep(std::time::Duration::from_millis(30));
         release.send(()).unwrap();
         tauri::async_runtime::block_on(async {
-            first.await.unwrap().unwrap();
-            for command in commands {
-                command.await.unwrap().unwrap();
+            first.await.unwrap();
+            for command in generic {
+                command.await.unwrap();
             }
         });
+        for answered in waiting {
+            answered.recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap();
+        }
         assert_eq!(*order.lock().unwrap(), (0..=40).collect::<Vec<_>>());
     }
 
