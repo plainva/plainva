@@ -48,11 +48,16 @@ Since 2026-11-10 this writes the fixture vault of the performance gates (see "Pe
 
 Three commands from the repository root. Two are gates in CI (`.github/workflows/perf.yml`,
 jobs "Performance budget (core)" and "Bundle budget"), one is a report (decision E4 of the plan:
-browser timings on a shared runner move too much for a verdict).
+browser timings on a shared runner move too much for a verdict). Since 2026-11-26 both gates are
+required checks for `main` (maintainer's decision): a gate that turns red without a code change
+holds up every landing, so how the core gate stays steady on the runner is measured below
+("The core gate on the runner, 2026-11-26").
 
 ```
 pnpm perf:core               # core measurement, 10 000 notes, against core-baseline.json
-pnpm perf:core --update      # record this run as this environment's baseline
+pnpm perf:core --update      # record this run as this environment's baseline (a machine of one's own)
+pnpm perf:core --from-runs github-ubuntu-latest a.json b.json …
+                             # the runner's baseline: the median of many runs' perf-core artifacts
 pnpm perf:bundle             # build both shells, start bytes against bundle-baseline.json
 pnpm perf:bundle --update    # record the builds as the baseline
 pnpm perf:browser            # build the desktop bundle, measure in Chromium, write a report
@@ -73,56 +78,95 @@ that one note (see "Many tables in one note" below), and the recorded baselines 
 without it. The browser report keeps it, it is the editor's case.
 
 **Core gate.** `core-gate.ts` runs `coreBenchmark.ts` on 10 000 notes (disk and `node:sqlite`,
-WAL on) and gates six times and one size: cold index, a pass without changes (median of 3),
-re-reading one saved note (median and 95th percentile of 40), search with 50 hits (each of six
-queries' fastest of 8 rounds after a warm-up round, then the median of the six), `listTasks` (the
-fastest of 9 after a warm-up call), and the index size in bytes. The two short SQL-bound metrics
-take the fastest repetition because the slower ones carry the neighbours of a shared runner; the
-tolerance is the same 25 % for every metric, nothing was widened. A metric fails when it is more
-than 25 % worse than the baseline.
+WAL on) and gates six times and one size: cold index (once), and in seven rounds a pass without
+changes (median of 3), re-reading one saved note (median and 95th percentile of 60), search with
+50 hits (each of six queries' fastest of 8 rounds after a warm-up round, then the median of the
+six) and `listTasks` (the fastest of 9 after a warm-up call); and the index size in bytes. The
+two short SQL-bound metrics take the fastest repetition because the slower ones carry the
+neighbours of a shared runner. A metric fails when it is worse than the baseline by more than its
+tolerance — 25 %, the save's median 15 %, the save's 95th percentile 50 % (`TOLERANCE_OF`, from
+the measurement below) — and by more than its floor in milliseconds.
 
 Why the baseline is not a number in milliseconds: a GitHub runner is slower and noisier than a
-developer's laptop, and a baseline measured on one is wrong on the other. Two measures make the
+developer's laptop, and a baseline measured on one is wrong on the other. Three measures make the
 gate trustworthy on the runner:
 
-1. *Ratios against a calibration loop of the same run.* `calibrate()` runs a fixed piece of the
+1. *Ratios against a calibration loop, round by round.* `calibrate()` runs a fixed piece of the
    same kind of work — Markdown parsing in JavaScript, FTS5 inserts, searches and deletes on a
-   SQLite file in the same temp folder — before, between and after the workload; the median of
-   the three is the run's calibration. Every time is stored and compared as `time /
-   calibration`. A machine twice as slow doubles both, and the ratio stays; a code change moves
-   only the time. Sampling three times absorbs a neighbour process that slows the machine for a
-   while.
-2. *A baseline per environment.* A ratio still drifts between machines (disk, cache sizes, CPU
-   generation, Windows against Linux), so `core-baseline.json` keeps one entry per environment —
-   `PERF_ENV` (`github-ubuntu-latest` in the workflow) plus the CPU model, or the platform and CPU
-   model when it is not set — and a run is only judged against its own. An environment without an entry gets the
-   measurement and a warning, never a verdict: a baseline borrowed from another machine would
-   pass or fail at random. To arm the gate on the runner: run the workflow once, take the
-   `asBaseline` object from the `perf-core` artifact into the environment the run names, commit.
-   The runner label is not one machine: the first two runs got an EPYC 9V45 and an EPYC 9V74,
-   and for the same code their ratios for search and `listTasks` stood 26 % and 29 % apart —
-   over the tolerance, so the CPU model is part of the name and each model gets its own entry
-   (a model not seen yet gets a `::warning::` annotation naming the models that have a baseline,
-   exit 0 — never a failure, never a silent pass). Record anew when the runner image changes.
-   Where the two entries come from: the 9V45 entry is the run of `6b3e348fc` (index format 9
-   already), and the 9V74 entry is the failed run of `7483afe3f` itself — so the 9V74 numbers are
-   a recording, not a comparison. Index format 9 was compared only on the 9V45 run, against the
-   numbers of the same machine class before it. Both entries were measured with the median for
-   search and `listTasks`, before those took the fastest repetition: the fastest is never above the
-   median, so they judge more leniently until they are recorded anew from a run of the current
-   code on that CPU.
+   SQLite file in the same temp folder — before the cold index, at the start of each round and
+   at the end. A metric of a round is read against the calibration of its own round, and the
+   run's ratio is the median of its seven rounds (`runRatio`); the cold index against the median
+   of all calibrations. A machine twice as slow doubles both, and the ratio stays; a code change
+   moves only the time; a neighbour that slows the runner for a round or two is outvoted.
+2. *A baseline per environment.* A ratio still drifts between machines (disk, cache sizes,
+   Windows against Linux), so `core-baseline.json` keeps one entry per environment — `PERF_ENV`
+   (`github-ubuntu-latest` in the workflow), or the platform and CPU model when it is not set —
+   and a run is only judged against its own. An environment without an entry gets the
+   measurement and a `::warning::`, never a verdict: a baseline borrowed from another machine
+   would pass or fail at random. The runner label hands out several CPU models; until
+   2026-11-26 each model had an entry of its own, recorded from a single run, and a model
+   without one got no verdict (see below for why that ended). Record anew when the runner image
+   changes. The entry of the Windows laptop was recorded in the older way (one calibration per
+   run, 40 saves) and is to be recorded anew before it is relied on.
+3. *A baseline of many runs.* `--from-runs` makes each ratio the median of the ratios of many
+   runs of the same code (`medianBaseline`, at least ten), and records how many there were and
+   the lowest and highest of each ratio as a share of the median (`runs`, `spread`). A baseline
+   from one run carries that run's luck into every verdict after it.
 
 The pass without changes is almost all file system (two SQL statements, ten thousand
 `stat`s), which the loop does not see: on this machine it moved between 0.5 and 6.7 s for the same
 code while other work read the disk. It is divided by a plain walk of the vault folder
 (`fsWalkMs`: every folder listed, every entry stat'ed) measured right before each pass instead.
 
-Small times move by more than 25 % for nothing, so a metric fails only when it is also worse
-by its floor in absolute terms (2 s cold index, 50 ms warm pass, 2 ms / 3 ms save p50 / p95,
-3 ms search, 30 ms `listTasks`). The index size is compared as it is (SQLite writes the same
-bytes for the same rows). A changed fixture digest fails the gate with "record the baselines
-again". Self-test: the code before L1, measured against the baseline recorded after L1 on the
-same machine, fails on the cold index and the save (see the L1 section below).
+Small times move by more than their tolerance for nothing, so a metric fails only when it is also
+worse by its floor in absolute terms (2 s cold index, 50 ms warm pass, 0.5 ms / 3 ms save p50 /
+p95, 3 ms search, 30 ms `listTasks`), reckoned from the same ratios the verdict compares. The
+index size is compared as it is (SQLite writes the same bytes for the same rows). A changed
+fixture digest fails the gate with "record the baselines again". Self-test: the code before L1,
+measured against the baseline recorded after L1 on the same machine, fails on the cold index and
+the save (see the L1 section below).
+
+**The core gate on the runner, 2026-11-26.** On B2's branch the gate failed once on
+`saveP95Ms` (×1.71) and passed on the rerun (×1.03), for a branch that does not touch
+`VaultIndexer.indexPath`. Measured on unchanged `main` (`995a92905`), twelve runs of the
+workflow by `workflow_dispatch`, the gate as it was:
+
+| | judged | red | spread of the ratio against the baseline of its CPU |
+|---|---|---|---|
+| runs | 7 of 12 (5 on CPU models without a baseline: EPYC 7763, Xeon 6975P) | 2 of 7 | |
+| `saveP95Ms` | | ×1.99 once | ×0.68–1.99 (5.2–13.2 ms) |
+| `warmIndexMs` | | ×1.26 once | ×1.06–1.26 |
+| `saveP50Ms`, cold, search | | | ×0.84–0.99, ×0.80–1.00, ×0.73–0.91 |
+
+Sixty earlier runs (24.–26.11., mixed branches) agree: the save's 95th percentile — the third
+slowest of 40 saves — spread from 3.0 to 10.0 ms on one CPU model, and the most common model on
+the runner (EPYC 7763, 21 of 60 runs) never had a baseline. Two causes: one sample of a noisy
+metric per run, and a baseline that is one run's luck.
+
+The gate as it is now (rounds, median baseline, per-metric tolerance), ten runs of unchanged
+code (`b8a8f00e2`) on four CPU models (EPYC 7763, 9V45, 9V74, Xeon 6975P), each ratio as a share
+of the median of the ten:
+
+| metric | spread, unchanged | tolerance |
+|---|---|---|
+| `coldIndexMs` | 0.90–1.14 | 1.25 |
+| `warmIndexMs` | 0.92–1.17 | 1.25 |
+| `saveP50Ms` | 0.92–1.07 | 1.15 |
+| `saveP95Ms` | 0.92–1.38 | 1.50 |
+| `searchMs` | 0.87–1.08 | 1.25 |
+| `listTasksMs` | 0.87–1.06 | 1.25 |
+
+Read against the calibration of their own round, the four CPU models lie within these spreads
+of one median, so the runner label is one environment again and no run goes without a verdict.
+A save made 30 % slower on purpose (a spin of 0.3 × its own time in `indexPath`, ten runs of
+`479fe39bf`, never landed) came out at ×1.17–1.46 on the save's median: every one of them over
+1.15, every unchanged run at most 1.07. The 95th percentile does not tell the two apart (×1.06–1.45
+slowed against ×0.92–1.38 unchanged); it stays a gate for a save that grows a long tail, at 50 %.
+Out of the sample the baseline was made of, twenty fresh runs of the gate itself (`dcbe602d9`,
+and the same slowdown on it, `4c1fed993`): unchanged code green in ten of ten (save median
+×0.88–1.08, 95th percentile ×0.84–1.23, every other metric within ×0.84–1.11), the slowed save
+red in ten of ten (save median ×1.18–1.42). The gate's job in CI is a single run, no retry: a
+real slowdown is red every time, not in half of the runs.
 
 **Bundle gate.** `scripts/perf/bundle-gate.mjs` builds both shells with source maps into a temp
 folder (never their own `dist/`) and reads from each built `index.html` what loads before the

@@ -70,6 +70,25 @@ export interface CoreMetrics {
   dbBytes: number;
 }
 
+/** How many rounds the cheap metrics are measured in, and how many saves each round times. */
+export const ROUNDS = 7;
+export const SAVES_PER_ROUND = 60;
+
+/**
+ * One round of the cheap metrics, with the calibration loop run right before
+ * it: a time is read against the calibration of its own round, so a stretch of
+ * a slow runner falls on both alike.
+ */
+export interface CoreRound {
+  calibrationMs: number;
+  fsWalkMs: number;
+  warmIndexMs: number;
+  saveP50Ms: number;
+  saveP95Ms: number;
+  searchMs: number;
+  listTasksMs: number;
+}
+
 export interface CoreResult {
   meta: { date: string; node: string; os: string; cpu: string; logicalCpus: number; totalMemory: number; wal: boolean };
   fixture: FixtureSummary & { count: number };
@@ -86,6 +105,8 @@ export interface CoreResult {
    */
   fsWalkMs: number;
   metrics: CoreMetrics;
+  /** The rounds the cheap metrics were measured in, each with its own calibration; `metrics` holds their medians. */
+  rounds?: CoreRound[];
   /** Other numbers worth keeping, not gated. */
   extra: Record<string, number>;
   boundary: string;
@@ -203,51 +224,61 @@ export async function runCoreBenchmark(options: CoreBenchmarkOptions): Promise<C
   db.raw.exec("PRAGMA wal_checkpoint(TRUNCATE)");
   const dbBytes = (await fs.stat(dbPath)).size;
 
-  calibrationSamplesMs.push(await calibrate(options.root));
-
-  const warm: number[] = [];
-  const walks: number[] = [];
-  for (let k = 0; k < 3; k++) {
-    walks.push((await time(() => walk(vaultPath)))[0]);
-    warm.push((await time(() => indexer.indexVaultFull()))[0]);
-  }
-  log(`warm pass ${median(warm).toFixed(0)} ms`);
-
-  // A save: a medium note of a project folder, rewritten 40 times.
+  // The cheap metrics are measured in rounds, each with its own calibration
+  // right before it (`CoreRound`): a runner's neighbours come and go within a
+  // job, and one round that met them is outvoted by the others (`core-gate.ts`).
   const savePath = (await db.queryOne<{ path: string }>(
     `SELECT path FROM files WHERE path LIKE 'Projects/%' AND path LIKE '%.md' AND size_bytes BETWEEN 1500 AND 5000 ORDER BY path LIMIT 1`,
   ))!.path;
   const original = await adapter.readTextFile(savePath);
-  const saves: number[] = [];
-  for (let k = 0; k < 40; k++) {
-    await adapter.writeTextFile(savePath, `${original}\nEdit ${k}: another line about the review.\n`);
-    saves.push((await time(() => indexer.indexPath(savePath)))[0]);
-  }
-  await adapter.writeTextFile(savePath, original);
-  await indexer.indexPath(savePath);
-  log(`save p50 ${median(saves).toFixed(1)} ms, p95 ${percentile(saves, 95).toFixed(1)} ms`);
-
   const service = new VaultQueryService(db);
-  const fastestPerQuery = new Map<string, number>();
-  for (let round = 0; round < 9; round++) {
-    for (const query of SEARCHES) {
-      const [ms] = await time(() => service.searchFullText(query, 50));
-      if (round > 0) fastestPerQuery.set(query, Math.min(fastestPerQuery.get(query) ?? Infinity, ms));
-    }
-  }
-  const searches = [...fastestPerQuery.values()];
-  log(`search ${median(searches).toFixed(1)} ms (median over the queries of each one's fastest of 8)`);
-  for (const query of SEARCHES) extra[`search hits "${query}"`] = (await service.searchFullText(query, 50)).length;
-
-  const tasks: number[] = [];
+  const rounds: CoreRound[] = [];
+  let edit = 0;
   let taskCount = 0;
-  for (let k = 0; k < 10; k++) {
-    const [ms, rows] = await time(() => service.listTasks());
-    if (k > 0) tasks.push(ms);
-    taskCount = rows.length;
+  for (let r = 0; r < ROUNDS; r++) {
+    const calibrationMs = await calibrate(options.root);
+    calibrationSamplesMs.push(calibrationMs);
+    const warm: number[] = [];
+    const walks: number[] = [];
+    for (let k = 0; k < 3; k++) {
+      walks.push((await time(() => walk(vaultPath)))[0]);
+      warm.push((await time(() => indexer.indexVaultFull()))[0]);
+    }
+    // A save: a medium note of a project folder, rewritten again and again.
+    const saves: number[] = [];
+    for (let k = 0; k < SAVES_PER_ROUND; k++) {
+      await adapter.writeTextFile(savePath, `${original}\nEdit ${edit++}: another line about the review.\n`);
+      saves.push((await time(() => indexer.indexPath(savePath)))[0]);
+    }
+    await adapter.writeTextFile(savePath, original);
+    await indexer.indexPath(savePath);
+    const fastestPerQuery = new Map<string, number>();
+    for (let round = 0; round < 9; round++) {
+      for (const query of SEARCHES) {
+        const [ms] = await time(() => service.searchFullText(query, 50));
+        if (round > 0) fastestPerQuery.set(query, Math.min(fastestPerQuery.get(query) ?? Infinity, ms));
+      }
+    }
+    const tasks: number[] = [];
+    for (let k = 0; k < 10; k++) {
+      const [ms, rows] = await time(() => service.listTasks());
+      if (k > 0) tasks.push(ms);
+      taskCount = rows.length;
+    }
+    rounds.push({
+      calibrationMs: round(calibrationMs),
+      fsWalkMs: round(median(walks)),
+      warmIndexMs: round(median(warm)),
+      saveP50Ms: round(median(saves)),
+      saveP95Ms: round(percentile(saves, 95)),
+      searchMs: round(median([...fastestPerQuery.values()])),
+      listTasksMs: round(Math.min(...tasks)),
+    });
   }
+  const ofRounds = (key: keyof CoreRound) => round(median(rounds.map((r) => r[key])));
+  log(`warm pass ${ofRounds("warmIndexMs")} ms; save p50 ${ofRounds("saveP50Ms")} ms, p95 ${ofRounds("saveP95Ms")} ms; search ${ofRounds("searchMs")} ms; listTasks ${ofRounds("listTasksMs")} ms (${taskCount} tasks) — medians of ${ROUNDS} rounds`);
+  for (const query of SEARCHES) extra[`search hits "${query}"`] = (await service.searchFullText(query, 50)).length;
   extra.tasksListed = taskCount;
-  log(`listTasks ${Math.min(...tasks).toFixed(0)} ms, fastest of 9 (${taskCount} tasks)`);
 
   // The task table half filled in (db/noteTasks.ts): what an index from
   // before it answers until its first full pass is through, and what filling
@@ -295,16 +326,17 @@ export async function runCoreBenchmark(options: CoreBenchmarkOptions): Promise<C
     shape,
     calibrationMs: round(median(calibrationSamplesMs)),
     calibrationSamplesMs: calibrationSamplesMs.map(round),
-    fsWalkMs: round(median(walks)),
+    fsWalkMs: ofRounds("fsWalkMs"),
     metrics: {
       coldIndexMs: round(coldIndexMs),
-      warmIndexMs: round(median(warm)),
-      saveP50Ms: round(median(saves)),
-      saveP95Ms: round(percentile(saves, 95)),
-      searchMs: round(median(searches)),
-      listTasksMs: round(Math.min(...tasks)),
+      warmIndexMs: ofRounds("warmIndexMs"),
+      saveP50Ms: ofRounds("saveP50Ms"),
+      saveP95Ms: ofRounds("saveP95Ms"),
+      searchMs: ofRounds("searchMs"),
+      listTasksMs: ofRounds("listTasksMs"),
       dbBytes,
     },
+    rounds,
     extra,
     boundary: "Disk and SQLite core workload on node:sqlite; excludes Tauri IPC, the SQL plugin, WebView rendering, native code and process start.",
   };
