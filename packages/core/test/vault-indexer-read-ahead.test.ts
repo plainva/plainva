@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { realSqlite } from "./helpers/realSqlite.js";
 import { MemoryVaultAdapter } from "./helpers/memoryVault.js";
 import type { IDatabaseAdapter, SqlStatements } from "../src/db/IDatabaseAdapter.js";
-import type { IndexReadRequest, IndexReadResult } from "../src/vault/IVaultAdapter.js";
+import type { IndexReadRequest, IndexReadResult, VaultFileInfo } from "../src/vault/IVaultAdapter.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { ConflictAwareVaultAdapter } from "../src/vault/ConflictAwareVaultAdapter.js";
 import { QueueingVaultAdapter } from "../src/vault/QueueingVaultAdapter.js";
@@ -299,6 +299,62 @@ describe("a full scan that reads ahead", () => {
     }
     expect(Math.max(...held.map((t) => t.reduce((a, b) => a + b, 0)))).toBeLessThan(19 * MB);
     expect((await db.query(`SELECT path FROM files`)).length).toBe(46);
+  });
+
+  it.each([
+    ["listed at 1 MB, 3 MB read", 1],
+    ["listed at 0, 3 MB read", 0],
+  ] as const)("weighs a file by what was read once it is in, where its listing names too little: %s", async (_name, listedMb) => {
+    // Notes of 3 MB the listing names smaller. Weighed by the listing alone,
+    // the scan would keep beginning reads past the bound; weighed by what came
+    // in, nothing new begins once what is held passes it, and a transaction
+    // holds at most the bound and what was in flight then (8 reads at once).
+    const MB = 1024 * 1024;
+    class ListedTooSmall extends SlowVault {
+      override async listDir(p = "", recursive = false): Promise<VaultFileInfo[]> {
+        return (await super.listDir(p, recursive)).map((f) => (f.path.startsWith("under/") ? { ...f, size: listedMb * MB } : f));
+      }
+    }
+    const vault = new ListedTooSmall(1_700_000_000_000);
+    await vault.initialize();
+    for (let i = 0; i < 24; i++) await vault.writeTextFile(`under/u${String(i).padStart(2, "0")}.md`, `# ${i}\n${"z".repeat(3 * MB)}\n`);
+    // The first read hangs a while, the others come back at once: while the scan waits to
+    // take the first, the files after it are in and weigh what they hold. Weighed by the
+    // listing, each that came in would make room for the next.
+    vault.turnsFor = (path) => (path === "under/u00.md" ? 400 : 1);
+    // What came in since the last transaction ended (the reads a transaction writes come
+    // before it opens), and every read begun while that was already past the bound. The
+    // scan learns a file's weight once its reading is handed over — after the hash —, so
+    // reads begun in between count as in flight: at most as many as may be in flight at once.
+    let cameIn = 0;
+    const begunPastTheBound: number[] = [];
+    vault.beforeRead = () => { if (cameIn > 16 * MB) begunPastTheBound.push(cameIn); };
+    vault.afterRead = (path) => { if (path.startsWith("under/")) cameIn += 3 * MB; };
+    const inner = takingTurns(await realSqlite());
+    const held: number[][] = [];
+    const db: IDatabaseAdapter = {
+      ...inner,
+      transaction: <T,>(fn: (tx: SqlStatements) => Promise<T>) => inner.transaction(async (tx) => {
+        const texts: number[] = [];
+        const counting: SqlStatements = {
+          ...tx,
+          execute: async (sql: string, params?: unknown[]) => {
+            if (/INTO fts_notes/.test(sql)) texts.push(String((params ?? [])[0] ?? "").length);
+            return tx.execute(sql, params);
+          },
+        };
+        try { return await fn(counting); } finally { held.push(texts); cameIn = 0; }
+      }),
+    };
+    await new VaultIndexer(vault, db, { monotonicNow: steppingClock(), scanTransactionMs: Number.POSITIVE_INFINITY }).indexVaultFull();
+    // Once what came in passes the bound, nothing new begins beyond what may be in flight.
+    expect(begunPastTheBound.length).toBeLessThanOrEqual(8);
+    expect(vault.most).toBeLessThanOrEqual(8);
+    for (const texts of held.filter((t) => t.length > 0)) {
+      // The bound, and what was in flight when it was passed: at most eight more files of 3 MB.
+      expect(texts.reduce((a, b) => a + b, 0), `a transaction of ${texts.length} notes`).toBeLessThanOrEqual(16 * MB + 8 * 3 * MB + 64 * 1024);
+    }
+    expect((await db.query(`SELECT path FROM files`)).length).toBe(24);
   });
 
   it("reads in groups where the host reads many files in one call, with the same index, and sends the rest the ordinary way", async () => {
