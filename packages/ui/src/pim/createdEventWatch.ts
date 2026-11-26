@@ -65,6 +65,10 @@ export interface CreatedEventWatchDeps {
 /** The one check every step of a watch makes after a wait (see `current`). */
 const stillCurrent = (deps: Pick<CreatedEventWatchDeps, "current">): boolean => deps.current?.() !== false;
 
+/** A round still applies to a created event: its watch is current, and the event is still in the overlay (a vault left empties it). */
+const roundApplies = (store: PendingEventWrites, deps: Pick<CreatedEventWatchDeps, "current">, id: number): boolean =>
+  stillCurrent(deps) && store.settledCreates().some((write) => write.id === id);
+
 export async function settleCreatedEvents(store: PendingEventWrites, deps: CreatedEventWatchDeps, now: number = Date.now()): Promise<void> {
   const writes = store.settledCreates();
   if (writes.length === 0) return;
@@ -74,7 +78,7 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
     const { row } = created;
     const cached = await deps.cache.findEventsByUid(row.uid).catch(() => null);
     if (!stillCurrent(deps)) return;
-    if (cached === null) continue;
+    if (!roundApplies(store, deps, created.id) || cached === null) continue;
     if (cached.some((cachedRow) => cachedRow.accountId === row.accountId && cachedRow.calendarId === row.calendarId)) {
       store.dropCreated(row);
       continue;
@@ -96,11 +100,12 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
       held = await target.eventExists({ calendarId: row.calendarId, uid: row.uid, etag: row.etag, href: row.href });
     } catch {
       if (!stillCurrent(deps)) return;
-      store.markAsked(created.id, now, null);
+      if (roundApplies(store, deps, created.id)) store.markAsked(created.id, now, null);
       continue;
     }
     // The vault may have been left while the provider was asked.
     if (!stillCurrent(deps)) return;
+    if (!roundApplies(store, deps, created.id)) continue;
     store.markAsked(created.id, now, !held);
     if (held || created.denials + 1 < CREATED_EVENT_DENIALS) continue;
     store.dropCreated(row);
@@ -154,26 +159,27 @@ export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<Cre
   if (!draft?.createAs) return;
   // A later try of the same create: the server holds what it sends now.
   const create = { ...draft, createAs: draft.createAs, createAgain: true };
+  const fail = (error: unknown) => {
+    if (stillCurrent(deps)) toast.error(eventWriteRefusalText(error, "save"), { label: i18n.t("pim.eventWriteRetry"), run: again });
+  };
+  const write = (expand: SeriesExpansion | undefined) => {
+    if (!stillCurrent(deps)) return;
+    const id = store.reserve();
+    const { uid: _uid, ...shown } = draftToRow(accountId, calendarId, "", create);
+    void writeEventOptimistically(
+      store,
+      createChange(pendingEventRow(id, shown), create, expand),
+      () => createCalendarEvent({ targetFor: deps.targetFor }, accountId, calendarId, create),
+      (out) => out.rows.map((written) => createChange(written, create, expand)),
+      id,
+    ).catch(fail);
+  };
   const again = () => {
     // The button outlives a vault that was left: then it does nothing.
     if (!stillCurrent(deps)) return;
-    void (deps.expand?.() ?? Promise.resolve(undefined))
-      .catch(() => undefined)
-      .then((expand) => {
-        if (!stillCurrent(deps)) return;
-        const id = store.reserve();
-        const { uid: _uid, ...shown } = draftToRow(accountId, calendarId, "", create);
-        return writeEventOptimistically(
-          store,
-          createChange(pendingEventRow(id, shown), create, expand),
-          () => createCalendarEvent({ targetFor: deps.targetFor }, accountId, calendarId, create),
-          (out) => out.rows.map((written) => createChange(written, create, expand)),
-          id,
-        );
-      })
-      .catch((error: unknown) => {
-        if (stillCurrent(deps)) toast.error(eventWriteRefusalText(error, "save"), { label: i18n.t("pim.eventWriteRetry"), run: again });
-      });
+    // Shown at once where nothing is to be loaded; else once the expansion is there.
+    if (!deps.expand) return write(undefined);
+    void deps.expand().catch(() => undefined).then(write);
   };
   toast.error(i18n.t("pim.eventCreateLost", { title }), { label: i18n.t("pim.eventWriteRetry"), run: again });
 }

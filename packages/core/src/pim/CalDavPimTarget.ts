@@ -552,9 +552,12 @@ export class CalDavPimTarget implements IPimTarget {
       }
       if (!isMissing(read.status) || at !== href || resend) return { href: at };
       // Before sending again: a server may keep the object under an address of
-      // its own without saying so - found by its UID, it is held there.
+      // its own without saying so - found by its UID, it is held there. Sent
+      // again only where the calendar says for certain it is not there: a
+      // server that cannot answer the question gets one object, as on main.
       const elsewhere = await this.findUid(collection, uid, what).catch(() => null);
-      if (elsewhere?.found) return { href: elsewhere.found };
+      if (!elsewhere) return { href };
+      if (elsewhere.found) return { href: elsewhere.found };
     }
   }
 

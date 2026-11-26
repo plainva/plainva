@@ -436,6 +436,25 @@ describe("a round of the watch outlives nothing (issue 119)", () => {
     expect(store.settledCreates()[0]!.denials).toBe(2);
   });
 
+  it("the overlay emptied while the provider is asked (the vault left): the round says nothing about what is gone", async () => {
+    expect.hasAssertions();
+    const error = vi.spyOn(toast, "error").mockImplementation(() => 0);
+    const store = new PendingEventWrites();
+    store.settle(store.begin(createChange(created, single)), undefined, 0);
+    const id = store.settledCreates()[0]!.id;
+    store.markAsked(id, 1, true);
+    store.markAsked(id, 2, true);
+    let answer!: (held: boolean) => void;
+    const asked = vi.fn(() => new Promise<boolean>((resolve) => (answer = resolve)));
+    const round = settleCreatedEvents(store, { cache: vault(), targetFor: async () => ({ provider: "caldav", eventExists: asked }) as never }, 60 * 60_000);
+    await vi.waitFor(() => expect(asked).toHaveBeenCalled());
+    store.clear();
+    answer(false);
+    await round;
+    expect(error).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
   it("the message is not shown for a vault that was left, and its 'Try again' creates nothing once the vault is left", () => {
     expect.hasAssertions();
     const error = vi.spyOn(toast, "error").mockImplementation(() => 0);

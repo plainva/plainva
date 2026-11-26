@@ -63,6 +63,8 @@ function laggingServer(options: {
   getStatus?: number;
   /** A sync lists objects before a read at their address finds them. */
   listEarly?: boolean;
+  /** No calendar-query at all (405). */
+  noReport?: boolean;
   /** The first PUT is stored, but its answer never arrives. */
   loseFirstAnswer?: boolean;
 }) {
@@ -129,6 +131,7 @@ function laggingServer(options: {
       objects.delete(url);
       return new Response(null, { status: 204 });
     }
+    if (method === "REPORT" && options.noReport) return new Response(null, { status: 405 });
     if (method === "REPORT") {
       // calendar-query on a UID: the shown objects that carry it.
       const uid = /<c:text-match[^>]*>([^<]*)</.exec(String(init?.body))?.[1] ?? "";
@@ -231,6 +234,13 @@ describe("CalDAV: a new event the server shows late", () => {
     const { target, objects } = laggingServer({ lagMs: 0, refuseFirst: true });
     await expect(target.createEvent(CAL, { ...weekly, createAs: "plainva-first-412" })).rejects.toThrow("caldav create event: 412");
     expect(objects.size).toBe(0);
+  });
+
+  it("a server that stores under an address of its own without saying so and cannot answer a UID query: one object, held - never a second send", async () => {
+    expect.hasAssertions();
+    const { target, objects } = laggingServer({ lagMs: 0, relocateSilently: true, noReport: true });
+    await expect(target.createEvent(CAL, { ...weekly, createAs: "plainva-p4" })).resolves.toEqual({ uid: "plainva-p4", href: `${CAL}plainva-p4.ics` });
+    expect(objects.size).toBe(1);
   });
 
   it("a later try writes over what an earlier one left: the server holds what this try sends (a task whose due date changed in between)", async () => {
