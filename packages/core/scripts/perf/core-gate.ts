@@ -54,6 +54,21 @@ const FLOOR_MS: Record<Exclude<keyof CoreMetrics, "dbBytes">, number> = {
 const scale = (result: CoreResult, key: keyof typeof FLOOR_MS): number =>
   key === "warmIndexMs" && result.fsWalkMs ? result.fsWalkMs : result.calibrationMs;
 
+const medianOf = (values: number[]) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
+
+/**
+ * A metric of the run as a ratio: a metric measured in rounds is read against
+ * the calibration (or walk) of its own round, and the median of the rounds is
+ * the run's ratio; the first index, run once, against the run's calibration.
+ */
+export function runRatio(result: CoreResult, key: keyof typeof FLOOR_MS): number {
+  const rounds = result.rounds ?? [];
+  if (key !== "coldIndexMs" && rounds.length > 0) {
+    return medianOf(rounds.map((round) => round[key] / (key === "warmIndexMs" ? round.fsWalkMs : round.calibrationMs)));
+  }
+  return result.metrics[key] / scale(result, key);
+}
+
 export interface EnvironmentBaseline {
   recorded: string;
   commit?: string;
@@ -87,7 +102,7 @@ export function toBaseline(result: CoreResult, commit?: string): EnvironmentBase
   const ratios: Record<string, number> = {};
   const ms: Record<string, number> = {};
   for (const key of Object.keys(FLOOR_MS) as (keyof typeof FLOOR_MS)[]) {
-    ratios[key] = Number((result.metrics[key] / scale(result, key)).toFixed(5));
+    ratios[key] = Number(runRatio(result, key).toFixed(5));
     ms[key] = result.metrics[key];
   }
   return {
@@ -130,7 +145,7 @@ export function judge(baseline: EnvironmentBaseline, result: CoreResult, toleran
   for (const key of Object.keys(FLOOR_MS) as (keyof typeof FLOOR_MS)[]) {
     const base = baseline.ratios[key];
     if (base === undefined) continue;
-    const now = result.metrics[key] / scale(result, key);
+    const now = runRatio(result, key);
     // What the baseline's ratio comes to on this run's machine speed.
     const expectedMs = base * scale(result, key);
     const worseMs = result.metrics[key] - expectedMs;
