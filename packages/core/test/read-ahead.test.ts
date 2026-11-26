@@ -1,0 +1,264 @@
+import { beforeEach, describe, expect, it } from "vitest";
+import { createReadAhead } from "../src/vault/readAhead.js";
+
+beforeEach(() => {
+  expect.hasAssertions();
+});
+
+/**
+ * The full scan reads its files ahead of the loop that indexes them
+ * . What the read-ahead must hold, whatever order the
+ * reads come back in: each reading is handed out for its own item and in the
+ * order asked; never more reads at once than allowed, nor more weight ahead
+ * than allowed — and an item heavier than the whole bound is still read, on
+ * its own; after `stop` nothing new starts.
+ */
+
+/** A reader whose answers the test releases one by one, in any order. */
+function controlledReader() {
+  const pending: Array<{ group: number[]; resolve: (r: string[]) => void }> = [];
+  let inFlight = 0;
+  let most = 0;
+  const read = (group: readonly number[]) => {
+    inFlight++;
+    most = Math.max(most, inFlight);
+    return new Promise<string[]>((resolve) => {
+      pending.push({ group: [...group], resolve: (r) => { inFlight--; resolve(r); } });
+    });
+  };
+  const answer = (index = 0) => {
+    const [call] = pending.splice(index, 1);
+    call.resolve(call.group.map((i) => `read ${i}`));
+  };
+  return { read, pending, answer, most: () => most, inFlight: () => inFlight };
+}
+
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+describe("createReadAhead", () => {
+  it("hands each item its own reading, in order, while answers come back out of order", async () => {
+    const items = Array.from({ length: 20 }, (_, i) => i);
+    const reader = controlledReader();
+    const ahead = createReadAhead(items, reader.read, { groups: 4 });
+    const taken: Array<Promise<string>> = [];
+    taken.push(ahead.take(0));
+    await flush();
+    expect(reader.pending.length).toBe(4);
+    // Answers in reverse order of asking.
+    while (reader.pending.length > 0) {
+      reader.answer(reader.pending.length - 1);
+      await flush();
+    }
+    for (let i = 1; i < items.length; i++) {
+      taken.push(ahead.take(i));
+      await flush();
+      while (reader.pending.length > 0) {
+        reader.answer(reader.pending.length - 1);
+        await flush();
+      }
+    }
+    expect(await Promise.all(taken)).toEqual(items.map((i) => `read ${i}`));
+    expect(reader.most()).toBe(4);
+  });
+
+  it("never has more than `groups` reads at once, of at most `groupSize` items", async () => {
+    const items = Array.from({ length: 50 }, (_, i) => i);
+    const sizes: number[] = [];
+    let inFlight = 0;
+    let most = 0;
+    const ahead = createReadAhead(items, async (group) => {
+      sizes.push(group.length);
+      inFlight++;
+      most = Math.max(most, inFlight);
+      await flush();
+      inFlight--;
+      return group.map(String);
+    }, { groups: 2, groupSize: 8 });
+    const out: string[] = [];
+    for (let i = 0; i < items.length; i++) out.push(await ahead.take(i));
+    expect(out).toEqual(items.map(String));
+    expect(most).toBeLessThanOrEqual(2);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(8);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBe(items.length);
+  });
+
+  it("bounds what is ahead by weight, and reads an item heavier than the bound on its own", async () => {
+    const MB = 1024 * 1024;
+    // Four films of 200 MB between small notes.
+    const weights = [1, 200 * MB, 1, 200 * MB, 200 * MB, 1, 1, 200 * MB, 1];
+    const items = weights.map((w, i) => ({ i, w }));
+    const reader = controlledReader();
+    const started = new Set<number>();
+    const read = (group: readonly number[]) => {
+      for (const x of group) started.add(x);
+      return reader.read(group);
+    };
+    const ahead = createReadAhead(items.map((x) => x.i), read, { groups: 8, maxWeight: 16 * MB, weightOf: (i) => weights[i] });
+    const out: string[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const reading = ahead.take(i);
+      await flush();
+      // What has been started and not yet taken never holds two films: past
+      // the bound only where it is a single item.
+      const aheadOfTaken = reader.pending.flatMap((c) => c.group).filter((x) => x > i);
+      const weightAhead = aheadOfTaken.reduce((sum, x) => sum + weights[x], 0);
+      expect(weightAhead <= 16 * MB || aheadOfTaken.length === 1).toBe(true);
+      while (reader.pending.length > 0) {
+        reader.answer(0);
+        await flush();
+      }
+      out.push(await reading);
+    }
+    expect(out).toEqual(items.map((x) => `read ${x.i}`));
+    expect(started.size).toBe(items.length);
+  });
+
+  it("starts nothing more after stop, and still hands out what it began", async () => {
+    const items = Array.from({ length: 30 }, (_, i) => i);
+    const reader = controlledReader();
+    const ahead = createReadAhead(items, reader.read, { groups: 4 });
+    const first = ahead.take(0);
+    await flush();
+    expect(reader.pending.length).toBe(4);
+    ahead.stop();
+    while (reader.pending.length > 0) {
+      reader.answer(0);
+      await flush();
+    }
+    expect(await first).toBe("read 0");
+    let i = 1;
+    for (; i < items.length && ahead.started(i); i++) expect(await ahead.take(i)).toBe(`read ${i}`);
+    await flush();
+    expect(i).toBe(4);
+    expect(reader.pending.length).toBe(0);
+  });
+
+  it("stop waits for nothing, also not for a read that never answers; nothing reads on after it", async () => {
+    const reader = controlledReader();
+    const ahead = createReadAhead(Array.from({ length: 10 }, (_, i) => i), reader.read, { groups: 3 });
+    void ahead.take(0);
+    await flush();
+    expect(reader.pending.length).toBe(3);
+    // The vault closes: one of the three never answers. Stop returns at once.
+    expect(ahead.stop()).toBeUndefined();
+    reader.answer(0);
+    reader.answer(0);
+    await flush();
+    // What came in starts nothing new; the third read stays out for good.
+    expect(reader.pending.length).toBe(1);
+    expect(reader.inFlight()).toBe(1);
+  });
+
+  it("weighs a reading by what was read once it is in, not by the listing", async () => {
+    const MB = 1024 * 1024;
+    // The listing says nothing; each file read is 20 MB, more than the bound.
+    const reader = { pending: [] as Array<{ group: number[]; resolve: (r: number[]) => void }> };
+    const read = (group: readonly number[]) => new Promise<number[]>((resolve) => reader.pending.push({ group: [...group], resolve }));
+    const ahead = createReadAhead(Array.from({ length: 20 }, (_, i) => i), read, {
+      groups: 4, maxWeight: 16 * MB, weightOf: () => 0, weighResult: (bytes: number) => bytes,
+    });
+    void ahead.take(0);
+    await flush();
+    // The listing weighs nothing: four reads start, the count bound.
+    expect(reader.pending.flatMap((c) => c.group)).toEqual([0, 1, 2, 3]);
+    for (const call of reader.pending.splice(0)) call.resolve(call.group.map(() => 20 * MB));
+    await flush();
+    await flush();
+    // What came in holds the bound with its real weight: nothing more starts
+    // while readings beyond the bound are ahead.
+    expect(reader.pending.length).toBe(0);
+    const takenNext = ahead.take(1);
+    await flush();
+    await takenNext;
+    expect(reader.pending.length).toBe(0);
+  });
+
+  it("a reading taken after stop that was never begun is read all the same", async () => {
+    const ahead = createReadAhead([0, 1], async (group) => group.map(String), { groups: 1 });
+    ahead.stop();
+    expect(await ahead.take(0)).toBe("0");
+    expect(await ahead.take(1)).toBe("1");
+  });
+
+  it("hands each reading out once, in order", async () => {
+    const ahead = createReadAhead([0, 1, 2], async (group) => group.map(String));
+    expect(() => ahead.take(1)).toThrow(/once, in order/);
+    await ahead.take(0);
+    expect(() => ahead.take(0)).toThrow(/once, in order/);
+    await ahead.take(1);
+    await ahead.take(2);
+    expect(() => ahead.take(3)).toThrow(/once, in order/);
+  });
+
+  it("a read that answers for another number of items fails the readings of that group", async () => {
+    const ahead = createReadAhead([0, 1], async () => ["only one"], { groupSize: 2 });
+    await expect(ahead.take(0)).rejects.toThrow(/another number/);
+  });
+
+  it("ends a waiting take at once when the pass is called off, however long the read takes", async () => {
+    const leaving = new AbortController();
+    const never = new Promise<string[]>(() => {});
+    const ahead = createReadAhead([0, 1], () => never, { signal: leaving.signal });
+    const taken = ahead.take(0);
+    await flush();
+    leaving.abort(new Error("the vault is closed"));
+    await expect(taken).rejects.toThrow(/the vault is closed/);
+  });
+
+  it("keeps the weight of what was taken where the caller holds it (holdTaken)", async () => {
+    const MB = 1024 * 1024;
+    const started: number[] = [];
+    const ahead = createReadAhead(Array.from({ length: 6 }, (_, i) => i), async (group) => {
+      started.push(...group);
+      return group.map(() => 9 * MB);
+    }, { groups: 4, maxWeight: 16 * MB, weightOf: () => 9 * MB, weighResult: (bytes: number) => bytes, holdTaken: true });
+    expect(await ahead.take(0)).toBe(9 * MB);
+    await flush();
+    await flush();
+    // One taken, held: a second of 9 MB would pass the bound, so none is read ahead.
+    expect(started).toEqual([0]);
+    expect(await ahead.take(1)).toBe(9 * MB);
+    await flush();
+    expect(started).toEqual([0, 1]);
+  });
+
+  it("weighs a reading taken before it came in by what was read, where the caller holds it", async () => {
+    const MB = 1024 * 1024;
+    // The listing says 1 KB; each file holds 50 MB.
+    const reader = controlledReader();
+    const answers = new Map<number, number>();
+    const ahead = createReadAhead(Array.from({ length: 6 }, (_, i) => i), async (group) => {
+      const out = await reader.read(group);
+      return out.map((_, k) => answers.get(group[k]) ?? 0);
+    }, { groups: 2, maxWeight: 16 * MB, weightOf: () => 1024, weighResult: (bytes: number) => bytes, holdTaken: true });
+    const first = ahead.take(0);
+    await flush();
+    // Two reads start: the listing weighs next to nothing.
+    expect(reader.pending.flatMap((c) => c.group)).toEqual([0, 1]);
+    // Only the one already taken turns out heavy.
+    answers.set(0, 50 * MB);
+    answers.set(1, 1024);
+    reader.answer(0);
+    reader.answer(0);
+    await first;
+    await flush();
+    await flush();
+    // Item 0 was taken before its 50 MB came in: they count, and nothing more starts.
+    expect(reader.pending).toEqual([]);
+  });
+
+  it("never runs more than groups × groupSize readings ahead of the caller, however fast they come in", async () => {
+    const started: number[] = [];
+    const ahead = createReadAhead(Array.from({ length: 40 }, (_, i) => i), async (group) => {
+      started.push(...group);
+      return group.map(String);
+    }, { groups: 4 });
+    await ahead.take(0);
+    for (let i = 0; i < 20; i++) await flush();
+    // Item 0 taken: at most four more read ahead of the caller, though each came in at once.
+    expect(Math.max(...started)).toBeLessThanOrEqual(4);
+    await ahead.take(1);
+    for (let i = 0; i < 20; i++) await flush();
+    expect(Math.max(...started)).toBeLessThanOrEqual(5);
+  });
+});

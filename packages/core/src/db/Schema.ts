@@ -7,6 +7,7 @@ import { runStatementsAtomic } from "./batch.js";
 import { FIRST_ROWID_BEFORE, FULL_TEXT_SENTINEL, fullTextRowOf, UNNUMBERED_FLAG } from "./fullTextRows.js";
 import { segmentedIndexText, SPACELESS_GLOB } from "../vault/spacelessText.js";
 import { INDEX_CHANGES_SCHEMA } from "./indexChanges.js";
+import { NOTE_TASKS_GO_WITH_THEIR_FILE, NOTE_TASKS_TABLE } from "./noteTasks.js";
 import { OWN_REMOVAL_NOTE_PREFIX } from "../sync/ownRemovalNoteKey.js";
 import { FULL_TEXT_DAMAGED_MARK, fullTextDamageNoted, isDamagedFullText, noteFullTextRebuildFailed } from "./fullTextDamage.js";
 
@@ -751,6 +752,13 @@ async function bringSchemaUp(db: IDatabaseAdapter): Promise<void> {
        INSERT OR REPLACE INTO meta (key, value) VALUES ('${UNNUMBERED_FLAG}', '1');
      END`
   );
+
+  // The task table (db/noteTasks.ts): additive, no format of its own. An
+  // index from before it, or rows a build without it wrote, are filled in by
+  // the next full pass from the index's own text; until then the list of
+  // tasks reads those notes' text as it always did.
+  await db.execute(NOTE_TASKS_TABLE);
+  await db.execute(NOTE_TASKS_GO_WITH_THEIR_FILE);
 
   // A note of the sync's own removal (`ownRemovalNotes.ts`) is bound to the
   // file's sync row: wherever the row goes — recorded, renamed away, dropped

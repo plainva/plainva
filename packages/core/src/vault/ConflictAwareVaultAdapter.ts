@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, VaultUnreachableError, vaultFolderIsThere, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, VaultListing, VaultFileInfo, VaultFileNotFoundError, VaultUnreachableError, vaultFolderIsThere, type TextChange, type TextFileChange, type TextFileState, type TextFileUpdate, type VaultWalkOptions, indexReadsOf } from "./IVaultAdapter.js";
 import type { SyncStateRepository, SyncState } from "./SyncStateRepository.js";
 import { mergeText, mergeEditorText, containsTextChanges } from "../conflict-resolver.js";
 import { WORKSPACE_FORKS_FOLDER, isPlainvaInternalPath, parseBackupFileName } from "./backupNaming.js";
@@ -120,6 +120,12 @@ async function sha256BytesHex(bytes: Uint8Array): Promise<string> {
  * a file — a restored version, a copy that takes its place — writes bytes.
  */
 export class ConflictAwareVaultAdapter implements IVaultAdapter {
+  /**
+   * Handed on from the inner adapter where it has one (`indexReadsOf`); the
+   * texts it hands out are noted as `readTextFile` notes its own
+   * (`noteReading`): the index's reading of a file is a reading handed out.
+   */
+  readonly readFilesForIndex?: IVaultAdapter["readFilesForIndex"];
   private readonly sessions: ConflictSessions;
   constructor(
     private readonly inner: IVaultAdapter,
@@ -140,7 +146,19 @@ export class ConflictAwareVaultAdapter implements IVaultAdapter {
      * anything, and neither is turned here.
      */
     private readonly onLineEndsConverted?: (path: string, eol: TextFileShape["eol"]) => void
-  ) { this.sessions = new ConflictSessions(inner, syncRepo, mutationScope); }
+  ) {
+    this.sessions = new ConflictSessions(inner, syncRepo, mutationScope);
+    const many = indexReadsOf(inner);
+    this.readFilesForIndex = many
+      ? async (requests) => {
+          const answers = await many(requests);
+          answers.forEach((answer, i) => {
+            if (answer?.kind === "text" && requests[i]) this.noteReading(requests[i].path, answer.text);
+          });
+          return answers;
+        }
+      : undefined;
+  }
 
   /**
    * What a write leaves on disk where `before` lies. A carriage return of its

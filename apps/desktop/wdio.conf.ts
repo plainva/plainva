@@ -82,7 +82,7 @@ const slug = (title: string) => title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-
 
 export const config: WebdriverIO.Config = {
   runner: "local",
-  specs: ["./wdio/smoke.e2e.ts"],
+  specs: ["./wdio/smoke.e2e.ts", "./wdio/indexRead.e2e.ts"],
   maxInstances: 1,
   capabilities: [
     {
