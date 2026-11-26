@@ -365,6 +365,8 @@ let bootSettled = false;
 let bootAbort: AbortController | null = null;
 /** The vault the running start opens, once known: a retired start is parked under it (`retireBoot`). */
 let bootEntry: VaultEntry | null = null;
+/** The registry's answer for the running start — which vault it opens — before the start itself answers. */
+let bootEntryAnswer: Promise<VaultEntry | null> = Promise.resolve(null);
 /**
  * Where the runtime on screen stands — one state, set where it changes, never
  * read off something else (review B2, round 6):
@@ -432,7 +434,9 @@ export function getMobileVault(): Promise<MobileVault> {
     bootAbort = abort;
     bootSettled = false;
     bootEntry = null;
-    const starting: Promise<MobileVault> = getActiveVaultEntry().then((entry) => {
+    const asked = getActiveVaultEntry();
+    bootEntryAnswer = asked.then((entry) => entry, () => null);
+    const starting: Promise<MobileVault> = asked.then((entry) => {
       if (bootAbort === abort) bootEntry = entry;
       if (abort.signal.aborted) throw retiredStart();
       return boot(entry, abort.signal);
@@ -853,12 +857,14 @@ async function switchTo(id: string, turn: ScreenTurn): Promise<void> {
     if (leaving !== undefined && leaving !== id) {
       const now = await getActiveVaultEntry().catch(() => null);
       if (now?.id !== leaving) {
-        // Where the way back fails too (the registry, or the settings slice of the vault on screen), the runtime does
-        // not stay: open on screen while the registry or the settings name the other vault is no cell of the table
-        // (review B2, round 8, MG4). It is left for good, and what the registry names opens.
+        // Where the way back fails too (the registry wrote the other vault, and cannot be set back), the runtime does
+        // not stay: open on screen while the registry names the other vault is no cell of the table (review B2,
+        // round 8, MG4). It is left for good, and what the registry names opens.
+        // (The settings slice keeps the old store where it cannot be read: `reloadMobileSettingsForActiveVault`
+        // catches its own failures, so only the registry decides.)
         const back = await setActiveVault(leaving).then(() => true, (e: unknown) => { console.error("[switch] the vault on screen could not be made active again", e); return false; });
-        const settings = await reloadMobileSettingsForActiveVault().then(() => true, () => false);
-        if (!back || !settings) turn.abandon();
+        await reloadMobileSettingsForActiveVault().catch(() => {});
+        if (!back) turn.abandon();
       }
     }
     throw error;
@@ -1188,10 +1194,11 @@ export async function deleteVault(id: string): Promise<string[]> {
   for (;;) {
     await syncReleased(id);
     const removed = await inScreenTransitions(async () => {
-      // Opened again meanwhile (a switch back to it, a step's renew): nothing of it is removed under its runtime. A
-      // start still opening has its answer first — which vault it opens is known only then (found by the model,
-      // review B2, round 8); a start does not wait on this queue.
-      if (screen.state === "opening") await bootPromise?.catch(() => null);
+      // Opened again meanwhile (a switch back to it, a step's renew): nothing of it is removed under its runtime. Of a
+      // start still opening only the registry's answer is waited for — which vault it opens (found by the model,
+      // review B2, round 8) — never the start itself, which may wait for a runtime ending that only a later
+      // transition retires (review B2, round 10, MG1).
+      if (screen.state === "opening" && !bootEntry) await bootEntryAnswer;
       if (onScreen() || runtimeOnScreen()?.vaultId === id) throw new Error("the vault is still open");
       if (vaultSyncHeld(id)) return null;
       const release = holdVaultSync(id);

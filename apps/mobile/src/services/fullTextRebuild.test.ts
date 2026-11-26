@@ -30,7 +30,7 @@ ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
 });
 const compiled = ts.transpileModule(
-  "let screenTransitions = Promise.resolve(); let bootPromise = Promise.resolve(initial); let screen = { state: 'open', of: bootPromise, runtime: initial }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null;\n" +
+  "let screenTransitions = Promise.resolve(); let bootPromise = Promise.resolve(initial); let screen = { state: 'open', of: bootPromise, runtime: initial }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let bootEntryAnswer = Promise.resolve(null);\n" +
     "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\"; const LOCAL_VAULT_ID = \"local\";\n" +
     parts.join("\n") +
     "\nreturn { rebuildActiveIndexDatabase };",

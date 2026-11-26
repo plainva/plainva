@@ -30,7 +30,7 @@ ts.forEachChild(file, (node) => {
 const found = parts.map((part) => /function (\w+)/.exec(part)?.[1]);
 for (const name of ["deleteVault", "switchVault", "retireBoot"]) if (!found.includes(name)) throw new Error(`${name} missing`);
 const compiled = ts.transpileModule(
-  "let screenTransitions = Promise.resolve(); let bootPromise = null; let screen = { state: 'none', of: null, runtime: null }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let previousVaultId = null; let switching = null;\n" +
+  "let screenTransitions = Promise.resolve(); let bootPromise = null; let screen = { state: 'none', of: null, runtime: null }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let bootEntryAnswer = Promise.resolve(null); let previousVaultId = null; let switching = null;\n" +
     "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const LOCAL_VAULT_ID = \"local\";\n" +
     parts.join("\n") +
     "\nreturn { deleteVault, setBoot: (p, settled) => { bootPromise = p; bootSettled = settled; screen = { state: 'opening', of: p, runtime: null }; void p.then((v) => { if (screen.of === p && screen.state === 'opening') screen = { state: 'open', of: p, runtime: v }; }); } };",

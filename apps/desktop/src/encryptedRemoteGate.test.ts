@@ -143,6 +143,23 @@ describe("a held folder (R8)", () => {
     expect(await encryptedRemoteDismissable(locked.ports)).toBe(true);
   });
 
+  it("weaker knowledge never replaces stronger: a departure that cannot tell keeps the one noted before (review B2, round 10, MG2)", async () => {
+    expect.hasAssertions();
+    const ended = await workspace("Ended");
+    // The only device ended it: released. Pressed again without a runtime, nobody can tell — and the release stays.
+    const m = memory();
+    await markEncryptedRemoteDeparted(m.ports, workspaceDeparture(ended.runtime));
+    await markEncryptedRemoteDeparted(m.ports, workspaceDeparture(null));
+    expect(await held(m, async () => ended.bytes)).toEqual({ kind: "plain" });
+    // The same for a departure that knew other devices use the folder.
+    const { runtime, bytes } = await workspace();
+    applyWorkspaceGovernanceUpdate(runtime, await inviteWorkspaceMember({ runtime, displayName: "Anna", role: "Editor" }));
+    const others = memory();
+    await markEncryptedRemoteDeparted(others.ports, workspaceDeparture(runtime));
+    await markEncryptedRemoteDeparted(others.ports, workspaceDeparture(null));
+    expect(await held(others, async () => bytes)).toEqual({ kind: "left", peers: "others" });
+  });
+
   it("a lifted workspace whose objects stay: plain for the device that ended it, pair-required for any other", async () => {
     const lifted = await workspace();
     const ender = memory();

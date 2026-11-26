@@ -189,7 +189,7 @@ ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
 });
 const compiled = ts.transpileModule(
-  "let bootPromise = null; let bootSettled = false; let bootAbort = null; let bootEntry = null; let screen = { state: 'none', of: null, runtime: null }; let screenBoot = null; let deferredReload = null;\n" +
+  "let bootPromise = null; let bootSettled = false; let bootAbort = null; let bootEntry = null; let screen = { state: 'none', of: null, runtime: null }; let screenBoot = null; let deferredReload = null; let bootEntryAnswer = Promise.resolve(null);\n" +
     "let previousVaultId = null; let switching = null; let screenTransitions = Promise.resolve(); const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = 'vault-reload';\n" +
     // The module's boot, cut to its waits: before and in the wait for a runtime of the vault still closing (text 7),
     // after the check that the start was not retired, and before it answers.
@@ -995,30 +995,69 @@ describe("review B2, round 7 — the ways out the model did not have", () => {
 });
 
 describe("review B2, round 8", () => {
-  it("R8-T1 (MG4): a switch whose settings fail and whose way back fails too leaves the runtime for good — what the registry names opens", async () => {
+  it("R8-T1 (MG4, H1): a registry write that wrote the other vault and then failed, and a way back that fails too — the runtime is left for good, what the registry names opens", async () => {
     expect.hasAssertions();
     const h = harness();
     const first = await openFirst(h);
     const orig = m.wait;
     let once = false;
     m.wait = (label) => {
-      if (label === "settings" && !once) {
+      if (label === "registry write" && !once) {
         once = true;
-        // From now on the registry cannot be written: the switch's catch cannot make `notes` active again.
-        return orig(label).then(() => { m.failActive = true; throw new Error("settings unreadable"); });
+        // The registry took `work` and then failed (its answer lost); from now on it cannot be written: the switch's
+        // catch cannot make `notes` active again. (The settings never throw: `reloadMobileSettingsForActiveVault`.)
+        return orig(label).then(() => { m.active = "work"; m.failActive = true; throw new Error("registry write lost its answer"); });
       }
       return orig(label);
     };
     const failing = h.api.switchVault("work").then(() => "switched", (e: Error) => e.message);
     await until(h, failing);
+    m.failActive = false;
     await h.drain(() => runningOn().length > 0);
-    expect(await failing).toBe("settings unreadable");
+    expect(await failing).toBe("registry write lost its answer");
     // THE DEFECT: `notes` came back open on screen while the registry named `work`.
     expect((h.api.runtimeOnScreen() as Runtime | null)?.vaultId).toBe(m.active);
+    expect(m.active).toBe("work");
     expect(first.disposed).toBe(1);
-    expect(runningOn().map((w) => (w.runtime as Runtime).vaultId)).toEqual([m.active]);
+    expect(runningOn().map((w) => (w.runtime as Runtime).vaultId)).toEqual(["work"]);
     expect(h.violations).toEqual([]);
   });
+
+  for (const answers of [false, true]) {
+    it(`D1${answers ? "b" : ""} (MG1): a switch made while the delete's removal turn finds the local start opening ${answers ? "— and that start answers later" : "— a start that does not answer"}: nothing in the turn waits for the start`, async () => {
+      expect.hasAssertions();
+      const h = harness();
+      await openFirst(h);
+      const orig = m.wait;
+      let open!: () => void;
+      const held = new Promise<void>((r) => (open = r));
+      let hit = false;
+      // The local vault's start waits for a runtime of `local` still ending (`waitForClosingVault`), until let go.
+      m.wait = (label) => {
+        if (!hit && label === "boot: in the close") { hit = true; return held; }
+        return orig(label);
+      };
+      const del = h.api.deleteVault("notes").then(() => "removed", (e: Error) => e.message);
+      let delDone = false;
+      void del.then(() => { delDone = true; });
+      await h.drain(() => hit && h.api.screenState() === "opening");
+      const sw = h.api.switchVault("work").then(() => "switched", (e: Error) => e.message);
+      let swDone = false;
+      void sw.then(() => { swDone = true; });
+      // THE DEFECT (MG1): the removal's turn waited for that start in the queue, and the switch behind it with it.
+      expect(await h.drain(() => swDone && delDone), "the switch and the delete come through").toBe(true);
+      expect(await del).toBe("removed");
+      expect(await sw).toBe("switched");
+      expect(m.removed).toEqual(["notes"]);
+      if (answers) {
+        open();
+        await h.drain(() => true);
+        expect((h.api.runtimeOnScreen() as Runtime | null)?.vaultId).toBe("work");
+      } else {
+        expect((h.api.runtimeOnScreen() as Runtime | null)?.vaultId).toBe("work");
+      }
+    });
+  }
 
   it("R8-T2: a delete while the vault's reload waits behind someone's input — the hold goes with the runtime, the removal runs, nothing stays held", async () => {
     expect.hasAssertions();

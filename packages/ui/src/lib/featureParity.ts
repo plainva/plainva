@@ -1366,6 +1366,29 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-09-03",
   },
   {
+    id: "workspace-leaving-interrupted",
+    title: "Leaving an encrypted workspace when the step is interrupted midway (decommission, lift)",
+    area: "security",
+    kind: "gap",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Both shells finish nothing by themselves and sync nothing plain while a " +
+      "leaving is half done. The desktop clears its gate (the keychain entry) " +
+      "last: interrupted before it, the vault stays a workspace that syncs " +
+      "encrypted, and a lift can be pressed again because its runtime knows " +
+      "whether this device is the workspace's only one. The phone clears its " +
+      "gate (the status) first, as it always did: interrupted past it, the vault " +
+      "opens without its workspace, its sync stays held, and the Security area " +
+      "says so (decommissionUnfinished, liftUnfinished). Without a runtime nobody " +
+      "can tell whether other devices use the folder, so a lift can only be " +
+      "finished as a decommission and the folder stays theirs (left). Closing " +
+      "the gap needs the phone to keep what it knew of the workspace past its " +
+      "gate. In the maintainer's open-items plan since 2026-11-26 (review B2, " +
+      "round 10, MG3).",
+    verified: "2026-11-26",
+  },
+  {
     id: "workspace-passphrase-change",
     title: "Change the passphrase that seals the keys on this device",
     area: "security",

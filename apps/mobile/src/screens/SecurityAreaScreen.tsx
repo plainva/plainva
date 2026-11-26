@@ -16,9 +16,10 @@ import { vaultEntryName } from "../services/vaultEntryName";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, mobileEncryptedRemotePorts, quarantineSync, restartSyncIfActive, withRuntimeStep } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, mobileDecommissionUnfinished, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core/workspace";
+import { leaveWorkspaceStep, unfinishedLeavingText } from "../services/workspaceLeaving";
 import { AppBar } from "../components/AppBar";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
@@ -75,19 +76,6 @@ async function stepVaultName(vaultId: string): Promise<string> {
   return vaultEntryName((await getVaultEntry(vaultId).catch(() => null))?.name);
 }
 
-/**
- * The sync stopped for a step on the workspace, within the deadline (the
- * step's `stop`, `withRuntimeStep`): where the vault had to be left, the step
- * goes on with the new runtime's workspace state.
- */
-async function stopSyncLeaving(vault: MobileVault, stop: () => Promise<MobileVault>, renewedTo?: (fresh: MobileVault) => void): Promise<{ state: SqlWorkspaceStateStore | null } | null> {
-  const on = await stop();
-  if (on === vault) return null;
-  renewedTo?.(on);
-  // A vault whose decommission stopped midway opens without its workspace: its state is read from its database.
-  return { state: on.workspaceState ?? (on.db ? new SqlWorkspaceStateStore(on.db) : null) };
-}
-
 export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorkspace, initialArea }: {
   vault: MobileVault;
   /** The part a settings search hit opens ("Your access", "Sharing"). */
@@ -122,7 +110,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   /** A lift under way: when it started and how many files still wait in the plaintext queue (4.6). */
   const [lift, setLift] = useState<{ since: string; pending: number } | null>(null);
   /** A decommission or lift that passed its gate and stopped: offered again here, never finished by itself (`mobileDecommissionUnfinished`). */
-  const [unfinished, setUnfinished] = useState<"decommission" | "lift" | null>(null);
+  const [unfinished, setUnfinished] = useState<Awaited<ReturnType<typeof unfinishedLeavingText>>>(null);
   // The desktop's second level (settings plan 2026-10-29, E12): an overview
   // with two ways in — "Your access" (devices, recovery) and "Sharing"
   // (members, groups, slices, publications) — from the shared security
@@ -189,7 +177,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   const refresh = useCallback(async () => {
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
-    setUnfinished(await mobileDecommissionUnfinished(vault.vaultId).catch(() => null));
+    setUnfinished(await unfinishedLeavingText(vault.vaultId));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
     setLocalForks(vault.workspaceState ? await vault.workspaceState.listLocalForks() : []);
     setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
@@ -784,20 +772,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     if (!ok) return;
     setBusyAction("lift");
     try {
-      // The step holds the vault's sync from here to its reload (`withRuntimeStep`).
-      await withRuntimeStep({ vaultId: vault.vaultId, runtime: vault }, {
-        work: async (stop) => {
-          let on = vault;
-          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop, (fresh) => { on = fresh; }), runtime: vault.workspaceRuntime, intent: "lift" });
-          // The queue table lives in the vault's own database, which is still open
-          // here — the reload below boots a plain vault whose worker drains it.
-          await on.syncQueue?.enqueueAllLocalFiles();
-          await markMobileEncryptionLift(vault.vaultId);
-          toast.info(t("workspaceSecurity.liftEncryptionDone"));
-        },
-        // Its own runtime reloaded, and only that one (`withRuntimeStep`).
-        reload: { own: "security-area" },
-      });
+      // The step holds the vault's sync from here to its reload (`leaveWorkspaceStep`).
+      await leaveWorkspaceStep(vault, "lift", () => toast.info(t("workspaceSecurity.liftEncryptionDone")));
     } catch (error) {
       console.error("[SecurityAreaScreen] lift encryption failed", error);
       if (!stepFailureSaid(error, await stepVaultName(vault.vaultId))) toast.error(`${t("workspaceSecurity.liftEncryptionFailed")} ${errorText(error)}`);
@@ -821,18 +797,9 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     }
     setBusyAction("decommission");
     try {
-      // The step holds the vault's sync from here to its reload (`withRuntimeStep`).
-      await withRuntimeStep({ vaultId: vault.vaultId, runtime: vault }, {
-        work: async (stop) => {
-          // Also a decommission that stopped midway, pressed again: the vault opened without its workspace, and its
-          // state is read from its database.
-          const state = vault.workspaceState ?? (vault.db ? new SqlWorkspaceStateStore(vault.db) : null);
-          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state, stopSync: () => stopSyncLeaving(vault, stop), runtime: vault.workspaceRuntime });
-          toast.info(t("workspaceSecurity.decommissionDone"));
-        },
-        // Its own runtime reloaded, and only that one (`withRuntimeStep`).
-        reload: { own: "security-area" },
-      });
+      // The step holds the vault's sync from here to its reload (`leaveWorkspaceStep`); also a decommission that
+      // stopped midway, pressed again.
+      await leaveWorkspaceStep(vault, "decommission", () => toast.info(t("workspaceSecurity.decommissionDone")));
     } catch (error) {
       console.error("[SecurityAreaScreen] workspace decommission failed", error);
       if (!stepFailureSaid(error, await stepVaultName(vault.vaultId))) toast.error(`${t("workspaceSecurity.decommissionFailed")} ${errorText(error)}`);
@@ -887,7 +854,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           disabled={busy}
           icon={busyAction === "decommission" ? <span className="m-actionspin" aria-hidden /> : <ShieldOff className="m-danger" size={ICON.ui} />}
           onClick={() => void decommission()}
-          subtitle={unfinished === "lift" ? t("workspaceSecurity.liftUnfinished") : t("workspaceSecurity.decommissionUnfinished")}
+          subtitle={unfinished === "workspaceSecurity.liftUnfinished" ? t("workspaceSecurity.liftUnfinished") : t("workspaceSecurity.decommissionUnfinished")}
           title={<span className="m-danger">{t("workspaceSecurity.decommission")}</span>}
         /></RowList></GroupCard>
       )}

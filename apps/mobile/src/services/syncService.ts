@@ -918,6 +918,16 @@ if (typeof window !== "undefined") window.addEventListener("online", () => { ask
 async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, rawTarget: ISyncTarget, generation: number): Promise<boolean> {
   try {
     const ports = await mobileEncryptedRemotePorts(v.vaultId);
+    // A decommission (or a lift) that passed its gate and stopped (review B2, rounds 8 to 10): never a sync on it —
+    // held, and said, until the person finishes it in the Security area. Asked first, before the workspace a runtime
+    // still carries in memory: past the gate that runtime is no valid one any more, and its encrypted worker never
+    // runs again on a workspace half gone. Only that fact holds it, never leftovers.
+    const leaving = await mobileDecommissionUnfinished(v.vaultId).catch(() => null);
+    if (leaving) {
+      held = { vaultId: v.vaultId, attempt: 0 };
+      setState({ status: "error", message: i18n.t(leaving === "lift" ? "workspaceSecurity.liftUnfinished" : "workspaceSecurity.decommissionUnfinished"), errorKind: "pair-required" });
+      return true;
+    }
     if (v.workspaceRuntime) {
       // A member with its keys: the encrypted worker runs. The knowledge stays.
       await markEncryptedRemoteJoined(ports, workspaceDeparture(v.workspaceRuntime).workspace);
@@ -931,14 +941,6 @@ async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, raw
       await markEncryptedRemoteJoined(ports);
       held = { vaultId: v.vaultId, attempt: 0 };
       setState({ status: "error", message: i18n.t(status.phase === "locked" ? "workspaceSecurity.lockedMessage" : "workspaceSecurity.keyBundleMissingMessage"), errorKind: "pair-required" });
-      return true;
-    }
-    // A decommission (or a lift) that passed its gate and stopped (review B2, rounds 8 and 9): never the plain sync on
-    // it — held, and said, until the person finishes it in the Security area. Only that fact holds it, never leftovers.
-    const leaving = await mobileDecommissionUnfinished(v.vaultId).catch(() => null);
-    if (leaving) {
-      held = { vaultId: v.vaultId, attempt: 0 };
-      setState({ status: "error", message: i18n.t(leaving === "lift" ? "workspaceSecurity.liftUnfinished" : "workspaceSecurity.decommissionUnfinished"), errorKind: "pair-required" });
       return true;
     }
     const binding = await mobileSyncBinding(v, p);
@@ -1229,7 +1231,15 @@ export async function stopSyncForStep(step: StepTarget, options: { say?: boolean
  */
 export async function withRuntimeStep<T>(
   step: StepTarget,
-  run: { work(stop: () => Promise<MobileVault>): Promise<T>; reload?: { own: string; when?: (result: T) => boolean } },
+  run: {
+    work(stop: () => Promise<MobileVault>): Promise<T>;
+    /**
+     * The step's own reload: after it succeeded (`when`), and — `afterFailure` — after a failure that left the
+     * runtime no valid one (a decommission past its gate): that runtime is never given its sync back, it is opened
+     * anew, as the desktop does (`leaveWorkspace`).
+     */
+    reload?: { own: string; when?: (result: T) => boolean; afterFailure?: () => Promise<boolean> };
+  },
   options: { say?: boolean } = {},
 ): Promise<T> {
   const release = holdVaultSync(step.vaultId);
@@ -1245,7 +1255,14 @@ export async function withRuntimeStep<T>(
       if (isStepNoticeError(error)) throw error;
       // Judged once what is under way has run: a transition that failed and gave the runtime back closed nothing.
       await transitionsSettled();
-      if (runtimeOnScreen() === on) throw error;
+      if (runtimeOnScreen() === on) {
+        // The runtime stays, but where the step's failure left it no valid one, it is opened anew before the hold is
+        // given back (review B2, round 10, SP1): the release starts nothing on it.
+        if (run.reload?.afterFailure && on && (await run.reload.afterFailure().catch(() => true))) {
+          await reloadActiveMobileVault(run.reload.own, { runtime: on }).catch((e: unknown) => console.error("[step] reload after a failure failed", e));
+        }
+        throw error;
+      }
       const vault = vaultEntryName((await getVaultEntry(step.vaultId).catch(() => null))?.name);
       throw options.say === false ? new StepNoticeError(i18n.t("closing.stepInterrupted", { vault }), "interrupted") : stepInterrupted(vault);
     }

@@ -43,7 +43,7 @@ A runtime that stays (`turn.stay()`) gets its sync back through the one start (`
 | saves | deadline | goes on | — | the close's notice |
 | sync drain | called off | goes on to the next vault | — | the close's notice |
 | registry write, settings | throws, runtime whole, the way back holds | `open` again, the vault active again | runs again, or held by X | the switch's failure |
-| registry write, settings | throws, and the way back fails too (the registry or the settings name the other vault) | `none` → `opening` (what the registry names; `turn.abandon`) | after the boot | the switch's failure |
+| registry write | wrote the other vault and threw, and the way back fails too (the settings never throw) | `none` → `opening` (what the registry names; `turn.abandon`) | after the boot | the switch's failure |
 | registry write, settings | throws after a call-off | `none` → `opening` (the same vault anew, once the old runtime ended) | after the boot | the switch's failure |
 | any, nothing was open (start retired) | throws | `none` → `opening` | after the boot | the switch's failure |
 | leaving the vault | comes back | `none` → `opening` (the new vault) | after the boot | nothing |
@@ -82,6 +82,7 @@ The reload is for what its caller had: `runtime` (a step's own), `vaultId`, or t
 | the look at the active vault | throws (the registry cannot be read) | the screen decides: a vault on screen or opening is switched away from | as in the switch's table | — |
 | the vault's runtimes end | comes back | unchanged | — | — |
 | a hold on the vault | released | unchanged | — | — |
+| removal (in a turn of the queue) | a start still opening whose vault is not known yet | waits for the registry's answer of that start only (`bootEntryAnswer`), never for the start itself | — | — |
 | removal (in a turn of the queue) | the vault on screen again (a switch back to it) | unchanged | unchanged | the delete's failure; nothing is removed |
 | removal (in a turn of the queue) | each part comes back or is listed | unchanged | held by the removal; the vault is gone | the parts that could not be removed |
 
@@ -101,12 +102,17 @@ Nothing lifts an encryption or ends a workspace unless the person asks for it at
 
 That a decommission (or a lift) passed its gate and has not finished is a fact only the decommission writes: `workspace_leaving_mobile_<vault>`, set as the gate opens (before the status goes) with what was asked for, removed at its end and by every status written afterwards (a setup, a join, a recovery). It is only shown, never acted on, and read only where the status is gone (`mobileDecommissionUnfinished`). What is left on the device without it decides nothing.
 
-| Fact | Status | Device key | State | Example | Row in the Security area | Sync | The button |
-|---|---|---|---|---|---|---|---|
-| any | yes | any | any | a workspace; Q1 (the gate failed: whole) | none (the workspace's own rows) | as the workspace has it | the workspace's own (decommission, lift) |
-| no | no | any | any | P1 (a setup stopped between the key and the status), P2 (a key a reinstall kept), a plain vault | none, as on `main` | as on `main` (the folder's gate decides) | none |
-| yes | no | yes or no | yes or no | stopped after the gate, also after the state was cleared and before the departure was noted | `decommissionUnfinished`, or `liftUnfinished` for a lift | held, saying the same, never plain text | "Decommission workspace": asks for the vault's name, goes on from what is left, notes the departure, removes the fact |
-| yes, older than a new status | yes | yes | yes | Q2 (set up again afterwards) | none: the new status removed the fact | as the workspace has it | the workspace's own |
+Columns: the fact; the status; the device key; the workspace's state in the database; the open runtime still carries the workspace in memory (L).
+
+| Fact | Status | Device key | State | L | Example | Row in the Security area | Sync | The button |
+|---|---|---|---|---|---|---|---|---|
+| any | yes | any | any | any | a workspace; Q1 (the gate failed at the status: whole) | none (the workspace's own rows) | as the workspace has it | the workspace's own (decommission, lift) |
+| no | no | any | any | no | P1 (a setup stopped between the key and the status), P2 (a key a reinstall kept), a plain vault | none, as on `main` | as on `main` (the folder's gate decides) | none |
+| yes | no | yes or no | yes or no | no | stopped past the gate (the vault closed, or opened anew), also after the state was cleared and before the departure was noted | `decommissionUnfinished`, or `liftUnfinished` for a lift | held, saying the same, never plain text | "Decommission workspace": asks for the vault's name, goes on from what is left, notes the departure, removes the fact |
+| yes | no | yes or no | yes or no | yes | a step failed past the gate while its runtime stayed open (the keychain, the database) | as above, once the vault opened anew | never on that runtime: the fact is asked before the workspace in memory, and the step opens the vault anew (`afterFailure`) — then as above | as above |
+| yes | no | no | no | any | everything done, only removing the fact failed (W2b) | `decommissionUnfinished` until pressed again | held | pressing again removes the fact; a departure that cannot tell never replaces one noted before (`released` stays) |
+| yes, older than a new status | yes | yes | yes | any | Q2 (set up again afterwards) | none: the new status removed the fact | as the workspace has it | the workspace's own |
+| no (taken by the new setup) | no | yes (new) | new | no | an old fact, then a new setup that stopped between its key and its status (H4): the setup removes the fact before it writes its key | none, as P1 | as P1 | none |
 
 Pressing the button again finishes a lift as a decommission. Whether this device was the workspace's only one is asked of the runtime the vault has open; without one nobody can tell, and the folder stays the other devices' (`left`, R8). The text of a lift says so.
 

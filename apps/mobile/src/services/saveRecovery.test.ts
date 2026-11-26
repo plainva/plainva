@@ -47,7 +47,7 @@ function visit(node: ts.Node) {
 visit(file);
 if (!saveMethod || !saverInit || parts.length !== 24) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
-  "let screenTransitions = Promise.resolve(); let bootPromise = Promise.resolve(vault); let screen = { state: 'open', of: bootPromise, runtime: vault }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
+  "let screenTransitions = Promise.resolve(); let bootPromise = Promise.resolve(vault); let screen = { state: 'open', of: bootPromise, runtime: vault }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let bootEntryAnswer = Promise.resolve(null); let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   },

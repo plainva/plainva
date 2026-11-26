@@ -284,8 +284,14 @@ describe("mobile encrypted-workspace decommission", () => {
       expect(await mobileDecommissionUnfinished("v1")).toBe("decommission");
       await decommissionMobileWorkspace({ vaultId: "v1", state: new MemoryWorkspaceStateStore(), stopSync: async () => {} });
       // Without a runtime nobody can tell whether other devices still use it: the folder stays theirs (R8).
-      expect(settings.get("encryptedRemote_v1")).toMatchObject({ v: 2, state: "left" });
+      expect(settings.get("encryptedRemote_v1")).toMatchObject({ v: 2, state: "left", peers: "unknown" });
       expect(await mobileDecommissionUnfinished("v1")).toBeNull();
+      // What "then you decide what happens to its folder" leads to: the sync's gate says `leftUnknownPeers`, and the
+      // Security area offers "Sync as a normal folder" (`encryptedRemoteDismissable`).
+      const { encryptedRemoteDismissable, encryptedRemoteSettingsPorts, heldFolderMessageKey } = await import("@plainva/ui");
+      const store = { get: async <T,>(key: string) => (settings.get(key) ?? null) as T, set: async (key: string, value: unknown) => { settings.set(key, value); }, delete: async (key: string) => settings.delete(key), save: async () => {} };
+      expect(await encryptedRemoteDismissable(encryptedRemoteSettingsPorts(store, "v1"))).toBe(true);
+      expect(heldFolderMessageKey({ kind: "left", peers: "unknown" })).toBe("workspaceSecurity.leftUnknownPeers");
     } finally { if (previous) setPlatformServices(previous); }
   });
 
@@ -323,6 +329,86 @@ describe("mobile encrypted-workspace decommission", () => {
     await expect(decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => { throw new Error("not run"); } })).rejects.toThrow("not run");
     expect(await getMobileWorkspaceStatus("v1")).not.toBeNull();
     expect(prefs.has("workspace_leaving_mobile_v1")).toBe(false);
+  });
+
+  /* Review B2, round 10: the cells the probes W1–W3 found, and H4. */
+  const withSettings = async (body: (settings: Map<string, unknown>) => Promise<void>) => {
+    const settings = new Map<string, unknown>();
+    const { getPlatformServices, setPlatformServices } = await import("@plainva/ui");
+    let previous: ReturnType<typeof getPlatformServices> | undefined;
+    try { previous = getPlatformServices(); } catch { previous = undefined; }
+    setPlatformServices({ ...previous, loadSettings: async () => ({
+      keys: async () => [...settings.keys()], get: async (key: string) => settings.get(key) ?? null,
+      set: async (key: string, value: unknown) => { settings.set(key, value); }, delete: async (key: string) => settings.delete(key), save: async () => {},
+    }) } as Parameters<typeof setPlatformServices>[0]);
+    try { await body(settings); } finally { if (previous) setPlatformServices(previous); }
+  };
+
+  it("W1: the keychain fails past the gate — the fact stands, so the step opens the vault anew and its sync stays held", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    const runtime = await loadMobileWorkspaceRuntime("v1");
+    const error = await decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => { keystoreError = new Error("keychain locked"); }, runtime }).then(() => null, (e: Error) => e.message);
+    keystoreError = null;
+    expect(error).toBe("keychain locked");
+    expect(await getMobileWorkspaceStatus("v1")).toBeNull();
+    // What the step asks after it (`leaveWorkspaceStep`, `afterFailure`) and the sync's gate ask first (`holdForEncryptedRemote`).
+    expect(await mobileDecommissionUnfinished("v1")).toBe("decommission");
+  });
+
+  it("W2a: the gate fails at the status — the workspace is whole, and the fact under it shows nothing", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    const runtime = await loadMobileWorkspaceRuntime("v1");
+    failRemove = "workspace_status_mobile_";
+    await expect(decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {}, runtime })).rejects.toThrow();
+    failRemove = null;
+    expect(await getMobileWorkspaceStatus("v1")).not.toBeNull();
+    expect(await mobileDecommissionUnfinished("v1")).toBeNull();
+  });
+
+  it("W2b (MG2): only the fact's removal fails — pressed again without a runtime, the only device's \"released\" stays", async () => {
+    expect.hasAssertions();
+    await withSettings(async (settings) => {
+      const state = await joined();
+      const runtime = await loadMobileWorkspaceRuntime("v1");
+      failRemove = "workspace_leaving_mobile_";
+      await expect(decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {}, runtime })).rejects.toThrow();
+      failRemove = null;
+      expect(settings.get("encryptedRemote_v1")).toMatchObject({ state: "released" });
+      expect(await mobileDecommissionUnfinished("v1")).toBe("decommission");
+      // Pressed again after the vault opened anew (no runtime): nothing left to remove, the departure kept, the fact gone.
+      await decommissionMobileWorkspace({ vaultId: "v1", state: new MemoryWorkspaceStateStore(), stopSync: async () => {} });
+      // THE DEFECT (MG2): "unknown" wrote "left" over the release of the workspace's only device.
+      expect(settings.get("encryptedRemote_v1")).toMatchObject({ state: "released" });
+      expect(await mobileDecommissionUnfinished("v1")).toBeNull();
+    });
+  });
+
+  it("W3: a fact dormant under a whole workspace is taken away by the next status written (a lock)", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    const runtime = await loadMobileWorkspaceRuntime("v1");
+    failRemove = "workspace_status_mobile_";
+    await decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {}, runtime, intent: "lift" }).catch(() => undefined);
+    failRemove = null;
+    expect(prefs.get("workspace_leaving_mobile_v1")).toBe("lift");
+    await lockMobileWorkspace("v1");
+    expect(prefs.has("workspace_leaving_mobile_v1")).toBe(false);
+  });
+
+  it("H4: an old fact, then a new setup that stops between its key and its status — the fact went before the key, nothing offers to take it", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    await expect(decommissionMobileWorkspace({ vaultId: "v1", state: stopsAfterTheGate(state), stopSync: async () => {} })).rejects.toThrow();
+    expect(await mobileDecommissionUnfinished("v1")).toBe("decommission");
+    const prepared = await prepareMobileWorkspace({ vaultId: "v1", ownerDisplayName: "Marco", deviceDisplayName: "Pixel" });
+    failSet = "workspace_status_mobile_";
+    await activatePreparedMobileWorkspace({ vaultId: "v1", draftId: prepared.draftId, store: new FakeWorkspaceObjectStore(), vault: vaultWith({ "Note.md": "hello" }), state: new MemoryWorkspaceStateStore() }).catch(() => undefined);
+    failSet = null;
+    expect(secrets.has("workspace_runtime_mobile_v1"), "the new setup's key").toBe(true);
+    // THE DEFECT (H4): the old fact stood over the new half setup, and its button took the new key along.
+    expect(await mobileDecommissionUnfinished("v1")).toBeNull();
   });
 
   it("stops being a workspace without touching the network", async () => {

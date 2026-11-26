@@ -124,8 +124,8 @@ describe("the deadline of a close", () => {
     // [file, the calls of a step, how many, how many catches ask whether the step said it already]
     const callers: Array<[string, RegExp, number, number]> = [
       ["apps/desktop/src/components/security/SecuritySharingPage.tsx", /await (decommissionWorkspace|liftWorkspaceEncryption|resumePersonalWorkspaceSetup|restoreWorkspaceRecovery)\(/g, 4, 4],
-      // Resuming, lifting, decommissioning (the last two through `stopSyncLeaving`).
-      ["apps/mobile/src/screens/SecurityAreaScreen.tsx", /withRuntimeStep\(\{ vaultId: vault\.vaultId, runtime: vault \}/g, 3, 3],
+      // Resuming, lifting, decommissioning (the last two through `leaveWorkspaceStep`, `workspaceLeaving.ts`).
+      ["apps/mobile/src/screens/SecurityAreaScreen.tsx", /withRuntimeStep\(\{ vaultId: vault\.vaultId, runtime: vault \}|leaveWorkspaceStep\(vault, "(?:lift|decommission)"/g, 3, 3],
       ["apps/mobile/src/screens/SecurityWizardScreen.tsx", /withRuntimeStep\(\{ vaultId: vault\.vaultId, runtime: vault \}/g, 1, 1],
       ["apps/mobile/src/screens/AccountServiceScreen.tsx", /changeRemoteFolder\(/g, 2, 2],
     ];

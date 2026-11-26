@@ -2779,7 +2779,7 @@ describe("managing shares from the phone", () => {
     expect(body).toMatch(/decommissionConfirm/);
     expect(body).toMatch(/decommissionTypeName/);
     const asked = body.indexOf("mPrompt(");
-    const done = body.indexOf("decommissionMobileWorkspace(");
+    const done = body.indexOf('leaveWorkspaceStep(vault, "decommission"');
     expect(asked).toBeGreaterThan(-1);
     expect(done).toBeGreaterThan(asked);
     // …and between them there is a way out that the NAME decides, so a mis-tap

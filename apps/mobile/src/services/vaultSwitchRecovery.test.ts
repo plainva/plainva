@@ -36,7 +36,7 @@ ts.forEachChild(file, (node) => {
 const found = parts.map((part) => /function (\w+)/.exec(part)?.[1]);
 for (const name of ["switchVault", "retireBoot", "reloadActiveMobileVault"]) if (!found.includes(name)) throw new Error(`${name} missing`);
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(initial); let screen = { state: 'open', of: bootPromise, runtime: initial }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let previousVaultId = null; let switching = null;\n" +
+  "let bootPromise = Promise.resolve(initial); let screen = { state: 'open', of: bootPromise, runtime: initial }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let bootEntryAnswer = Promise.resolve(null); let previousVaultId = null; let switching = null;\n" +
     "let screenTransitions = Promise.resolve(); const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\";\n" +
     parts.join("\n") +
     "\nreturn { switchVault, reloadActiveMobileVault, renewAfterSyncGaveUp, boot: () => bootPromise, setBoot: (p) => { bootPromise = p; bootSettled = true; screen = { state: 'opening', of: p, runtime: null }; void p.then((v) => { if (screen.of === p && screen.state === 'opening') screen = { state: 'open', of: p, runtime: v }; }); } };",

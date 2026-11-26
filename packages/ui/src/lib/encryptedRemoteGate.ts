@@ -282,6 +282,10 @@ export function workspaceDeparture(runtime: Pick<PersonalWorkspaceRuntime, "gene
 /** This device lifted or decommissioned the workspace (see `workspaceDeparture`). */
 export async function markEncryptedRemoteDeparted(ports: EncryptedRemotePorts, departure: { workspace: string | undefined; sole: boolean | "unknown" }): Promise<void> {
   const fact = await safeLoad(ports);
+  // Weaker knowledge never replaces stronger (review B2, round 10, MG2): a departure that cannot tell whether other
+  // devices use the folder keeps a departure noted before — a decommission pressed again without a runtime never turns
+  // the only device's "released" into "left".
+  if (departure.sole === "unknown" && (fact?.state === "released" || fact?.state === "left")) return;
   const binding = fact?.binding ? { binding: fact.binding } : {};
   if (departure.sole === true && departure.workspace) await safeSave(ports, { v: 2, state: "released", ...binding, workspace: departure.workspace });
   else await safeSave(ports, { v: 2, state: "left", ...binding, peers: departure.sole === false ? "others" : "unknown", ...(departure.workspace ? { workspace: departure.workspace } : {}) });

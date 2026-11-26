@@ -173,6 +173,9 @@ export async function loadMobileWorkspaceRuntime(vaultId: string): Promise<Perso
 }
 
 export async function persistMobileWorkspaceRuntime(vaultId: string, runtime: PersonalWorkspaceRuntime): Promise<void> {
+  // A workspace set up, joined or recovered here: a decommission that stopped before is over — before this key is
+  // written, so that pressing it again never takes the new key with it (review B2, round 10, H4).
+  await Preferences.remove({ key: leavingKey(vaultId) });
   await secureCredentialStore.writeSecret(runtimeKey(vaultId), serializePersonalWorkspaceRuntime(runtime));
   cache.set(vaultId, runtime); locked.delete(vaultId);
   await saveStatus(vaultId, { version: 1, workspaceId: runtime.workspaceId, fingerprint: runtime.genesis ? (await import("@plainva/core/workspace")).workspaceDocumentHash(runtime.genesis) : "", deviceName: runtime.device.publicIdentity.displayName, phase: "active", lastError: null });
