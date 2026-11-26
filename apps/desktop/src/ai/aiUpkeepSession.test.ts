@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVE_MEMORY_FILE, LONG_MEMORY_FILE, addMemoryEntry, type EgressChunk, type InstructionApprovals, type LedgerEntry, type UpkeepHint } from "@plainva/core";
-import type { AiSession } from "@plainva/ui";
+import { ACTIVE_MEMORY_FILE, LONG_MEMORY_FILE, addMemoryEntry, type EgressChunk, type InstructionApprovals, type LedgerEntry, type UpkeepHint } from "@plainva/core/ai";
+import type { AiSession } from "@plainva/ui/ai";
 import { turn } from "./mcpSessionHarness";
 import { memorySession, memoryVault, type MemoryVault } from "./memorySessionHarness";
 

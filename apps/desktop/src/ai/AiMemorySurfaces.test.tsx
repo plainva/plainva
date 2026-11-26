@@ -2,9 +2,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { EgressManifest, WriteDraft, WriteDraftOutcome } from "@plainva/core";
+import type { EgressManifest, WriteDraft, WriteDraftOutcome } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiDraftCard, AiDraftDone, AiSendOverview, MemoryMeter } from "@plainva/ui";
+import { AiDraftCard, AiDraftDone, AiSendOverview, MemoryMeter } from "@plainva/ui/ai";
 
 /**
  * The memory where a conversation shows it (plan KI-Harness P6, mockup

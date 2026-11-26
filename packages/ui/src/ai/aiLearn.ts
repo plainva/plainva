@@ -16,7 +16,7 @@ import {
   type MemoryEntry,
   type ModelFailure,
   type WriteDraftBody,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { flattenInertLinks } from "./aiCapture";
 import { defuseNewAddresses } from "./aiWriteLint";
 import { readSomething } from "./privateData";

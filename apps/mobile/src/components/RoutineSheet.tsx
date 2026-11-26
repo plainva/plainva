@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ROUTINE_NAME_MAX, ROUTINES_MAX, routineDraftOf, type Routine, type RoutineDraft } from "@plainva/core";
+import { ROUTINE_NAME_MAX, ROUTINES_MAX, routineDraftOf, type Routine, type RoutineDraft } from "@plainva/core/ai";
 import {
-  AiRoutineConfirm,
   Banner,
   Button,
   Checkbox,
   Chip,
+  Segmented,
+  Select,
+  TextInput,
+  toast,
+} from "@plainva/ui";
+import {
+  AiRoutineConfirm,
   newLogDraft,
   newRoutineDraft,
   routineChoiceKey,
@@ -14,15 +20,11 @@ import {
   routineKindPatch,
   routineLogFolders,
   routineWeek,
-  Segmented,
-  Select,
-  TextInput,
-  toast,
   useRoutineForm,
   type RoutineKind,
   type RoutineModelOption,
   type RoutineSkillOption,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";

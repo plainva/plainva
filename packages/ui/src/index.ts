@@ -267,7 +267,8 @@ export * from "./lib/wordDiff";
 export * from "./components/SuggestionDiff";
 export * from "./components/PublicationFeedback";
 export * from "./lib/publicationFeedback";
-export { suggestionBase, suggestionChunks, type SuggestionChunk } from "./components/suggestMode";
+export { suggestionBase, suggestionChunks, suggestionChunksReady, SuggestionDiffNotLoaded, type SuggestionChunk } from "./components/suggestMode";
+export { suggestionRoundEnds, suggestionToSend, type SuggestionToSend } from "./components/suggestionSend";
 export { reconcileParkedSuggestion, parkedSuggestionBlocks, type ReconciledSuggestion } from "./components/suggestionPark";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";
@@ -298,6 +299,7 @@ export * from "./lib/dragAutoScroll";
 export * from "./lib/typography";
 export * from "./lib/useDebouncedValue";
 export * from "./lib/useStableHandler";
+export * from "./lib/lazyPart";
 export * from "./lib/useSingleFlightHandler";
 export * from "./lib/taskDbHintStore";
 export * from "./lib/discardQuestion";
@@ -446,6 +448,7 @@ export * from "./components/textDirectionExtension";
 export * from "./lib/textDirection";
 export * from "./components/listKeymap";
 export * from "./components/lucideIconData";
+export * from "./components/docIconData";
 export * from "./components/lucideIconDraw";
 export * from "./components/mathMermaidLive";
 export * from "./components/noteEmbedCore";
@@ -559,5 +562,7 @@ export * from "./base/usePinboardCards";
 export * from "./base/BaseSearchField";
 export * from "./base/baseSearch";
 
-// AI harness (ADR 0017): the conversation store, the answer renderer, the vault tools.
-export * from "./ai";
+// AI harness (ADR 0017): its own entry, `@plainva/ui/ai`, so the start bundle never carries it (performance plan L5).
+
+// The AI's ports: its switch, its session and models once made, and its components once loaded — without the harness.
+export * from "./aiPorts";

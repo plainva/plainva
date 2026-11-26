@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { CommentStoreLockedError, MigratingWorkspaceCommentStore, commentsDevicePath, type PersonalWorkspaceRuntime } from "@plainva/core";
+import { CommentStoreLockedError, MigratingWorkspaceCommentStore, commentsDevicePath } from "@plainva/core";
+import { type PersonalWorkspaceRuntime } from "@plainva/core/workspace";
 import { commentShellWorkspace } from "../../../../packages/core/test/helpers/commentShellWorkspace";
 import { mobileCommentStore, mobileCommentSelfId, ensureMobileCommentAuthorName, noteWorkspaceCapabilities } from "./mobileComments";
 import { clearMobileCommentWorker, setMobileCommentWorker, mobileCommentWorker, type MobileCommentWorker } from "./commentWorker";

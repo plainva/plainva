@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertTriangle, Check, RefreshCw } from "lucide-react";
 import { Button, GroupCard, ICON, SectionLabel, Segmented, groupQuarantine, isQuarantineGroupOpen, quarantineGroupActionIds, quarantineKindKey, quarantineReasonKeys, quarantineTextVars, relativeTimeLabel, toast, type QuarantineGroup } from "@plainva/ui";
-import type { QuarantineRetryOutcome, WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core";
+import type { QuarantineRetryOutcome, WorkspaceLocalForkRecord, WorkspaceQuarantineRecord } from "@plainva/core/workspace";
 
 /**
  * Integrity on the phone (finding 2026-09-03, Mockup A's phone column).

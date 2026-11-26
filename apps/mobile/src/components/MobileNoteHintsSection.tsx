@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Row, Switch, useLocalEmbeddings, type AiSession } from "@plainva/ui";
+import { Row, Switch } from "@plainva/ui";
+import { useLocalEmbeddings, type AiSession } from "@plainva/ui/ai";
 
 /**
  * Settings → AI → "Next to the open note" on the phone (plan KI-Oberflächen

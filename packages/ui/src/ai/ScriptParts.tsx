@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Minus, X } from "lucide-react";
-import type { ScriptInput } from "@plainva/core";
+import type { ScriptInput } from "@plainva/core/ai";
 import { Checkbox } from "../components/ui/Checkbox";
 import { ICON } from "../lib/iconSizes";
 import type { AiSession, AiState } from "./aiSession";

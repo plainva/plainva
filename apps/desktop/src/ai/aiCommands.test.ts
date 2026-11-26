@@ -3,17 +3,19 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
-  AI_COMMANDS,
-  AI_WITHHELD_COMMANDS,
-  aiNavigationCommands,
   buildAppCommands,
   commandInventory,
   consumeGraphTrail,
   consumePendingAnchorJump,
   consumePendingCalendarDay,
-  type AiNavigationShell,
   type CommandDeps,
 } from "@plainva/ui";
+import {
+  AI_COMMANDS,
+  AI_WITHHELD_COMMANDS,
+  aiNavigationCommands,
+  type AiNavigationShell,
+} from "@plainva/ui/ai";
 
 /**
  * What the assistant can do in the app (plan KI-Harness P4-4, ADR 0019):
@@ -154,7 +156,8 @@ describe("the assistant's app commands", () => {
     expect(read("src/AppShell.tsx")).toContain("<AiCommandSourceLink sourceRef={ai.commandSourceRef} build={paletteCommands} />");
     // The phone's shell names the palette's commands once, for the assistant's place in it, which hands them on.
     expect(read("../mobile/src/App.tsx")).toMatch(/<MobileAiShell ai=\{ai\} \{\.\.\.aiShellRoutes\(\{[^}]*\bcommands\b[^}]*\}\)\} \/>/);
-    expect(read("../mobile/src/components/MobileAiShell.tsx")).toContain("commands: shell.commands,");
-    expect(read("../mobile/src/components/MobileAiShell.tsx")).toContain("<MobileAiNavigation navRef={ai.navRef} nav={nav} />");
+    // The shell's routes and the navigation the AI is handed stand in its entry, which loads with the start (performance plan L5).
+    expect(read("../mobile/src/components/MobileAiEntry.tsx")).toContain("commands: shell.commands,");
+    expect(read("../mobile/src/components/MobileAiEntry.tsx")).toContain("<MobileAiNavigation navRef={ai.navRef} nav={props.nav} />");
   });
 });

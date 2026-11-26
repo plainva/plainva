@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createScriptedMcpServer, EMPTY_MCP_GRANT, MCP_MAX_FRESH_MS, MCP_RESULT_LIMIT, type ScriptedStdioPort } from "@plainva/core";
-import { externalToolRows, MCP_BLOCKED, type EffectRequest } from "@plainva/ui";
+import { createScriptedMcpServer, EMPTY_MCP_GRANT, MCP_MAX_FRESH_MS, MCP_RESULT_LIMIT, type ScriptedStdioPort } from "@plainva/core/ai";
+import { externalToolRows, MCP_BLOCKED, type EffectRequest } from "@plainva/ui/ai";
 import { CONFIRM } from "./mcpTestHost";
 import { SEARCH, answering, audit, body, close, connect, connectServer, mcpSession, results, search, turn, viaDispatch } from "./mcpSessionHarness";
 

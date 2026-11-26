@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { Modal } from "./ui/Modal";
 import { Banner } from "./ui/Banner";
 import { Button } from "./ui/Button";

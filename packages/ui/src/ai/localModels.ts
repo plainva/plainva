@@ -3,14 +3,16 @@ import {
   createOnnxEmbeddingEngine,
   embeddingFileUrl,
   embeddingPackageFiles,
-  fromBase64,
-  toBase64,
   type EmbeddingEngine,
   type EmbeddingModelSpec,
   type EmbeddingPackageFile,
   type EmbeddingPooling,
   type OnnxEmbeddingRunner,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import {
+  fromBase64,
+  toBase64,
+} from "@plainva/core/workspace";
 
 /**
  * Local model packages in both shells (plan KI-Harness P2a-3): the shells only

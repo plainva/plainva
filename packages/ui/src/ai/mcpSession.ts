@@ -19,7 +19,7 @@ import {
   type McpSignInPlan,
   type McpSignInProblem,
   type ToolManifest,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { McpRuntime, type McpAddResult, type McpCheck, type McpInspection, type McpPromptLook, type McpSkillAdd, type McpSkillRead } from "./mcpRuntime";
 import { mcpVaultEntryFor, type McpAuditEntry, type McpDeviceStore, type McpServerRecord, type McpSkillsRecord, type McpVaultStore } from "./mcpStores";
 

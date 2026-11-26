@@ -3,13 +3,21 @@ import { sameStoredValue } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import { BookOpen, Plus, Trash2 } from "lucide-react";
 import {
-  addScriptParameter,
   Banner,
   Button,
-  changeScriptParameter,
   Checkbox,
   ICON,
   IconButton,
+  SCRIPTS_GUIDE,
+  Select,
+  TextArea,
+  TextInput,
+  toast,
+  userGuideUrl,
+} from "@plainva/ui";
+import {
+  addScriptParameter,
+  changeScriptParameter,
   newScriptForm,
   removeScriptParameter,
   SCRIPT_PARAMETER_TYPES,
@@ -20,16 +28,10 @@ import {
   scriptToolChoices,
   ScriptToolPicker,
   scriptTypeLabel,
-  SCRIPTS_GUIDE,
   scriptWriteError,
-  Select,
-  TextArea,
-  TextInput,
-  toast,
   toggleScriptTool,
-  userGuideUrl,
   type ScriptFormState,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { openExternalUrl } from "../services/openExternal";

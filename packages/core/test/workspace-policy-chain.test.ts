@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  type IVaultAdapter,
+  type VaultFileInfo,
+} from "../src/index.js";
+import {
   EncryptedWorkspaceWorker,
   FakeWorkspaceObjectStore,
   MemoryWorkspaceStateStore,
@@ -15,10 +19,8 @@ import {
   publishWorkspaceGovernanceUpdate,
   revokeWorkspaceDeviceAndRotate,
   workspaceDocumentHash,
-  type IVaultAdapter,
   type PersonalWorkspaceRuntime,
-  type VaultFileInfo,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 /**
  * An operation is judged in the policy it REFERENCES (finding 2026-09-04).

@@ -1,23 +1,26 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Globe, Plug, Plus } from "lucide-react";
-import { directFolderOf, mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
-import { AreaBoundary,
-  AI_POLICY_FILE,
+import { directFolderOf, mcpServerStanding, parsePolicyFile, type AiPolicyDimension, type AiWriteRule, type FolderPolicyRule } from "@plainva/core/ai";
+import {
+  AreaBoundary,
   Banner,
   Button,
-  changeFolderRules,
-  externalStatusText,
   GroupCard,
   ICON,
-  memorySummary,
   Row,
   RowList,
-  ruleOf,
   SectionLabel,
-  skillView,
   Switch,
   toast,
+} from "@plainva/ui";
+import {
+  AI_POLICY_FILE,
+  changeFolderRules,
+  externalStatusText,
+  memorySummary,
+  ruleOf,
+  skillView,
   waitingCount,
   workshopSections,
   unruledFolders,
@@ -25,7 +28,7 @@ import { AreaBoundary,
   withRuleValue,
   withWriteRule,
   type PolicyChoice,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { AppBar } from "../components/AppBar";
 import { ExternalAddSheet, ExternalReviewSheet } from "../components/ExternalToolsSheets";
 import { MobileRoutinesSection } from "../components/MobileRoutinesSection";

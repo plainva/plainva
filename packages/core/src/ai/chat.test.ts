@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { appendTurn, startConversation } from "./conversation.js";
 import { assembleContext, assistantSystemPrompt, contextChanged, contextStamp, lastSentContext, linkCandidatesOf, linkNamesDeniedNote, withholdDeniedLinks, type ContextPolicyHost } from "./chat.js";
 import { gateDecision, WITHHELD_LINK, type EgressRecipient } from "./egressGate.js";
-import { buildLinkNameIndex, filesALinkCouldMean, LINK_CANDIDATE_LIMIT } from "./linkNames.js";
+import { buildLinkNameIndex, filesALinkCouldMean, LINK_CANDIDATE_LIMIT } from "../withholding/linkNames.js";
 import { effectivePolicy, notePolicyFrom, parsePolicyFile } from "./policy.js";
 
 /** A small vault: Finance/ is kept from the cloud by folder rule, Diary.md by its own frontmatter. */

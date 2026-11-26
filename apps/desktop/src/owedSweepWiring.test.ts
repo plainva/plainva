@@ -17,11 +17,42 @@ describe("VaultContext queues local changes through createLocalQueueing", () => 
     expect(source).toContain("const localQueueing = createLocalQueueing({");
     expect(source).toContain("const enqueueLocalChange = (changedPath: string) => localQueueing.change(changedPath);");
     expect(source).toContain("const queueLocalDeletion = (deletedPath: string) => localQueueing.deletion(deletedPath);");
-    expect(source).toContain("removeAll: (paths: readonly string[]) => localQueueing.deletions(paths),");
+    // The sweep's look at the disk goes along: the one entry is made only for what is still gone.
+    expect(source).toContain("removeAll: (paths: readonly string[], stillGone: (path: string) => Promise<boolean>) => localQueueing.deletions(paths, stillGone),");
   });
 
   it("decides what is internal by the one rule of the core (review F3)", () => {
     expect(source).toContain("if (!queuesForTheRemote(path)) return;");
     expect(source).not.toMatch(/changedPath\.includes\("\.plainva"\)/);
+  });
+});
+
+/** The text of VaultContext from `from` to the next `until`. */
+function between(from: string, until: string): string {
+  const start = source.indexOf(from);
+  expect(start, `missing: ${from}`).toBeGreaterThanOrEqual(0);
+  const end = source.indexOf(until, start + from.length);
+  return source.slice(start, end < 0 ? undefined : end);
+}
+
+describe("VaultContext runs the sweep of what an ended app left owed at the right time (Sammelplan of the review)", () => {
+  it("in the plain sync once its first cycle has looked, and again once a cold index had its first full scan after that", () => {
+    expect.hasAssertions();
+    const firstCycle = between("fileWorker.onFirstCycleComplete = (outcome) => {", "\n            };");
+    expect(firstCycle).toMatch(/syncQueue\.enqueueLocalOnlyFiles\(\)[\s\S]*sweepOwedToRemote\("plain"\);\s*localOnlySwept = true;/);
+    const fullScan = between("onFullScan: (info) => {", "\n        },");
+    expect(fullScan).toMatch(/if \(coldIndexOwed\) \{[\s\S]*if \(localOnlySwept\) \{[\s\S]*sweepOwedToRemote\("plain"\);/);
+  });
+
+  it("in the encrypted workspace once its first cycle has looked", () => {
+    expect.hasAssertions();
+    expect(between("worker.onFirstCycleComplete = () => {", "};")).toMatch(/sweepOwedToRemote\("workspace"\);/);
+  });
+
+  it("nowhere else: three calls, and none before a first cycle", () => {
+    expect.hasAssertions();
+    expect(source.match(/sweepOwedToRemote\("(plain|workspace)"\)/g)).toHaveLength(3);
+    // The sweep itself asks nothing of a vault that queues no changes.
+    expect(between("const sweepOwedToRemote = (kind: \"plain\" | \"workspace\") => {", "const handlers")).toContain("if (!queuesChanges) return;");
   });
 });

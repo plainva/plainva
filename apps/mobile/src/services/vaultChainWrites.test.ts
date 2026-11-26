@@ -674,7 +674,10 @@ vi.mock("@capacitor-community/sqlite", async () => (await import("../../../../pa
 /** Notes in four folders: the chain's own gate holds apart writes below a common folder only. */
 const APART = ["Alpha.md", "Inbox/Beta.md", "Projects/Gamma.md", "Archive/Delta.md"];
 
-/** How many transactions the app asked for — the adapter keeps one that has to wait to itself. */
+/**
+ * How many transactions — and reads, which wait for the open transaction as
+ * well — the app asked for: the adapter keeps one that has to wait to itself.
+ */
 let asked = 0;
 let onAsk: (() => void) | null = null;
 
@@ -690,8 +693,16 @@ async function phoneDatabase(platform: PhonePlatform): Promise<IDatabaseAdapter>
     initialize: () => inner.initialize(),
     close: () => inner.close(),
     execute: (sql, params) => inner.execute(sql, params),
-    query: (sql, params) => inner.query(sql, params),
-    queryOne: (sql, params) => inner.queryOne(sql, params),
+    query: (sql, params) => {
+      asked += 1;
+      onAsk?.();
+      return inner.query(sql, params);
+    },
+    queryOne: (sql, params) => {
+      asked += 1;
+      onAsk?.();
+      return inner.queryOne(sql, params);
+    },
     transaction(fn) {
       asked += 1;
       onAsk?.();
@@ -709,7 +720,8 @@ const hops = async (n: number) => {
  * `holder` opens a transaction, and it stays open while `flow` comes along —
  * as a sync cycle's or an index pass's does while it reads a file between two
  * of its statements. It goes on once `flow` has asked for a transaction of its
- * own (and a refusal, if there were one, has come back), or is through. A
+ * own or for a read — both wait for the open one — (and a refusal, if there
+ * were one, has come back), or is through. A
  * holder that is through without opening one fails the test at once.
  */
 async function whileOneIsOpen<T>(holder: () => Promise<unknown>, flow: () => Promise<T>): Promise<{ holding: Promise<unknown>; flowing: Promise<T> }> {

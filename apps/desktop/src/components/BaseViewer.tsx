@@ -10,11 +10,13 @@ import { saveBaseExport } from "../services/exportBase";
 import { useVault } from "../contexts/VaultContext";
 import { Database, Trash2,
   Pencil, Bookmark, MoreVertical, Search, SlidersHorizontal, RefreshCw, ArrowLeft, ArrowRight, MessageSquare, Download, Palette, Check, X, FileText, Sparkles } from "lucide-react";
-import { PLAINVA_NAMESPACE_KEY, updateVaultText, type WorkspaceCommentRecord } from "@plainva/core";
+import { PLAINVA_NAMESPACE_KEY, updateVaultText } from "@plainva/core";
+import { type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { AreaBoundary, deletePropertyFromConfig, EmptyState, ICON, renamePropertyInConfig, Modal, MenuSurface, MenuItem, MenuLabel, MenuSeparator, SelectionBar, useRowSelection, checkboxSelectionMode, bulkSetProperty, fillMissingProperty, notesMissingProperty, convertDateColumns, convertDateValue, dateInputSwitch, dateSwitchLosesTime, renamePropertyAcrossNotes, removePropertyAcrossNotes, renameRefusedText, notesCarryingProperty, computedFieldKind, isLargeBulkChange, BULK_SETTABLE_INPUTS } from "@plainva/ui";
 import { BaseConfigChangeRefusedError, composeLineage, lineageBetween, type ViewLineage, type ViewsChange, buildPropertyCommentCells, errorText, findPropertyCommentThread, parseBaseConfig, propertyAliasResolver, requestCommentJump, serializeBaseConfig, loadBaseConfigText, useStableHandler, writeBaseConfigChange } from "@plainva/ui";
 import { buildProposedCells, decideProposedCells, listProposedCells, proposalColumns, proposedBy, proposedCellComments, proposedOutcomeWords, ProposedValuesBar, readTextShape, withProposedValue, type ProposedCell } from "@plainva/ui";
-import { fillColumnOf, FillPlanBody, FillProgressBanner, fillRows, inferColumnType, useAiSession, useBaseAi, type FillColumn, type FillPlan } from "@plainva/ui";
+import { FillPlanBody, FillProgressBanner, inferColumnType, useAiModule, useAiSession, useBaseAi, type FillPlan } from "@plainva/ui";
+import type { FillColumn } from "@plainva/ui/ai";
 import { Button, calendarPickerOptions, dueModelOf, resolveTaskCompletionModel, resolveTaskListTarget, splitTaskListKey, taskListPickerOptions, createEntryEvent, dayKey, noteDisplayName, parseDueValue, windowAround, writableCalendarsOf, type CalendarCursor, type TimelineWindow } from "@plainva/ui";
 import { newWriteAction, withWriteAttempt } from "../services/pim/remotePimTarget";
 import {
@@ -871,25 +873,27 @@ export function BaseViewer({
   // off on this device — no door of it is drawn then.
   const baseAi = useBaseAi(useAiSession(), activePath, { sealed: workspaceSecurityStatus !== null });
   const aiOffered = baseAi !== null;
+  // The harness is loaded once the assistant is offered: which columns a run fills is asked of it (review of L5).
+  const aiHarness = useAiModule();
   // Which columns a run can fill: a property with words for values — nothing
   // computed, no relation, none of Plainva's own names. Where the database
   // declares no kind, the column's own values say it.
   const fillColumns = useMemo(() => {
     const out = new Map<string, FillColumn>();
-    if (!aiOffered) return out;
+    if (!aiOffered || !aiHarness) return out;
     const schemas = dbConfig?.columns && !Array.isArray(dbConfig.columns) ? (dbConfig.columns as Record<string, any>) : {};
     for (const col of new Set([...visibleColumns, ...availableColumns])) {
       const schema = schemas[col];
-      const column = fillColumnOf(col.replace(/^note\./, ""), columnLabel(col, t, dbConfig), schema, schema?.input ? undefined : inferColumnType(dbData, col));
+      const column = aiHarness.fillColumnOf(col.replace(/^note\./, ""), columnLabel(col, t, dbConfig), schema, schema?.input ? undefined : inferColumnType(dbData, col));
       if (column) out.set(col, column);
     }
     return out;
-  }, [aiOffered, dbConfig, visibleColumns, availableColumns, dbData, t]);
+  }, [aiOffered, aiHarness, dbConfig, visibleColumns, availableColumns, dbData, t]);
   const fillColumnKeys = useMemo(() => new Set(fillColumns.keys()), [fillColumns]);
   const [fillPlan, setFillPlan] = useState<{ column: FillColumn; plan: FillPlan } | null>(null);
   const openFillPlan = useStableHandler((col: string) => {
     const column = fillColumns.get(col);
-    if (!column) return;
+    if (!column || !aiHarness) return;
     // An entry a value already waits for is not asked again: a second run must not lay a second value beside the
     // first. Asked of the comments themselves — the column need not be one this view draws a cell for.
     const rowsByPath = new Map<string, any>();
@@ -897,7 +901,7 @@ export function BaseViewer({
     const entries: { path: string; comments: readonly WorkspaceCommentRecord[] }[] = [];
     for (const [path, comments] of noteComments) { if (rowsByPath.has(path)) entries.push({ path, comments }); }
     const waiting = new Set(entries.length > 0 ? buildProposedCells(entries, (path) => rowsByPath.get(path), [col]).keys() : []);
-    setFillPlan({ column, plan: fillRows(scopedData, col, waiting) });
+    setFillPlan({ column, plan: aiHarness.fillRows(scopedData, col, waiting) });
   });
 
   // Selecting several rows (plan Mehrfachauswahl, P3). The reset key is the

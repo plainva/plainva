@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, readFile, readdir, writeFile, rename, rm, rmdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { BundleCommentStore, createWorkspaceObjectId, prepareCommentOperation } from "@plainva/core";
+import { BundleCommentStore, prepareCommentOperation } from "@plainva/core";
+import { createWorkspaceObjectId } from "@plainva/core/workspace";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { desktopCommentOperations } from "./commentOperations";
 

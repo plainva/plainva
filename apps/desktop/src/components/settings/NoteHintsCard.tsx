@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, SettingRow, Switch, useLocalEmbeddings, type AiSession } from "@plainva/ui";
+import { Button, SettingRow, Switch } from "@plainva/ui";
+import { useLocalEmbeddings, type AiSession } from "@plainva/ui/ai";
 
 /**
  * "Next to the open note" in the AI settings (plan KI-Oberflächen K5): the two

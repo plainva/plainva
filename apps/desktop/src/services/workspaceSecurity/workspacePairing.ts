@@ -14,7 +14,7 @@ import {
   type PersonalWorkspaceRuntime,
   type WorkspaceInvite,
   type WorkspaceObjectStore,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import { credentialManager } from "../CredentialManager";
 import { persistWorkspaceRuntime } from "./workspaceKeychain";
 

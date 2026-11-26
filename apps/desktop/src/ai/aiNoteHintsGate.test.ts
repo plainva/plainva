@@ -1,18 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
   buildLinkTargetIndex,
-  DEFAULT_AI_APP_SETTINGS,
   resolveLinkTargetIndexed,
   resolveMarkdownLinkIndexed,
+  type PimEventRow,
+} from "@plainva/core";
+import {
+  DEFAULT_AI_APP_SETTINGS,
   withTodoAsTask,
   type AiAppSettings,
   type AiEgress,
   type HttpRequestSpec,
-  type PimEventRow,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { brokenLinkNotePath } from "@plainva/ui";
 import {
   AiSession,
-  brokenLinkNotePath,
   brokenLinksIn,
   createAiVaultHost,
   createVaultPolicy,
@@ -22,7 +24,7 @@ import {
   type NoteHintItem,
   type NoteHintsAnswer,
   type NoteHintsHost,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { memoryFiles } from "./mcpTestHost";
 
 /**

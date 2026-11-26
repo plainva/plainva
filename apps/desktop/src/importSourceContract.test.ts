@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { defaultImportRegistry } from '@plainva/core';
+import { defaultImportRegistry } from '@plainva/core/import';
 import { sourceTexts } from './test-sourceTree';
 
 const LOCALES_DIR = 'packages/ui/src/locales';

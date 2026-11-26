@@ -1,10 +1,17 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { type IVaultAdapter } from "../src/index.js";
 import {
-  classifyWorkspaceSyncFailure, createPersonalWorkspaceBootstrap, EncryptedWorkspaceWorker,
-  FakeWorkspaceObjectStore, MemoryWorkspaceStateStore, personalWorkspaceRuntime,
-  WorkspaceProtocolError, workspaceSyncRetryDelay,
-  type IVaultAdapter, type PersonalWorkspaceRuntime, type WorkspaceRuntimeMeta,
-} from "../src/index.js";
+  classifyWorkspaceSyncFailure,
+  createPersonalWorkspaceBootstrap,
+  EncryptedWorkspaceWorker,
+  FakeWorkspaceObjectStore,
+  MemoryWorkspaceStateStore,
+  personalWorkspaceRuntime,
+  WorkspaceProtocolError,
+  workspaceSyncRetryDelay,
+  type PersonalWorkspaceRuntime,
+  type WorkspaceRuntimeMeta,
+} from "../src/workspace/index.js";
 import { syncHttpError } from "../src/sync/errorKind.js";
 
 let runtime: PersonalWorkspaceRuntime;

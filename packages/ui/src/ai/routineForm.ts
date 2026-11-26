@@ -1,6 +1,6 @@
 import { reportBackground } from "../services/backgroundErrors";
 import { useEffect, useState } from "react";
-import { routineDays, routineDraftProblems, type ModelChoice, type RoutineDay, type RoutineDraft, type RoutineDraftProblem } from "@plainva/core";
+import { routineDays, routineDraftProblems, type ModelChoice, type RoutineDay, type RoutineDraft, type RoutineDraftProblem } from "@plainva/core/ai";
 import type { AiSession, RoutinePreview, RoutinePreviewRefusal, RoutineSaved } from "./aiSession";
 
 /**

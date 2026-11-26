@@ -1,4 +1,4 @@
-import { defaultImportRegistry, type ImportSource, type ArchiveReadControl } from "@plainva/core";
+import { defaultImportRegistry, type ImportSource, type ArchiveReadControl } from "@plainva/core/import";
 import { unpackSelection, type ExtractedArchive } from "./importArchive";
 import { pickDeviceFiles, type PickMode } from "./pickFiles";
 

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { planCommentDecision } from "../../comments/commentActions.js";
-import { isReservedPropertyName, readFrontmatterPath, setFrontmatterPath } from "../../frontmatter-surgical.js";
-import { MAX_ANCHOR_QUOTE_BYTES, buildCommentAnchor, mintAnchorMarkerId, resolveCommentAnchor } from "../../workspace/commentAnchor.js";
-import type { WorkspaceCommentRecord } from "../../workspace/state.js";
+import { planCommentDecision } from "../comments/commentActions.js";
+import { isReservedPropertyName, readFrontmatterPath, setFrontmatterPath } from "../frontmatter-surgical.js";
+import { MAX_ANCHOR_QUOTE_BYTES, buildCommentAnchor, mintAnchorMarkerId, resolveCommentAnchor } from "../workspace/commentAnchor.js";
+import type { WorkspaceCommentRecord } from "../workspace/state.js";
 import {
   PROPERTY_WRITE_LIMITS,
   changedProperties,

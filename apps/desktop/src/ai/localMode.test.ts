@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
-import { AI_EMBEDDING_PROFILE, DEFAULT_AI_APP_SETTINGS, SEMANTIC_BY_PROVIDER, providerById, type AiAppSettings } from "@plainva/core";
-import { describesItself, modeFacts, profileFacts, readStatedWindow, searchRests, statedChoice, STATED_WINDOW_BOUNDS, type AiMcpServer, type AiState } from "@plainva/ui";
+import { AI_EMBEDDING_PROFILE, DEFAULT_AI_APP_SETTINGS, SEMANTIC_BY_PROVIDER, providerById, type AiAppSettings } from "@plainva/core/ai";
+import { describesItself, modeFacts, profileFacts, readStatedWindow, searchRests, statedChoice, STATED_WINDOW_BOUNDS, type AiMcpServer, type AiState } from "@plainva/ui/ai";
 import { CLOUD, LOCAL, mcpSession } from "./mcpSessionHarness";
 
 /**

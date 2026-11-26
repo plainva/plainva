@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
-import { SITUATION_SOURCE, type EgressManifest } from "@plainva/core";
-import { AiSendOverview } from "@plainva/ui";
+import { SITUATION_SOURCE, type EgressManifest } from "@plainva/core/ai";
+import { AiSendOverview } from "@plainva/ui/ai";
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;

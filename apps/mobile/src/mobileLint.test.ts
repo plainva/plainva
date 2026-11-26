@@ -1376,10 +1376,10 @@ describe("what the shell puts over a surface asks first", () => {
   });
 
   it("the assistant's ways to another screen: a note, the search, the settings, the composer, its own screen", () => {
-    // One element, its routes from one helper (components/MobileAiShell.tsx), and no second way beside it.
+    // One element, its routes from one helper (components/MobileAiEntry.tsx, which loads with the start), and no second way beside it.
     expect(app).toMatch(/<MobileAiShell ai=\{ai\} \{\.\.\.aiShellRoutes\(\{ ai, vault, openNote, push, setNav, commands, aiInBar: slots\.includes\("ai"\) \}\)\} \/>/);
     expect(app.match(/<MobileAiShell\b/g)).toHaveLength(1);
-    const shell = stripComments(readFileSync(join(SRC, "components/MobileAiShell.tsx"), "utf8"));
+    const shell = stripComments(readFileSync(join(SRC, "components/MobileAiEntry.tsx"), "utf8"));
     const routes = shell.slice(shell.indexOf("export function aiShellRoutes"), shell.indexOf("function useIntentNavigation"));
     expect(routes).toMatch(/openNote: \(path\) => leaveThen\(\(\) => openNote\(path\)\)/);
     expect(routes).toMatch(/openSearch: asked\(/);
@@ -3685,7 +3685,8 @@ describe("the system's assistant reaches the app on the phone (AI harness P4.7)"
 
   // @parity-mobile ai-system-intents
   it("is started with the app, caught up on every return and written as the app leaves", () => {
-    expect(read("main.tsx")).toMatch(/initIntentService\(\);/);
+    // Started with the app, from a chunk of its own after the start (performance plan L5).
+    expect(read("main.tsx")).toMatch(/import\("\.\/services\/intentService"\)\.then\(\(\{ initIntentService \}\) => initIntentService\(\)/);
     const lifecycle = read("services", "appLifecycle.ts");
     const front = lifecycle.slice(lifecycle.indexOf("export function onAppForeground"), lifecycle.indexOf("export function onAppBackground"));
     const back = lifecycle.slice(lifecycle.indexOf("export function onAppBackground"));

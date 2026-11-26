@@ -1,4 +1,5 @@
-import type { AiSettingsIntent, BookmarkEntry } from "@plainva/ui";
+import type { BookmarkEntry } from "@plainva/ui";
+import type { AiSettingsIntent } from "@plainva/ui/ai";
 /**
  * The window bus (multi-window P0).
  *
@@ -25,7 +26,8 @@ import type { AiSettingsIntent, BookmarkEntry } from "@plainva/ui";
  * into `@tauri-apps/api` while the module is still loading (C20).
  */
 
-import type { CommentPathMove, CommentStoreState, PimEventDraft, PimEventRef, WorkspaceCapability, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core";
+import type { CommentPathMove, CommentStoreState, PimEventDraft, PimEventRef } from "@plainva/core";
+import type { WorkspaceCapability, WorkspaceCommentRecord, WorkspacePolicyMember, WorkspaceRevisionRecord } from "@plainva/core/workspace";
 import type { WorkspaceSecurityPublicStatus } from "./workspaceSecurity/workspaceKeychain";
 import type { PublicationCommentEntry } from "../contexts/VaultContext";
 import type { MailDraftRequest, MailSendRequest } from "./mail/sendQueue";

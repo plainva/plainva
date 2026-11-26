@@ -1,9 +1,9 @@
+import { readFrontmatterPath } from "@plainva/core";
 import {
   DEFAULT_AI_POLICY,
   ENCRYPTED_WORKSPACE_AI_POLICY,
   effectivePolicy,
   notePolicyFrom,
-  readFrontmatterPath,
   scriptedAcpAgent,
   type AcpMcpServer,
   type AcpNativeHost,
@@ -12,8 +12,8 @@ import {
   type FolderPolicyRule,
   type ScriptedAcpAgent,
   type ScriptedAcpOptions,
-} from "@plainva/core";
-import { AiAcp, createAcpDeviceStore, createAcpVaultStore, type AcpDrafts, type AcpVaultAccess, type AcpVaultSide, type AiAcpHost, type AiAcpState, type AiFileStore } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { AiAcp, createAcpDeviceStore, createAcpVaultStore, type AcpDrafts, type AcpVaultAccess, type AcpVaultSide, type AiAcpHost, type AiAcpState, type AiFileStore } from "@plainva/ui/ai";
 import { memoryFiles } from "./mcpTestHost";
 
 /**

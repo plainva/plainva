@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Copy, ShieldCheck, Upload } from "lucide-react";
 import { Button, ICON, TextInput, isRecoveryGroupHidden, maskRecoveryGroup, pickRecoveryChallenge, toast } from "@plainva/ui";
-import { SqlWorkspaceStateStore } from "@plainva/core";
+import { SqlWorkspaceStateStore } from "@plainva/core/workspace";
 import { AppBar } from "../components/AppBar";
 import { useLeaveGuard } from "../hooks/useLeaveGuard";
 import { saveRecoveryFile } from "../services/recoveryFile";

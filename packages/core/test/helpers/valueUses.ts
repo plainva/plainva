@@ -82,7 +82,10 @@ export const anyOf = (...mentions: Mention[]): Mention => (node, source) => ment
 
 export function valueUses(file: string, text: string, mentions: Mention): ValueUse[] {
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-  const calleeOf = (call: ts.CallExpression | ts.NewExpression) => (ts.isNewExpression(call) ? `new ${call.expression.getText(source)}` : call.expression.getText(source));
+  // A callee reached through a module loaded on demand — `(await syncModules()).SyncWorker` — is the same callee
+  // as the binding it names (performance plan L5): the place reads by the name, not by the way it was loaded.
+  const loadedName = (text: string) => text.replace(/^\(await \w+\(\)\)\./, "");
+  const calleeOf = (call: ts.CallExpression | ts.NewExpression) => (ts.isNewExpression(call) ? `new ${loadedName(call.expression.getText(source))}` : loadedName(call.expression.getText(source)));
   const isCall = (node: ts.Node): node is ts.CallExpression | ts.NewExpression => ts.isCallExpression(node) || ts.isNewExpression(node);
   const unwrapped = (node: ts.Node): ts.Node => {
     let inner = node;

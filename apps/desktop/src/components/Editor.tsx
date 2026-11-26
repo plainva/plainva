@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
-import { reportingTo } from "@plainva/ui";
+import { reportingTo, suggestionRoundEnds, suggestionToSend, type SuggestionToSend } from "@plainva/ui";
 import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, Link2, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, FolderInput, MessageSquare, PenLine } from "lucide-react";
 import { printElement } from "../services/printView";
 
@@ -36,12 +36,14 @@ import { docIconValue, editedNoteProperties, withNoteColor, withNoteIcon } from 
 import { ColorPopover } from "./ColorPopover";
 import { frontmatterBlockOf, plainvaMetaFromBlock, propertyAliasResolver, stripFrontmatter, toAnchorFrameHint } from "@plainva/ui";
 import { Banner, formatStampDate, staleSinceOf, trustBadgeOf, trustSignalsFromBlock } from "@plainva/ui";
-import { planCommentRound, commentOperationMatchesInput, commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, insertAnchorMarkers, removeAnchorMarkers, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, mintAnchorMarkerId, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, type VaultFileInfo, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState, checkedContentPath } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, wikiTargetForPath, isPlainvaManagedIndex, stripPlainvaIndexMarker, frontmatterKeys, readFrontmatterPath, type VaultFileInfo, readParkedSuggestion, type ParkedSuggestion, type CommentStoreState, checkedContentPath } from "@plainva/core";
+import { insertAnchorMarkers, removeAnchorMarkers, buildCommentAnchor, buildPropertyCommentAnchor, mintAnchorMarkerId, propertyAnchorKey, resolveCommentAnchor, resolvePropertyAnchor, type WorkspaceCommentAnchor, type WorkspaceCommentAnchorResolution, type WorkspaceCommentRecord, type WorkspacePolicyMember, type WorkspacePropertyAnchorResolution, createWorkspaceObjectId, MAX_ANCHOR_QUOTE_BYTES, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core/workspace";
 import { WorkspaceCommentsColumn } from "./workspace/WorkspaceCommentsColumn";
 import { useCommentMute } from "../hooks/useCommentMute";
 import { COMMENT_JUMP_EVENT, takeCommentJump } from "@plainva/ui";
 import { Button as UiButton, TextInput } from "@plainva/ui";
-import { IconButton, isCommentThreadOpen, suggestedProperties, useAiSession, useCommentThreadAi } from "@plainva/ui";
+import { IconButton, isCommentThreadOpen, suggestedProperties } from "@plainva/ui";
+import { useAiSession, useCommentThreadAi } from "@plainva/ui/ai";
 import { BasePicker } from "./BasePicker";
 
 import { generateIndexForFolder } from "../services/indexMd";
@@ -91,6 +93,8 @@ import { propertyCommentStore } from "../services/propertyComments";
 import { editorCommandTarget } from "../services/editorCommandTarget";
 import { recallScrollTop, rememberScrollTop } from "@plainva/ui";
 import { createSaveRetryTimer, type SaveRetryState } from "../services/saveRetryTimer";
+import { adoptLeftNoteSave } from "../services/leftNoteSaves";
+import { leftNoteSaveDue } from "../services/leftNoteSaveDue";
 import { vaultAppName, vaultLabel } from "../services/vaultNames";
 
 /**
@@ -863,7 +867,10 @@ export const Editor: React.FC<{
     // Closing captures the final buffer even before the 400-ms journal timer.
     // Confirmations only clear the draft of this particular editor lifetime.
     const journal = import("../services/draftJournal").then(async ({ recordDraft }) => {
-      if (draftVault) await recordDraft(draftVault, path, val, revAtSave, saveState.id);
+      if (!draftVault) return;
+      await recordDraft(draftVault, path, val, revAtSave, saveState.id);
+      // Kept there: a left save may give way once the entry is gone (`leftNoteSaveDue`).
+      saveState.update({ journaledRevision: Math.max(saveState.journaledRevision, revAtSave) });
     }).catch((error) => { console.error("Could not journal the pending note save", error); });
     // The file turned into no text while this editor held changes — another
     // program saved it in another encoding, or a pull brought such a version
@@ -1028,6 +1035,31 @@ export const Editor: React.FC<{
             setConflictInfo({ conflictPath: e.conflictPath ?? "" });
             toast.warning(t("dialogs.conflictSavedMsg", { path: e.conflictPath ? conflictCopyLabel(e.conflictPath, i18n.language) : ".CONFLICT" }));
           }
+        } else if (draftVault && !saveState.transferFrozen && saveState.revision === revAtSave) {
+          // The pane left this note — another note, the tab or the pane
+          // closed — and its last try failed: the save is tried again by
+          // itself beside the pane (`leftNoteSaves.ts`), as the phone's saver
+          // does, until it goes through, the note is open again or the vault
+          // closes. The text stays in the draft journal all along.
+          // Before each try it asks whether the text is still owed: no
+          // editor holds the note again — in this window, or in another one
+          // (`leftNoteSaveDue`: the journal's newest entry is still this
+          // text, the file still what this editor last knew).
+          adoptLeftNoteSave({
+            vaultPath: draftVault,
+            path,
+            epoch: saveState.epoch,
+            retry: () => persistText(val),
+            stillDue: async () => !saveState.isActive() && !EditorSaveLifetime.holds(draftVault, path) && !saveState.transferFrozen
+              && saveState.revision === revAtSave && revAtSave > saveState.savedRevision && revAtSave > saveState.discardedRevision
+              && await leftNoteSaveDue(
+                { path, sessionId: saveState.id, revision: revAtSave, journaled: saveState.journaledRevision >= revAtSave, persisted: saveState.persisted },
+                {
+                  newestDraft: () => import("../services/draftJournal").then(({ readDraftStrict }) => readDraftStrict(draftVault, path)),
+                  readTextFile: (p) => vaultAdapter.readTextFile(p),
+                },
+              ),
+          }, error);
         }
         throw error;
       } finally {
@@ -2894,7 +2926,8 @@ export const Editor: React.FC<{
       if (saveState.dirty && !saveState.transferFrozen) {
         if (saveTimeoutRef.current !== null) window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
-        // One last try with the final text; if it fails, the text stays in the journal.
+        // One last try with the final text; if it fails, it is tried again
+        // beside the pane (`leftNoteSaves.ts`), and the text stays in the journal.
         void persistText(text).catch(() => {});
       }
       // The journal's buffer for this note ends with the pane's hold on it: the
@@ -3260,11 +3293,19 @@ export const Editor: React.FC<{
   const finishCommentRound = useStableHandler((operation: CommentOperation) => {
     const session = sessionRef.current;
     if (!session || !activePath || !suggestingRef.current || !saveState.isActive()) return;
-    const { base, chunks } = session.suggestion();
-    if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(activePath, base, chunks, currentSuggestNote.current))) return;
-    suggestParkRef.current.delete(activePath);
-    forgetPark(activePath);
-    stopSuggesting();
+    const notePath = activePath;
+    void suggestionRoundEnds({
+      session,
+      operation,
+      notePath,
+      note: () => currentSuggestNote.current,
+      current: () => sessionRef.current === session && suggestingRef.current && saveState.isActive(),
+    }).then((ends) => {
+      if (!ends) return;
+      suggestParkRef.current.delete(notePath);
+      forgetPark(notePath);
+      stopSuggesting();
+    }, reportingTo("suggestion:round"));
   });
   useEffect(() => {
     if (!commentOperations || !vaultPath || !activePath) return;
@@ -3273,10 +3314,12 @@ export const Editor: React.FC<{
   const sendSuggestions = useStableHandler(async () => {
     const session = sessionRef.current;
     if (!session || !activePath || !commentOperations) return;
-    const { base, chunks } = session.suggestion();
-    if (base === null || chunks.length === 0) { toast.info(t("comments.suggestNothing")); return; }
-    if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
-    const copy = session.view.state.doc.toString();
+    // The proposal of this moment, from the word diff — waited for, never a coarser stand-in (review of L5).
+    let planned: SuggestionToSend;
+    try { planned = await suggestionToSend(session, MAX_ANCHOR_QUOTE_BYTES); } catch (error) { reportCommentFailure(error); return; }
+    if (planned.kind === "nothing") { toast.info(t("comments.suggestNothing")); return; }
+    if (planned.kind === "tooLarge") { toast.warning(t("comments.suggestTooLarge")); return; }
+    const { copy, base, chunks } = planned;
     const capturedNote = suggestNote;
     const current = () => saveState.isActive() && sessionRef.current === session && suggestingRef.current
       && session.view.state.doc.toString() === copy && currentSuggestNote.current === capturedNote;

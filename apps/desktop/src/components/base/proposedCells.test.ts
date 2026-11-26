@@ -7,26 +7,32 @@ import {
   BundleCommentStore,
   FileCommentOperationJournal,
   createCommentOperationService,
-  createWorkspaceObjectId,
-  planPropertyChange,
   readFrontmatterPath,
   type CommentOperationDeps,
   type CommentOperationFiles,
-  type PropertyValue,
-  type WorkspaceCommentRecord,
 } from "@plainva/core";
+import {
+  createWorkspaceObjectId,
+  type WorkspaceCommentRecord,
+} from "@plainva/core/workspace";
+import {
+  planPropertyChange,
+  type PropertyValue,
+} from "@plainva/core/ai";
 import {
   buildPropertyCommentCells,
   buildProposedCells,
   decideProposedCells,
   listProposedCells,
   proposalColumns,
-  proposeSuggestionRound,
   proposedCellComments,
   withProposedValue,
   type ProposedCell,
-  type RoundChunk,
 } from "@plainva/ui";
+import {
+  proposeSuggestionRound,
+  type RoundChunk,
+} from "@plainva/ui/ai";
 import { LocalVaultAdapter } from "../../../../../packages/core/src/vault/LocalVaultAdapter";
 
 /**

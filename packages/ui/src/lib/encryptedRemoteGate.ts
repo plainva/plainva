@@ -1,5 +1,6 @@
 import { reportBackground } from "../services/backgroundErrors";
-import { FatalSyncProtocolError, parseWorkspaceDocument, SyncRootMissingError, workspaceDocumentHash, type ISyncTarget, type PersonalWorkspaceRuntime } from "@plainva/core";
+import { FatalSyncProtocolError, SyncRootMissingError, type ISyncTarget } from "@plainva/core";
+import { parseWorkspaceDocument, workspaceDocumentHash, type PersonalWorkspaceRuntime } from "@plainva/core/workspace";
 import { sameSyncTarget, type SyncStateBinding } from "./syncStateBinding";
 
 /**

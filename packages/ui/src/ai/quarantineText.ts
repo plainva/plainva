@@ -1,4 +1,4 @@
-import { checkWebUrl, webAddressesIn } from "@plainva/core";
+import { checkWebUrl, webAddressesIn } from "@plainva/core/ai";
 import { mailBodyView } from "../mail/messageText";
 
 /**

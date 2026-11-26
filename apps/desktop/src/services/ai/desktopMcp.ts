@@ -14,7 +14,7 @@ import {
   type McpOAuthHost,
   type McpSandboxInfo,
   type McpStdioPort,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 
 /**
  * The desktop's native side of foreign MCP servers (plan KI-Harness P4.5):

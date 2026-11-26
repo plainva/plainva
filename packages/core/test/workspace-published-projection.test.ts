@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { FrontmatterSurgicalError } from "../src/index.js";
 import {
   DEFAULT_PUBLISHED_PRIVATE_PROPERTIES,
   DEFAULT_PUBLISHED_PROPERTY_ALLOWLIST,
-  FrontmatterSurgicalError,
   PUBLISHED_NOTE_REFUSED,
   PublishedNoteRefusedError,
   WorkspaceProtocolError,
@@ -12,7 +12,7 @@ import {
   projectPublishedNote,
   publishedSliceProviderInstructions,
   refusedNotePaths,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 import { splitDocument } from "../src/frontmatter-block.js";
 import { dataOfBlock } from "../src/frontmatter-entry.js";
 import { FRONTMATTER_FORMS } from "./fixtures/frontmatterForms.js";

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { fromBase64, IMAGE_JPEG_QUALITIES, IMAGE_MAX_BYTES, IMAGE_PNG_MAX_BYTES, type ImageMediaType } from "@plainva/core";
+import { fromBase64 } from "@plainva/core/workspace";
+import { IMAGE_JPEG_QUALITIES, IMAGE_MAX_BYTES, IMAGE_PNG_MAX_BYTES, type ImageMediaType } from "@plainva/core/ai";
 import {
   createImageExplainer,
   encodePicture,
@@ -13,7 +14,7 @@ import {
   type ImageOutcome,
   type ImageRequest,
   type PreparedImage,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * "Explain image" outside the session (plan KI-Harness P4-5): how a picture

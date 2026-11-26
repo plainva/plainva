@@ -22,7 +22,8 @@ vi.mock("@capacitor-community/sqlite", async () => (await import("../../../packa
 
 const { CapacitorSqliteAdapter } = await import("./adapters/CapacitorSqliteAdapter");
 const { resetDatabasesForTests } = await import("./adapters/sqliteConnections");
-const { initializeSchema, SqlWorkspaceStateStore, SyncStateRepository } = await import("@plainva/core");
+    const { initializeSchema, SyncStateRepository } = await import("@plainva/core");
+    const { SqlWorkspaceStateStore } = await import("@plainva/core/workspace");
 type SqlStatements = import("@plainva/core").SqlStatements;
 
 const DATABASE = "plainva-index";
@@ -125,8 +126,10 @@ describe("transactions on the phone's one connection", () => {
     expect(await keys()).toEqual(["a statement from elsewhere"]);
   });
 
-  it("a read takes no turn: it is answered while a transaction is open, and sees what that one wrote so far", async () => {
-    // A search must not wait for a full scan. Nothing of a read is rolled back.
+  it("a read waits for the transaction that is open and sees what it committed, never what it wrote so far", async () => {
+    expect.hasAssertions();
+    // On one connection a read sent at once ran inside the open transaction:
+    // an index pass half-way, a note's row without its properties.
     const { adapter, put, keys } = await open();
     const held = phoneSqlite.holdNextTransaction();
     let release!: () => void;
@@ -138,9 +141,14 @@ describe("transactions on the phone's one connection", () => {
     await held.opened;
     held.release();
     await hops(8);
-    expect(await keys()).toEqual(["inside"]);
+    let read: string[] | null = null;
+    const reading = keys().then((k) => { read = k; });
+    await hops(8);
+    expect(read).toBeNull();
     release();
     await open_;
+    await reading;
+    expect(read).toEqual(["inside"]);
   });
 
   it("a body that sends a write to the adapter instead of its handle is told so, with where it was opened — under the tests, in seconds", async () => {

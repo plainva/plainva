@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createScriptedMcpServer, McpError, MCP_SKILL_LIMITS, scriptedMcpOAuth, scriptedQuestions, instructionFileHash, utf8Encode, MCP_OAUTH_CLIENT_DOCUMENT, type McpClientInfo, type McpQuestions, type ScriptedMcpServer, type ScriptedOAuth, type ScriptedSkill, type ScriptedStdioPort } from "@plainva/core";
-import { createMcpDeviceStore, MCP_IDLE_MS, MCP_PROMPT_PINS_MAX, McpRuntime } from "@plainva/ui";
+import { createScriptedMcpServer, McpError, MCP_SKILL_LIMITS, scriptedMcpOAuth, scriptedQuestions, instructionFileHash, MCP_OAUTH_CLIENT_DOCUMENT, type McpClientInfo, type McpQuestions, type ScriptedMcpServer, type ScriptedOAuth, type ScriptedSkill, type ScriptedStdioPort } from "@plainva/core/ai";
+import { utf8Encode } from "@plainva/core/workspace";
+import { createMcpDeviceStore, MCP_IDLE_MS, MCP_PROMPT_PINS_MAX, McpRuntime } from "@plainva/ui/ai";
 import { CONFIRM, memoryFiles, scriptedNative } from "./mcpTestHost";
 
 /**

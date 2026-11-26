@@ -1,4 +1,5 @@
-import { projectPublicationFeedbackForOwner } from "@plainva/core";
+import { projectPublicationFeedbackForOwner } from "@plainva/core/workspace";
+import { type IVaultAdapter } from "@plainva/core";
 import {
   acceptWorkspacePairing,
   approveWorkspacePairing,
@@ -52,7 +53,6 @@ import {
   toBase64,
   fromBase64,
   type CreatedWorkspacePairingRequest,
-  type IVaultAdapter,
   type PersonalWorkspaceRuntime,
   type PublishedProjectionPreview,
   type PublishedSliceMode,
@@ -65,10 +65,10 @@ import {
   type WorkspaceRekeyMode,
   type WorkspaceRole,
   type WorkspaceStateStore,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import { createLimiter, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemoteDeparted, workspaceDeparture } from "@plainva/ui";
 import { Preferences } from "@capacitor/preferences";
-import { WorkspaceQuarantineService, type QuarantineRetryOutcome, type QuarantineSync } from "@plainva/core";
+import { WorkspaceQuarantineService, type QuarantineRetryOutcome, type QuarantineSync } from "@plainva/core/workspace";
 import type { MobileVault } from "./vaultService";
 import { Capacitor } from "@capacitor/core";
 import { secureCredentialStore } from "../platform/secureStore";
@@ -165,7 +165,7 @@ export async function loadMobileWorkspaceRuntime(vaultId: string): Promise<Perso
 export async function persistMobileWorkspaceRuntime(vaultId: string, runtime: PersonalWorkspaceRuntime): Promise<void> {
   await secureCredentialStore.writeSecret(runtimeKey(vaultId), serializePersonalWorkspaceRuntime(runtime));
   cache.set(vaultId, runtime); locked.delete(vaultId);
-  await saveStatus(vaultId, { version: 1, workspaceId: runtime.workspaceId, fingerprint: runtime.genesis ? (await import("@plainva/core")).workspaceDocumentHash(runtime.genesis) : "", deviceName: runtime.device.publicIdentity.displayName, phase: "active", lastError: null });
+  await saveStatus(vaultId, { version: 1, workspaceId: runtime.workspaceId, fingerprint: runtime.genesis ? (await import("@plainva/core/workspace")).workspaceDocumentHash(runtime.genesis) : "", deviceName: runtime.device.publicIdentity.displayName, phase: "active", lastError: null });
 }
 
 /**
@@ -1112,7 +1112,7 @@ export async function lockMobileWorkspace(vaultId: string): Promise<void> {
 
 export async function unlockMobileWorkspace(vaultId: string): Promise<PersonalWorkspaceRuntime | null> {
   locked.delete(vaultId); const runtime = await loadMobileWorkspaceRuntime(vaultId);
-  if (runtime) await saveStatus(vaultId, { version: 1, workspaceId: runtime.workspaceId, fingerprint: (await import("@plainva/core")).workspaceDocumentHash(runtime.genesis), deviceName: runtime.device.publicIdentity.displayName, phase: "active", lastError: null });
+  if (runtime) await saveStatus(vaultId, { version: 1, workspaceId: runtime.workspaceId, fingerprint: (await import("@plainva/core/workspace")).workspaceDocumentHash(runtime.genesis), deviceName: runtime.device.publicIdentity.displayName, phase: "active", lastError: null });
   return runtime;
 }
 

@@ -22,12 +22,14 @@ import {
   exportRecoveryCode,
   parseRecoveryCode,
   isKeyfile,
-  toBase64,
-  fromBase64,
   KEYFILE_SYNC_PATH,
   type Keyfile,
   type MasterKeyBundle,
 } from "@plainva/core";
+import {
+  toBase64,
+  fromBase64,
+} from "@plainva/core/workspace";
 import { credentialManager } from "./CredentialManager";
 import { getSettingsStore } from "./settingsStore";
 import { legacySlot, slot } from "./keychainSlots";

@@ -1,9 +1,9 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { DEFAULT_AI_APP_SETTINGS, WRITE_REFUSALS, WRITE_RESULTS, effectivePolicy, notePolicyFrom, parsePolicyFile, toolsFor, type AiEgress } from "@plainva/core";
+import { DEFAULT_AI_APP_SETTINGS, WRITE_REFUSALS, WRITE_RESULTS, effectivePolicy, notePolicyFrom, parsePolicyFile, toolsFor, type AiEgress } from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
 import {
   AiSession,
   CHAT_TOOL_NAMES,
-  captureVocabularyOf,
   createVaultToolExecutor,
   createWriteDraftStore,
   furtherToolNames,
@@ -14,7 +14,7 @@ import {
   type ProposalRound,
   type VaultToolDeps,
   type VaultWriteDeps,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { memoryFiles } from "./mcpTestHost";
 

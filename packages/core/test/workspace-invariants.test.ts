@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { MemoryWorkspaceStateStore, SqlWorkspaceStateStore, type IDatabaseAdapter, type WorkspaceObjectStore, type WorkspaceStateStore } from "../src/index.js";
+import { type IDatabaseAdapter } from "../src/index.js";
+import { MemoryWorkspaceStateStore, SqlWorkspaceStateStore, type WorkspaceObjectStore, type WorkspaceStateStore } from "../src/workspace/index.js";
 import { sha256Hex } from "../src/workspace/encoding.js";
 import { chainPermissions, filesOf, MemoryVault, ownerSecondDevice, queued, synced } from "./helpers/workspaceReconcile.ts";
 import { realSqlite } from "./helpers/realSqlite.js";

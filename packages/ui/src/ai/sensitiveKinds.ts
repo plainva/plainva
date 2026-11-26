@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import type { SensitiveKind } from "@plainva/core";
+import type { SensitiveKind } from "@plainva/core/ai";
 
 /**
  * The kinds a sensitivity hint names (plan KI-Harness P2b-6), in the

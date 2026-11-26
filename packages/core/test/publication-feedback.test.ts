@@ -1,7 +1,18 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { buildCommentAnchor, createCommentOperationService, FileCommentOperationJournal, planCommentDecision,
-  projectCommentRecords, projectPublicationFeedbackForOwner, publicationReviewCommentId, WorkspaceCommentStore,
-  type PublicationComment, type WorkspaceCommentRecord } from "../src/index.js";
+import {
+  createCommentOperationService,
+  FileCommentOperationJournal,
+  planCommentDecision,
+  projectCommentRecords,
+  WorkspaceCommentStore,
+} from "../src/index.js";
+import {
+  buildCommentAnchor,
+  projectPublicationFeedbackForOwner,
+  publicationReviewCommentId,
+  type PublicationComment,
+  type WorkspaceCommentRecord,
+} from "../src/workspace/index.js";
 import { commentShellWorkspace } from "./helpers/commentShellWorkspace.js";
 
 const id = (n: number) => n.toString(16).padStart(32, "0");

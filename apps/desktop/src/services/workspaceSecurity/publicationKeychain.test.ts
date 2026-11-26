@@ -47,7 +47,7 @@ import {
   createPersonalWorkspaceBootstrap,
   personalWorkspaceRuntime,
   type PersonalWorkspaceRuntime,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import {
   clearPublicationRuntimes,
   lockWorkspaceRuntime,

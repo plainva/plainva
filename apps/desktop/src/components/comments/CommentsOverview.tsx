@@ -3,7 +3,8 @@ import { CommentLegacyLock, CommentProvenance } from "@plainva/ui";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AtSign, FileText, Lock, MessageSquare, RefreshCw, Replace } from "lucide-react";
-import type { CommentStoreState, WorkspaceCommentRecord } from "@plainva/core";
+import type { CommentStoreState } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { buildCommentOverview, Button, COMMENT_OVERVIEW_FOCUS_EVENT, commentAuthorLabel, EmptyState, groupSuggestionRounds, ICON, noteDisplayName, parseCommentMentions, requestCommentJump, Segmented, takeCommentOverviewFocus } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 

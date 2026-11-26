@@ -28,7 +28,11 @@ import { inlineOptionsFrom, parseWikiLinkValue, columnValuesAreWikiLinks, type C
 import type { BaseCells } from "./useBaseCells";
 import { useRowDrag } from "./useRowDrag";
 import { addContextFilter, getContextFilters, removeContextFilter, SELF_MARKER } from "@plainva/ui";
-import { addFilterRules, FilterInWords, filterSchemaOf, IconButton, inferColumnType, type BaseAi } from "@plainva/ui";
+import { addFilterRules, useAiModule, IconButton, inferColumnType, type BaseAi } from "@plainva/ui";
+import { deferredAiPart } from "../../lib/deferredParts";
+
+// A filter in words needs the harness: drawn once the AI is loaded, nothing before (review of L5, 2026-11-25).
+const FilterInWords = deferredAiPart("FilterInWords");
 
 export interface SortRuleUI {
   property: string;
@@ -717,8 +721,12 @@ export function BaseConfigPanel({
   const filterColumns = filterFields.map((field) => field.column);
   // What a sentence may filter by (plan KI-Harness P5-4): the property columns, each with its kind — the declared
   // one, or what its values say where none is declared — and its choices. Built only while the assistant is offered.
-  const filterWordsColumns = ai
-    ? filterSchemaOf(
+  // The harness is loaded whenever the assistant is offered (`useBaseAi`): its schema reader is asked of it, and the
+  // panel draws again when it arrives.
+  const loadedAi = useAiModule();
+  const aiHarness = ai ? loadedAi : null;
+  const filterWordsColumns = aiHarness
+    ? aiHarness.filterSchemaOf(
         filterFields.filter((field) => field.kind === "property").map((field) => field.column),
         cells.columnLabel,
         (column) => {

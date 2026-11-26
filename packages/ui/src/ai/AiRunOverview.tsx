@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AI_PROFILE_IDS, choiceOnDevice, mcpSkillIdLabel, providerById, type ConversationRecord, type EgressManifest, type ModelChoice, type RunMeta } from "@plainva/core";
+import { AI_PROFILE_IDS, choiceOnDevice, mcpSkillIdLabel, providerById, type ConversationRecord, type EgressManifest, type ModelChoice, type RunMeta } from "@plainva/core/ai";
 import { AiSendOverview, type AiSendOverviewProps, type RunSnapshotView } from "./AiSendOverview";
 import { replayRequest, runToolCalls, type RunSnapshotStates } from "./runReplay";
 import { useAiSession, useAiState } from "./useAiSession";

@@ -1,4 +1,4 @@
-import type { SandboxEnd, SandboxKill, SandboxLogLevel, SandboxUsage, ScriptSandbox } from "@plainva/core";
+import type { SandboxEnd, SandboxKill, SandboxLogLevel, SandboxUsage, ScriptSandbox } from "@plainva/core/ai";
 import { guestEngineAvailable } from "./engine";
 import { readSandboxEnd, readUsage, type FromScriptWorker, type ToScriptWorker } from "./protocol";
 

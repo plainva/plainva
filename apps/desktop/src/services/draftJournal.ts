@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, mkdir, readDir, readTextFile, remove, stat } from "@tauri-apps/plugin-fs";
-import { utf8Encode, workspaceSha256Hex } from "@plainva/core";
+import { utf8Encode, workspaceSha256Hex } from "@plainva/core/workspace";
 import {
   createDraftJournal,
   createDraftWriter,
@@ -323,6 +323,11 @@ export async function readDraft(
   diskText?: string,
 ): Promise<DraftEntry | null> {
   return journal().read(vaultPath, notePath, diskText);
+}
+
+/** `readDraft`, but a journal that cannot be read rejects instead of answering "none". */
+export async function readDraftStrict(vaultPath: string, notePath: string): Promise<DraftEntry | null> {
+  return journal().readStrict(vaultPath, notePath);
 }
 
 /**

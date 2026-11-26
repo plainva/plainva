@@ -8,9 +8,12 @@ import { getActiveVaultEntry, type VaultEntry } from "./services/vaultRegistry";
 import { getSyncStatus, subscribeSyncStatus } from "./services/syncService";
 import { syncStateLabel } from "./components/syncSubtitle";
 import { backupState } from "./services/vaultBackup";
-import { getMobileAiSession } from "./services/ai/mobileAi";
+import { mobileAiSwitch, useMobileAiSession } from "./services/ai/mobileAiLoader";
 import { AppBar } from "./components/AppBar";
 import { vaultEntryName } from "./services/vaultEntryName";
+
+const NO_AI_SUBSCRIPTION = () => () => {};
+const NO_AI_STATE = (): null => null;
 
 /**
  * Mobile settings MASTER list (redesign 2026-07-18, P4): opened directly from
@@ -55,8 +58,17 @@ export function SettingsScreen({
   const [vaultName, setVaultName] = useState("");
   const [vaultEntry, setVaultEntry] = useState<VaultEntry | null>(null);
   const syncStatus = useSyncExternalStore(subscribeSyncStatus, getSyncStatus);
-  const aiSession = getMobileAiSession();
-  const aiState = useSyncExternalStore(aiSession.subscribe, aiSession.getState);
+  // The settings read the AI as the loader holds it and never make it (review of L5, 2026-11-25): while the AI is
+  // off, its row says so from the switch alone, without the harness.
+  const aiSession = useMobileAiSession();
+  const aiState = useSyncExternalStore(aiSession ? aiSession.subscribe : NO_AI_SUBSCRIPTION, aiSession ? aiSession.getState : NO_AI_STATE);
+  const [aiSwitch, setAiSwitch] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (aiSession) return;
+    let live = true;
+    void mobileAiSwitch().then((on) => { if (live) setAiSwitch(on); }, () => { if (live) setAiSwitch(false); });
+    return () => { live = false; };
+  }, [aiSession]);
   const [cards, setCards] = useState<AccountCard[] | null>(null);
   const [query, setQueryState] = useState(lastQuery);
   const setQuery = (next: string) => { rememberQuery(next); setQueryState(next); };
@@ -93,8 +105,8 @@ export function SettingsScreen({
   const areaState = (id: string): string => {
     if (id === "bars") return t("mobile.navBarSummary", { n: barCount });
     // The AI's two areas say their state like their neighbours (plan KI-Oberflächen K2).
-    if (id === "ai") return aiState.loaded ? (aiState.settings.enabled ? t("common.on") : t("common.off")) : "";
-    if (id === "aiVault") return aiState.loaded && aiState.settings.enabled ? (aiState.web.enabled ? t("ai.settings.internetOn") : t("ai.settings.internetOff")) : "";
+    if (id === "ai") return aiState?.loaded ? (aiState.settings.enabled ? t("common.on") : t("common.off")) : aiSwitch === null ? "" : aiSwitch ? t("common.on") : t("common.off");
+    if (id === "aiVault") return aiState?.loaded && aiState.settings.enabled ? (aiState.web.enabled ? t("ai.settings.internetOn") : t("ai.settings.internetOff")) : "";
     if (id === "cloudAccounts") return carriers();
     if (id === "pim") return carriers("calendar");
     if (id === "mail") return carriers("mail");

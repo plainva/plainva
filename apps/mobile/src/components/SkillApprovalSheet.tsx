@@ -1,18 +1,20 @@
 import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Eye, X } from "lucide-react";
-import { approvalSeen } from "@plainva/core";
+import { approvalSeen } from "@plainva/core/ai";
 import {
-  approvalContextOf,
-  approvalFacts,
   Banner,
   Button,
-  findWorkshopEntry,
   GroupCard,
   ICON,
   LineCompare,
   Row,
   RowList,
+} from "@plainva/ui";
+import {
+  approvalContextOf,
+  approvalFacts,
+  findWorkshopEntry,
   scriptCheckLine,
   ScriptCode,
   ServerSaid,
@@ -20,7 +22,7 @@ import {
   serverSkillTextProblem,
   useScriptCheck,
   useServerSkillText,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 

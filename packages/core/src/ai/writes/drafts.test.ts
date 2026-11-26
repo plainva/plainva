@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { acpAuthorId } from "../acp/agents.js";
-import { assistantAuthorId, machineAuthorId, machineAuthorKind, machineAuthorSubject, mcpAuthorId, scriptAuthorId } from "./authors.js";
+import { assistantAuthorId, machineAuthorId, machineAuthorKind, machineAuthorSubject, mcpAuthorId, scriptAuthorId } from "../../proposals/authors.js";
 import {
   OPENED_DRAFT_KINDS,
   WRITE_DRAFT_DONE_CAP,

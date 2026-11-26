@@ -1,4 +1,4 @@
-import { ReaderView } from "../readerView.js";
+import { ReaderView } from "../../withholding/readerView.js";
 
 /**
  * Sensitive data classes (plan §7): the mood of a day and the place stamp of

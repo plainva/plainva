@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { aiSetupStep, AreaBoundary } from "@plainva/ui";
+import { AreaBoundary } from "@plainva/ui";
+import { aiSetupStep } from "@plainva/ui/ai";
 import { AiSetupSheet } from "../components/AiSetupSheet";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 

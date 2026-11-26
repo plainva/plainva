@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { SlidersHorizontal } from "lucide-react";
-import { GroupCard, ICON, Row, RowList, SectionLabel, useAiAttention, useAiWaitingCount, visibleAreas, type AreaOrder } from "@plainva/ui";
-import { getMobileAiSession } from "../services/ai/mobileAi";
+import { GroupCard, ICON, Row, RowList, SectionLabel, visibleAreas, type AreaOrder } from "@plainva/ui";
+import { useAiBadge } from "../services/ai/mobileAiPorts";
 import { SheetGrip } from "./SheetGrip";
 import { TAB_POOL, type TabScreenId } from "../navigation";
 
@@ -42,9 +42,7 @@ export function AreasSheet({
 }) {
   const { t } = useTranslation();
   // What of the AI waits for a decision, beside its row (plan KI-Oberflächen K11).
-  const aiWaiting = useAiWaitingCount(getMobileAiSession());
-  // What no number counts — a question of the running conversation, a skill waiting for its approval (F71): it is said.
-  const aiAttention = useAiAttention(getMobileAiSession());
+  const { waiting: aiWaiting, attention: aiAttention } = useAiBadge();
   const known = new Set(TAB_POOL.map((d) => d.id));
   const inBar = (order ? (visibleAreas(order) as TabScreenId[]) : TAB_POOL.slice(0, 4).map((d) => d.id)).filter((id) => known.has(id));
   const outside = (order ? (order.order as TabScreenId[]) : TAB_POOL.map((d) => d.id)).filter((id) => known.has(id) && !inBar.includes(id));

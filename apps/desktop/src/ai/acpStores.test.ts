@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACP_SESSION_LOG_CAP, createAcpDeviceStore, createAcpVaultStore, readAcpAgentRecords, type AcpSessionEntry } from "@plainva/ui";
+import { ACP_SESSION_LOG_CAP, createAcpDeviceStore, createAcpVaultStore, readAcpAgentRecords, type AcpSessionEntry } from "@plainva/ui/ai";
 import { memoryFiles } from "./mcpTestHost";
 
 /**

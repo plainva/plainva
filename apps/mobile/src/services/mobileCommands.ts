@@ -1,4 +1,5 @@
-import { buildAppCommands, resolveOpenAction, type SkillView, type AppCommand, type CommandDeps } from "@plainva/ui";
+import { buildAppCommands, resolveOpenAction, type AppCommand, type CommandDeps } from "@plainva/ui";
+import { type SkillView } from "@plainva/ui/ai";
 import { requestNoteCommand, type NoteCommand } from "./noteCommands";
 
 /**

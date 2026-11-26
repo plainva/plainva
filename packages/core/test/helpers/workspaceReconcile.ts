@@ -1,5 +1,10 @@
 import { expect } from "vitest";
 import {
+  workspaceDeniedFork,
+  type IVaultAdapter,
+  type VaultFileInfo,
+} from "../../src/index.js";
+import {
   acceptWorkspacePairing,
   applyWorkspaceGovernanceUpdate,
   approveWorkspacePairing,
@@ -10,7 +15,6 @@ import {
   inviteWorkspaceMember,
   PermissionedVaultAdapter,
   publishWorkspaceGovernanceUpdate,
-  workspaceDeniedFork,
   workspaceDocumentHash,
   workspaceSliceIdsForObject,
   type PersonalWorkspaceRuntime,
@@ -20,11 +24,9 @@ import {
   initializePersonalWorkspaceMigration,
   MemoryWorkspaceStateStore,
   personalWorkspaceRuntime,
-  type IVaultAdapter,
-  type VaultFileInfo,
   type WorkspaceExternalChangeCheck,
   type WorkspaceStateStore,
-} from "../../src/index.js";
+} from "../../src/workspace/index.js";
 
 /** A vault, an owner's encrypted workspace and its worker, with every file synced — for the start-up reconcile's tests. */
 export class MemoryVault implements IVaultAdapter {

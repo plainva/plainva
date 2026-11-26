@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Minus, X } from "lucide-react";
-import { SKILL_TEST_DEFAULT_COST_USD } from "@plainva/core";
+import { SKILL_TEST_DEFAULT_COST_USD } from "@plainva/core/ai";
 import { ICON } from "../lib/iconSizes";
 import type { AiSession, AiState, SkillTestOutcome, SkillTestPlan } from "./aiSession";
 import type { SkillTestLine } from "./skillsWorkshop";

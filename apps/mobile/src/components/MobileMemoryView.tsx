@@ -1,33 +1,36 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronRight, CloudOff, FileText, Plus, X } from "lucide-react";
-import { memoryFileOf, STYLE_EXAMPLES_MAX } from "@plainva/core";
-import { AreaBoundary,
+import { memoryFileOf, STYLE_EXAMPLES_MAX } from "@plainva/core/ai";
+import {
+  AreaBoundary,
   Banner,
   Button,
-  filterMemoryRows,
   GroupCard,
   ICON,
   IconButton,
-  memoryGroups,
-  MEMORY_SEARCH_FROM,
-  MemoryMeter,
   memoryRowActions,
   Row,
   RowList,
   SearchField,
   SectionLabel,
-  skillView,
-  styleView,
   Switch,
   toast,
+  type MemoryRowCaps,
+} from "@plainva/ui";
+import {
+  filterMemoryRows,
+  memoryGroups,
+  MEMORY_SEARCH_FROM,
+  MemoryMeter,
+  skillView,
+  styleView,
   useUpkeepRows,
   workshopSections,
   type MemoryRow,
-  type MemoryRowCaps,
   type UpkeepRow,
   startAiSkill,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { SkillApprovalSheet } from "./SkillApprovalSheet";
 import { MemoryEntrySheet } from "./MemoryEntrySheet";
 import { MemoryRuleSheet } from "./MemoryRuleSheet";

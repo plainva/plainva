@@ -2,8 +2,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { markdownDestinationUrl, type AnswerGrounding } from "@plainva/core";
-import { AiAnswer, answerLinksShown, answerMayLink, unfoundedAmongShown } from "@plainva/ui";
+import { markdownDestinationUrl } from "@plainva/core";
+import { type AnswerGrounding } from "@plainva/core/ai";
+import { AiAnswer, answerLinksShown, answerMayLink, unfoundedAmongShown } from "@plainva/ui/ai";
 
 /**
  * The links an answer's source check reads are the links the answer's view shows (review O7, fifth round): read by

@@ -35,15 +35,17 @@ import {
 } from "lucide-react";
 import { copyPhoneNoteLink } from "../services/noteLinkRoute";
 import { Share } from "@capacitor/share";
-import { buildMailtoUrl, noteMailPrefill, type MailAttachment } from "@plainva/ui/mail";
+import type { MailAttachment } from "@plainva/ui/mail";
 import { getCanDock, subscribeWindowClass } from "../services/windowClass";
-import { addressesAi, suggestedProperties, useCommentThreadAi, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, reconcileParkedSuggestion, parkedSuggestionBlocks, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch, reportBackground, reportingTo } from "@plainva/ui";
+import { suggestedProperties, CommentOperationStatus, CommentDecisionReview, usePendingCommentOperations, captureCommentEditor, runVisibleCommentOperation, commentActionErrorKey, type CommentEditorSnapshot, useStableHandler, isCommentThreadOpen, COMMENT_JUMP_EVENT, takeCommentJump, type AnchorCellPlace, type AnchorFrameHint, type AnchorHighlight, Banner, Button, commentTaskReply, commentTaskTitle, commentTaskTrailer, createTaskInDatabase, EmptyState, errorText, Fab, formatStampDate, frontmatterBlockOf, getPlatformServices, ICON, IconButton, TextInput, markdownToPlainText, propertyAliasResolver, resolveOpenAction, saveNoteAsTemplateIn, staleSinceOf, toast, toAnchorFrameHint, trustSignalsFromBlock, adoptExternalMove, healMissingNote, movedChoiceBodyKey, movedFolderLabel, planMissingNote, renameBookmarksOnDisk, type KnownFileIdentity, type MissingFileOutcome, type MissingFileSearch, reportBackground, reportingTo } from "@plainva/ui";
+import { addressesAi, useCommentThreadAi } from "@plainva/ui";
 import { getVaultEntry } from "../services/vaultRegistry";
 import { exportNoteAsMarkdown, mailNoteAsAttachment } from "../services/exportNote";
 import { writeOverview } from "../services/indexOverviews";
 import { sendTaskToProviderList } from "../services/pim/taskToProvider";
 import { mConfirm } from "../services/mobileDialogs";
-import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, buildCommentAnchor, buildPropertyCommentAnchor, frontmatterKeys, insertAnchorMarkers, isPlainvaManagedIndex, mintAnchorMarkerId, noteBodyOf, propertyAnchorKey, readFrontmatterPath, resolveCommentAnchor, resolvePropertyAnchor, stripPlainvaIndexMarker, wikiTargetForPath, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement, readIndexedIdentity, editorTextOf, vaultFolderIsThere } from "@plainva/core";
+import { commentActionController, planCommentDecision, CommentActionNotStartedError, type CommentOperation, type CommentOperationInput, readParkedSuggestion, clearParkedSuggestion, type ParkedSuggestion, frontmatterKeys, isPlainvaManagedIndex, noteBodyOf, readFrontmatterPath, stripPlainvaIndexMarker, wikiTargetForPath, readIndexedIdentity, editorTextOf, vaultFolderIsThere } from "@plainva/core";
+import { buildCommentAnchor, buildPropertyCommentAnchor, insertAnchorMarkers, mintAnchorMarkerId, propertyAnchorKey, resolveCommentAnchor, resolvePropertyAnchor, type WorkspaceCapability, type WorkspaceCommentAnchor, type WorkspaceCommentRecord, type WorkspacePropertyAnchorResolution, removeAnchorMarkers, stripWidgetAnchorMarkers, placeAnchorRange, repairAnchorMarkerPlacement } from "@plainva/core/workspace";
 import { resolveGoverningBaseOf } from "../services/baseOps";
 import { forgetKeptText, getLastPersistedText, keepTextShape, noteSaver, NotTextFileError, rememberPersistedText, reportMoveFailure, vaultOps, vaultTextFiles, type MobileVault } from "../services/vaultService";
 import { shareVaultFile } from "../services/shareFile";
@@ -69,7 +71,8 @@ import { mobileCommentOperations } from "../services/commentOperations";
 import { consumeNoteCommands, type NoteCommand } from "../services/noteCommands";
 import { EditorHost } from "../EditorHost";
 import { AppBar } from "../components/AppBar";
-import { aiEnabled, focusAiNote, getMobileAiSession, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAi";
+import { aiEnabled, focusAiNote, openAiSheet, useMobileAiEnabled } from "../services/ai/mobileAiPorts";
+import { useMobileAiSession } from "../services/ai/mobileAiLoader";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { NOTE_HISTORY_EVENT, takeNoteHistoryRequest } from "../services/noteHistoryRequest";
 
@@ -244,6 +247,8 @@ export function NoteScreen({
   const [suggesting, setSuggesting] = useState(false);
   /** A copy in the vault database from before the app closed (C34) - offered on open, never restored by itself. */
   const [parked, setParked] = useState<ParkedSuggestion | null>(null);
+  // How many change blocks the parked copy holds: counted with the diff, which loads with a parked copy (performance plan L5).
+  const [parkedBlocks, setParkedBlocks] = useState(0);
   const [suggestCount, setSuggestCount] = useState(0);
   const [suggestNote, setSuggestNote] = useState("");
   // Stufe F: silenced or not. Null - and so no bell - while notifications are
@@ -958,15 +963,27 @@ export function NoteScreen({
     const db = vault.db;
     if (!db || doc === null || suggesting) return;
     let alive = true;
-    void readParkedSuggestion(db, path).then((record) => { if (alive) setParked(record); }).catch(() => {});
+    void readParkedSuggestion(db, path)
+      .then(async (record) => {
+        let blocks = 0;
+        if (record) {
+          const { parkedSuggestionBlocks } = await import("@plainva/ui");
+          blocks = parkedSuggestionBlocks(record);
+        }
+        if (!alive) return;
+        setParkedBlocks(blocks);
+        setParked(record);
+      })
+      .catch(() => {});
     return () => { alive = false; };
     // The offer belongs to the note, not to every keystroke: re-read on path change only.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, vault.db, doc === null]);
 
   /** Picks the parked copy up, rebased onto the note as it stands now (C34). */
-  const resumeParked = () => {
+  const resumeParked = async () => {
     if (!parked || doc === null) return;
+    const { reconcileParkedSuggestion } = await import("@plainva/ui");
     const reconciled = reconcileParkedSuggestion(parked, doc);
     const note = reconciled.orphaned.length > 0
       ? [parked.note, ...reconciled.orphaned].filter((part) => part.trim()).join("\n")
@@ -1033,7 +1050,9 @@ export function NoteScreen({
    */
   const noteBody = () => markdownToPlainText(noteBodyOf(doc ?? ""));
 
-  const sendViaMailto = () => {
+  // The mail module loads when a note is sent, not with the note (performance plan L5).
+  const sendViaMailto = async () => {
+    const { buildMailtoUrl } = await import("@plainva/ui/mail");
     const res = buildMailtoUrl(title, noteBody());
     if (res.truncated) toast.info(t("mail.mailtoTruncated"));
     void getPlatformServices().openExternal(res.url).catch(() => toast.error(t("mail.mailtoFailed")));
@@ -1041,7 +1060,10 @@ export function NoteScreen({
 
   // A reply note brings its recipient and its mailbox (`to:`, `mailbox:`; E6),
   // as on the desktop — the phone opened an empty "To" and the first mailbox.
-  const composeMail = () => onComposeMail?.({ subject: title, body: noteBody(), ...noteMailPrefill(doc ?? "") });
+  const composeMail = async () => {
+    const { noteMailPrefill } = await import("@plainva/ui/mail");
+    onComposeMail?.({ subject: title, body: noteBody(), ...noteMailPrefill(doc ?? "") });
+  };
 
   /** Live preview ↔ Markdown source; the editor owns the mode, this screen the label. */
   const toggleSource = () => {
@@ -1156,7 +1178,8 @@ export function NoteScreen({
 
   const commentOperations = useMemo(() => mobileCommentOperations(vault), [vault]);
   // The assistant in this note's comment threads (plan KI-Harness P3-6); not where the remarks are sealed.
-  const threadAi = useCommentThreadAi(getMobileAiSession(), path, { sealed: vault.workspaceRuntime !== null });
+  const aiSession = useMobileAiSession();
+  const threadAi = useCommentThreadAi(aiSession, path, { sealed: vault.workspaceRuntime !== null });
   const pendingCommentOperations = usePendingCommentOperations(commentOperations, vault.vaultId, path);
   const [decisionReview, setDecisionReview] = useState<{ path: string; vaultId: string; comment: WorkspaceCommentRecord; snapshot: CommentEditorSnapshot } | null>(null);
   const reportCommentFailure = useStableHandler((error: unknown) => {
@@ -1448,7 +1471,7 @@ export function NoteScreen({
           <Button size="sm" variant="primary" onClick={resumeParked} data-testid="suggest-parked-resume">{t("comments.suggestParkedResume")}</Button>
         </>}>
           <strong>{t("comments.suggestParkedTitle")}</strong>
-          <p className="m-hint" data-testid="suggest-parked">{t("comments.suggestParkedBody", { n: parkedSuggestionBlocks(parked), count: parkedSuggestionBlocks(parked), when: parked.savedAt ? new Date(parked.savedAt).toLocaleString() : "" })}</p>
+          <p className="m-hint" data-testid="suggest-parked">{t("comments.suggestParkedBody", { n: parkedBlocks, count: parkedBlocks, when: parked.savedAt ? new Date(parked.savedAt).toLocaleString() : "" })}</p>
         </Banner>
       )}
       {suggesting && (
@@ -1831,7 +1854,7 @@ export function NoteScreen({
               label: t("mail.sendViaMailto"),
               onClick: () => {
                 setMenu(false);
-                sendViaMailto();
+                void sendViaMailto();
               },
             },
             {
@@ -1839,7 +1862,7 @@ export function NoteScreen({
               label: t("mail.sendNoteViaEmail"),
               onClick: () => {
                 setMenu(false);
-                composeMail();
+                void composeMail();
               },
             },
             {

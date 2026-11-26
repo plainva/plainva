@@ -1,4 +1,4 @@
-import type { ScriptSandbox } from "@plainva/core";
+import type { ScriptSandbox } from "@plainva/core/ai";
 import { guestEngineAvailable, loadGuestEngine } from "./engine";
 import { checkGuest, runGuest, type GuestEngine } from "./guest";
 

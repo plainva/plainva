@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { applyIndexChanges } from "../services/fileActions";
 import { useTranslation } from "react-i18next";
 import { appConfirm } from "../services/appDialogs";
-import { Banner, Button, ICON, Modal, Swatch, toast, useImageExplainer } from "@plainva/ui";
+import { Banner, Button, ICON, Modal, Swatch, toast } from "@plainva/ui";
+import { useImageExplainer } from "@plainva/ui/ai";
 import {
   ArrowUpRight, Bookmark, Crop, FilePlus2, FlipHorizontal2, FlipVertical2, Maximize, MousePointer2,
   PenLine, Redo2, RotateCcw, RotateCw, Scaling, Sparkles, Square, Trash2, Type, Undo2, ZoomIn, ZoomOut,

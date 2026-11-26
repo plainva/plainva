@@ -9,7 +9,7 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "paths": { "@plainva/core": ["../../packages/core/src/index.ts"] },
+    "paths": { "@plainva/core": ["../../packages/core/src/index.ts"], "@plainva/core/*": ["../../packages/core/src/*/index.ts"] },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,

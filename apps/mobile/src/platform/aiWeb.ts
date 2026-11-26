@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import type { WebFetcher, WebFetchResult } from "@plainva/core";
+import type { WebFetcher, WebFetchResult } from "@plainva/core/ai";
 
 /**
  * The phone's page fetch for the assistant (plan KI-Harness P4, threat T2):

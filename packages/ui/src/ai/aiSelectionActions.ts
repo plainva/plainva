@@ -1,14 +1,16 @@
 import { presentableDiff } from "@codemirror/merge";
 import {
-  buildCommentAnchor,
   commentActionController,
   createFenceTracker,
-  createWorkspaceObjectId,
   readQuoteDepth,
-  MAX_ANCHOR_QUOTE_BYTES,
-  mintAnchorMarkerId,
   type CommentOperationService,
 } from "@plainva/core";
+import {
+  buildCommentAnchor,
+  createWorkspaceObjectId,
+  MAX_ANCHOR_QUOTE_BYTES,
+  mintAnchorMarkerId,
+} from "@plainva/core/workspace";
 import type { SuggestionChunk } from "../components/suggestMode";
 import { runVisibleCommentOperation } from "../lib/commentActionView";
 import { toast } from "../services/toastStore";

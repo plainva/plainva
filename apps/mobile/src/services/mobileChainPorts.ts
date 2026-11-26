@@ -1,4 +1,5 @@
-import { formatQueueEntryReport, type BackupVaultAdapterOptions, type IDatabaseAdapter, type IVaultAdapter, type PersonalWorkspaceRuntime, type SyncQueue, type VaultChainKind, type VaultChainPorts, type WorkspaceStateStore } from "@plainva/core";
+import { formatQueueEntryReport, type BackupVaultAdapterOptions, type IDatabaseAdapter, type IVaultAdapter, type SyncQueue, type VaultChainKind, type VaultChainPorts } from "@plainva/core";
+import { type PersonalWorkspaceRuntime, type WorkspaceStateStore } from "@plainva/core/workspace";
 import { logDiagnostic, sayLineEndsConverted, workspaceWriteAuthorizer, type WorkspaceMoveQuestion } from "@plainva/ui";
 
 /**

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AreaBoundary, countWords, reportVisible, isHiddenPropertyKey, propertyNameFixed, propertyPanelModel, renamePropertyType, tagColorAttrs, tagSegments, unreadablePropertiesBlock, useKeptResolution } from "@plainva/ui";
 import { SheetGrip } from "../components/SheetGrip";
 import { useTranslation } from "react-i18next";
@@ -12,7 +12,13 @@ import {
   getPlatformServices,
   type Heading,
   ICON,
-  inferType, baseInputToType, coerceForType, defaultValueForType, loadPropertyTypes, setPropertyType, isPropertyType,
+  inferType,
+  baseInputToType,
+  coerceForType,
+  defaultValueForType,
+  loadPropertyTypes,
+  setPropertyType,
+  isPropertyType,
   parseHeadings,
   Segmented,
   toast,
@@ -21,13 +27,7 @@ import {
   backlinkContexts,
   contextChain,
   groupBacklinks,
-  NoteHintsActions,
-  NoteHintsList,
-  RelatedNotesActions,
-  RelatedNotesList,
   setPendingSearchJump,
-  useNoteHints,
-  useRelatedNotes,
   type BacklinkContext,
   BACKLINK_SORT_KEYS,
   Button,
@@ -41,6 +41,7 @@ import {
   type BacklinkSortKey,
   type GroupedBacklink,
 } from "@plainva/ui";
+import { useNoteHints, useRelatedNotes } from "@plainva/ui";
 import { extractFrontmatter, noteBodyOf, OKF_STATUS_VALUES, type OkfStatus, parseMarkdownAst } from "@plainva/core";
 import { mPrompt, mSelect } from "../services/mobileDialogs";
 import { commitCellValue, renameNoteProperty, resolveGoverningBaseOf } from "../services/baseOps";
@@ -51,11 +52,20 @@ import { AddPropertySheet } from "./AddPropertySheet";
 import { RowActionSheet } from "./RowActionSheet";
 import { useLongPress } from "../lib/useLongPress";
 import { NoteDatabasesSection } from "./NoteDatabasesSection";
-import { NoteAiSegment } from "./NoteAiSegment";
-import { getMobileAiSession, useMobileAiEnabled } from "../services/ai/mobileAi";
+import { useMobileAiEnabled } from "../services/ai/mobileAiPorts";
+import { useMobileAiSession } from "../services/ai/mobileAiLoader";
 import { SortSheet } from "./SortSheet";
-import { ContextGraph } from "./ContextGraph";
 import { VersionsPanel } from "./VersionsPanel";
+import { deferredAiPart, deferredPart } from "../lib/deferredParts";
+
+// The AI's parts of the sheet load with the harness (performance plan L5); none of them shows while the AI is off.
+const NoteHintsActions = deferredAiPart("NoteHintsActions");
+const NoteHintsList = deferredAiPart("NoteHintsList");
+const RelatedNotesActions = deferredAiPart("RelatedNotesActions");
+const RelatedNotesList = deferredAiPart("RelatedNotesList");
+// The note's local graph loads with its tab.
+const ContextGraph = deferredPart(() => import("./ContextGraph").then((m) => m.ContextGraph), { prefetch: true });
+const NoteAiSegment = deferredPart(() => import("./NoteAiSegment").then((m) => m.NoteAiSegment));
 
 export type ContextTab = "props" | "backlinks" | "related" | "hints" | "outline" | "databases" | "graph" | "history" | "ai";
 
@@ -144,7 +154,8 @@ export function NoteContextSheet({
   const related = useRelatedNotes(aiOn ? path : null);
   // Calm hints at the open note (plan KI-Harness P8-3): the desktop section's counterpart, a tab while the AI is on.
   const [fileText, setFileText] = useState<string | null>(null);
-  const hintSession = aiOn ? getMobileAiSession() : null;
+  const aiSession = useMobileAiSession();
+  const hintSession = aiOn ? aiSession : null;
   const hints = useNoteHints(hintSession, aiOn ? path : null, noteText ?? fileText);
   // The note's length, the desktop status bar's count: the body only, so the properties block is no words.
   const activeText = noteText ?? fileText;
@@ -659,7 +670,7 @@ export function NoteContextSheet({
             />
           )}
 
-          {tab === "graph" && <ContextGraph onOpenNote={onOpenNote} path={path} vault={vault} />}
+          {tab === "graph" && <Suspense fallback={null}><ContextGraph onOpenNote={onOpenNote} path={path} vault={vault} /></Suspense>}
 
           {tab === "related" && aiOn && (
             <>
@@ -705,7 +716,7 @@ export function NoteContextSheet({
             </>
           )}
 
-          {tab === "ai" && aiOn && <NoteAiSegment onOpenNote={onOpenNote} path={path} vault={vault} />}
+          {tab === "ai" && aiOn && <Suspense fallback={null}><NoteAiSegment onOpenNote={onOpenNote} path={path} vault={vault} /></Suspense>}
 
           {tab === "history" && (
             <VersionsPanel onDone={onClose} onRestored={onRestored} path={path} vault={vault} />

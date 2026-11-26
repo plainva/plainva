@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_AI_APP_SETTINGS, appSkillSource, resolveInstructions, EMPTY_INSTRUCTION_APPROVALS, type InstructionEntry, type InstructionSource, type Routine } from "@plainva/core";
+import { DEFAULT_AI_APP_SETTINGS, appSkillSource, resolveInstructions, EMPTY_INSTRUCTION_APPROVALS, type InstructionEntry, type InstructionSource, type Routine } from "@plainva/core/ai";
 import {
   AiRoutines,
   APP_SKILL_SOURCES,
@@ -21,7 +21,7 @@ import {
   watchRoutineReady,
   type RoutineReady,
   type RoutineStore,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 
 /**
  * How routines read on screen, and the two small machines around them (plan

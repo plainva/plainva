@@ -168,7 +168,7 @@ export async function forgetWorkspaceCredentials(vaultPath: string): Promise<voi
   const dbPath = await join(await appDataDir(), "index", await indexDbFileName(vaultPath));
   if (await exists(dbPath)) {
     const { TauriDatabaseAdapter } = await import("../adapters/TauriDatabaseAdapter");
-    const { SqlWorkspaceStateStore } = await import("@plainva/core");
+    const { SqlWorkspaceStateStore } = await import("@plainva/core/workspace");
     const db = new TauriDatabaseAdapter(`sqlite:${dbPath}`);
     try {
       await db.initialize();

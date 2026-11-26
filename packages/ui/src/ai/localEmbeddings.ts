@@ -1,5 +1,9 @@
 import { reportBackground } from "../services/backgroundErrors";
 import {
+  type IDatabaseAdapter,
+  type VaultQueryService,
+} from "@plainva/core";
+import {
   DEFAULT_SEARCH_MODE,
   EMBEDDING_BUDGETS,
   EMBEDDING_MODELS,
@@ -37,14 +41,12 @@ import {
   type EmbeddingSpaceSummary,
   type GoldenAgreement,
   type HttpRequestSpec,
-  type IDatabaseAdapter,
   type ModelFailure,
   type ProviderJsonAnswer,
   type ProviderTarget,
   type SearchMode,
   type SemanticSource,
-  type VaultQueryService,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { AiLedgerStore } from "./aiSession";
 import {
   EMPTY_RELATED_FEEDBACK,

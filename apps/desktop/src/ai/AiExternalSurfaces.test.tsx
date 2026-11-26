@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { approveMcpListing, EMPTY_MCP_GRANT, readMcpListing, reviewMcpListing, type EgressManifest, type McpRegisteredServer } from "@plainva/core";
+import { approveMcpListing, EMPTY_MCP_GRANT, readMcpListing, reviewMcpListing, type EgressManifest, type McpRegisteredServer } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiEffectApproval, AiExternalPrompt, AiExternalReview, AiSendOverview, externalToolRows, type AiMcpServer, type ExternalPrompt, type ExternalReviewModel, type ExternalSignIn, type McpInspection } from "@plainva/ui";
+import { AiEffectApproval, AiExternalPrompt, AiExternalReview, AiSendOverview, externalToolRows, type AiMcpServer, type ExternalPrompt, type ExternalReviewModel, type ExternalSignIn, type McpInspection } from "@plainva/ui/ai";
 
 /**
  * The surfaces of external tools (plan KI-Harness P4.5), shared by both

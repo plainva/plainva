@@ -3,14 +3,36 @@ import { mkdtemp, rm, mkdir, readFile, writeFile, rename, readdir } from "node:f
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  BundleCommentStore, MigratingWorkspaceCommentStore, WorkspaceCommentStore, CommentStoreLockedError,
-  createPersonalWorkspaceBootstrap, personalWorkspaceRuntime, initializePersonalWorkspaceMigration,
-  EncryptedWorkspaceWorker, FakeWorkspaceObjectStore, SqlWorkspaceStateStore, createWorkspaceObjectId,
-  commentsDevicePath, legacyCommentId, commentAuthorKey, commentCreatedAt, createWorkspacePairingRequest,
-  workspaceDocumentHash, approveWorkspacePairing, publishWorkspaceGovernanceUpdate, acceptWorkspacePairing,
-  FileCommentOperationJournal, createCommentOperationService, commentOperationStore, prepareCommentOperation,
-  type IDatabaseAdapter, type BundleCommentsMode, type CommentOperation,
+  BundleCommentStore,
+  MigratingWorkspaceCommentStore,
+  WorkspaceCommentStore,
+  CommentStoreLockedError,
+  commentsDevicePath,
+  legacyCommentId,
+  commentAuthorKey,
+  commentCreatedAt,
+  FileCommentOperationJournal,
+  createCommentOperationService,
+  commentOperationStore,
+  prepareCommentOperation,
+  type IDatabaseAdapter,
+  type BundleCommentsMode,
+  type CommentOperation,
 } from "../src/index.js";
+import {
+  createPersonalWorkspaceBootstrap,
+  personalWorkspaceRuntime,
+  initializePersonalWorkspaceMigration,
+  EncryptedWorkspaceWorker,
+  FakeWorkspaceObjectStore,
+  SqlWorkspaceStateStore,
+  createWorkspaceObjectId,
+  createWorkspacePairingRequest,
+  workspaceDocumentHash,
+  approveWorkspacePairing,
+  publishWorkspaceGovernanceUpdate,
+  acceptWorkspacePairing,
+} from "../src/workspace/index.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { realSqlite } from "./helpers/realSqlite.js";
 

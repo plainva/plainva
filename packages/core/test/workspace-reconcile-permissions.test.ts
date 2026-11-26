@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { workspaceDeniedFork } from "../src/index.js";
 import {
   approveWorkspacePairing,
   acceptWorkspacePairing,
@@ -12,13 +13,12 @@ import {
   publishWorkspaceGovernanceUpdate,
   revokeWorkspaceDeviceAndRotate,
   workspaceDocumentHash,
-  workspaceDeniedFork,
   workspaceSliceIdsForObject,
   type PersonalWorkspaceRuntime,
   type WorkspaceMutationAuthorizationRequest,
   type WorkspacePolicyPayload,
   type WorkspaceStateStore,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 import { live, MemoryVault, queued, synced } from "./helpers/workspaceReconcile.ts";
 
 /**

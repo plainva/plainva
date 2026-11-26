@@ -6,7 +6,7 @@ import {
   type ImportPlan,
   type ImportReport,
   type ImportSource,
-} from "@plainva/core";
+} from "@plainva/core/import";
 import {
   Banner,
   Button,

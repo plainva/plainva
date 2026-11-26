@@ -1,4 +1,4 @@
-import { ROUTINES_MAX, type Routine } from "@plainva/core";
+import { ROUTINES_MAX, type Routine } from "@plainva/core/ai";
 
 /**
  * The routines of the open vault on this device (plan KI-Harness P8, ADR
