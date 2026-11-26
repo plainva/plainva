@@ -208,7 +208,8 @@ const vault = {
 
 import { retireWorkspaceRuntime } from "./syncService";
 import { leaveWorkspaceStep } from "./workspaceLeaving";
-import { connectProvider, detachSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep, withRuntimeStep, withVaultSyncStopped } from "./syncService";
+import { holdVaultSync } from "./syncHolds";
+import { connectProvider, detachSync, foregroundSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep, withRuntimeStep, withVaultSyncStopped } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -573,7 +574,7 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     state.wsStatus = null;
     state.decommissionUnfinished = null;
     state.settings.set("encryptedRemote_v", { v: 2, state: "released", workspace: "ws-1" });
-    retireWorkspaceRuntime(ws);
+    retireWorkspaceRuntime(ws, "security-area");
     await startSyncIfConfigured(ws).catch(() => undefined);
     await restartSyncIfActive("v");
     // THE DEFECT: the encrypted worker started on the runtime with the workspace in memory, and wrote "joined".
@@ -679,6 +680,84 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
       expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
     });
 
+    /*
+     * Review B2, round 12, MG-3 (the reviewer's probes Q1-reloadFails and R-success-reloadFails): a retired runtime
+     * that stays on screen because its step's reload failed. "Sync now", coming back and coming online try that
+     * reload again — never the sync on the old runtime.
+     */
+    const pokes = async () => {
+      const calls = () => vi.mocked(reloadActiveMobileVault).mock.calls.length;
+      const before = calls();
+      syncNow();
+      await new Promise((r) => setTimeout(r, 10));
+      const afterSyncNow = calls();
+      foregroundSync();
+      await new Promise((r) => setTimeout(r, 10));
+      const afterForeground = calls();
+      window.dispatchEvent(new Event("online"));
+      await new Promise((r) => setTimeout(r, 10));
+      return [afterSyncNow - before, afterForeground - afterSyncNow, calls() - afterForeground];
+    };
+
+    it("MG-3 (Q1-reloadFails): told its gate, the status stayed, the reload failed — each trigger tries the reload again, and the vault opened anew syncs as a whole workspace", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      await begin(ws);
+      r11.decomm = async (input) => { await input.stopSync(); input.passedGate?.(); throw new Error("preferences unwritable (status)"); };
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      expect(await leaveWorkspaceStep(ws, "decommission").then(() => "done", (e: Error) => e.message)).toBe("preferences unwritable (status)");
+      await new Promise((r) => setTimeout(r, 50));
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+      expect(getSyncStatus().status).toBe("off");
+      vi.mocked(reloadActiveMobileVault).mockClear();
+      vi.mocked(reloadActiveMobileVault).mockImplementation(async () => { throw new Error("reload failed again"); });
+      try {
+        // THE DEFECT (MG-3): none of the three did anything — the old runtime sat on "Sync paused" until a switch.
+        expect(await pokes()).toEqual([1, 1, 1]);
+        expect(vi.mocked(reloadActiveMobileVault).mock.calls.every((c) => c[0] === "security-area" && (c[1] as { runtime?: unknown }).runtime === ws)).toBe(true);
+      } finally { vi.mocked(reloadActiveMobileVault).mockImplementation(async () => true); }
+      expect(running(), "never the sync on the old runtime").toEqual({ workers: 0, settingsOnly: 0 });
+      // The next try succeeds: the vault opened anew, its status still there — a whole workspace, its encrypted worker runs.
+      const fresh = wsVault();
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { state.screen = fresh; await startSyncIfConfigured(fresh).catch(() => undefined); return true; });
+      syncNow();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(state.screen).toBe(fresh);
+      expect(running().workers).toBe(1);
+    });
+
+    it("MG-3 (R-success-reloadFails): the decommission finished, its own reload failed — each trigger tries the reload again, \"left\" stays", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("left");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      expect(await leaveWorkspaceStep(ws, "decommission").then(() => "done", (e: Error) => e.message)).toBe("reload failed");
+      await new Promise((r) => setTimeout(r, 50));
+      vi.mocked(reloadActiveMobileVault).mockClear();
+      expect(await pokes()).toEqual([1, 1, 1]);
+      expect(reloadActiveMobileVault).toHaveBeenCalledWith("security-area", { runtime: ws });
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+      expect(state.settings.get(KEY)).toMatchObject({ state: "left", peers: "others" });
+    });
+
+    it("MG-3: while something holds the vault's sync (a step at work, a reload waiting behind input), the triggers reload nothing — theirs is the reload", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("left");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      await leaveWorkspaceStep(ws, "decommission").catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 50));
+      vi.mocked(reloadActiveMobileVault).mockClear();
+      const release = holdVaultSync("v");
+      try {
+        expect(await pokes()).toEqual([0, 0, 0]);
+      } finally { release(); }
+      await new Promise((r) => setTimeout(r, 10));
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    });
+
     it("L-control: the same lift without a failure — the reload replaces the runtime, and the new one syncs plain", async () => {
       expect.hasAssertions();
       const ws = wsVault();
@@ -698,8 +777,23 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
     state.screen = ws;
     state.wsStatus = { phase: "active" };
-    retireWorkspaceRuntime(ws);
+    retireWorkspaceRuntime(ws, "security-area");
     await startSyncIfConfigured(ws).catch(() => undefined);
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+  });
+
+  it("H-3 (round 12): a runtime whose status went after it opened, retired by no step — asked again, it is opened anew, never synced", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    state.wsStatus = null;
+    state.decommissionUnfinished = null;
+    await startSyncIfConfigured(ws).catch(() => undefined);
+    expect(getSyncStatus().status).toBe("off");
+    vi.mocked(reloadActiveMobileVault).mockClear();
+    syncNow();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(reloadActiveMobileVault).toHaveBeenCalledWith(undefined, { runtime: ws });
     expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
   });
 

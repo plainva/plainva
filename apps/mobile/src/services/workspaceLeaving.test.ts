@@ -13,6 +13,7 @@ const m = vi.hoisted(() => ({
   /** Where the stand-in decommission fails: before its gate, or past it. */
   failAt: "before the gate" as "before the gate" | "past the gate",
   retired: [] as unknown[],
+  retiredFor: [] as string[],
   lifted: [] as string[],
   unfinished: null as null | "decommission" | "lift",
   steps: [] as Array<{ reload?: { own: string; afterFailure?: () => Promise<boolean> } }>,
@@ -34,7 +35,7 @@ vi.mock("./mobileWorkspaceSecurity", () => ({
   mobileDecommissionUnfinished: async () => m.unfinished,
 }));
 vi.mock("./syncService", () => ({
-  retireWorkspaceRuntime: (runtime: unknown) => { m.retired.push(runtime); },
+  retireWorkspaceRuntime: (runtime: unknown, own: string) => { m.retired.push(runtime); m.retiredFor.push(own); },
   withRuntimeStep: async (_step: unknown, run: { work(stop: () => Promise<unknown>): Promise<unknown>; reload?: { own: string; afterFailure?: () => Promise<boolean> } }) => {
     m.steps.push(run);
     return run.work(async () => m.stopAnswers);
@@ -57,6 +58,7 @@ beforeEach(() => {
   m.failWith = null;
   m.failAt = "before the gate";
   m.retired.length = 0;
+  m.retiredFor.length = 0;
   m.stopAnswers = null;
 });
 
@@ -103,6 +105,8 @@ describe("leaving the workspace from the Security area", () => {
     m.failAt = "past the gate";
     await expect(leaveWorkspaceStep(vault, "decommission")).rejects.toThrow("keychain locked");
     expect(m.retired, "never a sync again on the runtime past the gate").toEqual([vault]);
+    // Its step's surface goes with it: the triggers that ask it again reload it for that surface (round 12, MG-3).
+    expect(m.retiredFor).toEqual(["security-area"]);
     expect(await m.steps[0]!.reload!.afterFailure!(), "opened anew").toBe(true);
     expect(m.steps[0]!.reload!.own).toBe("security-area");
   });

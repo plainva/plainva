@@ -5,6 +5,7 @@ import {
   classifyGenesisReadError,
   decideHeldFolder,
   dismissEncryptedRemote,
+  encryptedRemoteDepartureNoted,
   encryptedRemoteDismissable,
   encryptedRemoteFactFor,
   encryptedRemoteFilePorts,
@@ -154,6 +155,32 @@ describe("a held folder (R8)", () => {
     // THE DEFECT: an early return kept "released", and the plain worker ran next to the living workspace.
     expect(await held(m, async () => ended.bytes)).toEqual({ kind: "left", peers: "unknown" });
     expect(await encryptedRemoteDismissable(m.ports)).toBe(true);
+  });
+
+  it("MG-2 (review B2, round 12): a departure reads back as noted exactly where the mark took it — never where the store refused it, never for an older note that only looks alike", async () => {
+    expect.hasAssertions();
+    const departures = [
+      { workspace: "w1", sole: true },
+      { workspace: "w1", sole: false },
+      { workspace: "w1", sole: "unknown" },
+      { workspace: undefined, sole: "unknown" },
+      { workspace: undefined, sole: true },
+    ] as const;
+    for (const departure of departures) {
+      const m = memory();
+      await markEncryptedRemoteDeparted(m.ports, departure);
+      expect(await encryptedRemoteDepartureNoted(m.ports, departure), JSON.stringify(departure)).toBe(true);
+      // A store that keeps nothing: the older note stays, and it is another one.
+      const keeps: EncryptedRemotePorts = { ...m.ports, save: async () => {} };
+      for (const other of departures.filter((d) => d !== departure)) {
+        await markEncryptedRemoteDeparted(keeps, other);
+        const same = JSON.stringify(m.stored()) === JSON.stringify((await (async () => { const n = memory(); await markEncryptedRemoteDeparted(n.ports, other); return n.stored(); })()));
+        expect(await encryptedRemoteDepartureNoted(keeps, other), `${JSON.stringify(other)} over ${JSON.stringify(departure)}`).toBe(same);
+      }
+    }
+    await markEncryptedRemoteDeparted(broken, departures[0]);
+    await expect(encryptedRemoteDepartureNoted(broken, departures[0])).rejects.toThrow("disk");
+    expect(await encryptedRemoteDepartureNoted(memory().ports, departures[0])).toBe(false);
   });
 
   it("a lifted workspace whose objects stay: plain for the device that ended it, pair-required for any other", async () => {

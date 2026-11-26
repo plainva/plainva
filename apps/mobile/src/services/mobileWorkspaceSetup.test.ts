@@ -348,14 +348,19 @@ describe("mobile encrypted-workspace decommission", () => {
   });
 
   /* Review B2, round 10: the cells the probes W1–W3 found, and H4. */
-  const withSettings = async (body: (settings: Map<string, unknown>) => Promise<void>) => {
+  /** The app's settings for `body`; `refuses` plays a store that will not take a write (it throws, or keeps nothing). */
+  const withSettings = async (body: (settings: Map<string, unknown>) => Promise<void>, refuses?: "throws" | "keeps nothing") => {
     const settings = new Map<string, unknown>();
     const { getPlatformServices, setPlatformServices } = await import("@plainva/ui");
     let previous: ReturnType<typeof getPlatformServices> | undefined;
     try { previous = getPlatformServices(); } catch { previous = undefined; }
     setPlatformServices({ ...previous, loadSettings: async () => ({
       keys: async () => [...settings.keys()], get: async (key: string) => settings.get(key) ?? null,
-      set: async (key: string, value: unknown) => { settings.set(key, value); }, delete: async (key: string) => settings.delete(key), save: async () => {},
+      set: async (key: string, value: unknown) => {
+        if (refuses === "throws") throw new Error("settings unwritable");
+        if (!refuses) settings.set(key, value);
+      },
+      delete: async (key: string) => settings.delete(key), save: async () => {},
     }) } as Parameters<typeof setPlatformServices>[0]);
     try { await body(settings); } finally { if (previous) setPlatformServices(previous); }
   };
@@ -418,6 +423,69 @@ describe("mobile encrypted-workspace decommission", () => {
       await decommissionMobileWorkspace({ vaultId: "v1", state: new MemoryWorkspaceStateStore(), stopSync: async () => {} });
       expect(settings.get("encryptedRemote_v1")).toMatchObject({ state: "left", peers: "unknown" });
       expect(await mobileDecommissionUnfinished("v1")).toBeNull();
+    });
+  });
+
+  for (const refuses of ["throws", "keeps nothing"] as const) {
+    it(`MG-2: a store that will not take the departure (${refuses}) leaves the decommission unfinished — the fact stays, without "noted"`, async () => {
+      expect.hasAssertions();
+      await withSettings(async (settings) => {
+        const state = await joined();
+        const runtime = await loadMobileWorkspaceRuntime("v1");
+        // An older note of another kind stays there: it is no departure of this decommission (`encryptedRemoteDepartureNoted`).
+        settings.set("encryptedRemote_v1", { v: 2, state: "left", peers: "others" });
+        // THE DEFECT (MG-2): the shared mark swallowed the refused write, and the fact took "+departed" and went away.
+        await expect(decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {}, runtime })).rejects.toThrow("the folder's departure could not be noted");
+        expect(prefs.get("workspace_leaving_mobile_v1")).toBe("decommission");
+        expect(await mobileDecommissionUnfinished("v1")).toBe("decommission");
+        expect(settings.get("encryptedRemote_v1")).toEqual({ v: 2, state: "left", peers: "others" });
+      }, refuses);
+      // Pressed again where the store takes it: the departure is noted (no runtime now: "left", "unknown"), the fact gone.
+      await withSettings(async (settings) => {
+        await decommissionMobileWorkspace({ vaultId: "v1", state: new MemoryWorkspaceStateStore(), stopSync: async () => {} });
+        expect(settings.get("encryptedRemote_v1")).toMatchObject({ state: "left", peers: "unknown" });
+        expect(await mobileDecommissionUnfinished("v1")).toBeNull();
+      });
+    });
+  }
+
+  it("MG-2: where the store takes the departure, the only device's release is read back and the decommission finishes", async () => {
+    expect.hasAssertions();
+    await withSettings(async (settings) => {
+      const state = await joined();
+      const runtime = await loadMobileWorkspaceRuntime("v1");
+      await decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {}, runtime });
+      expect(settings.get("encryptedRemote_v1")).toMatchObject({ state: "released" });
+      expect(prefs.has("workspace_leaving_mobile_v1")).toBe(false);
+    });
+  });
+
+  it("Z4: the gate is told only once its fact is written — where writing it fails, nothing is retired and the workspace stays whole", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    const runtime = await loadMobileWorkspaceRuntime("v1");
+    let told = 0;
+    failSet = "workspace_leaving_mobile_";
+    try {
+      await expect(decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {}, runtime, passedGate: () => { told += 1; } })).rejects.toThrow("preferences unwritable");
+    } finally { failSet = null; }
+    // THE DEFECT (Z4): told first, a whole workspace would be retired and opened anew for a fact never written.
+    expect(told).toBe(0);
+    expect(await getMobileWorkspaceStatus("v1")).not.toBeNull();
+    expect(prefs.has("workspace_leaving_mobile_v1")).toBe(false);
+  });
+
+  it("Z10: a lift that noted its departure (\"lift+departed\") and stopped is still a lift — its row says so", async () => {
+    expect.hasAssertions();
+    await withSettings(async () => {
+      const state = await joined();
+      const runtime = await loadMobileWorkspaceRuntime("v1");
+      failRemove = "workspace_leaving_mobile_";
+      await expect(decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {}, runtime, intent: "lift" })).rejects.toThrow();
+      failRemove = null;
+      expect(prefs.get("workspace_leaving_mobile_v1")).toBe("lift+departed");
+      // THE DEFECT (Z10): read as a decommission, the row said the wrong text.
+      expect(await mobileDecommissionUnfinished("v1")).toBe("lift");
     });
   });
 

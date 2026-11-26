@@ -66,7 +66,7 @@ import {
   type WorkspaceRole,
   type WorkspaceStateStore,
 } from "@plainva/core/workspace";
-import { createLimiter, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemoteDeparted, workspaceDeparture } from "@plainva/ui";
+import { createLimiter, encryptedRemoteDepartureNoted, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemoteDeparted, workspaceDeparture } from "@plainva/ui";
 import { Preferences } from "@capacitor/preferences";
 import { WorkspaceQuarantineService, type QuarantineRetryOutcome, type QuarantineSync } from "@plainva/core/workspace";
 import type { MobileVault } from "./vaultService";
@@ -1211,14 +1211,19 @@ export async function decommissionMobileWorkspace(input: {
   // every other device. Only this workspace's single device of its single
   // member ended it, and may sync the folder plainly next to exactly that
   // genesis; any other device LEFT, and the folder stays theirs. A mark that
-  // cannot be written leaves the decommission unfinished (review B2, round 11,
-  // H-7): the fact stays, its row says so, and pressing again notes it. A
-  // departure this decommission noted already (its fact says so) is never
-  // noted again: a press without a runtime would replace the only device's
-  // "released" with "left" — and only this decommission knows its note still
-  // holds (review B2, round 11, SP-B), never the shared mark itself.
+  // is not written leaves the decommission unfinished (review B2, rounds 11
+  // and 12, H-7, MG-2): the shared mark swallows a write the store refuses, so
+  // it is read back — the very fact it notes for this departure — and only
+  // then does the fact say "noted" (`+departed`); otherwise this throws, the
+  // fact stays, its row says so, and pressing again notes it. A departure
+  // this decommission noted already (its fact says so) is never noted again:
+  // a press without a runtime would replace the only device's "released" with
+  // "left" — and only this decommission knows its note still holds (review
+  // B2, round 11, SP-B), never the shared mark itself.
   if (!begun?.departed) {
-    await markEncryptedRemoteDeparted(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), vaultId), departure);
+    const ports = encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), vaultId);
+    await markEncryptedRemoteDeparted(ports, departure);
+    if (!(await encryptedRemoteDepartureNoted(ports, departure))) throw new Error("the folder's departure could not be noted");
     await Preferences.set({ key: leavingKey(vaultId), value: `${intent}${DEPARTED}` });
   }
   await Preferences.remove({ key: leavingKey(vaultId) });

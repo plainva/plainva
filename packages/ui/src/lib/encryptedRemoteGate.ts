@@ -288,6 +288,19 @@ export async function markEncryptedRemoteDeparted(ports: EncryptedRemotePorts, d
 }
 
 /**
+ * Whether the folder's departure stands as `markEncryptedRemoteDeparted` notes it for `departure`, read back from the
+ * store: the mark swallows a write the store refuses (`safeSave`), and a step that must know the departure is noted
+ * asks here (review B2, round 12, MG-2). The very fact the mark writes, never an older one that only looks alike
+ * ("released" or "left" of another workspace). Rejects where the store cannot be read.
+ */
+export async function encryptedRemoteDepartureNoted(ports: EncryptedRemotePorts, departure: { workspace: string | undefined; sole: boolean | "unknown" }): Promise<boolean> {
+  const fact = readFact(await ports.load());
+  if (!fact) return false;
+  if (departure.sole === true && departure.workspace) return fact.state === "released" && fact.workspace === departure.workspace;
+  return fact.state === "left" && fact.peers === (departure.sole === false ? "others" : "unknown") && fact.workspace === departure.workspace;
+}
+
+/**
  * The person's own word that this folder holds no workspace for this device -
  * offered where the app cannot find out: a server that will not show the
  * hidden path, or a departure from a workspace whose other devices the app
