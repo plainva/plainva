@@ -94,6 +94,11 @@ export interface RoutineRun {
   noteTitle?: string;
   /** What it changed or made directly in folders that let it (plan "KI direkt schreiben", W4), one line per note. */
   applied?: AppliedWrite[];
+  /**
+   * Something of this run had left the device before it stopped for its user (review B7-3, S5): its request went to a
+   * search model in the cloud, say. Its line then says nothing about sending.
+   */
+  departed?: true;
 }
 
 export interface Routine {
@@ -350,6 +355,7 @@ function readRun(value: unknown): RoutineRun | undefined {
     outcome: run.outcome as RoutineOutcome,
     ...(NEEDS.includes(run.need as RoutineNeed) ? { need: run.need as RoutineNeed } : {}),
     ...(FAILURES.includes(run.failure as RoutineFailure) ? { failure: run.failure as RoutineFailure } : {}),
+    ...(run.departed === true ? { departed: true as const } : {}),
     ...(typeof run.note === "string" && run.note.length <= 500 ? { note: run.note } : {}),
     ...(typeof run.noteTitle === "string" && run.noteTitle.length <= 200 ? { noteTitle: run.noteTitle } : {}),
     ...(() => {

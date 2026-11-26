@@ -169,7 +169,9 @@ describe("the list as both shells show it", () => {
     expect(routineNeed(routine(), ENTRIES, { ...SETTINGS, localOnly: true, confirmEveryRequest: true })).toBeNull();
     // What only a run can find stays until the routine is confirmed again.
     const grew = { ...cloud, last: { scheduledFor: "2026-10-09T07:00", at: at(9, 7, 1).toISOString(), outcome: "needs-you" as const, need: "scope" as const } };
-    expect(row([grew])).toMatchObject({ need: "scope", status: "ai.routines.needs.scope" });
+    expect(row([grew])).toMatchObject({ need: "scope", status: "ai.routines.needs.scope(sent=ai.error.nothingSent)" });
+    // Its request had gone to a search model in the cloud before it stopped (review B7-3, S5): no "nothing was sent".
+    expect(row([{ ...grew, last: { ...grew.last, departed: true as const } }])).toMatchObject({ need: "scope", status: "ai.routines.needs.scope(sent=)" });
     // A need that is over is history: the row says when it did not run, and when it runs next.
     const was = { ...cloud, last: { scheduledFor: "2026-10-09T07:00", at: at(9, 7, 1).toISOString(), outcome: "needs-you" as const, need: "local" as const } };
     expect(row([was])).toMatchObject({ need: null, status: "ai.routines.last.needed(when=today 07:01) · ai.routines.next(when=Mon 07:00)" });

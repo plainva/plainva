@@ -1477,7 +1477,7 @@
       "runningNow": "Draait nu",
       "needs": {
         "skill": "Ligt stil: de vaardigheid van deze routine is gewijzigd, uitgezet of verwijderd sinds je de routine hebt bevestigd. Bekijk haar, dan draait ze weer.",
-        "scope": "Heeft je nodig: de routine zou nu meer meesturen dan je hebt bevestigd. Er is niets verzonden.",
+        "scope": "Heeft je nodig: de routine zou nu meer meesturen dan je hebt bevestigd. {{sent}}",
         "confirm": "Ligt stil: dit apparaat vraagt vóór elk verzoek, en als een routine draait, is er niemand die antwoordt.",
         "model": "Heeft je nodig: de provider van het model van deze routine is op dit apparaat niet meer ingesteld.",
         "local": "Ligt stil zolang ‘Volledig lokaal’ aan staat: het model van deze routine staat niet op dit apparaat.",

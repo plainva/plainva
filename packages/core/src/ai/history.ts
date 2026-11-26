@@ -88,6 +88,12 @@ export interface RunMeta {
    * did not go this time.
    */
   left?: "image"[];
+  /**
+   * Who this run reached off the device, by recipient (review B7-3, S6): a model's endpoint id, `mcp:<server>`, `web`,
+   * `mail` — never what went. Kept with the conversation, so "Send again" of the same turn, also after a restart,
+   * starts from what the earlier tries handed on.
+   */
+  departedTo?: string[];
   costUsd?: number;
   /** The send overview of this run: what went where, by path and section — never content. */
   manifest?: EgressManifest;
@@ -545,6 +551,7 @@ function readRun(raw: unknown): RunMeta[] {
       ...(typeof r.failure === "string" ? { failure: r.failure } : {}),
       ...(r.unreached === true ? { unreached: true as const } : {}),
       ...(Array.isArray(r.left) && r.left.includes("image") ? { left: ["image" as const] } : {}),
+      ...(Array.isArray(r.departedTo) && r.departedTo.length > 0 ? { departedTo: [...new Set(r.departedTo.filter((x: unknown): x is string => typeof x === "string" && x.length > 0 && x.length <= 200))].slice(0, 20) } : {}),
       ...(typeof r.costUsd === "number" && Number.isFinite(r.costUsd) && r.costUsd >= 0 ? { costUsd: r.costUsd } : {}),
       ...(readManifest(r.manifest) ? { manifest: readManifest(r.manifest)! } : {}),
       ...(Array.isArray(r.skills)

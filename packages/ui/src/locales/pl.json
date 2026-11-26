@@ -1597,7 +1597,7 @@
       "runningNow": "Działa teraz",
       "needs": {
         "skill": "Wstrzymana: umiejętność tej rutyny została zmieniona, wyłączona lub usunięta od chwili jej potwierdzenia. Przejrzyj ją, a znów będzie działać.",
-        "scope": "Potrzebuje Ciebie: rutyna wysłałaby teraz więcej, niż potwierdzono. Nic nie zostało wysłane.",
+        "scope": "Potrzebuje Ciebie: rutyna wysłałaby teraz więcej, niż potwierdzono. {{sent}}",
         "confirm": "Wstrzymana: to urządzenie pyta przed każdym zapytaniem, a gdy rutyna się uruchamia, nie ma nikogo, kto by odpowiedział.",
         "model": "Potrzebuje Ciebie: dostawca modelu tej rutyny nie jest już skonfigurowany na tym urządzeniu.",
         "local": "Wstrzymana, dopóki włączone jest „W pełni lokalnie”: model tej rutyny nie jest na tym urządzeniu.",

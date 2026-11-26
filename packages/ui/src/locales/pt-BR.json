@@ -1537,7 +1537,7 @@
       "runningNow": "Executando agora",
       "needs": {
         "skill": "Em espera: a habilidade desta rotina foi alterada, desligada ou removida desde que você a confirmou. Revise-a, e ela volta a ser executada.",
-        "scope": "Precisa de você: a rotina enviaria agora mais do que você confirmou. Nada foi enviado.",
+        "scope": "Precisa de você: a rotina enviaria agora mais do que você confirmou. {{sent}}",
         "confirm": "Fica em espera: este dispositivo pergunta antes de cada solicitação, e, quando uma rotina é executada, não há ninguém para responder.",
         "model": "Precisa de você: o provedor do modelo desta rotina não está mais configurado neste dispositivo.",
         "local": "Em espera enquanto “Totalmente local” estiver ligado: o modelo desta rotina não está neste dispositivo.",

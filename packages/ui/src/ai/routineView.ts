@@ -212,6 +212,16 @@ export function routineNeed(
   return found === "scope" || found === "rules" ? found : null;
 }
 
+/**
+ * What a routine needs, as its line says it. "Would send more than you confirmed" ends with the sentence about sending
+ * (review B7-3, S5): "nothing was sent" where nothing of that run had left the device, no sentence where it had — its
+ * request had gone to a search model in the cloud while the run was put together.
+ */
+function needText(t: Translate, need: RoutineNeed, departed: boolean): string {
+  if (need !== "scope") return t(`ai.routines.needs.${need}`);
+  return t("ai.routines.needs.scope", { sent: departed ? "" : t("ai.error.nothingSent") }).replace(/\s{2,}/g, " ").trim();
+}
+
 function lastText(t: Translate, routine: Routine, now: Date, locale: string): string {
   const last = routine.last;
   if (!last) return t("ai.routines.last.never");
@@ -261,7 +271,7 @@ export function routineRows(
     const status = running
       ? t("ai.routines.runningNow")
       : need
-        ? t(`ai.routines.needs.${need}`)
+        ? needText(t, need, routine.last?.outcome === "needs-you" && routine.last.departed === true)
         : [lastText(t, routine, now, locale), routine.paused ? t("ai.routines.paused") : upcoming ? t("ai.routines.next", { when: upcoming }) : ""].filter(Boolean).join(" · ");
     return {
       id: routine.id,

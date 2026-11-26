@@ -80,7 +80,8 @@ describe("every request of a run goes through that run's own egress", () => {
       for (const given of body.match(/\begress: [^,\n}]+/g) ?? []) expect(["egress: run.egress", "egress: input.departures.egress"], `${name}: ${given}`).toContain(given);
     }
     // A server's prompt starts with the server in the list (review B7-2, S4); every other run with an empty one.
-    expect(run).toMatch(/const run = this\.runDepartures\(server \? \[`mcp:\$\{server\.id\}`\] : \[\]\);/);
+    // and "Send again" with whom the turn's earlier tries reached (review B7-3, S6).
+    expect(run).toMatch(/const earlier = retry \? retry\.of\.departedTo \?\? \[\] : \[\];\s*const run = this\.runDepartures\(\[\.\.\.\(server \? \[`mcp:\$\{server\.id\}`\] : \[\]\), \.\.\.earlier\]\);/);
     // The model call, the reader without tools, a page's processing, and the context (its search).
     expect(execute).toMatch(/runAgent\(\{[\s\S]*?egress: input\.departures\.egress,/);
     expect(run.match(/egress: run\.egress,/g)?.length).toBeGreaterThanOrEqual(3);
@@ -189,3 +190,33 @@ const KNOWN_VAULT_MEMBERS = [
   "skillTests", "upkeep", "routines", "changedSince", "log", "hints", "hintPrefs", "instructions", "memory", "style", "drafts", "creates",
   "proposals", "direct", "folderRules", "showVersions",
 ];
+
+/**
+ * A new way out through a member the hosts already have (review B7-3, M14): inside a run, the session reaches the shell
+ * only by these calls, each one in table 1 — a page fetch only through the fetcher that notes it, a foreign server's
+ * call only through the noting wrapper, the vault's tools only once, wrapped by the executor that notes the mail.
+ */
+describe("a run reaches the shell's ways out only as table 1 names them", () => {
+  const session = text("packages/ui/src/ai/aiSession.ts");
+  const run = method(session, "  private async runMessage(");
+  const execute = method(session, "  private async execute(input: {");
+  const calls = (body: string, pattern: RegExp) => [...new Set(Array.from(body.matchAll(pattern), (m) => m[0]))].sort();
+
+  it("of the session's host: the clock, ids, words — and the page fetcher, wrapped", () => {
+    expect(calls(run + execute, /this\.host\.[a-zA-Z]+/g)).toEqual(["this.host.label", "this.host.language", "this.host.newId", "this.host.now", "this.host.today", "this.host.web"]);
+    // The fetcher appears in one form only: handed to the web executor through `notingFetcher`.
+    expect(run.match(/this\.host\.web\b[^\n]*/g)).toEqual(["this.host.web ? notingFetcher(this.host.web, () => run.note(\"web\")) : null,"]);
+  });
+
+  it("of the foreign servers: listing, checking, logging — and a call only after it is noted", () => {
+    expect(calls(run + execute, /this\.mcp\.[a-zA-Z]+/g)).toEqual(["this.mcp.call", "this.mcp.check", "this.mcp.log", "this.mcp.manifests", "this.mcp.servers"]);
+    expect(run).toMatch(/run\.note\(`mcp:\$\{serverId\}`\);\s*return this\.mcp\.call\(/);
+    expect(run.match(/this\.mcp\.call\(/g)).toHaveLength(1);
+  });
+
+  it("of the vault's host: its tools once, wrapped by what notes the mail", () => {
+    expect(run.match(/\bvault\.tools\(/g)).toHaveLength(1);
+    expect(run).toMatch(/executor: notingExecutor\(vaultTools\.executor, \(tool\) => \(MAIL_TOOL_NAMES\.includes\(tool\) \? "mail" : null\), run\.note\)/);
+    expect(run).not.toMatch(/vaultTools\.executor\.execute|vault\.(?:web|mcp|agents)\./);
+  });
+});

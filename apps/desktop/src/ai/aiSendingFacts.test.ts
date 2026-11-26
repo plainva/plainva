@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
-import type { EgressChunk, ModelFailure } from "@plainva/core/ai";
-import { conversationFailureText, type AiSession } from "@plainva/ui/ai";
+import { isCloudRecipient, type EgressChunk, type ModelFailure } from "@plainva/core/ai";
+import { conversationFailureText, routineRows, type AiSession, type AiVaultHost } from "@plainva/ui/ai";
 import { session, settled, unreachable, vaultHost } from "./failureClassHarness";
+import { at, routineSession, routineVault } from "./routineSessionHarness";
 
 /**
  * What the app says about sending holds for the words of THIS request, from typing to the end of its run, and for
@@ -196,5 +197,114 @@ describe("every way a run takes is in its list, not only the models' egress (rev
     const notice = s.getState().notice!;
     expect(notice.stop.kind === "failed" && notice.stop.failure.kind).toBe("too_large");
     expect(notice.departedTo).toEqual(expect.arrayContaining(["anthropic", "mcp:tracker"]));
+  });
+});
+
+/** The search's way with a cloud search model, as `gatherCandidates` takes it: the question goes out through the run's egress. */
+function cloudSearchOf(vault: { host: { candidates: AiVaultHostCandidates } }) {
+  const asked: string[] = [];
+  const own = vault.host.candidates;
+  vault.host.candidates = async (question, active, recipient, egress) => {
+    asked.push(question);
+    if (recipient && isCloudRecipient(recipient)) await egress.send(`emb-${asked.length}`, embedding("openai", question), () => undefined);
+    return own(question, active, recipient, egress);
+  };
+  return asked;
+}
+type AiVaultHostCandidates = AiVaultHost["candidates"];
+
+describe("a routine that stops for its user (review B7-3, S5)", () => {
+  const NOTES = { "Projects/Offer.md": "# Offer\n\nFor Northwind, due on Friday.", "Journal/2026-10-08.md": "# Thursday\n\nCalled the studio." };
+  const lineOf = (h: Awaited<ReturnType<typeof routineSession>>) => {
+    const t = i18n.getFixedT("en");
+    const rows = routineRows(t, { list: h.s.getState().routines.list, running: null, entries: h.s.getState().skills.entries, settings: h.s.getState().settings }, at(9, 7, 2), "en");
+    return rows.find((row) => row.name === "Morning brief")!.status;
+  };
+
+  it("says no 'nothing was sent' where its request had gone to a search model in the cloud", async () => {
+    const vault = routineVault(NOTES);
+    vault.touch("Projects/Offer.md", NOTES["Projects/Offer.md"], at(8, 18).getTime());
+    cloudSearchOf(vault);
+    const h = await routineSession([vector, vector], vault);
+    await h.setUp({ request: "Look at the tax audit" });
+    // A note changes overnight in a folder it was not confirmed for: the run would bring along more.
+    vault.touch("Finance/Tax 2026.md", "# Tax\n\nThe advance payment is due.", at(9, 6, 30).getTime());
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const last = h.s.getState().routines.list.find((routine) => routine.name === "Morning brief")!.last;
+    expect(last).toMatchObject({ outcome: "needs-you", need: "scope", departed: true });
+    expect(lineOf(h)).toBe("Needs you: the routine would now send more than you confirmed.");
+  });
+
+  it("says 'nothing was sent' where nothing of it had left", async () => {
+    const vault = routineVault(NOTES);
+    vault.touch("Projects/Offer.md", NOTES["Projects/Offer.md"], at(8, 18).getTime());
+    const h = await routineSession([], vault);
+    await h.setUp({ request: "Look at the tax audit" });
+    vault.touch("Finance/Tax 2026.md", "# Tax\n\nThe advance payment is due.", at(9, 6, 30).getTime());
+    h.go(at(9, 7, 1));
+    expect(await h.s.runDueRoutines()).toBe(1);
+    const last = h.s.getState().routines.list.find((routine) => routine.name === "Morning brief")!.last;
+    expect(last).toMatchObject({ outcome: "needs-you", need: "scope" });
+    expect(last!.departed).toBeUndefined();
+    expect(lineOf(h)).toBe("Needs you: the routine would now send more than you confirmed. Nothing was sent.");
+  });
+});
+
+describe("'Send again' is the same turn (review B7-3, S6)", () => {
+  const broke: EgressChunk[] = [{ type: "failed", code: "network", message: "error sending request: connection closed before message completed" }];
+
+  it("after a try that may have arrived, a refusal before sending says no 'nothing was sent' (R3-A5)", async () => {
+    const { s, fake } = session([broke]);
+    await s.load();
+    const vault = vaultHost();
+    await s.attachVault(vault.host);
+    await s.send("Where is the offer?");
+    expect(fake.sent).toHaveLength(1);
+    await s.updateSettings((settings) => ({ ...settings, localOnly: true }));
+    await s.retryLast();
+    const notice = s.getState().notice!;
+    expect(notice.stop.kind === "failed" && notice.stop.failure.kind).toBe("local_only");
+    expect(notice.departedTo).toEqual(["anthropic"]);
+    expect(en({ kind: "local_only" }, Boolean(notice.departedTo?.length))).not.toMatch(/Nothing was sent/);
+    // The turn stays, as it was.
+    expect(s.getState().active!.conversation.turns.map((turn) => turn.role)).toEqual(["user"]);
+  });
+
+  it("the same after a restart: whom the earlier try reached is kept with the conversation", async () => {
+    const first = session([broke]);
+    await first.s.load();
+    const vault = vaultHost();
+    await first.s.attachVault(vault.host);
+    await first.s.send("Where is the offer?");
+    const id = first.s.getState().active!.id;
+    const runs = vault.saved.get(id)!.runs;
+    expect(runs[runs.length - 1]!.departedTo).toEqual(["anthropic"]);
+    // A new run of the app: the conversation is read back from the vault.
+    const again = session([tooLarge]);
+    await again.s.load();
+    await again.s.attachVault(vault.host);
+    await again.s.open(id);
+    await again.s.retryLast();
+    const notice = again.s.getState().notice!;
+    expect(notice.stop.kind === "failed" && notice.stop.failure.kind).toBe("too_large");
+    expect(notice.departedTo).toEqual(["anthropic"]);
+  });
+});
+
+describe("the preview holds back only what a send would ask (review B7-3, S7)", () => {
+  it("says nothing held back while the device is fully local: a send asks no search model in the cloud either", async () => {
+    const { s, fake } = session([]);
+    await s.load();
+    await s.updateSettings((settings) => ({ ...settings, localOnly: true }));
+    const vault = vaultHost();
+    vault.host.candidates = async (question, _active, _recipient, egress) => {
+      await egress.send("emb-preview", embedding("openai", question), () => undefined);
+      return [];
+    };
+    await s.attachVault(vault.host);
+    const preview = await s.previewContext("Where is the offer?");
+    expect(fake.sent).toEqual([]);
+    expect(preview?.searchHeldBack ?? false).toBe(false);
   });
 });

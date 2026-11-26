@@ -330,6 +330,29 @@ describe("the internet in a conversation", () => {
     expect(readConversationRecord(JSON.parse(JSON.stringify(vault.saved.get(record.id))))!.runs[0]!.web).toEqual(record.runs[0]!.web);
   });
 
+  it("notes the page's fetch in the run's list: with a model on this device it is the one way out, and nothing claims none (review B7-3, M14)", async () => {
+    const vault = webVault({ web: ON });
+    // A model on this device: its requests count for nobody. The page's address left the device all the same; then the
+    // next request is refused as too large before it goes.
+    // The model on this device speaks the OpenAI chat format (`chat`).
+    const fact = "The day rate for 2026 is 1,900 euros.";
+    const { s } = await session(
+      [chat({ calls: [{ id: "c1", name: "fetch_url", args: { url: RATES, question: "What is the day rate?" } }] }), chat({ text: JSON.stringify({ relevant: true, summary: fact, facts: [{ text: fact, quote: fact }], links: [] }) }), [{ type: "failed", code: "too_large", message: "x" }]],
+      vault,
+      undefined,
+      { providerId: "ollama", model: "local-1" },
+    );
+    s.setDraftWeb(true);
+    const run = s.send(`What does ${RATES} say about day rates?`);
+    await asked(s);
+    s.answerEffect("once");
+    await run;
+    const notice = s.getState().notice!;
+    expect(notice.stop.kind === "failed" && notice.stop.failure.kind).toBe("too_large");
+    expect(notice.departedTo).toEqual(["web"]);
+    expect(notice.returned).toBeUndefined();
+  });
+
   it("takes a no for an answer: nothing is fetched, and the run goes on without the page", async () => {
     const vault = webVault({ web: ON });
     const { s, fake, asked: fetched } = await session([fetchCall("c1", RATES), fetchCall("c2", RATES), fetchCall("c3", "https://example.org/other"), turn({ text: "I could not read the page." })], vault);

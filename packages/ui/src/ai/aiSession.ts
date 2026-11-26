@@ -1452,8 +1452,10 @@ interface RunOutcome {
   stop: RunStop;
   record?: ConversationRecord;
   answer?: string;
-  /** A routine's run that ended without sending: what it needs from its user. */
+  /** A routine's run that ended before its model call: what it needs from its user. */
   need?: RoutineNeed;
+  /** And whether something of it had left the device by then (review B7-3, S5): its list was not empty. */
+  departed?: true;
   /** A routine's preview: what a run would send, and what it may spend. */
   manifest?: EgressManifest;
   limits?: RunLimits;
@@ -1869,7 +1871,8 @@ export class AiSession {
       ...this.out,
       send: async (requestId, spec, onChunk) => {
         if (runsOnDevice(providerById(spec.endpointId, this.state.settings.custom))) return this.out.send(requestId, spec, onChunk);
-        refused++;
+        // Held back is only what a send would ask (review B7-3, S7): while the device is fully local, nobody is asked then either.
+        if (!this.state.settings.localOnly) refused++;
         onChunk({ type: "failed", code: "local_only", message: "a preview sends nothing" });
       },
     };
@@ -5173,7 +5176,7 @@ export class AiSession {
     });
     // The vault went away under it.
     if (!outcome) return { outcome: "stopped" };
-    if (outcome.need) return needs(outcome.need);
+    if (outcome.need) return { ...needs(outcome.need), ...(outcome.departed ? { departed: true as const } : {}) };
     const record = outcome.record;
     // What the run changed directly (plan W4) goes with how it ended, whatever that was: it happened.
     const applied = record?.runs[record.runs.length - 1]?.writes?.applied;
@@ -5294,7 +5297,7 @@ export class AiSession {
     const outcome = await this.runMessage(this.logAsk(), vault, routine.choice, { routine: { title, limits: FOLDER_LOG_LIMITS, scope: routine.scope, log: this.logStart(material) }, since });
     // The vault went away under it.
     if (!outcome) return { outcome: "stopped" };
-    if (outcome.need) return needs(outcome.need);
+    if (outcome.need) return { ...needs(outcome.need), ...(outcome.departed ? { departed: true as const } : {}) };
     const record = outcome.record;
     const left = record ? { conversationId: record.id } : {};
     await this.dropPrevious(vault, routine, record, title);
@@ -7304,7 +7307,10 @@ export class AiSession {
     const typed = !door && !detached && !routine && !replay && !skills && !greeting && !retry && !server;
     // This run's own way out (S1): what of it leaves the device is counted there, and nothing of anything else. A
     // server's prompt had the user's words before the run began (review B7-2, S4): it starts in the list.
-    const run = this.runDepartures(server ? [`mcp:${server.id}`] : []);
+    // "Send again" is the same turn (review B7-3, S6): it starts with whom the earlier tries of that turn reached — kept
+    // with the conversation, so also after a restart.
+    const earlier = retry ? retry.of.departedTo ?? [] : [];
+    const run = this.runDepartures([...(server ? [`mcp:${server.id}`] : []), ...earlier]);
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
     const apart = door ?? detached ?? routine ?? replay ?? null;
     // A message of the composer goes nowhere once the user left what it is put together for, and a message of any kind
@@ -7317,7 +7323,8 @@ export class AiSession {
     if (!provider) {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
       // A routine runs beside the conversation on screen and puts no notice into it: its own row says how it ended.
-      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop, ...(typed ? { returned: true as const } : {}) } });
+      // The turn's earlier tries may have reached someone (review B7-3, S6): the notice names them, and says no "nothing was sent".
+      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop, ...(typed ? { returned: true as const } : {}), ...(run.to.length ? { departedTo: [...new Set(run.to)] } : {}) } });
       // Nothing was put together, nothing left (B7): a typed question goes back into the field.
       if (typed) this.returnToField(vault, this.state.active?.id ?? "", message, null);
       return { stop };
@@ -7326,7 +7333,8 @@ export class AiSession {
     // built, asked or sent. The egress would refuse the request as well; this is the same answer, earlier.
     if (this.state.settings.localOnly && !runsOnDevice(provider)) {
       const stop: RunStop = { kind: "failed", failure: { kind: "local_only" } };
-      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop, ...(typed ? { returned: true as const } : {}) } });
+      // The turn's earlier tries may have reached someone (review B7-3, S6): the notice names them, and says no "nothing was sent".
+      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop, ...(typed ? { returned: true as const } : {}), ...(run.to.length ? { departedTo: [...new Set(run.to)] } : {}) } });
       if (typed) this.returnToField(vault, this.state.active?.id ?? "", message, null);
       return { stop };
     }
@@ -7750,8 +7758,11 @@ export class AiSession {
       // request goes; where it would bring along more — or where this device asks before every request — nothing is
       // sent, and the run ends with what it needs. A model on this device is sent nothing that leaves.
       if (!manifest.local) {
-        if (this.state.settings.confirmEveryRequest) return { stop: { kind: "cancelled" }, need: "confirm" };
-        if (scopeGrowth(manifest, routine.scope).length > 0) return { stop: { kind: "cancelled" }, need: "scope" };
+        // Putting the context together may have asked a search model in the cloud already (review B7-3, S5): the run's
+        // list says so, and its line then claims nothing about sending.
+        const departed = run.to.length > 0 ? { departed: true as const } : {};
+        if (this.state.settings.confirmEveryRequest) return { stop: { kind: "cancelled" }, need: "confirm", ...departed };
+        if (scopeGrowth(manifest, routine.scope).length > 0) return { stop: { kind: "cancelled" }, need: "scope", ...departed };
       }
     } else {
       // The send overview as the scope approval (E25): on the first request, when the scope grows, or always for the
@@ -8306,6 +8317,8 @@ export class AiSession {
       ...(result.stop.kind === "failed" ? { failure: result.stop.failure.kind } : {}),
       ...(received ? {} : { unreached: true as const }),
       ...(withoutImages ? { left: ["image" as const] } : {}),
+      // Who this try reached (review B7-3, S6): a later "Send again" of the turn starts from it.
+      ...(input.departures.to.length ? { departedTo: [...new Set(input.departures.to)] } : {}),
       ...(costUsd !== undefined ? { costUsd } : {}),
       manifest,
       ...(skillsUsed.length ? { skills: skillsUsed } : {}),

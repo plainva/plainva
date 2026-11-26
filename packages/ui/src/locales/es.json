@@ -1537,7 +1537,7 @@
       "runningNow": "En ejecución ahora",
       "needs": {
         "skill": "En reposo: la habilidad de esta rutina se cambió, se desactivó o se eliminó desde que la confirmaste. Revísala y volverá a ejecutarse.",
-        "scope": "Te necesita: la rutina enviaría ahora más de lo que confirmaste. No se envió nada.",
+        "scope": "Te necesita: la rutina enviaría ahora más de lo que confirmaste. {{sent}}",
         "confirm": "En reposo: este dispositivo pregunta antes de cada solicitud, y cuando se ejecuta una rutina no hay nadie que responda.",
         "model": "Te necesita: el proveedor del modelo de esta rutina ya no está configurado en este dispositivo.",
         "local": "En reposo mientras «Totalmente local» esté activado: el modelo de esta rutina no está en este dispositivo.",

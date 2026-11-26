@@ -529,6 +529,18 @@ describe("skills and the internet", () => {
     expect(s.getState().draftWeb).toBe(false);
   });
 
+  it("notes a mail search in the run's list: with a model on this device it is the one way out, and nothing claims none (review B7-3, M14)", async () => {
+    // A model on this device: its requests count for nobody. The search words went to the mail server all the same; then
+    // the next request is refused as too large before it goes.
+    const vault = vaultOf();
+    // The model on this device speaks the OpenAI chat format (`chat`).
+    const { s } = await session([chat({ calls: [{ id: "c1", name: "search_mail", args: { query: "offer" } }] }), [{ type: "failed", code: "too_large", message: "x" }]], vault, LOCAL);
+    await s.runSkill("plainva:mail-and-calendar", "What did Anna write about the offer?");
+    const notice = s.getState().notice!;
+    expect(notice.stop.kind === "failed" && notice.stop.failure.kind).toBe("too_large");
+    expect(notice.departedTo).toEqual(["mail"]);
+  });
+
   it("has no such tools where the vault's switch is off", async () => {
     const vault = vaultOf();
     const { s, fake } = await session([turn({ text: "I cannot look anything up on the web here." })], vault);

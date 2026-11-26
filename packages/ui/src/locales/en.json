@@ -1477,7 +1477,7 @@
       "runningNow": "Running now",
       "needs": {
         "skill": "Rests: the skill of this routine was changed, switched off or removed since you confirmed the routine. Look at it, then it runs again.",
-        "scope": "Needs you: the routine would now send more than you confirmed. Nothing was sent.",
+        "scope": "Needs you: the routine would now send more than you confirmed. {{sent}}",
         "confirm": "Rests: this device asks before every request, and nobody is there to answer when a routine runs.",
         "model": "Needs you: the provider of this routine's model is no longer set up on this device.",
         "local": "Rests while “Fully local” is on: this routine's model is not on this device.",

@@ -1477,7 +1477,7 @@
       "runningNow": "Läuft gerade",
       "needs": {
         "skill": "Ruht: Der Skill dieser Routine wurde geändert, ausgeschaltet oder entfernt, seit Du sie bestätigt hast. Sieh sie an, dann läuft sie wieder.",
-        "scope": "Braucht Dich: Die Routine würde jetzt mehr mitgeben, als Du bestätigt hast. Es wurde nichts gesendet.",
+        "scope": "Braucht Dich: Die Routine würde jetzt mehr mitgeben, als Du bestätigt hast. {{sent}}",
         "confirm": "Ruht: Dieses Gerät fragt vor jeder Anfrage, und wenn eine Routine läuft, ist niemand da, der antwortet.",
         "model": "Braucht Dich: Der Anbieter des Modells dieser Routine ist auf diesem Gerät nicht mehr eingerichtet.",
         "local": "Ruht, solange „Voll-lokal“ an ist: Das Modell dieser Routine ist nicht auf diesem Gerät.",

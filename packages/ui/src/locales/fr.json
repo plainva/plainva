@@ -1537,7 +1537,7 @@
       "runningNow": "En cours d'exécution",
       "needs": {
         "skill": "En sommeil : la compétence de cette routine a été modifiée, désactivée ou supprimée depuis que vous l'avez confirmée. Examinez-la, et elle s'exécutera de nouveau.",
-        "scope": "A besoin de vous : la routine enverrait désormais plus que ce que vous avez confirmé. Rien n'a été envoyé.",
+        "scope": "A besoin de vous : la routine enverrait désormais plus que ce que vous avez confirmé. {{sent}}",
         "confirm": "En sommeil : cet appareil demande avant chaque requête, et personne n'est là pour répondre quand une routine s'exécute.",
         "model": "A besoin de vous : le fournisseur du modèle de cette routine n'est plus configuré sur cet appareil.",
         "local": "En sommeil tant que « Entièrement local » est activé : le modèle de cette routine n'est pas sur cet appareil.",
