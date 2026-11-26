@@ -7383,6 +7383,7 @@
     "decommissionTypeName": "Para confirmar, digite o nome do vault: {{name}}",
     "decommissionNameMismatch": "Esse não é o nome do vault — nada foi alterado.",
     "decommissionUnfinished": "A desativação não terminou neste dispositivo. Até ser concluída, este vault não sincroniza nada.",
+    "liftUnfinished": "A remoção da criptografia não terminou. Só pode ser concluída como desativação; até lá, este vault não sincroniza nada.",
     "orphanRecovery": "O espaço de trabalho na nuvem não existe ou está danificado — a sincronização continua parada. Desative-o abaixo para redefinir.",
     "setupTitle": "Configurar workspace criptografado",
     "setupProgress": "Etapa {{step}} de 3",

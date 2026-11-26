@@ -43,8 +43,8 @@ const state = vi.hoisted(() => ({
   genesis: "none" as "none" | "found" | "error",
   /** A stored workspace status (a member) - with or without its keys. */
   wsStatus: null as null | { phase: string },
-  /** What is left of a workspace whose decommission stopped midway (`mobileDecommissionUnfinished`). */
-  decommissionUnfinished: false,
+  /** A decommission or lift that passed its gate and stopped (`mobileDecommissionUnfinished`). */
+  decommissionUnfinished: null as null | "decommission" | "lift",
   /** How often the genesis was read on its own. */
   genesisReads: 0,
   /** The settings store fails for the encrypted-remote fact. */
@@ -220,7 +220,7 @@ beforeEach(() => {
   state.settingsOnly.length = 0;
   state.genesis = "none";
   state.wsStatus = null;
-  state.decommissionUnfinished = false;
+  state.decommissionUnfinished = null;
   state.genesisReads = 0;
   state.brokenStore = false;
   state.confirmedEndpoints.clear();
@@ -500,15 +500,16 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
   });
 
-  it("a vault whose decommission stopped midway never starts the plain sync, and says why (review B2, round 8)", async () => {
-    expect.hasAssertions();
-    // The status went, the device key or the state did not: the vault opened without its workspace.
-    state.decommissionUnfinished = true;
-    state.genesis = "error";
-    await startSyncIfConfigured(vault);
-    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
-    expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "pair-required", message: i18n.t("workspaceSecurity.decommissionUnfinished") });
-  });
+  for (const leaving of ["decommission", "lift"] as const) {
+    it(`a vault whose ${leaving} passed its gate and stopped never starts the plain sync, and says what was asked for (review B2, round 9)`, async () => {
+      expect.hasAssertions();
+      state.decommissionUnfinished = leaving;
+      state.genesis = "error";
+      await startSyncIfConfigured(vault);
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+      expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "pair-required", message: i18n.t(leaving === "lift" ? "workspaceSecurity.liftUnfinished" : "workspaceSecurity.decommissionUnfinished") });
+    });
+  }
 
   it("a store that fails inside the rule does not stop the start", async () => {
     state.brokenStore = true;

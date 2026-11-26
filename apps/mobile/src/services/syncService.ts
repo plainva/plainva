@@ -933,11 +933,12 @@ async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, raw
       setState({ status: "error", message: i18n.t(status.phase === "locked" ? "workspaceSecurity.lockedMessage" : "workspaceSecurity.keyBundleMissingMessage"), errorKind: "pair-required" });
       return true;
     }
-    // A decommission that stopped midway (review B2, round 8): what is left of the workspace is here, its status is
-    // not. Never the plain sync on it — held, and said, until the person finishes the decommission in the Security area.
-    if (await mobileDecommissionUnfinished(v.vaultId, v.db).catch(() => false)) {
+    // A decommission (or a lift) that passed its gate and stopped (review B2, rounds 8 and 9): never the plain sync on
+    // it — held, and said, until the person finishes it in the Security area. Only that fact holds it, never leftovers.
+    const leaving = await mobileDecommissionUnfinished(v.vaultId).catch(() => null);
+    if (leaving) {
       held = { vaultId: v.vaultId, attempt: 0 };
-      setState({ status: "error", message: i18n.t("workspaceSecurity.decommissionUnfinished"), errorKind: "pair-required" });
+      setState({ status: "error", message: i18n.t(leaving === "lift" ? "workspaceSecurity.liftUnfinished" : "workspaceSecurity.decommissionUnfinished"), errorKind: "pair-required" });
       return true;
     }
     const binding = await mobileSyncBinding(v, p);

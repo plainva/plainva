@@ -7237,6 +7237,7 @@
     "decommissionTypeName": "Typ ter bevestiging de naam van de kluis: {{name}}",
     "decommissionNameMismatch": "Dat is niet de naam van de kluis — er is niets gewijzigd.",
     "decommissionUnfinished": "Het buiten gebruik stellen is op dit apparaat niet afgerond. Tot het is afgerond, synchroniseert deze kluis niets.",
+    "liftUnfinished": "Het opheffen van de versleuteling is niet afgerond. Afronden kan alleen als buiten gebruik stellen; tot dan synchroniseert de kluis niets.",
     "orphanRecovery": "De werkruimte in de cloud ontbreekt of is beschadigd — synchronisatie blijft gestopt. Stel de werkruimte hieronder buiten gebruik om te resetten.",
     "setupTitle": "Versleutelde workspace instellen",
     "setupProgress": "Stap {{step}} van 3",

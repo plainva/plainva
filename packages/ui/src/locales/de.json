@@ -7236,6 +7236,7 @@
     "decommissionTypeName": "Tippe zur Bestätigung den Namen des Vaults: {{name}}",
     "decommissionNameMismatch": "Das ist nicht der Name des Vaults — es wurde nichts geändert.",
     "decommissionUnfinished": "Das Stilllegen ist auf diesem Gerät nicht fertig geworden. Bis es abgeschlossen ist, synchronisiert dieser Vault nichts.",
+    "liftUnfinished": "Das Aufheben der Verschlüsselung ist nicht fertig. Abschließen geht nur als Stilllegen; bis dahin synchronisiert dieser Vault nichts.",
     "orphanRecovery": "Workspace in der Cloud fehlt oder ist beschädigt — der Sync bleibt gestoppt. Lege ihn unten still, um zurückzusetzen.",
     "setupTitle": "Verschlüsselten Workspace einrichten",
     "setupProgress": "Einrichtungsschritt {{step}} von 3",

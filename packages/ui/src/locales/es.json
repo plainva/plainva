@@ -7383,6 +7383,7 @@
     "decommissionTypeName": "Para confirmar, escribe el nombre del vault: {{name}}",
     "decommissionNameMismatch": "Ese no es el nombre del vault: no se ha cambiado nada.",
     "decommissionUnfinished": "La retirada no terminó en este dispositivo. Hasta que se complete, este vault no sincroniza nada.",
+    "liftUnfinished": "Quitar el cifrado no terminó en este dispositivo. Solo puede completarse como retirada; hasta entonces, este vault no sincroniza nada.",
     "orphanRecovery": "El espacio de trabajo en la nube falta o está dañado: la sincronización sigue detenida. Retíralo más abajo para restablecer.",
     "setupTitle": "Configurar espacio cifrado",
     "setupProgress": "Paso {{step}} de 3",

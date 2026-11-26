@@ -1,5 +1,5 @@
 import { projectPublicationFeedbackForOwner } from "@plainva/core/workspace";
-import { type IDatabaseAdapter, type IVaultAdapter } from "@plainva/core";
+import { type IVaultAdapter } from "@plainva/core";
 import {
   acceptWorkspacePairing,
   approveWorkspacePairing,
@@ -65,7 +65,6 @@ import {
   type WorkspaceRekeyMode,
   type WorkspaceRole,
   type WorkspaceStateStore,
-  SqlWorkspaceStateStore,
 } from "@plainva/core/workspace";
 import { createLimiter, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemoteDeparted, workspaceDeparture } from "@plainva/ui";
 import { Preferences } from "@capacitor/preferences";
@@ -109,6 +108,14 @@ const MINIMUM_CLIENT_VERSION = "0.4.1";
 const runtimeKey = (vaultId: string) => `workspace_runtime_mobile_${vaultId}`;
 const pendingKey = (vaultId: string) => `workspace_pairing_mobile_${vaultId}`;
 const statusKey = (vaultId: string) => `workspace_status_mobile_${vaultId}`;
+/**
+ * That a decommission (or a lift) of this vault passed its gate and has not
+ * finished (review B2, round 9): written by the decommission itself as its
+ * gate opens, removed at its end and by every status written afterwards
+ * (`saveStatus`). It is only ever shown (`mobileDecommissionUnfinished`),
+ * never acted on, and read only where the status is gone.
+ */
+const leavingKey = (vaultId: string) => `workspace_leaving_mobile_${vaultId}`;
 const cache = new Map<string, PersonalWorkspaceRuntime>();
 const locked = new Set<string>();
 /**
@@ -150,6 +157,8 @@ export async function getMobileWorkspaceStatus(vaultId: string): Promise<MobileW
 
 async function saveStatus(vaultId: string, status: MobileWorkspaceStatus): Promise<void> {
   await Preferences.set({ key: statusKey(vaultId), value: JSON.stringify(status) });
+  // A workspace set up, joined or recovered here: a decommission that stopped midway before is over (`leavingKey`).
+  await Preferences.remove({ key: leavingKey(vaultId) });
   // The screens listen for this; guarded so the service also works where no DOM
   // exists (tests, and any future worker context).
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
@@ -1145,6 +1154,8 @@ export async function unlockMobileWorkspace(vaultId: string): Promise<PersonalWo
  */
 export async function decommissionMobileWorkspace(input: {
   vaultId: string;
+  /** What the person asked for: lifting the encryption, or (by default) decommissioning the workspace. */
+  intent?: MobileLeaving;
   state: WorkspaceStateStore | null;
   /** Stops and drains the sync worker. Injected so this module stays free of
    *  the vault/sync services (they import this one), and so the test can prove
@@ -1159,9 +1170,9 @@ export async function decommissionMobileWorkspace(input: {
   let state = input.state;
   // (1) Refusal path: a locked keystore throws here, before any change.
   const runtime = await secureCredentialStore.readSecret<ReturnType<typeof serializePersonalWorkspaceRuntime>>(runtimeKey(vaultId));
-  // Pressed again after a run that was interrupted midway (review B2, round 8): what is left of the workspace — its
-  // device key, or its state — is still one to decommission, never "not a workspace".
-  if (!runtime && !(await getMobileWorkspaceStatus(vaultId)) && !(await state?.loadMeta().catch(() => null))) throw new Error("this vault is not an encrypted workspace on this device");
+  // Pressed again after a run that stopped after its gate (review B2, round 9): one that began is still one to
+  // finish, never "not a workspace". Leftovers alone (a device key a reinstall kept) are no such fact.
+  if (!runtime && !(await getMobileWorkspaceStatus(vaultId)) && !(await leavingOf(vaultId))) throw new Error("this vault is not an encrypted workspace on this device");
   // Whether this device is the workspace's only one, asked at this press, of the runtime the vault has open. Pressed
   // again after a run that stopped midway, the vault opened without its workspace: nobody can tell then whether other
   // devices still use it, and the folder stays theirs (R8) — never an answer frozen from before.
@@ -1170,7 +1181,9 @@ export async function decommissionMobileWorkspace(input: {
   // to clear.
   const renewed = await stopSync();
   if (renewed) state = renewed.state;
-  // (2) The gate.
+  // (2) The gate. First the fact that it opens (`leavingKey`): from here on a run that stops is said as one that did
+  // not finish — and only shown, never finished by itself. Where writing it fails, nothing has changed.
+  await Preferences.set({ key: leavingKey(vaultId), value: input.intent ?? "decommission" });
   await Preferences.remove({ key: statusKey(vaultId) });
   cache.delete(vaultId); locked.delete(vaultId);
   // Read the publication ids while the table still exists: the keystore cannot
@@ -1194,26 +1207,33 @@ export async function decommissionMobileWorkspace(input: {
   } catch (error) {
     console.warn("[mobileWorkspaceSecurity] could not record the released workspace", error);
   }
+  await Preferences.remove({ key: leavingKey(vaultId) });
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
 }
 
+/** What a decommission that passed its gate was asked for (`decommissionMobileWorkspace`, `intent`). */
+export type MobileLeaving = "decommission" | "lift";
+
+async function leavingOf(vaultId: string): Promise<MobileLeaving | null> {
+  const value = (await Preferences.get({ key: leavingKey(vaultId) })).value;
+  return value === "lift" ? "lift" : value ? "decommission" : null;
+}
+
 /**
- * A decommission (or a lift) that stopped midway — the vault closed under it,
- * a keystore that failed after the gate: the status went, and the vault opens
- * without its workspace, but its device key or its state is still here.
- * Nothing finishes it by itself: nothing lifts an encryption or ends a
- * workspace unless the person asks for it at that moment (review B2, round
- * 8). The Security area says so and offers the decommission again; the sync
- * of the vault stays held meanwhile (`syncService`, never plain text).
+ * A decommission (or a lift) that passed its gate and stopped — the vault
+ * closed under it, a keystore that failed afterwards: its status is gone,
+ * and the vault opens without its workspace. Answers what was asked for, or
+ * null. Only that fact counts (`leavingKey`, written at the gate), never
+ * what is left on the device: a device key a reinstall kept, or a setup that
+ * stopped between the key and the status, is no decommission. Nothing
+ * finishes it by itself — nothing lifts an encryption or ends a workspace
+ * unless the person asks for it at that moment (review B2, rounds 8 and 9).
+ * The Security area says so and offers the decommission again; the vault's
+ * sync stays held meanwhile (`syncService`, never plain text).
  */
-export async function mobileDecommissionUnfinished(
-  vaultId: string,
-  db: IDatabaseAdapter | null,
-  state: Pick<WorkspaceStateStore, "loadMeta"> | null = db ? new SqlWorkspaceStateStore(db) : null,
-): Promise<boolean> {
-  if (await getMobileWorkspaceStatus(vaultId)) return false;
-  if (await secureCredentialStore.readSecret(runtimeKey(vaultId))) return true;
-  return !!state && !!(await state.loadMeta().catch(() => null));
+export async function mobileDecommissionUnfinished(vaultId: string): Promise<MobileLeaving | null> {
+  if (await getMobileWorkspaceStatus(vaultId)) return null;
+  return leavingOf(vaultId);
 }
 
 /**

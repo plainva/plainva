@@ -7091,6 +7091,7 @@
     "decommissionTypeName": "请输入仓库名称以确认：{{name}}",
     "decommissionNameMismatch": "这不是仓库的名称，未做任何更改。",
     "decommissionUnfinished": "此设备上的停用尚未完成。完成之前，此仓库不会同步任何内容。",
+    "liftUnfinished": "此设备上的取消加密尚未完成。只能以停用的方式完成；在此之前，此仓库不会同步任何内容。",
     "orphanRecovery": "云端的工作区丢失或已损坏——同步保持停止。请在下方停用它以重置。",
     "setupTitle": "设置加密工作区",
     "setupProgress": "设置步骤{{step}}/3",

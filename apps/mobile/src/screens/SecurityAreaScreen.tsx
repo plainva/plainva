@@ -121,8 +121,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [resumeProgress, setResumeProgress] = useState<{ done: number; total: number } | null>(null);
   /** A lift under way: when it started and how many files still wait in the plaintext queue (4.6). */
   const [lift, setLift] = useState<{ since: string; pending: number } | null>(null);
-  /** A decommission that stopped midway: offered again here, never finished by itself (`mobileDecommissionUnfinished`). */
-  const [unfinished, setUnfinished] = useState(false);
+  /** A decommission or lift that passed its gate and stopped: offered again here, never finished by itself (`mobileDecommissionUnfinished`). */
+  const [unfinished, setUnfinished] = useState<"decommission" | "lift" | null>(null);
   // The desktop's second level (settings plan 2026-10-29, E12): an overview
   // with two ways in — "Your access" (devices, recovery) and "Sharing"
   // (members, groups, slices, publications) — from the shared security
@@ -189,7 +189,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   const refresh = useCallback(async () => {
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
-    setUnfinished(await mobileDecommissionUnfinished(vault.vaultId, vault.db ?? null).catch(() => false));
+    setUnfinished(await mobileDecommissionUnfinished(vault.vaultId).catch(() => null));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
     setLocalForks(vault.workspaceState ? await vault.workspaceState.listLocalForks() : []);
     setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
@@ -788,7 +788,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await withRuntimeStep({ vaultId: vault.vaultId, runtime: vault }, {
         work: async (stop) => {
           let on = vault;
-          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop, (fresh) => { on = fresh; }), runtime: vault.workspaceRuntime });
+          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop, (fresh) => { on = fresh; }), runtime: vault.workspaceRuntime, intent: "lift" });
           // The queue table lives in the vault's own database, which is still open
           // here — the reload below boots a plain vault whose worker drains it.
           await on.syncQueue?.enqueueAllLocalFiles();
@@ -879,15 +879,15 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           plain/local vault — only the joined and joinable cases add this row.
           Unlocking belongs to the status, not to an area, so it sits with it and
           above the area switch (N3.2). */}
-      {/* A decommission that stopped midway (review B2, round 8): said as it is, with its button — the vault's sync
-          stays held until it is done, and nothing finishes it by itself. */}
+      {/* A decommission or lift that passed its gate and stopped (review B2, rounds 8 and 9): said as it is, with the
+          one button that can finish it — the vault's sync stays held until it is done, and nothing finishes it by itself. */}
       {area === "overview" && !status && unfinished && (
         <GroupCard tone="danger"><RowList><Row
           data-testid="workspace-decommission-unfinished"
           disabled={busy}
           icon={busyAction === "decommission" ? <span className="m-actionspin" aria-hidden /> : <ShieldOff className="m-danger" size={ICON.ui} />}
           onClick={() => void decommission()}
-          subtitle={t("workspaceSecurity.decommissionUnfinished")}
+          subtitle={unfinished === "lift" ? t("workspaceSecurity.liftUnfinished") : t("workspaceSecurity.decommissionUnfinished")}
           title={<span className="m-danger">{t("workspaceSecurity.decommission")}</span>}
         /></RowList></GroupCard>
       )}

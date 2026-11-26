@@ -97,11 +97,20 @@ The removal waits for every hold on the vault's sync outside the queue (a step's
 
 ## A decommission that stopped midway
 
-- Nothing lifts an encryption or ends a workspace unless the person asks for it at that moment. A vault's open reads the workspace's status as it is and finishes nothing.
-- A decommission (or a lift) interrupted after its gate leaves the device key or the state behind while the status is gone: the vault opens without its workspace.
-  - The Security area says so (`workspaceSecurity.decommissionUnfinished`) and offers the decommission again (`mobileDecommissionUnfinished`). Pressed again, it asks for the vault's name as always and goes on from what is left. Whether this device was the workspace's only one is asked of the runtime the vault has open; without one nobody can tell, and the folder stays the other devices' (`left`, R8).
-  - The vault's sync stays held meanwhile and says the same text. It never syncs plain text.
-- The desktop reaches the same result its own way: it clears its gate (the keychain entry) last. A run interrupted before that leaves the vault a workspace, and pressing again goes on.
+Nothing lifts an encryption or ends a workspace unless the person asks for it at that moment. A vault's open reads the workspace's status as it is and finishes nothing.
+
+That a decommission (or a lift) passed its gate and has not finished is a fact only the decommission writes: `workspace_leaving_mobile_<vault>`, set as the gate opens (before the status goes) with what was asked for, removed at its end and by every status written afterwards (a setup, a join, a recovery). It is only shown, never acted on, and read only where the status is gone (`mobileDecommissionUnfinished`). What is left on the device without it decides nothing.
+
+| Fact | Status | Device key | State | Example | Row in the Security area | Sync | The button |
+|---|---|---|---|---|---|---|---|
+| any | yes | any | any | a workspace; Q1 (the gate failed: whole) | none (the workspace's own rows) | as the workspace has it | the workspace's own (decommission, lift) |
+| no | no | any | any | P1 (a setup stopped between the key and the status), P2 (a key a reinstall kept), a plain vault | none, as on `main` | as on `main` (the folder's gate decides) | none |
+| yes | no | yes or no | yes or no | stopped after the gate, also after the state was cleared and before the departure was noted | `decommissionUnfinished`, or `liftUnfinished` for a lift | held, saying the same, never plain text | "Decommission workspace": asks for the vault's name, goes on from what is left, notes the departure, removes the fact |
+| yes, older than a new status | yes | yes | yes | Q2 (set up again afterwards) | none: the new status removed the fact | as the workspace has it | the workspace's own |
+
+Pressing the button again finishes a lift as a decommission. Whether this device was the workspace's only one is asked of the runtime the vault has open; without one nobody can tell, and the folder stays the other devices' (`left`, R8). The text of a lift says so.
+
+The desktop reaches the same result its own way: it clears its gate (the keychain entry) last. A run interrupted before that leaves the vault a workspace with its own button, and pressing again goes on.
 
 ## Saves
 

@@ -7236,6 +7236,7 @@
     "decommissionTypeName": "To confirm, type the vault's name: {{name}}",
     "decommissionNameMismatch": "That is not the vault's name — nothing was changed.",
     "decommissionUnfinished": "Decommissioning did not finish on this device. Until it is finished, this vault syncs nothing.",
+    "liftUnfinished": "Lifting the encryption did not finish on this device. It can only be finished as a decommission; until then this vault syncs nothing.",
     "orphanRecovery": "The workspace in the cloud is missing or damaged — sync stays stopped. Decommission it below to reset.",
     "setupTitle": "Set up encrypted workspace",
     "setupProgress": "Setup step {{step}} of 3",
