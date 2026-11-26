@@ -263,9 +263,13 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden): Pro
         const range = doc.createRange();
         range.setStart(text, index);
         range.setEnd(text, index + word.length);
-        const boxes = Array.from(range.getClientRects())
-          .filter((r) => r.width > 0 && r.height > 0)
-          .map((r) => ({ left: r.left + win.scrollX, top: r.top + win.scrollY, right: r.right + win.scrollX, bottom: r.bottom + win.scrollY }));
+        let rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+        // WebKit can give a range at the end of a text no client boxes although it is drawn: its bounding box then.
+        if (rects.length === 0) {
+          const bound = range.getBoundingClientRect();
+          if (bound.width > 0 && bound.height > 0) rects = [bound];
+        }
+        const boxes = rects.map((r) => ({ left: r.left + win.scrollX, top: r.top + win.scrollY, right: r.right + win.scrollX, bottom: r.bottom + win.scrollY }));
         const k = words.length;
         words.push({ text, start: index, end: index + word.length, boxes, path, offset: start });
         for (const box of boxes) later.add(k, box);

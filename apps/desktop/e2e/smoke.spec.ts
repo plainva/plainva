@@ -908,9 +908,24 @@ test('AI in the selection toolbar: the button opens its menu, and an action show
 
 // Befunde 06.11., B7: "Open settings" in the AI's surfaces opened the first page of the vault's settings, not the AI's.
 // The settings take a page of the app's settings as their target too; every AI surface asks for the page "AI".
-test('AI settings from a conversation: "Set up" opens the page "AI", not the first page of the settings', async ({ page }) => {
+test('AI settings from a conversation: "Open settings" opens the page "AI", not the first page of the settings', async ({ page }) => {
   await page.addInitScript(() => {
-    // The AI is on, nothing is set up: the conversation names the step that is missing.
+    // The AI is off on this device: the conversation's way is the settings, where the switch is.
+    (window as any).__E2E_STORE_SEED = { ai: { enabled: false } };
+  });
+  await page.goto('/');
+  await expect(page.getByTestId('file-tree')).toBeVisible();
+  await page.keyboard.press('Control+j');
+  const companion = page.getByTestId('ai-dock');
+  await expect(companion).toBeVisible();
+  await companion.getByRole('button', { name: /^(Open settings|Einstellungen öffnen)$/ }).click();
+  await expect(page.getByTestId('ai-beta-switch')).toBeVisible();
+});
+
+// Plan Umsetzung 0.9.x, B7 (parity gap ai-setup-guided): with nothing set up, "Set up" in a conversation leads through
+// the three steps of the setup, as on the phone — not to the settings page.
+test('AI setup from a conversation: "Set up" opens the three steps while nothing is set up', async ({ page }) => {
+  await page.addInitScript(() => {
     (window as any).__E2E_STORE_SEED = { ai: { enabled: true } };
   });
   await page.goto('/');
@@ -919,8 +934,12 @@ test('AI settings from a conversation: "Set up" opens the page "AI", not the fir
   const companion = page.getByTestId('ai-dock');
   await expect(companion).toBeVisible();
   await companion.getByRole('button', { name: /^(Set up|Einrichten)$/ }).click();
-  await expect(page.getByTestId('ai-beta-switch')).toBeVisible();
-  await expect(page.getByTestId('ai-setup-provider')).toBeVisible();
+  const dialog = page.getByTestId('ai-setup-dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId('ai-setup-steps')).toBeVisible();
+  await expect(dialog.getByTestId('ai-setup-kind-cloud')).toBeVisible();
+  await expect(dialog.getByTestId('ai-setup-kind-device')).toHaveCount(0);
+  await expect(page.getByTestId('ai-beta-switch')).toHaveCount(0);
 });
 
 // An empty conversation opens at its top on the desktop too (F71 of release 0.9.0, point 1): the conversation followed
