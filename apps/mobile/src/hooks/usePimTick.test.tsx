@@ -46,6 +46,17 @@ describe("the phone reloads its appointments on a change (issue 119)", () => {
     expect(seen.length).toBe(after);
   });
 
+  it("a listener that stopped hears nothing more", () => {
+    expect.hasAssertions();
+    const target = new EventTarget();
+    let heard = 0;
+    const stop = onPimChanged(target, () => (heard += 1));
+    target.dispatchEvent(new CustomEvent(PIM_CHANGED));
+    stop();
+    target.dispatchEvent(new CustomEvent(PIM_CHANGED));
+    expect(heard).toBe(1);
+  });
+
   it("a write on its way, settled or refused, is announced as a change", () => {
     expect.hasAssertions();
     const store = new PendingEventWrites();

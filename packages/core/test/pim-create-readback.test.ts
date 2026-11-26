@@ -615,6 +615,14 @@ describe("CalDAV: a new event the server shows late", () => {
     await expect(outside.target.eventExists({ calendarId: CAL, uid: "plainva-ours", href: `${CAL}plainva-ours.ics` })).resolves.toBe(true);
   });
 
+  it("a hit that carries our UID outside the calendar is never the address a create is held at - it stays at its own", async () => {
+    expect.hasAssertions();
+    const { target, objects } = laggingServer({ lagMs: 0, dropFirstPuts: 1, report: "outside", carryUid: "plainva-stray" });
+    const created = await target.createEvent(CAL, { ...weekly, createAs: "plainva-stray" });
+    expect(created).toEqual({ uid: "plainva-stray", href: `${CAL}plainva-stray.ics` });
+    expect(objects.size).toBe(0);
+  });
+
   it("an answer the server says it cut short is no answer", async () => {
     expect.hasAssertions();
     const { target } = laggingServer({ lagMs: 0, report: "truncated" });
