@@ -1,4 +1,4 @@
-import { createUidFor, forgetCreateUid } from "./createUids";
+import { createTryFor, forgetCreateUid } from "./createUids";
 import { readFrontmatterPath, setFrontmatterPath, updateVaultText, type TextUpdateFiles } from "@plainva/core";
 import { verifiedProviderIdentityOf } from "../lib/accountProfile";
 
@@ -146,7 +146,7 @@ export interface CreateProviderTaskOptions {
   draft: ProviderTaskDraft;
   /** The provider call. Injected so this module stays free of the PIM runtime
    * and can be tested without one. */
-  createTask(listId: string, draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string }): Promise<{ uid: string }>;
+  createTask(listId: string, draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string; createAgain?: boolean }): Promise<{ uid: string }>;
 }
 
 export type CreateProviderTaskResult =
@@ -170,7 +170,9 @@ export async function createProviderTask(
   const what = { note: opts.notePath, title: opts.draft.title };
   try {
     const res = await opts.createTask(opts.listId, {
-      createAs: createUidFor("provider-task", where, what),
+      // A later try (the due date may have changed since) writes over what an
+      // earlier one may have left: the server holds what the note says now.
+      ...createTryFor("provider-task", where, what),
       title: opts.draft.title,
       ...(opts.draft.due ? { due: opts.draft.due } : {}),
       ...(opts.draft.notes ? { notes: opts.draft.notes } : {}),

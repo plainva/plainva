@@ -366,7 +366,9 @@ export class GraphPimTarget implements IPimTarget {
   }
 
   async eventExists(ref: PimEventRef): Promise<boolean> {
-    const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}?$select=id`);
+    // Through the calendar it was created in, as the create went (a shared
+    // calendar of somebody else is not under /me/events).
+    const res = await this.request(`${GRAPH_BASE}/me/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}?$select=id`);
     if (res.status === 404 || res.status === 410) return false;
     if (!res.ok) throw await pimRequestError("graph read event", res);
     return true;

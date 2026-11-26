@@ -1,4 +1,4 @@
-import { createUidFor, forgetCreateUid } from "./createUids";
+import { createTryFor, forgetCreateUid } from "./createUids";
 import { PimRequestError, type IPimTarget, type PimBlockRef, type PimEventDraft, type PimEventRow, type PimRecurrence, type PimWriteResult } from "@plainva/core";
 import { markdownToHtml } from "../lib/markdownToHtml";
 
@@ -72,7 +72,7 @@ export async function runCalendarBlocks(input: RunCalendarBlocksInput): Promise<
     }
     try {
       // One blocker per event and calendar, the same uid for every try of it (issue 119).
-      const result = await found.target.createEvent(calendarId, { ...input.draft, createAs: createUidFor("blocker", key, input.draft) });
+      const result = await found.target.createEvent(calendarId, { ...input.draft, ...createTryFor("blocker", key, input.draft) });
       forgetCreateUid("blocker", key, input.draft);
       input.onCreated?.(accountId, calendarId, result);
       created.push({ accountId, calendarId, uid: result.uid, ...(result.href ? { href: result.href } : {}), ...(input.mode ? { mode: input.mode } : {}) });

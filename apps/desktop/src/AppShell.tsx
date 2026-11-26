@@ -33,6 +33,8 @@ const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.
 const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
 const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
 const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
+// The series expansion for "Try again" on a lost new event: loaded with the calendar's code, never with the start (issue 119).
+const loadSeriesExpansion = () => import("./services/pim/seriesExpansion").then((m) => m.expandEventDraft);
 const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
 const CommentsOverview = lazy(() => import('./components/comments/CommentsOverview').then(m => ({ default: m.CommentsOverview })));
 const JournalView = lazy(() => import('./components/journal/JournalView').then(m => ({ default: m.JournalView })));
@@ -75,7 +77,7 @@ import { activeDocument } from "./services/activeDocument";
 import { TagTree } from "./components/TagTree";
 import { appConfirm } from "./services/appDialogs";
 import { getConfiguredNoteType, buildNewNoteContent } from "./services/newNote";
-import { markFreshNote, pendingEventWrites, watchCreatedEvents, wikiTargetToPath } from "@plainva/ui";
+import { markFreshNote, useCreatedEventWatch, wikiTargetToPath } from "@plainva/ui";
 import { getAskBeforeCreateLink } from "./services/linkCreatePrompt";
 import { errorText, toast } from "@plainva/ui";
 import { requestSaveFlush } from "./services/saveFlush";
@@ -166,21 +168,9 @@ export function AppShell({ capabilities, children }: { capabilities: ShellCapabi
   // A created event the calendar still draws from its overlay is settled here,
   // with the vault - not in a view (issue 119): by the cache whatever range
   // is shown, and by asking the provider when no sync lists it. In every
-  // window; an auxiliary window asks through the central one.
-  // The overlay belongs to the vault: it is emptied when the vault is left,
-  // not when the runtime is made anew for the same vault.
-  useEffect(() => () => pendingEventWrites.clear(), [vaultPath]);
-  useEffect(() => {
-    const runtime = pimRuntime;
-    if (!runtime) return;
-    return watchCreatedEvents(pendingEventWrites, {
-      cache: runtime.cache,
-      targetFor: async (accountId) => {
-        const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
-        return account ? runtime.syncTarget(account) : null;
-      },
-    });
-  }, [pimRuntime]);
+  // window; an auxiliary window asks through the central one. The overlay
+  // goes when the vault is left, not when the runtime is made anew.
+  useCreatedEventWatch(vaultPath, pimRuntime, loadSeriesExpansion);
   // One mailbox stored several times under one id folds back into one row
   // when the vault opens (finding 2026-11-06, M2; the phone does the same in
   // its vault boot).

@@ -8,7 +8,7 @@ import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts, pickDefaultMailAccount } from "@plainva/ui/mail";
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
-import { createChange, errorText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { createChange, errorText, eventWriteRefusalText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
 import { expandEventDraft, PimConflictError, newPimCreateUid, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventCreate, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
@@ -1025,11 +1025,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const reason = refusalReason(error);
       logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
       // A refused deletion said "was not saved" (issue 119) - true of nothing
-      // the person had done.
-      const message =
-        what === "delete"
-          ? t("pim.eventDeleteRefused", { reason, defaultValue: "Der Termin wurde nicht gelöscht: {{reason}}" })
-          : t("pim.eventWriteRefused", { reason, defaultValue: "Der Termin wurde nicht gespeichert: {{reason}}" });
+      // the person had done; and an event not shown yet says just that.
+      const message = eventWriteRefusalText(error, what);
       toast.error(message, {
         label: t("pim.eventWriteRetry", { defaultValue: "Erneut versuchen" }),
         run: retry,
@@ -1056,15 +1053,19 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     (accountId: string, calId: string, draft: PimEventCreate, seeded?: () => void) => {
       const action = newWriteAction("event-create");
       const actionTargets = { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) };
+      // "Try again" is a later try of the same create (issue 119): the server
+      // then holds what this try sends, whatever an earlier one left.
+      let tries = 0;
       const create = () => {
+        const attempt: PimEventCreate = { ...draft, createAgain: tries++ > 0 };
         const id = pendingEventWrites.reserve();
-        const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
+        const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", attempt);
         void writeEventOptimistically(
           pendingEventWrites,
           // A series shows its occurrences from the first moment (issue 119).
-          createChange(pendingEventRow(id, shown), draft, expandEventDraft),
-          () => createCalendarEvent(actionTargets, accountId, calId, draft),
-          (out) => out.rows.map((row) => createChange(row, draft, expandEventDraft)),
+          createChange(pendingEventRow(id, shown), attempt, expandEventDraft),
+          () => createCalendarEvent(actionTargets, accountId, calId, attempt),
+          (out) => out.rows.map((row) => createChange(row, attempt, expandEventDraft)),
           id,
         ).then(
           () => {

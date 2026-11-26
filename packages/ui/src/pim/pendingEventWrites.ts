@@ -404,6 +404,38 @@ function foldIntoCreates(writes: readonly PendingEventWrite[], settled: readonly
   return out;
 }
 
+/** What `listShownEvents` reads of the cache. */
+export interface ShownEventsCache {
+  listEvents(rangeStartTs: number, rangeEndTs: number): Promise<PimEventRow[]>;
+  listAccounts(): Promise<ReadonlyArray<{ id: string; enabled: boolean }>>;
+  listCalendars(): Promise<ReadonlyArray<{ accountId: string; id: string; selected: boolean }>>;
+}
+
+/**
+ * The events a surface shows in a range: the cache with the writes on their
+ * way laid over it - one reading for every surface of both shells (issue
+ * 119): the calendars, the phone's Today, a database's backdrop, the
+ * desktop's sidebar calendar. A created event is drawn only where its
+ * calendar is shown (as the cache query asks), a new series by its
+ * occurrences in the range. Where the cache cannot say which calendars are
+ * shown, created events are drawn as they are.
+ */
+export async function listShownEvents(cache: ShownEventsCache, rangeStartTs: number, rangeEndTs: number, store: PendingEventWrites = pendingEventWrites): Promise<ShownEventRow[]> {
+  const cached = await cache.listEvents(rangeStartTs, rangeEndTs);
+  const writes = store.snapshot();
+  if (writes.length === 0) return cached;
+  const creates = writes.some((write) => write.kind === "create");
+  const [accounts, calendars] = creates ? await Promise.all([cache.listAccounts(), cache.listCalendars()]).catch(() => [null, null] as const) : [null, null];
+  const shownCalendar =
+    accounts && calendars
+      ? (accountId: string, calendarId: string) =>
+          accounts.some((a) => a.id === accountId && a.enabled) && calendars.some((c) => c.accountId === accountId && c.id === calendarId && c.selected)
+      : undefined;
+  const shown = applyPendingEventWrites(cached, writes, { startTs: rangeStartTs, endTs: rangeEndTs }, shownCalendar);
+  // A created event comes from the overlay, not from the range query.
+  return shown === cached ? shown : shown.filter((row) => cached.includes(row) || (row.start.ts < rangeEndTs && row.end.ts >= rangeStartTs));
+}
+
 /** One overlay per app: the editor that writes and the views that show are different components. */
 export const pendingEventWrites = new PendingEventWrites();
 

@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { CalDavPimTarget, expandEventDraft, expandIcsEvents, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventRow } from "@plainva/core";
+import { CalDavPimTarget, expandEventDraft, expandIcsEvents, PimNotShownYetError, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventRow } from "@plainva/core";
 
 const bus = vi.hoisted(() => ({ request: (() => Promise.reject(new Error("no bus"))) as unknown }));
 vi.mock("./services/windowBus", () => ({ getWindowBus: async () => bus }));
 
 import { createRemotePimTarget } from "./services/pim/remotePimTarget";
+import { loadEventBackdrop } from "./services/pim/eventBackdrop";
 import i18n from "@plainva/ui/i18n";
 import {
   applyPendingEventWrites,
@@ -22,6 +23,9 @@ import {
   PendingEventWrites,
   SETTLED_EVENT_WRITE_TTL_MS,
   writeEventOptimistically,
+  eventWriteRefusalText,
+  listShownEvents,
+  pendingEventWrites,
   type CreatedEventChange,
 } from "@plainva/ui";
 
@@ -401,3 +405,133 @@ describe("a new series shows what the sync will show (issue 119)", () => {
     expect(change.occurrences!.length).toBeGreaterThan(0);
   });
 });
+
+describe("a round of the watch outlives nothing (issue 119)", () => {
+  const single: PimEventCreate = { title: "Probe one", start: { ts: 1 }, end: { ts: 2 }, allDay: false, createAs: "plainva-s1" };
+  const created = { ...draftToRow("a1", CAL, "plainva-s1", single), href: `${CAL}plainva-s1.ics` };
+  const vault = () => ({
+    findEventsByUid: async () => [],
+    listAccounts: async () => [{ id: "a1", enabled: true } as PimAccountRow],
+    listCalendars: async () => [{ accountId: "a1", id: CAL, selected: true } as PimCalendar & { accountId: string; selected: boolean }],
+  });
+
+  it("a vault left while the provider is asked: no message, no change to the overlay", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    store.settle(store.begin(createChange(created, single)), undefined, 0);
+    const id = store.settledCreates()[0]!.id;
+    store.markAsked(id, 1, true);
+    store.markAsked(id, 2, true);
+    let live = true;
+    let answer!: (held: boolean) => void;
+    const asked = new Promise<boolean>((resolve) => (answer = resolve));
+    const gone: CreatedEventChange[] = [];
+    const round = settleCreatedEvents(store, { cache: vault(), targetFor: async () => ({ provider: "caldav", eventExists: () => asked }) as never, onGone: (c) => gone.push(c), current: () => live }, 60 * 60_000);
+    await vi.waitFor(() => expect(answer).toBeDefined());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    live = false; // the vault is left
+    answer(false); // the third "no"
+    await round;
+    expect(gone).toEqual([]);
+    expect(store.settledCreates()[0]!.denials).toBe(2);
+  });
+
+  it("the message is not shown for a vault that was left, and its 'Try again' creates nothing once the vault is left", () => {
+    expect.hasAssertions();
+    const error = vi.spyOn(toast, "error").mockImplementation(() => 0);
+    const createEvent = vi.fn();
+    const store = new PendingEventWrites();
+    let live = false;
+    reportCreatedEventGone(store, { targetFor: async () => ({ createEvent }) as never, current: () => live }, createChange(created, single));
+    expect(error).not.toHaveBeenCalled();
+    live = true;
+    reportCreatedEventGone(store, { targetFor: async () => ({ createEvent }) as never, current: () => live }, createChange(created, single));
+    live = false;
+    error.mock.calls[0]![1]!.run();
+    expect(createEvent).not.toHaveBeenCalled();
+    expect(store.snapshot()).toEqual([]);
+    error.mockRestore();
+  });
+
+  it("stopping the watch ends a round in flight", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers({ now: 60 * 60_000 });
+    try {
+      const store = new PendingEventWrites();
+      store.settle(store.begin(createChange(created, single)), undefined, 0);
+      const id = store.settledCreates()[0]!.id;
+      store.markAsked(id, 1, true);
+      store.markAsked(id, 2, true);
+      let answer!: (held: boolean) => void;
+      const gone: CreatedEventChange[] = [];
+      const stop = watchCreatedEvents(store, { cache: vault(), targetFor: async () => ({ provider: "caldav", eventExists: () => new Promise<boolean>((r) => (answer = r)) }) as never, onGone: (c) => gone.push(c) });
+      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.waitFor(() => expect(answer).toBeDefined());
+      stop();
+      answer(false);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(gone).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a row in the cache with the same id in ANOTHER calendar is not this event: it is still asked about", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    store.settle(store.begin(createChange(created, single)), undefined, 0);
+    const asked = vi.fn(async () => true);
+    const cache = { ...vault(), findEventsByUid: async () => [{ ...created, calendarId: "elsewhere" }] };
+    await settleCreatedEvents(store, { cache, targetFor: async () => ({ provider: "caldav", eventExists: asked }) as never, onGone: () => undefined }, 60 * 60_000);
+    expect(asked).toHaveBeenCalledTimes(1);
+    expect(store.settledCreates()).toHaveLength(1);
+  });
+});
+
+describe("a change to a new event the provider does not show yet says so in the reader's words (issue 119)", () => {
+  it("the event IS saved: the sentence says the change was not, or that nothing was deleted - also when only the message crossed a window", () => {
+    expect.hasAssertions();
+    for (const [what, action, key] of [
+      ["event", "change", "pim.notShownYetEventChange"],
+      ["event", "delete", "pim.notShownYetEventDelete"],
+      ["task", "change", "pim.notShownYetTaskChange"],
+      ["task", "delete", "pim.notShownYetTaskDelete"],
+    ] as const) {
+      const error = new PimNotShownYetError(what, action);
+      expect(eventWriteRefusalText(error, action === "delete" ? "delete" : "save")).toBe(i18n.t(key));
+      expect(eventWriteRefusalText(new Error(error.message), "save")).toBe(i18n.t(key));
+    }
+    expect(eventWriteRefusalText(new Error("caldav update 500"), "save")).toBe(i18n.t("pim.eventWriteRefused", { reason: "caldav update 500" }));
+  });
+});
+
+describe("every surface reads the events on their way the same way (issue 119)", () => {
+  const created = { accountId: "a1", calendarId: CAL, uid: "plainva-m6", title: "Team sync", start: { ts: Date.parse("2026-12-03T09:00:00Z") }, end: { ts: Date.parse("2026-12-03T10:00:00Z") }, allDay: false } as PimEventRow;
+  const cache = (selected: boolean) => ({
+    listEvents: async () => [] as PimEventRow[],
+    listAccounts: async () => [{ id: "a1", enabled: true }],
+    listCalendars: async () => [{ accountId: "a1", id: CAL, selected }],
+  });
+  const dec = { startTs: Date.parse("2026-12-01T00:00:00Z"), endTs: Date.parse("2027-01-01T00:00:00Z") };
+
+  it("a created event in a shown calendar and in range is listed; hidden or out of range, it is not", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    store.settle(store.begin({ kind: "create", row: created }), undefined, 0);
+    expect((await listShownEvents(cache(true), dec.startTs, dec.endTs, store)).map((r) => r.uid)).toEqual(["plainva-m6"]);
+    expect(await listShownEvents(cache(false), dec.startTs, dec.endTs, store)).toEqual([]);
+    expect(await listShownEvents(cache(true), dec.endTs, dec.endTs + 31 * DAY, store)).toEqual([]);
+  });
+
+  it("the desktop's database backdrop counts it, as the phone's does", async () => {
+    expect.hasAssertions();
+    pendingEventWrites.settle(pendingEventWrites.begin({ kind: "create", row: created }), undefined, 0);
+    try {
+      const days = await loadEventBackdrop({ cache: cache(true) }, 2026, 11);
+      expect([...days.values()].reduce((n, d) => n + d.count, 0)).toBe(1);
+    } finally {
+      pendingEventWrites.clear();
+    }
+  });
+});
+

@@ -1,4 +1,4 @@
-import { createUidFor, forgetCreateUid } from "./createUids";
+import { createTryFor, forgetCreateUid } from "./createUids";
 import {
   setFrontmatterPath,
   readFrontmatterPath,
@@ -173,7 +173,7 @@ export async function createTaskTimeBlock(opts: CreateTaskTimeBlockOptions): Pro
   const noteTarget = opts.linkPath ? wikiTargetForPath(opts.linkPath, opts.allPaths ?? [opts.linkPath]) : undefined;
   const draft = buildTaskBlockDraft({ title: opts.title, values: opts.values, noteTarget });
   // The same block tried again keeps its uid (issue 119).
-  const res = await opts.target.createEvent(key.calendarId, { ...draft, createAs: createUidFor("time-block", opts.calendarKey, draft) });
+  const res = await opts.target.createEvent(key.calendarId, { ...draft, ...createTryFor("time-block", opts.calendarKey, draft) });
   forgetCreateUid("time-block", opts.calendarKey, draft);
 
   let anchored = false;

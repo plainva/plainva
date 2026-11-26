@@ -90,7 +90,9 @@ export function withWriteAttempt(target: IPimTarget | null, attempt: string): IP
   return {
     ...target,
     async createEvent(calendarId: string, draft: PimEventCreate) {
-      const res = await send(id, { kind: "createEvent", calendarId, draft }, `${attempt}:${nameOf(JSON.stringify([calendarId, draft]))}`);
+      // A later try of the same create is the same action (A15): `createAgain` does not change its name.
+      const { createAgain: _again, ...named } = draft;
+      const res = await send(id, { kind: "createEvent", calendarId, draft }, `${attempt}:${nameOf(JSON.stringify([calendarId, named]))}`);
       return { uid: res.uid ?? "", etag: res.etag, href: res.href };
     },
   } as IPimTarget;

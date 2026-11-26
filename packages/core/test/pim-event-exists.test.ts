@@ -39,7 +39,7 @@ describe("asked whether they hold a created event, Google and Microsoft are aske
     expect.hasAssertions();
     const held = provider(json({ id: "AAMk-1" }));
     await expect(new GraphPimTarget(auth(), held.fetchFn).eventExists({ calendarId: "cal", uid: "AAMk-1" })).resolves.toBe(true);
-    expect(held.urls[0]).toMatch(/^https:\/\/graph\.microsoft\.com\/v1\.0\/me\/events\/AAMk-1\?/);
+    expect(held.urls[0]).toMatch(/^https:\/\/graph\.microsoft\.com\/v1\.0\/me\/calendars\/cal\/events\/AAMk-1\?/);
     await expect(new GraphPimTarget(auth(), provider(json({}, 404)).fetchFn).eventExists({ calendarId: "cal", uid: "AAMk-1" })).resolves.toBe(false);
     await expect(new GraphPimTarget(auth(), provider(json({}, 401)).fetchFn).eventExists({ calendarId: "cal", uid: "AAMk-1" })).rejects.toThrow();
   });

@@ -22,14 +22,24 @@ function keyOf(scope: string, where: string, what: unknown): string {
   return `${scope}\u0000${where}\u0000${JSON.stringify(what)}`;
 }
 
-export function createUidFor(scope: string, where: string, what: unknown, now: number = Date.now()): string {
+/**
+ * The uid of this create and whether it is a later try of it (`createAgain`:
+ * a try after one that may have landed). A later try writes its address
+ * without a precondition (CalDAV), so the server holds what it sends now.
+ */
+export function createTryFor(scope: string, where: string, what: unknown, now: number = Date.now()): { createAs: string; createAgain: boolean } {
   for (const [key, entry] of kept) if (now - entry.at > KEPT_MS) kept.delete(key);
   const key = keyOf(scope, where, what);
   const entry = kept.get(key);
-  if (entry) return entry.uid;
+  if (entry) return { createAs: entry.uid, createAgain: true };
   const uid = newPimCreateUid();
   kept.set(key, { uid, at: now });
-  return uid;
+  return { createAs: uid, createAgain: false };
+}
+
+/** The uid alone, for a caller that does not need to know (see `createTryFor`). */
+export function createUidFor(scope: string, where: string, what: unknown, now: number = Date.now()): string {
+  return createTryFor(scope, where, what, now).createAs;
 }
 
 /** The create landed: the next create of the same thing is a new one. */

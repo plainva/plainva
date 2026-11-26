@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AreaBoundary, applyEventChanges, refusalReason, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
+import { AreaBoundary, applyEventChanges, eventWriteRefusalText, refusalReason, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
 import { newPimCreateUid, parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventCreate, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
@@ -122,8 +122,8 @@ export function useEventEditor({
     const reason = refusalReason(err);
     // The same line the desktop writes, so a diagnostics export says why.
     logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
-    // A refused deletion said "was not saved" (issue 119).
-    toast.error(t(what === "delete" ? "pim.eventDeleteRefused" : "pim.eventWriteRefused", { reason }), { label: t("pim.eventWriteRetry"), run: retry });
+    // A refused deletion said "was not saved" (issue 119); an event not shown yet says just that.
+    toast.error(eventWriteRefusalText(err, what), { label: t("pim.eventWriteRetry"), run: retry });
   };
 
   /** The names of the calendars some blockers lie in, for a sentence that names them. */
@@ -464,8 +464,10 @@ export function useEventEditor({
     // One uid for this create, kept by "Try again": a create that did land
     // after all is found under it, never made twice (issue 119).
     const draft: PimEventCreate = { ...values.draft, createAs: newPimCreateUid() };
+    // "Try again" is a later try of the same create: the server then holds what this try sends.
+    let tries = 0;
     const create = () => {
-      void createPimEvent(values.calendarKey, draft).then(
+      void createPimEvent(values.calendarKey, { ...draft, createAgain: tries++ > 0 }).then(
         () => seeded?.(),
         (err) => reportRefused(err, create),
       );

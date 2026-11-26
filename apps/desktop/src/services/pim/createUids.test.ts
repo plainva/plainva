@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { IPimTarget, IVaultAdapter, PimEventDraft, PimEventRow } from "@plainva/core";
-import { createEntryEvent, createProviderTask, createTaskTimeBlock, createUidFor, forgetCreateUid, runCalendarBlocks, updateCalendarEvent } from "@plainva/ui";
+import { createEntryEvent, createProviderTask, createTaskTimeBlock, createTryFor, createUidFor, forgetCreateUid, runCalendarBlocks, updateCalendarEvent } from "@plainva/ui";
 
 /**
  * One uid per create of the person, across its tries (issue 119).
@@ -104,5 +104,24 @@ describe("the uid of a create survives its tries and ends with its landing", () 
     await expect(updateCalendarEvent(targets, event, draft, { accountId: "a1", calendarId: "new" })).rejects.toThrow();
     await updateCalendarEvent(targets, event, draft, { accountId: "a1", calendarId: "new" });
     expect(p.uids[0]).toBe(p.uids[1]);
+  });
+
+  it("a later try says so (`createAgain`): the provider then holds what it sends", () => {
+    expect.hasAssertions();
+    const first = createTryFor("probe-again", "acc cal", { title: "A" }, 0);
+    const second = createTryFor("probe-again", "acc cal", { title: "A" }, 1_000);
+    expect([first.createAgain, second.createAgain, second.createAs]).toEqual([false, true, first.createAs]);
+  });
+
+  it("a move that landed lets its uid go: the same move again is a new create", async () => {
+    expect.hasAssertions();
+    const uids: string[] = [];
+    const createEvent = vi.fn(async (_cal: string, d: { createAs: string }) => (uids.push(d.createAs), { uid: d.createAs, etag: '"e"' }));
+    const targets = { targetFor: async () => ({ createEvent, deleteEvent: async () => undefined }) as unknown as IPimTarget };
+    const event = { accountId: "a1", calendarId: "old", uid: "ev-9", etag: '"s9"', title: "Planning", start: { ts: 1 }, end: { ts: 2 }, allDay: false } as PimEventRow;
+    const draft = { title: "Planning", start: { ts: 1 }, end: { ts: 2 }, allDay: false } as PimEventDraft;
+    await updateCalendarEvent(targets, event, draft, { accountId: "a1", calendarId: "new" });
+    await updateCalendarEvent(targets, event, draft, { accountId: "a1", calendarId: "new" });
+    expect(uids[0]).not.toBe(uids[1]);
   });
 });

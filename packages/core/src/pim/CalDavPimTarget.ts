@@ -66,9 +66,11 @@ const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
  * reads a 404 as "not shown yet" - with the read-back's patience - never as
  * "gone".
  *
- * It ends as soon as anything shows the object: a read that finds it, a
- * delete that removes it, a sync that lists it (all in this class, for events
- * and tasks alike) - and after `JUST_CREATED_MS` at the latest. From then on
+ * It ends as soon as the object is shown at its address: a read that finds
+ * it, a delete that removes it (in this class, for events and tasks alike) -
+ * and after `JUST_CREATED_MS` at the latest. A sync that lists it does not
+ * end it: a server may list an object before a read at its address finds it
+ * (and an edit has to read it). From then on
  * a 404 means gone, as everywhere else: an event deleted elsewhere is deleted
  * here at once, a blocker deleted elsewhere is passed over.
  */
@@ -269,7 +271,6 @@ export class CalDavPimTarget implements IPimTarget {
     for (const e of entries) {
       if (!e.href || !e.calendarData) continue;
       try {
-        shown(this.resolve(e.href));
         events.push(...expandIcsEvents(e.calendarData, calendarId, this.resolve(e.href), e.etag, rangeStartTs, rangeEndTs));
       } catch (err) {
         // One unparseable object must not lose the calendar (permissive
@@ -336,7 +337,6 @@ export class CalDavPimTarget implements IPimTarget {
       const multi = await this.davRequest(calendarId, "REPORT", "1", body);
       for (const e of parseCalDavMultistatus(multi)) {
         if (!e.href || !e.calendarData) continue;
-        shown(this.resolve(e.href));
         try {
           const expanded = expandIcsEvents(
             e.calendarData,
@@ -427,7 +427,6 @@ export class CalDavPimTarget implements IPimTarget {
     const tasks: PimTask[] = [];
     for (const e of entries) {
       if (!e.href || !e.calendarData) continue;
-      shown(this.resolve(e.href));
       try {
         const jcal = ICAL.parse(e.calendarData);
         const comp = new ICAL.Component(jcal);
@@ -474,7 +473,7 @@ export class CalDavPimTarget implements IPimTarget {
 
   async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
     const uid = draft.createAs;
-    const { href, etag } = await this.createObject(calendarId, uid, "event", buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)));
+    const { href, etag } = await this.createObject(calendarId, uid, "event", buildIcsObject(uid, "vevent", (vevent) => applyEventDraft(vevent, draft)), !!draft.createAgain);
     return { uid, etag, href };
   }
 
@@ -486,39 +485,51 @@ export class CalDavPimTarget implements IPimTarget {
    * 4791 5.3.4), so the object is read back. iCloud answers that read with 404
    * for a moment after the create; taken for "etag unknown", the first edit
    * read it again, met the same 404 and said "caldav read 404 before update".
-   * Now the read gives the object time to show, and one still not shown is
-   * sent once more with `If-None-Match: *`. Whatever the server accepted is
-   * never reported as refused: after two accepted sends, or an error on the
-   * second one, the object counts as held, its etag unknown, and its address
-   * is noted as not shown yet (`justCreated`).
+   * Now the read gives the object time to show. Where it still answers 404,
+   * the calendar is asked once for the UID (a hit only where the object
+   * carries it and lies in the calendar): found, the object is held there and
+   * not sent again. Not found, it is sent once more with `If-None-Match: *` -
+   * and a 412 to that second send is this object, held. Whatever the server
+   * accepted is never reported as refused: after two accepted sends, or an
+   * error on the second, the object counts as held, its etag unknown, and its
+   * address is noted as not shown yet (`justCreated`).
    *
-   * The address is `<uuid>.ics` of this create's own uid (`createAs`, the same
-   * for every try of one create). A 412 there is this create's object, from
-   * this call or an earlier try: held, without a read. Nothing here outlives
-   * the call - a later try finds the same address by the same uid.
+   * A first try (`again` false) is a create like on main: a 412 to its first
+   * send is somebody else's object there, and an error. A later try of the
+   * same create (`again`, said by the caller - nothing is remembered here)
+   * writes its address without a precondition: the address is this create's
+   * own (`<uuid>.ics` of its uid), so what stands there is the earlier try,
+   * and after this write it holds what the person sees now - not what an
+   * earlier try sent before a field was changed.
    */
-  private async createObject(collection: string, uid: string, what: "event" | "task", body: string): Promise<{ href: string; etag?: string }> {
-    const placed = await this.putNewObject(collection, uid, what, body);
+  private async createObject(collection: string, uid: string, what: "event" | "task", body: string, again: boolean): Promise<{ href: string; etag?: string }> {
+    const placed = await this.putNewObject(collection, uid, what, body, again);
     if (!placed.etag) noteCreated(placed.href, Date.now());
     return placed;
   }
 
-  private async putNewObject(collection: string, uid: string, what: "event" | "task", body: string): Promise<{ href: string; etag?: string }> {
+  private async putNewObject(collection: string, uid: string, what: "event" | "task", body: string, again: boolean): Promise<{ href: string; etag?: string }> {
     const href = this.resolve(joinCollection(collection, `${uid}.ics`));
     let accepted = false;
     for (let sends = 1; ; sends++) {
+      const resend = sends > 1;
       let res: Response;
       try {
         res = await this.rawRequest(href, {
           method: "PUT",
-          headers: { "Content-Type": "text/calendar; charset=utf-8", "If-None-Match": "*" },
+          headers: { "Content-Type": "text/calendar; charset=utf-8", ...(again && !resend ? {} : { "If-None-Match": "*" }) },
           body,
         });
       } catch (error) {
         if (accepted) return { href };
         throw error;
       }
-      if (res.status === 412) return { href };
+      if (res.status === 412) {
+        // Held only where this is a second send in this call; on a first send
+        // it is an object that is not this create's - as on main.
+        if (resend) return { href };
+        throw await pimRequestError(`caldav create ${what}`, res);
+      }
       if (!res.ok) {
         if (accepted) return { href };
         throw await pimRequestError(`caldav create ${what}`, res);
@@ -539,21 +550,29 @@ export class CalDavPimTarget implements IPimTarget {
         const etag = read.headers.get("ETag");
         return { href: at, ...(etag ? { etag } : {}) };
       }
-      if (!isMissing(read.status) || at !== href || sends >= 2) return { href: at };
+      if (!isMissing(read.status) || at !== href || resend) return { href: at };
+      // Before sending again: a server may keep the object under an address of
+      // its own without saying so - found by its UID, it is held there.
+      const elsewhere = await this.findUid(collection, uid, what).catch(() => null);
+      if (elsewhere?.found) return { href: elsewhere.found };
     }
   }
 
   /**
-   * Whether the collection holds an object carrying `uid`, by a calendar-query
-   * on its UID (RFC 4791 9.7.5) - for one question only: "does the provider
-   * have this event?", where a read at its address said 404. A hit counts only
-   * where the object returned really carries the UID and its address lies in
-   * the collection and is not the collection itself; an answer with entries
-   * but no such hit (a server that ignores the filter) is no answer at all -
-   * thrown, neither yes nor no. An empty answer is "no". What is found here is
-   * never written to or deleted.
+   * The calendar asked for an object carrying `uid`, by a calendar-query on
+   * its UID (RFC 4791 9.7.5). A hit counts only where the object returned
+   * carries the UID in its own data and its address lies in the calendar
+   * (not the calendar itself, not outside it): `{ found: <address> }`.
+   *
+   * Without a hit the answer is "not there" (`{ found: null }`) where the
+   * server showed what it holds: no entries, or entries whose data can all be
+   * read - a server that ignores the filter lists everything, and ours is not
+   * among it. It is no answer at all (thrown) where an entry comes without
+   * data, its data cannot be read, or the server says it cut the list short.
+   * A wrong "not there" is cheap (a later try of the same create writes the
+   * same address); a wrong silence would keep a lost event for good.
    */
-  private async holdsUid(collection: string, uid: string): Promise<boolean> {
+  private async findUid(collection: string, uid: string, what: "event" | "task"): Promise<{ found: string | null }> {
     const base = this.resolve(collection);
     const xml = await this.davRequest(
       base,
@@ -564,23 +583,30 @@ export class CalDavPimTarget implements IPimTarget {
          <d:prop><d:getetag/><c:calendar-data/></d:prop>
          <c:filter>
            <c:comp-filter name="VCALENDAR">
-             <c:comp-filter name="VEVENT">
+             <c:comp-filter name="${what === "task" ? "VTODO" : "VEVENT"}">
                <c:prop-filter name="UID"><c:text-match collation="i;octet">${xmlText(uid)}</c:text-match></c:prop-filter>
              </c:comp-filter>
            </c:comp-filter>
          </c:filter>
        </c:calendar-query>`,
     );
-    const entries = parseCalDavMultistatus(xml);
-    if (entries.length === 0) return false;
-    const hit = entries.some((e) => {
-      if (!e.href || !e.calendarData) return false;
-      const at = this.resolve(e.href);
-      return at !== base && at.startsWith(base) && uidOfObject(e.calendarData) === uid;
-    });
-    if (hit) return true;
-    throw new Error("caldav: the calendar's answer to a UID query names no object with that UID");
+    if (/number-of-matches-within-limits/.test(xml)) throw new Error("caldav: the calendar cut its answer to a UID query short");
+    // The calendar itself, where a server lists it, is no object.
+    const objects = parseCalDavMultistatus(xml).filter((e) => !!e.href && this.resolve(e.href) !== base);
+    let unreadable = false;
+    for (const e of objects) {
+      const at = this.resolve(e.href!);
+      const carried = e.calendarData ? uidOfObject(e.calendarData) : null;
+      if (carried === null) {
+        unreadable = true;
+        continue;
+      }
+      if (carried === uid && at.startsWith(base)) return { found: at };
+    }
+    if (unreadable) throw new Error("caldav: the calendar's answer to a UID query cannot be read");
+    return { found: null };
   }
+
 
   /**
    * GET of an object Plainva has just created. A 404 is asked again after a
@@ -708,12 +734,12 @@ export class CalDavPimTarget implements IPimTarget {
       if (res.ok) return true;
       if (!isMissing(res.status)) throw new PimRequestError(`caldav read ${res.status}`, res.status);
     }
-    return this.holdsUid(ref.calendarId, uid);
+    return (await this.findUid(ref.calendarId, uid, "event")).found !== null;
   }
 
   async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
     const uid = draft.createAs;
-    const { href, etag } = await this.createObject(listId, uid, "task", buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)));
+    const { href, etag } = await this.createObject(listId, uid, "task", buildIcsObject(uid, "vtodo", (vtodo) => applyTaskDraft(vtodo, draft)), !!draft.createAgain);
     return { uid, etag, href };
   }
 
@@ -744,7 +770,7 @@ export class CalDavPimTarget implements IPimTarget {
   /** The etag of an object this app just created, once the server shows it; `PimNotShownYetError` where it still does not. */
   private async shownAfterCreate(href: string, what: "event" | "task"): Promise<string | undefined> {
     const read = await this.readAfterWrite(href);
-    if (isMissing(read.status)) throw new PimNotShownYetError(what);
+    if (isMissing(read.status)) throw new PimNotShownYetError(what, "delete");
     return read.ok ? (read.headers.get("ETag") ?? undefined) : undefined;
   }
 
@@ -802,7 +828,7 @@ export class CalDavPimTarget implements IPimTarget {
       // Still not shown, though this app just created it: not gone, not
       // refused - the provider has not caught up yet, and the person is told
       // exactly that (`PimNotShownYetError`).
-      if (fresh && isMissing(getRes.status)) throw new PimNotShownYetError(options.what ?? "event");
+      if (fresh && isMissing(getRes.status)) throw new PimNotShownYetError(options.what ?? "event", options.goneIsDone ? "delete" : "change");
       if (options.goneIsDone && (getRes.status === 404 || getRes.status === 410)) return {};
       // With its status (K3): a blocker that is gone answers 404 here, and the
       // caller has to tell "gone" from "refused".

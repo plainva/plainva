@@ -3,7 +3,7 @@ import { CalendarCheck, CalendarRange, ChevronLeft, ChevronRight, Sun } from "lu
 import { useTranslation } from "react-i18next";
 import { buildMonthCells, DateJumpPicker, DateJumpPopover, DateJumpTrigger, ICON, isoWeeksForCells, MenuItem, MenuLabel, MenuSurface, startOfMonth, useShowWeekNumbers, useWeekStartDay, WeekNumbersToggle, weekdayShortNames } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
-import { calendarDay, checkboxJumpTerm, setPendingSearchJump } from "@plainva/ui";
+import { calendarDay, checkboxJumpTerm, listShownEvents, pendingEventWrites, setPendingSearchJump } from "@plainva/ui";
 import { useVault } from "../contexts/VaultContext";
 import { bucketEventsByDay, formatTimeRange } from "../services/pim/calendarModel";
 import { compareDueTasks, loadDueTasks, type DueTask } from "../services/pim/taskOverlay";
@@ -116,7 +116,12 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
   useEffect(() => {
     const onChanged = () => setPimTick((v) => v + 1);
     window.addEventListener("plainva-pim-changed", onChanged);
-    return () => window.removeEventListener("plainva-pim-changed", onChanged);
+    // A write on its way changes what is shown too (issue 119).
+    const offWrites = pendingEventWrites.subscribe(onChanged);
+    return () => {
+      window.removeEventListener("plainva-pim-changed", onChanged);
+      offWrites();
+    };
   }, []);
   useEffect(() => {
     let alive = true;
@@ -129,7 +134,8 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ onOpenDaily, onO
       try {
         const startTs = cells[0].getTime();
         const endTs = cells[cells.length - 1].getTime() + 24 * 60 * 60 * 1000;
-        const [evs, cals] = await Promise.all([pimRuntime.cache.listEvents(startTs, endTs), pimRuntime.cache.listCalendars()]);
+        // With the events on their way, as the calendar shows them (issue 119).
+        const [evs, cals] = await Promise.all([listShownEvents(pimRuntime.cache, startTs, endTs), pimRuntime.cache.listCalendars()]);
         if (!alive) return;
         setEvents(evs);
         setCalColors(new Map(cals.map((c) => [`${c.accountId} ${c.id}`, c.color ?? ""])));

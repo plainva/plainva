@@ -121,3 +121,20 @@ describe("a new event on the phone is drawn only where its calendar is shown (is
     state.rows.delete("v");
   });
 });
+
+describe("a new series on the phone is drawn by its occurrences from the first moment (issue 119)", () => {
+  it("createPimEvent hands the expansion to the overlay", async () => {
+    expect.hasAssertions();
+    const drawn: number[] = [];
+    const off = pendingEventWrites.subscribe(() => {
+      for (const write of pendingEventWrites.snapshot()) if (write.kind === "create") drawn.push(write.occurrences?.length ?? 0);
+    });
+    const start = Date.parse("2026-12-01T09:00:00Z");
+    await pim
+      .createPimEvent("g work", { title: "Standup", start: { ts: start }, end: { ts: start + 30 * 60_000 }, allDay: false, recurrence: { freq: "weekly", interval: 1 }, createAs: "plainva-m41" })
+      .catch(() => undefined);
+    off();
+    expect(Math.max(0, ...drawn)).toBeGreaterThan(1);
+  });
+});
+

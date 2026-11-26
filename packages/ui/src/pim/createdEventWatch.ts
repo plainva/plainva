@@ -1,10 +1,11 @@
+import { useEffect } from "react";
 import type { IPimTarget, PimAccountRow, PimCalendar, PimEventRow } from "@plainva/core";
 import i18n from "../i18n";
 import { logDiagnostic } from "../services/diagnosticsLog";
-import { refusalReason } from "../lib/errorText";
+import { eventWriteRefusalText } from "../lib/errorText";
 import { toast } from "../services/toastStore";
-import { createCalendarEvent, createChange, draftToRow } from "./eventWrite";
-import { pendingEventRow, SETTLED_EVENT_WRITE_TTL_MS, writeEventOptimistically, type CreatedEventChange, type PendingEventWrites } from "./pendingEventWrites";
+import { createCalendarEvent, createChange, draftToRow, type SeriesExpansion } from "./eventWrite";
+import { pendingEventRow, pendingEventWrites, SETTLED_EVENT_WRITE_TTL_MS, writeEventOptimistically, type CreatedEventChange, type PendingEventWrites } from "./pendingEventWrites";
 
 /**
  * A created event the views still draw from the overlay, settled where the
@@ -50,15 +51,29 @@ export interface CreatedEventWatchDeps {
   targetFor(accountId: string): Promise<IPimTarget | null>;
   /** A created event the provider does not have. Default: the message that names it, with "Try again" for one typed into the form. */
   onGone?(created: CreatedEventChange): void;
+  /**
+   * Whether this watch still belongs to the open vault (issue 119). Asked
+   * after every wait and before anything is said, written or created - a
+   * round in flight when the vault is left must not speak in the next one.
+   * `watchCreatedEvents` sets it; it ends with its stop.
+   */
+  current?(): boolean;
+  /** The series expansion, where it can be loaded, for "Try again" to draw a series by its occurrences. */
+  expand?(): Promise<SeriesExpansion | undefined>;
 }
+
+/** The one check every step of a watch makes after a wait (see `current`). */
+const stillCurrent = (deps: Pick<CreatedEventWatchDeps, "current">): boolean => deps.current?.() !== false;
 
 export async function settleCreatedEvents(store: PendingEventWrites, deps: CreatedEventWatchDeps, now: number = Date.now()): Promise<void> {
   const writes = store.settledCreates();
   if (writes.length === 0) return;
   const [accounts, calendars] = await Promise.all([deps.cache.listAccounts(), deps.cache.listCalendars()]);
   for (const created of writes) {
+    if (!stillCurrent(deps)) return;
     const { row } = created;
     const cached = await deps.cache.findEventsByUid(row.uid).catch(() => null);
+    if (!stillCurrent(deps)) return;
     if (cached === null) continue;
     if (cached.some((cachedRow) => cachedRow.accountId === row.accountId && cachedRow.calendarId === row.calendarId)) {
       store.dropCreated(row);
@@ -80,9 +95,12 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
       }
       held = await target.eventExists({ calendarId: row.calendarId, uid: row.uid, etag: row.etag, href: row.href });
     } catch {
+      if (!stillCurrent(deps)) return;
       store.markAsked(created.id, now, null);
       continue;
     }
+    // The vault may have been left while the provider was asked.
+    if (!stillCurrent(deps)) return;
     store.markAsked(created.id, now, !held);
     if (held || created.denials + 1 < CREATED_EVENT_DENIALS) continue;
     store.dropCreated(row);
@@ -93,17 +111,22 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
 /** Runs `settleCreatedEvents` every minute until the returned stop. */
 export function watchCreatedEvents(store: PendingEventWrites, deps: CreatedEventWatchDeps, everyMs = 60_000): () => void {
   let running = false;
+  let live = true;
+  const scoped: CreatedEventWatchDeps = { ...deps, current: () => live && stillCurrent(deps) };
   const run = () => {
-    if (running) return;
+    if (running || !live) return;
     running = true;
-    void settleCreatedEvents(store, deps)
+    void settleCreatedEvents(store, scoped)
       .catch(() => undefined)
       .finally(() => {
         running = false;
       });
   };
   const timer = setInterval(run, everyMs);
-  return () => clearInterval(timer);
+  return () => {
+    live = false;
+    clearInterval(timer);
+  };
 }
 
 /**
@@ -112,7 +135,8 @@ export function watchCreatedEvents(store: PendingEventWrites, deps: CreatedEvent
  * exactly it again under the same uid. A blocker and the copy a move made say
  * so, without "Try again".
  */
-export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<CreatedEventWatchDeps, "targetFor">, created: CreatedEventChange): void {
+export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<CreatedEventWatchDeps, "targetFor" | "current" | "expand">, created: CreatedEventChange): void {
+  if (!stillCurrent(deps)) return;
   const { accountId, calendarId, title } = created.row;
   logDiagnostic("pim", `created ${created.what ?? "new"} event not held by the provider`);
   if (created.what === "blocker") {
@@ -128,17 +152,63 @@ export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<Cre
   }
   const draft = created.draft;
   if (!draft?.createAs) return;
-  const create = { ...draft, createAs: draft.createAs };
+  // A later try of the same create: the server holds what it sends now.
+  const create = { ...draft, createAs: draft.createAs, createAgain: true };
   const again = () => {
-    const id = store.reserve();
-    const { uid: _uid, ...shown } = draftToRow(accountId, calendarId, "", create);
-    void writeEventOptimistically(
-      store,
-      createChange(pendingEventRow(id, shown), create),
-      () => createCalendarEvent({ targetFor: deps.targetFor }, accountId, calendarId, create),
-      (out) => out.rows.map((written) => createChange(written, create)),
-      id,
-    ).catch((error: unknown) => toast.error(i18n.t("pim.eventWriteRefused", { reason: refusalReason(error) }), { label: i18n.t("pim.eventWriteRetry"), run: again }));
+    // The button outlives a vault that was left: then it does nothing.
+    if (!stillCurrent(deps)) return;
+    void (deps.expand?.() ?? Promise.resolve(undefined))
+      .catch(() => undefined)
+      .then((expand) => {
+        if (!stillCurrent(deps)) return;
+        const id = store.reserve();
+        const { uid: _uid, ...shown } = draftToRow(accountId, calendarId, "", create);
+        return writeEventOptimistically(
+          store,
+          createChange(pendingEventRow(id, shown), create, expand),
+          () => createCalendarEvent({ targetFor: deps.targetFor }, accountId, calendarId, create),
+          (out) => out.rows.map((written) => createChange(written, create, expand)),
+          id,
+        );
+      })
+      .catch((error: unknown) => {
+        if (stillCurrent(deps)) toast.error(eventWriteRefusalText(error, "save"), { label: i18n.t("pim.eventWriteRetry"), run: again });
+      });
   };
   toast.error(i18n.t("pim.eventCreateLost", { title }), { label: i18n.t("pim.eventWriteRetry"), run: again });
+}
+
+/** What `useCreatedEventWatch` needs of a vault's calendar runtime. */
+export interface CreatedEventWatchRuntime {
+  cache: CreatedEventWatchCache;
+  /** The target the sync uses for an account. */
+  syncTarget(account: PimAccountRow): Promise<IPimTarget | null>;
+}
+
+/**
+ * The watch of created events for a window that shows a vault (issue 119):
+ * it runs while the vault's calendar runtime does, in every window - an
+ * auxiliary window's runtime asks through the central one - and the overlay
+ * is emptied when the window leaves the vault, never when the runtime is made
+ * anew for the same vault. `vaultKey` names the vault; `expand` loads the
+ * series expansion for "Try again" (stable across renders).
+ */
+export function useCreatedEventWatch(
+  vaultKey: string | null,
+  runtime: CreatedEventWatchRuntime | null,
+  expand?: () => Promise<SeriesExpansion | undefined>,
+  store: PendingEventWrites = pendingEventWrites,
+): void {
+  useEffect(() => () => store.clear(), [vaultKey, store]);
+  useEffect(() => {
+    if (!runtime) return;
+    return watchCreatedEvents(store, {
+      cache: runtime.cache,
+      targetFor: async (accountId) => {
+        const account = (await runtime.cache.listAccounts()).find((a) => a.id === accountId);
+        return account ? runtime.syncTarget(account) : null;
+      },
+      ...(expand ? { expand } : {}),
+    });
+  }, [runtime, expand, store]);
 }

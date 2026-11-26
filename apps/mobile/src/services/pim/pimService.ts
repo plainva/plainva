@@ -34,8 +34,8 @@ import {
   calendarPickerOptions,
   createCalendarEvent,
   createChange,
+  listShownEvents,
   watchCreatedEvents,
-  applyPendingEventWrites,
   deleteEventWithBlockers,
   detachBlockerAndUpdate,
   linkCalendarBlocks,
@@ -143,7 +143,8 @@ export async function startPim(vault: MobileVault): Promise<void> {
   await startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     syncTarget: syncTargetFor,
-    watchCreatedEvents: (cache, targetFor) => watchCreatedEvents(pendingEventWrites, { cache, targetFor }),
+    watchCreatedEvents: (cache, targetFor) =>
+      watchCreatedEvents(pendingEventWrites, { cache, targetFor, expand: () => pimTargets().then((m) => m.expandEventDraft) }),
     clearCreatedEvents: () => pendingEventWrites.clear(),
     accountAuthRevision: async (vaultId, account) =>
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
@@ -292,24 +293,14 @@ export async function listPimEvents(rangeStartTs: number, rangeEndTs: number): P
  * {@link listPimEvents} — they act on what the provider confirmed.
  */
 export async function listShownPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<ShownEventRow[]> {
-  const cached = await listPimEvents(rangeStartTs, rangeEndTs);
-  // A new series is drawn by its occurrences in this window until a sync
-  // lists it, and a hidden calendar draws nothing from the overlay either (issue 119).
-  const writes = pendingEventWrites.snapshot();
-  const creates = writes.some((write) => write.kind === "create");
-  const [accounts, calendars] = creates && runtime ? await Promise.all([runtime.cache.listAccounts(), runtime.cache.listCalendars()]).catch(() => [null, null] as const) : [null, null];
-  const shownCalendar =
-    accounts && calendars
-      ? (accountId: string, calendarId: string) =>
-          accounts.some((a) => a.id === accountId && a.enabled) && calendars.some((c) => c.accountId === accountId && c.id === calendarId && c.selected)
-      : undefined;
-  const shown = applyPendingEventWrites(cached, writes, { startTs: rangeStartTs, endTs: rangeEndTs }, shownCalendar);
+  const cache = runtime?.cache;
+  // The shared reading of every surface (issue 119): the cache, the overlay,
+  // only the calendars that are shown, a new series by its occurrences.
+  const shown = cache ? await listShownEvents(cache, rangeStartTs, rangeEndTs) : [];
   // The chain mark of a blocker and of an event that has blockers is drawn
   // from the linkage (K3) — derived here, once, for every screen that lists
   // events. Until then the phone had the action and no sign of its result.
-  if (shown === cached) return linkCalendarBlocks(shown);
-  // A created event comes from the overlay, not from the range query.
-  return linkCalendarBlocks(shown.filter((row) => cached.includes(row) || (row.start.ts < rangeEndTs && row.end.ts >= rangeStartTs)));
+  return linkCalendarBlocks(shown);
 }
 
 /**

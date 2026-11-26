@@ -1,6 +1,6 @@
 import { eventSubstanceOf, PIM_WINDOW_FUTURE_DAYS, PIM_WINDOW_PAST_DAYS, PimConflictError, type PimEvent, type PimEventCreate, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
 import { logDiagnostic } from "../services/diagnosticsLog";
-import { createUidFor, forgetCreateUid } from "./createUids";
+import { createTryFor, forgetCreateUid } from "./createUids";
 import { isPendingEventUid, PENDING_EVENT_UID_PREFIX, type CreatedEventChange, type EtagStamp } from "./pendingEventWrites";
 
 /**
@@ -197,7 +197,7 @@ export async function updateCalendarEvent(
     // the move tried again finds the copy the first try left.
     const moved = { account: event.accountId, calendar: event.calendarId, uid: event.uid, etag: event.etag ?? null, draft };
     const where = `${moveTo!.accountId} ${moveTo!.calendarId}`;
-    const create: PimEventCreate = { ...draft, createAs: draft.createAs ?? createUidFor("move", where, moved) };
+    const create: PimEventCreate = draft.createAs ? { ...draft, createAs: draft.createAs } : { ...draft, ...createTryFor("move", where, moved) };
     const res = await timedWrite(targets, moveTo!.accountId, "move/create", (target) => target.createEvent(moveTo!.calendarId, create), "no writable target for the destination account");
     forgetCreateUid("move", where, moved);
     const rows = [{ ...draftToRow(moveTo!.accountId, moveTo!.calendarId, res.uid, draft), etag: res.etag, href: res.href }];

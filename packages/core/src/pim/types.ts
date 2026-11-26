@@ -348,10 +348,12 @@ export interface PimTaskDraft {
  * again" sends the same uid, and a provider that lets the client name the
  * event (CalDAV) finds the event the first try left instead of making a
  * second one. `newPimCreateUid` makes one; `createUidFor` keeps one per
- * action across tries.
+ * action across tries. `createAgain` says a try is not the first of its
+ * create: CalDAV then writes the create's own address without a
+ * precondition, so the server holds what this try sends.
  */
-export type PimEventCreate = PimEventDraft & { createAs: string };
-export type PimTaskCreate = PimTaskDraft & { createAs: string };
+export type PimEventCreate = PimEventDraft & { createAs: string; createAgain?: boolean };
+export type PimTaskCreate = PimTaskDraft & { createAs: string; createAgain?: boolean };
 
 /**
  * What a task update reports back.
@@ -383,6 +385,13 @@ export interface PimWriteResult {
 /** The remote object changed since we last saw it (HTTP 412 / etag mismatch).
  * Callers re-pull and re-reconcile instead of overwriting blindly — the same
  * philosophy as the file sync's remoteEtag guard. */
+/** The `PimNotShownYetError` an error is or carries in its message (over the bus only the message crosses). */
+export function notShownYetOf(error: unknown): { what: "event" | "task"; action: "change" | "delete" } | null {
+  if (error instanceof PimNotShownYetError) return { what: error.what, action: error.action };
+  const m = error instanceof Error ? /does not show this new (event|task) yet - (nothing was deleted|the change was not saved)/.exec(error.message) : null;
+  return m ? { what: m[1] as "event" | "task", action: m[2] === "nothing was deleted" ? "delete" : "change" } : null;
+}
+
 /**
  * An edit of an event this app created a moment ago, which the provider does
  * not show yet (issue 119). Not "gone" and not "refused": the change can be
@@ -391,8 +400,13 @@ export interface PimWriteResult {
  * crosses.
  */
 export class PimNotShownYetError extends Error {
-  constructor(what: "event" | "task" = "event") {
-    super(`your provider does not show this new ${what} yet - try again in a moment`);
+  constructor(
+    readonly what: "event" | "task" = "event",
+    readonly action: "change" | "delete" = "change",
+  ) {
+    // The message carries both, so a window that receives only the message
+    // (over the bus) can still say the right sentence (`notShownYetOf`).
+    super(`your provider does not show this new ${what} yet - ${action === "delete" ? "nothing was deleted" : "the change was not saved"}; try again in a moment`);
     this.name = "PimNotShownYetError";
   }
 }

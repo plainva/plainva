@@ -99,7 +99,7 @@ describe("the events drawn from the overlay belong to the vault, not to the runt
   it("the runtime runs the shared watch, and the vault switch leaves through `leavePimVault`", () => {
     expect.hasAssertions();
     const read = (p: string) => readFileSync(join(__dirname, p), "utf8");
-    expect(read("pimService.ts")).toContain("watchCreatedEvents: (cache, targetFor) => watchCreatedEvents(pendingEventWrites, { cache, targetFor })");
+    expect(read("pimService.ts")).toMatch(/watchCreatedEvents: \(cache, targetFor\) =>\s*watchCreatedEvents\(pendingEventWrites, \{ cache, targetFor, expand: \(\) => pimTargets\(\)\.then\(\(m\) => m\.expandEventDraft\) \}\)/);
     expect(read("pimRuntime.ts")).toMatch(/stopCreatedEventWatch =\s*wiring\.watchCreatedEvents\?\.\(cache/);
     expect(read("pimService.ts")).toContain("clearCreatedEvents: () => pendingEventWrites.clear()");
     expect(read("../../hooks/useVaultBoot.ts")).toContain("leavePimVault();");

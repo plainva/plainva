@@ -63,6 +63,7 @@ describe("createProviderTask", () => {
       due: "2026-08-20",
       completed: false,
       createAs: expect.stringMatching(/^plainva-/),
+      createAgain: false,
     });
 
     const written = adapter.files["T/buy-milk.md"];
@@ -133,7 +134,7 @@ describe("createProviderTask", () => {
       draft: { title: "Bare" },
       createTask,
     });
-    expect(createTask).toHaveBeenCalledWith("l", { title: "Bare", completed: false, createAs: expect.stringMatching(/^plainva-/) });
+    expect(createTask).toHaveBeenCalledWith("l", { title: "Bare", completed: false, createAs: expect.stringMatching(/^plainva-/), createAgain: false });
   });
 });
 

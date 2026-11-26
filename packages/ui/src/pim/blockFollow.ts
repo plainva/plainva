@@ -249,9 +249,12 @@ function blockerPatchFor(blocker: ResolvedBlocker, draft: PimEventDraft, busyLab
 function settledUpdate(source: PimEventRow, patch: Partial<PimEventRow>, moving: boolean, result: EventWriteOutcome): PendingEventChange[] {
   if (result.kind === "conflict") return [];
   if (!moving) return [{ kind: "update", ref: source, patch }, ...etagStamp(source, result.rows[0]?.etag)];
-  // The copy is named a moved event: should the provider not have it, the
-  // message says so (issue 119). Without `what` it would go without a word.
-  const created = result.rows.map((row) => ({ kind: "create" as const, row, what: "moved" as const }));
+  // The copy is named a moved event where the source is gone: should the
+  // provider not have it, the message says so (issue 119). Where deleting the
+  // source failed ("duplicate"), the source still stands and a lost copy
+  // costs nothing - it goes without a word.
+  const moved = result.kind === "written" ? { what: "moved" as const } : {};
+  const created = result.rows.map((row) => ({ kind: "create" as const, row, ...moved }));
   return result.kind === "written" ? [...created, { kind: "delete" as const, ref: source }] : created;
 }
 
