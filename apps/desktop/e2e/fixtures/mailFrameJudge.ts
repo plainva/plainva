@@ -194,6 +194,15 @@ export function wordUnseen(frame: HTMLIFrameElement, word: string): string | nul
     const range = doc.createRange();
     range.setStart(text, at);
     range.setEnd(text, at + word.length);
+    // Less than half of it inside what the frame shows or scrolls to: cut off at its edge, as the engine counts it.
+    const win = frame.contentWindow!;
+    const root = doc.documentElement;
+    const scrollsX = ["auto", "scroll"].includes(win.getComputedStyle(root).overflowX);
+    const reachX = scrollsX ? root.scrollWidth : frame.clientWidth;
+    const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 && r.height > 0);
+    const width = rects.reduce((sum, r) => sum + r.width, 0);
+    const inside = rects.reduce((sum, r) => sum + Math.max(0, Math.min(r.right + win.scrollX, reachX) - Math.max(r.left + win.scrollX, 0)), 0);
+    if (width > 0 && inside / width < 0.5) return `cut off at the frame's edge (${Math.round((inside / width) * 100)} % inside)`;
     return unseen(frame, range, text.parentElement);
   }
   return null;
