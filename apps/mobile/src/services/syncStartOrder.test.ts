@@ -690,6 +690,16 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     });
   });
 
+  it("a runtime retired at the gate gets no sync, also where the status removal then failed and the status still stands (Q1) — until the vault opens anew", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    state.wsStatus = { phase: "active" };
+    retireWorkspaceRuntime(ws);
+    await startSyncIfConfigured(ws).catch(() => undefined);
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+  });
+
   it("S2: the same vault opened anew, without its workspace in memory — held, with the row's text", async () => {
     expect.hasAssertions();
     state.screen = vault;
