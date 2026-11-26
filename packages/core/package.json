@@ -63,7 +63,7 @@
     "@noble/hashes": "^2.4.0",
     "fast-xml-parser": "^5.12.1",
     "ical.js": "^2.2.1",
-    "node-diff3": "^3.2.1",
+    "node-diff3": "^4.0.0",
     "parse5": "^8.1.1",
     "remark-frontmatter": "^5.0.0",
     "remark-gfm": "^4.0.1",
