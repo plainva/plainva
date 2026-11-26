@@ -935,7 +935,8 @@ function askHeldAgain(): boolean {
   const vaultId = held.vaultId;
   const reopen = held.reopen;
   if (reopen) {
-    if (runtimeOnScreen() === reopen.runtime && !vaultSyncHeld(vaultId)) {
+    // Only that very runtime is reloaded, checked at the reload's turn (`reloadActiveMobileVault` with `runtime`).
+    if (!vaultSyncHeld(vaultId)) {
       void reloadActiveMobileVault(reopen.own, { runtime: reopen.runtime }).catch((e: unknown) => console.error("[sync] opening the vault anew failed", e));
     }
     return true;
