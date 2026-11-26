@@ -10,11 +10,13 @@ on:
 
 # The run is split into parallel jobs (stability plan R10): until 2026-11 it was
 # one job of about 110 minutes, 67 of them the E2E suite with one worker
-# against the dev server. Branch protection requires four check names; three
+# against the dev server. Branch protection requires six check names; three
 # come from this file and keep their meaning:
 #   - "Checks" is the gate at the end: green only when every job it needs
 #     succeeded (see the job for why that is written out);
 #   - "WebKit editor regression" and "Rust checks" are jobs of their own, as before.
+# The other three are "Analyze (JavaScript/TypeScript)" (codeql.yml) and, since
+# 2026-11-26, "Performance budget (core)" and "Bundle budget" (perf.yml).
 # Each job's steps are what the one job did, in the same order.
 #
 # Room for the performance budgets: they come as a workflow of their own
