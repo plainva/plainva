@@ -473,7 +473,8 @@ export class LocalEmbeddings {
       signal?.addEventListener("abort", abort, { once: true });
       try {
         const answer = await fetchProviderJson(egress, spec, requestId);
-        this.lastFailure = answer.ok ? null : answer.failure;
+        // What a run or a preview asked is theirs to report, not the index's state.
+        if (!via) this.lastFailure = answer.ok ? null : answer.failure;
         return answer;
       } finally {
         signal?.removeEventListener("abort", abort);

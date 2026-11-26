@@ -99,6 +99,24 @@ describe("the composer's draft when a conversation is deleted (M1)", () => {
     expect(vault.files.data.get("vault/composer-drafts.json") ?? null).toBeNull();
   });
 
+  it("a field that held words before Delete all keeps none of them afterwards (review B7-2, M1d)", async () => {
+    const { s } = session([answer("ok")]);
+    await s.load();
+    const vault = vaultHost();
+    await s.attachVault(vault.host);
+    // The field of a new conversation read its draft before the Delete all; its words arrive after it.
+    const before = s.composerDraftEpoch();
+    await s.removeAll();
+    await settled();
+    s.keepComposerDraft("", "words typed before Delete all", before);
+    await settled();
+    expect(await vault.composerDrafts.load("new")).toBeNull();
+    // What the field holds from the next reading on is kept again.
+    s.keepComposerDraft("", "words typed after it", s.composerDraftEpoch());
+    await settled();
+    expect((await vault.composerDrafts.load("new"))?.text).toBe("words typed after it");
+  });
+
   it("deleting the conversation on screen writes no draft for it afterwards", async () => {
     const { s } = session([answer("ok")]);
     await s.load();

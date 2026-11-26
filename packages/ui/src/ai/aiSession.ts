@@ -996,6 +996,11 @@ export interface ContextPreview {
   pack: ContextPackage;
   /** Distinct notes the sources proposed for this question, before the gate. */
   candidates: number;
+  /**
+   * The search would have asked a provider's model for this question (review B7-2, H12): the preview asks nobody, so
+   * what only that search finds is not among the notes shown — a send would ask it, and may bring more.
+   */
+  searchHeldBack: boolean;
 }
 
 export interface ProviderTest {
@@ -1618,12 +1623,38 @@ export function departingEgress(inner: LocalOnlyEgress, onDeparture: (endpointId
   };
 }
 
+/** A tool executor that notes a way out for the tools that take one (review B7-2: the list of a run takes every way). */
+function notingExecutor(inner: ToolExecutor, wayOut: (tool: string) => string | null, note: (recipient: string) => void): ToolExecutor {
+  return {
+    execute(tool, args, call, signal) {
+      const way = wayOut(tool.name);
+      if (way) note(way);
+      return inner.execute(tool, args, call, signal);
+    },
+  };
+}
+
+/** A page fetcher that notes each fetch: the address leaves the device. */
+function notingFetcher(inner: WebFetcher, note: () => void): WebFetcher {
+  return {
+    fetch(url, options) {
+      note();
+      return inner.fetch(url, options);
+    },
+  };
+}
+
 /** What one run handed to anyone outside this device, counted at that run's own egress (B7, S1). */
 interface RunDepartures {
   /** The run's egress: every request of the run goes through it. */
   readonly egress: LocalOnlyEgress;
-  /** The endpoints it reached, in order, one entry per request that left. */
+  /**
+   * Who it reached, in order, one entry per request that left: a model's endpoint id (`openai`, `custom-1`), a foreign
+   * server as `mcp:<server id>`, the internet as `web`, the mail server as `mail`.
+   */
   readonly to: string[];
+  /** A way out that is no model request (a foreign server, a page, the mail server): noted where the run takes it. */
+  readonly note: (recipient: string) => void;
 }
 
 export class AiSession {
@@ -1818,14 +1849,31 @@ export class AiSession {
    * explicitly; nothing else (the notes' own embedding, a connection test, another run) passes it. A request the
    * egress answered "never sent" before anything came back does not count, nor one to a model on this device.
    */
-  private runDepartures(): RunDepartures {
-    const to: string[] = [];
+  private runDepartures(already: readonly string[] = []): RunDepartures {
+    const to: string[] = [...already];
     const egress = departingEgress(this.out, (endpointId) => {
       // What went to this device's own model never left it.
       if (runsOnDevice(providerById(endpointId, this.state.settings.custom))) return;
       to.push(endpointId);
     });
-    return { egress, to };
+    return { egress, to, note: (recipient) => void to.push(recipient) };
+  }
+
+  /**
+   * The session's egress for what may send nothing (review B7-2, H12): a request to a model on this device goes, one
+   * to anyone else is answered "fully local" (`local_only`, never sent) before it leaves, and counted.
+   */
+  private deviceOnlyEgress(): { egress: LocalOnlyEgress; refused: () => number } {
+    let refused = 0;
+    const egress: LocalOnlyEgress = {
+      ...this.out,
+      send: async (requestId, spec, onChunk) => {
+        if (runsOnDevice(providerById(spec.endpointId, this.state.settings.custom))) return this.out.send(requestId, spec, onChunk);
+        refused++;
+        onChunk({ type: "failed", code: "local_only", message: "a preview sends nothing" });
+      },
+    };
+    return { egress, refused: () => refused };
   }
 
   readonly getState = (): AiState => this.state;
@@ -2837,7 +2885,8 @@ export class AiSession {
       const { text, dropped, truncated } = mcpPromptText(look.body);
       if (!text) return { kind: "empty" };
       if (look.standing === "unpinned" || declined) return { kind: "review", review: { serverId, server: server.label, name, key: look.key, body: look.body, text, dropped, truncated } };
-      await this.send(text);
+      // The server had the user's words (its arguments, its questions' answers): the run starts with it in its list.
+      await this.send(text, { server: { id: serverId } });
       return { kind: "sent" };
     } finally {
       if (this.promptAbort === stop) this.promptAbort = null;
@@ -2854,7 +2903,7 @@ export class AiSession {
     const since = this.clearsOf(vault);
     await this.mcp.pinPrompt(review.serverId, review.key, review.body);
     if (this.screens !== screen || this.clearsOf(vault) !== since) return;
-    await this.send(review.text);
+    await this.send(review.text, { server: { id: review.serverId } });
   }
 
   // --------------------------------------------------------------- internet
@@ -6712,7 +6761,8 @@ export class AiSession {
   /**
    * The context the next message would carry (plan §13.3, "View context"):
    * the same situation, candidates, gate and package a send builds — for the
-   * model chosen now — and nothing leaves the device.
+   * model chosen now — and nothing leaves the device: a search that would ask
+   * a provider's model is refused before it goes (`searchHeldBack`).
    */
   async previewContext(question: string): Promise<ContextPreview | null> {
     const vault = this.vault;
@@ -6758,9 +6808,10 @@ export class AiSession {
             start?.more ?? [],
           ),
     );
+    const held = this.deviceOnlyEgress();
     const context = await this.contextOf(question, vault, choice, provider, record ? record.pins : this.state.draftPins, record ? record.conversation.turns : [], {
-      // A preview is no run: what it hands a search model is nobody's question that could be withdrawn.
-      egress: this.out,
+      // A preview sends nothing (review B7-2, H12): a request to anyone off this device is refused before it goes.
+      egress: held.egress,
       tools,
       runs: record ? record.runs : [],
       more: record ? (record.conversation.more ?? []) : (start?.more ?? []),
@@ -6773,7 +6824,7 @@ export class AiSession {
     const built = await context.build(new Set(this.state.leaveOutNext), new Set(record ? (record.redact ?? []) : this.state.draftRedact));
     if (this.vault !== vault) return null;
     const proposed = new Set(context.candidates.flat().map((c) => c.path));
-    return { ...built, candidates: proposed.size };
+    return { ...built, candidates: proposed.size, searchHeldBack: held.refused() > 0 };
   }
 
   /**
@@ -7082,7 +7133,7 @@ export class AiSession {
     return this.send(text, { greeting: true });
   }
 
-  async send(text: string, how: { greeting?: true } = {}): Promise<RunStop | null> {
+  async send(text: string, how: { greeting?: true; server?: { id: string } } = {}): Promise<RunStop | null> {
     const message = text.trim();
     const vault = this.vault;
     const choice = this.choice();
@@ -7091,7 +7142,7 @@ export class AiSession {
     if (this.state.active && this.gone(this.state.active.id)) return null;
     this.sending = true;
     try {
-      return (await this.runMessage(message, vault, choice, how.greeting ? { greeting: true } : {}))?.stop ?? null;
+      return (await this.runMessage(message, vault, choice, { ...(how.greeting ? { greeting: true as const } : {}), ...(how.server ? { server: how.server } : {}) }))?.stop ?? null;
     } catch (error) {
       // Whatever broke on the way (a vault read, the store) ends the run as a
       // failure the reader sees — never as a spinner that turns forever.
@@ -7244,14 +7295,16 @@ export class AiSession {
     vault: AiVaultHost,
     choice: ModelChoice,
     // `since`: how many Delete alls of the vault were asked for when the action that sends this began (step 8).
-    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number; greeting?: true; retry?: RetryStart } = {},
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number; greeting?: true; retry?: RetryStart; server?: { id: string } } = {},
   ): Promise<RunOutcome | null> {
-    const { skills, door, detached, routine, replay, greeting, retry } = options;
+    const { skills, door, detached, routine, replay, greeting, retry, server } = options;
     // Typed in the composer (B7): only such a question goes back into the field. A skill, an action at a selection, a
-    // routine, learning, a replay, the setup's greeting and a "Send again" never withdraw what they started.
-    const typed = !door && !detached && !routine && !replay && !skills && !greeting && !retry;
-    // This run's own way out (S1): what of it leaves the device is counted there, and nothing of anything else.
-    const run = this.runDepartures();
+    // routine, learning, a replay, the setup's greeting, a "Send again" and a foreign server's prompt never withdraw
+    // what they started — the prompt's text is the server's, not the user's words.
+    const typed = !door && !detached && !routine && !replay && !skills && !greeting && !retry && !server;
+    // This run's own way out (S1): what of it leaves the device is counted there, and nothing of anything else. A
+    // server's prompt had the user's words before the run began (review B7-2, S4): it starts in the list.
+    const run = this.runDepartures(server ? [`mcp:${server.id}`] : []);
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
     const apart = door ?? detached ?? routine ?? replay ?? null;
     // A message of the composer goes nowhere once the user left what it is put together for, and a message of any kind
@@ -7508,7 +7561,9 @@ export class AiSession {
             ...(vault.direct ? { direct: async (target: DirectTarget) => ((await this.directFolderOfTarget(vault, target)) ? ("folder" as const) : null) } : {}),
           }
         : writable;
-    const base = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillRunTools(skillState), () => foreign, writing, () => scriptTools) : null;
+    const vaultTools = toolNames.length ? vault.tools(recipient, scope, redact, web, () => skillRunTools(skillState), () => foreign, writing, () => scriptTools) : null;
+    // A search of the user's mail asks the mail server (review B7-2): noted for this run like any way out.
+    const base = vaultTools ? { ...vaultTools, executor: notingExecutor(vaultTools.executor, (tool) => (MAIL_TOOL_NAMES.includes(tool) ? "mail" : null), run.note) } : null;
     // Mail and the descriptions of appointments (plan P4-4): a kind of data no overview named asks first, and raw text goes to a reader without tools.
     const reading = newRunReading();
     const guarded = base
@@ -7534,7 +7589,7 @@ export class AiSession {
         ? createWebExecutor(
             guarded,
             {
-              fetcher: this.host.web ?? null,
+              fetcher: this.host.web ? notingFetcher(this.host.web, () => run.note("web")) : null,
               egress: run.egress,
               endpoint: provider.endpoint,
               model: choice.model,
@@ -7568,7 +7623,10 @@ export class AiSession {
                 Boolean(startedWith.instructions?.memory?.restricted.includes("cloud")) ||
                 Boolean(startedWith.instructions?.style?.restricted.includes("cloud")),
               ask: (question, signal) => this.askMcp(question, signal),
-              call: (serverId, tool, args, inputSchema, signal, questions) => this.mcp.call(serverId, tool, args, inputSchema, signal, questions),
+              call: (serverId, tool, args, inputSchema, signal, questions) => {
+                run.note(`mcp:${serverId}`);
+                return this.mcp.call(serverId, tool, args, inputSchema, signal, questions);
+              },
               questions: (source) => this.mcpToolQuestions(source),
               log: (entry) => this.mcp.log({ ...entry, at: this.host.now().toISOString(), conversation: startedWith.id }),
             },

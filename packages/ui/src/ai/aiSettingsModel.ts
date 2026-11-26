@@ -55,9 +55,13 @@ export function failureRecipient(provider: Pick<ProviderInfo, "label" | "kind">)
 }
 
 /** A failure in words the reader can act on — the chat and the settings say it alike. */
-export function aiFailureText(t: T, failure: ModelFailure, recipient: string | FailureRecipient, model = ""): string {
+export function aiFailureText(t: T, failure: ModelFailure, recipient: string | FailureRecipient, model = "", how: { sent?: string } = {}): string {
   const provider = typeof recipient === "string" ? recipient : recipient.label;
   const here = typeof recipient !== "string" && recipient.here === true;
+  // The sentence about sending stands apart from reason and remedy (review B7-2): "nothing was sent" where nothing of
+  // this request left the device, another sentence (or none) where something did. Spaces closed up where it is empty.
+  const sent = how.sent ?? t("ai.error.nothingSent");
+  const said = (text: string) => text.replace(/\s{2,}/g, " ").trim();
   switch (failure.kind) {
     case "no_key":
       return t("ai.error.noKey", { provider });
@@ -92,13 +96,13 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
     case "kept_on_device":
       return t("ai.error.keptOnDevice", { provider });
     case "local_only":
-      return t("ai.error.localOnly", { provider });
+      return said(t("ai.error.localOnly", { provider, sent }));
     case "window_too_small":
-      return t("ai.error.windowTooSmall", { needed: failure.needed, window: failure.window, model });
+      return said(t("ai.error.windowTooSmall", { needed: failure.needed, window: failure.window, model, sent }));
     case "too_large":
-      return t("ai.error.tooLarge");
+      return said(t("ai.error.tooLarge", { sent }));
     case "invalid_request":
-      return t("ai.error.invalidRequest");
+      return said(t("ai.error.invalidRequest", { sent }));
   }
 }
 
@@ -110,8 +114,9 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
 export function conversationFailureText(t: T, failure: ModelFailure, recipient: FailureRecipient, model: string, how: { returned?: boolean; images?: number; departed?: boolean } = {}): string {
   const provider = recipient.label;
   // The model call never went, but the run handed something on before it (B7, review S1: the question embedded for
-  // the search at a cloud model). No text may say "nothing was sent" then: the reasons that say so are not used.
-  if (how.departed && failureClassOf(failure) === "never_sent" && SAYS_NOTHING_SENT.has(failure.kind)) return t("errors.somethingWentWrong");
+  // the search at a cloud model, a foreign server's prompt). The reason and its remedy stand; the sentence about
+  // sending says nothing until its own words are decided — never "nothing was sent".
+  if (how.departed && failureClassOf(failure) === "never_sent" && SAYS_NOTHING_SENT.has(failure.kind)) return aiFailureText(t, failure, recipient, model, { sent: "" });
   if (failure.kind === "unreachable" && how.returned) return t("ai.error.unreachable", { provider });
   // No answer, or one that broke off, from a provider elsewhere: the request may have arrived. A server on this device
   // and a device without any network keep their own words.
@@ -121,7 +126,7 @@ export function conversationFailureText(t: T, failure: ModelFailure, recipient: 
   return aiFailureText(t, failure, recipient, model);
 }
 
-/** The failures whose words say that nothing was sent (`ai.error.*`). */
+/** The failures whose words say that nothing was sent (`ai.error.*`, the sentence `{{sent}}`). */
 const SAYS_NOTHING_SENT: ReadonlySet<ModelFailure["kind"]> = new Set<ModelFailure["kind"]>(["too_large", "invalid_request", "window_too_small", "local_only"]);
 
 /** Whether this device has no network at all, as far as the browser knows. */

@@ -15,14 +15,14 @@ const cloud = { label: "Anthropic" };
 
 describe("a request too large to send", () => {
   it("says that it is too large and that nothing was sent, from this device", () => {
-    expect(aiFailureText(t, { kind: "too_large" }, cloud)).toBe("The request is too large to send — nothing was sent. Usually an image is too big.");
+    expect(aiFailureText(t, { kind: "too_large" }, cloud)).toBe("The request is too large to send. Nothing was sent. Usually an image is too big.");
     expect(failureSender({ kind: "too_large" }, cloud)).toBe("device");
   });
 });
 
 describe("a request Plainva could not put together", () => {
   it("names Plainva, and says nothing was sent", () => {
-    expect(aiFailureText(t, { kind: "invalid_request", message: "x" }, cloud)).toBe("Plainva could not put this request together — nothing was sent. Please report this as a bug.");
+    expect(aiFailureText(t, { kind: "invalid_request", message: "x" }, cloud)).toBe("Plainva could not put this request together. Nothing was sent. Please report this as a bug.");
     expect(failureSender({ kind: "invalid_request", message: "x" }, cloud)).toBe("plainva");
   });
 });

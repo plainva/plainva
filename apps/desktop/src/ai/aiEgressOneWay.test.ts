@@ -56,7 +56,7 @@ describe("the one way out of the device for a model request", () => {
     expect(session).toMatch(/this\.out = localOnlyEgress\(host\.egress,/);
     // Counted for a run only: the session's own egress counts for nobody.
     expect(session.match(/\bdepartingEgress\(/g)).toHaveLength(2);
-    expect(session).toMatch(/private runDepartures\(\): RunDepartures \{\s*const to: string\[\] = \[\];\s*const egress = departingEgress\(this\.out,/);
+    expect(session).toMatch(/private runDepartures\(already: readonly string\[\] = \[\]\): RunDepartures \{\s*const to: string\[\] = \[\.\.\.already\];\s*const egress = departingEgress\(this\.out,/);
   });
 });
 
@@ -79,7 +79,8 @@ describe("every request of a run goes through that run's own egress", () => {
       expect(body, name).not.toMatch(/this\.out\b|host\.egress|this\.egress\b/);
       for (const given of body.match(/\begress: [^,\n}]+/g) ?? []) expect(["egress: run.egress", "egress: input.departures.egress"], `${name}: ${given}`).toContain(given);
     }
-    expect(run).toMatch(/const run = this\.runDepartures\(\);/);
+    // A server's prompt starts with the server in the list (review B7-2, S4); every other run with an empty one.
+    expect(run).toMatch(/const run = this\.runDepartures\(server \? \[`mcp:\$\{server\.id\}`\] : \[\]\);/);
     // The model call, the reader without tools, a page's processing, and the context (its search).
     expect(execute).toMatch(/runAgent\(\{[\s\S]*?egress: input\.departures\.egress,/);
     expect(run.match(/egress: run\.egress,/g)?.length).toBeGreaterThanOrEqual(3);
@@ -107,3 +108,84 @@ describe("every request of a run goes through that run's own egress", () => {
     expect(text("apps/mobile/src/services/ai/mobileAi.ts")).toMatch(/semanticCandidates: async \(question, limit, options\) => \(await embeddingsRef\.current\?\.semanticCandidates\(question, limit, options\)\)/);
   });
 });
+
+/** The members of an interface as its source names them (`name:`, `name?:`, `name(`, `name?(`), at its first level. */
+function membersOf(source: string, name: string): string[] {
+  const start = source.indexOf(`export interface ${name} {`);
+  expect(start, name).toBeGreaterThan(-1);
+  const out: string[] = [];
+  let depth = 0;
+  for (const line of source.slice(source.indexOf("{", start) + 1).split("\n")) {
+    if (depth === 0) {
+      if (/^\}/.test(line)) break;
+      const member = /^ {2}(?:readonly )?([a-zA-Z_][a-zA-Z0-9_]*)\??[:(<]/.exec(line);
+      if (member) out.push(member[1]!);
+    }
+    for (const c of line) depth += c === "{" || c === "(" ? 1 : c === "}" || c === ")" ? -1 : 0;
+  }
+  return out;
+}
+
+/**
+ * Every member of the hosts through which the AI session reaches the shell, with the transport of table 1 it is
+ * (`docs/engineering/AI_Failed_Requests_and_Mail_Visibility.md`), or `device` where nothing leaves (review B7-2).
+ */
+const TRANSPORTS: Record<string, Record<string, string>> = {
+  AiSessionHost: {
+    egress: "Model egress",
+    loadSettings: "device",
+    saveSettings: "device",
+    defaults: "device",
+    language: "device",
+    today: "device",
+    now: "device",
+    newId: "device",
+    label: "device",
+    web: "The internet",
+    mcp: "Foreign servers",
+    acp: "External agents",
+    scripts: "Scripts",
+    localOnly: "device",
+  },
+  AiMcpHost: {
+    native: "Foreign servers",
+    browser: "Foreign servers",
+    openPage: "Foreign servers",
+    clientDocument: "device",
+    store: "device",
+    version: "device",
+  },
+};
+
+describe("every way out of the device the AI side has is in table 1 (review B7-2)", () => {
+  const table = readFileSync(join(ROOT, "docs/engineering/AI_Failed_Requests_and_Mail_Visibility.md"), "utf8");
+  const sources: Record<string, string> = { AiSessionHost: text("packages/ui/src/ai/aiSession.ts"), AiMcpHost: text("packages/ui/src/ai/mcpSession.ts") };
+
+  for (const [host, members] of Object.entries(TRANSPORTS)) {
+    it(`${host}: no member that this list — and the table — does not name`, () => {
+      expect(membersOf(sources[host]!, host).sort()).toEqual(Object.keys(members).sort());
+      for (const [member, transport] of Object.entries(members)) {
+        if (transport === "device") continue;
+        expect(table, `${host}.${member}`).toContain(`| ${transport}`);
+        expect(table, `${host}.${member}`).toContain(`${host}.${member}`);
+      }
+    });
+  }
+
+  it("the vault's host reaches out through its tools and the search alone; the table names both", () => {
+    const vaultHost = membersOf(text("packages/ui/src/ai/aiSession.ts"), "AiVaultHost");
+    // Its members as of review B7-2: a new one is looked at here, and named in the table where it leaves the device.
+    expect(vaultHost.length).toBe(KNOWN_VAULT_MEMBERS.length);
+    expect([...vaultHost].sort()).toEqual([...KNOWN_VAULT_MEMBERS].sort());
+    expect(table).toContain("`AiVaultHost.tools`");
+    expect(table).toContain("`AiVaultHost.agents`");
+  });
+});
+
+/** The vault host's members; `tools` (mail) and `agents` (external agents) leave the device, `candidates` through the run's egress. */
+const KNOWN_VAULT_MEMBERS = [
+  "composerDrafts", "key", "conversations", "ledger", "activeNote", "readNote", "situation", "candidates", "noteSizes", "linkFilesFor",
+  "policy", "tools", "web", "mcp", "agents", "keepOnDevice", "gists", "capture", "noteType", "embedders", "propose", "encrypted", "reply",
+  "skillTests", "upkeep", "routines", "changedSince", "log", "hints", "hintPrefs", "instructions", "memory", "style", "drafts", "creates",
+  "proposals", "direct", "folderRules", "showVersions",
+];
