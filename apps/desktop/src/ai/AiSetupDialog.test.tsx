@@ -169,18 +169,22 @@ describe("the AI setup on the desktop", () => {
     await s.load();
     await s.updateSettings((x) => ({ ...x, providers: ["anthropic"], profiles: { [x.defaultProfile]: { providerId: "anthropic", model: "m-1" } } }));
     let settingsOpened = 0;
-    const door = { open: () => undefined as void };
     function Probe() {
       const setup = useAiSetupDoor(s, () => settingsOpened++);
-      door.open = setup.open;
-      return <>{setup.dialog}</>;
+      return (
+        <>
+          <button type="button" onClick={setup.open} data-testid="probe-set-up">
+            Set up
+          </button>
+          {setup.dialog}
+        </>
+      );
     }
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
     await act(async () => root!.render(<Probe />));
-    await act(async () => door.open());
-    await settle();
+    await click("probe-set-up");
     expect(settingsOpened).toBe(1);
     expect(q("ai-setup-dialog")).toBeNull();
   });

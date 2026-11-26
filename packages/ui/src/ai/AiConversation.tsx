@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Ban, Check, ChevronDown, CircleAlert, Copy, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, MoreHorizontal, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square, Zap } from "lucide-react";
 import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core/ai";
@@ -131,7 +131,10 @@ function useComposerDraft(session: AiSession | null, state: ReturnType<typeof us
   // What the field shows belongs to this conversation once its draft was read: nothing is kept for it before.
   const loadedFor = useRef<string | null>(null);
   const latest = useRef({ key, draft });
-  latest.current = { key, draft };
+  // What the field holds now, for the moment a conversation is left (read in an effect's clean-up, never in render).
+  useLayoutEffect(() => {
+    latest.current = { key, draft };
+  });
   useEffect(() => {
     if (!session || !ready) return;
     loadedFor.current = null;
