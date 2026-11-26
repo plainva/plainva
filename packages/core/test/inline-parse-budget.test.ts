@@ -838,9 +838,16 @@ describe("where a table ends", () => {
       const linksOf = (text: string) => extractLinksAndTags(parseMarkdownAst(text, { preserveObsidianSyntax: true }), text).links.length;
       expect(linksOf(note), row).toBe(300 * linksOf(`| a | b | c | d | e |\n|---|---|---|---|---|\n${row}\n\n[a$]: http://u\n`) + 1);
     }
-    // And tables made at random of such pieces, formulas, reference definitions and quotes among them: each table
+  }, 120 * SECONDS);
+
+  it("weighs a `$` as the character it is in tables made at random, and the index holds every link of their rows", () => {
+    expect.hasAssertions();
+    // Tables made at random of such pieces, formulas, reference definitions and quotes among them: each table
     // weighs what its twin with an `S` for each `$` weighs, but for the `$` themselves, and decides as it does; at
     // 150 to 400 rows it is a table, and the index holds every link the parse of its rows ten at a time finds.
+    // Its own time (2026-11-26): about 1.2 MB of tables parsed twice, 6 s without load here and on `main` alike,
+    // linear in the tables (no part of it grows faster); with the rows above in one test it went over the
+    // default 20 s on a loaded runner. Each half gets the time of its work.
     let seed = 20261117;
     const random = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
     const pieces = ["$5", "$12.50", "US$ 3", "$HOME", "`$PATH`", "`echo $1 $2`", "`a$b`", "**$9**", "<b>$</b>", "$ ", "a$", "[$](u)", "<https://a.b/$>", '<i t="$">', "\\$", "$-1", "$x^2$", "$$\\frac{a}{b}$$", "$ y $", "[x][a$]", "[^a$]", "€ 4", "per month", "[[Plans]]", "word", "two words", "x = 3", "*em*", "`code`"];
@@ -865,7 +872,7 @@ describe("where a table ends", () => {
       for (let k = 0; k < tableRows.length; k += 10) links += linksOf(`# N\n\n${head}${tableRows.slice(k, k + 10).join("\n")}\n${after}`);
       expect(linksOf(note) - linksOf(after), `table ${t}`).toBe(links - linksOf(after) * Math.ceil(tableRows.length / 10));
     }
-  });
+  }, 120 * SECONDS);
 
   it("weighs references and links without blanks, and dates as the reading view writes them", () => {
     // `[^1][^1]…` is one word but as many pieces of the cell's text: each
