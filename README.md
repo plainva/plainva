@@ -57,7 +57,7 @@ Plainva has no code-plugin sandbox — the vault *is* the interface. Every file 
 
 The same vault on a phone or tablet, synced through your own cloud or a folder another app keeps. Both betas are open:
 
-- **Android** — the open test on Google Play: [https://play.google.com/apps/testing/com.plainva.app](https://play.google.com/apps/testing/com.plainva.app) (tap *Become a tester*, install from Play), or the `.apk` attached to every [mobile release](https://github.com/plainva/plainva/releases?q=mobile). Android 8.0 or newer.
+- **Android** — the open test on Google Play: [https://play.google.com/apps/testing/com.plainva.app](https://play.google.com/apps/testing/com.plainva.app) (tap *Become a tester*, install from Play), or the `.apk` attached to every [mobile release](https://github.com/plainva/plainva/releases?q=mobile). Android 7.0 or newer.
 - **iPhone and iPad** — public TestFlight: [https://testflight.apple.com/join/ZRSEfZBn](https://testflight.apple.com/join/ZRSEfZBn). iOS/iPadOS 16.4 or newer.
 
 It is a beta: keep a backup of your vault, and read [Mobile App](docs/user/en/Mobile_App.md) in the user guide before pointing it at a vault you care about.
