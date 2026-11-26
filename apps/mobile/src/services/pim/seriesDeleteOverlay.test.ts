@@ -15,7 +15,7 @@ import type { MobileVault } from "../vaultService";
  * The calendar runtime here is the module's own; the cache is a double.
  */
 
-const events = vi.hoisted(() => ({ rows: [] as PimEventRow[] }));
+const events = vi.hoisted(() => ({ rows: [] as PimEventRow[], selected: true }));
 const state = vi.hoisted(() => ({
   secrets: new Map<string, string>(), rows: new Map<string, PimAccountRow[]>(),
   started: vi.fn(), triggered: vi.fn(),
@@ -64,6 +64,7 @@ vi.mock("@plainva/core", async (original) => {
       async listEvents() { return events.rows.filter((r) => !r.recurrence); }
       async getEventByUid(accountId: string, calId: string, uid: string) { return events.rows.find((r) => r.accountId === accountId && r.calendarId === calId && r.uid === uid) ?? null; }
       async findEventsByUid(uid: string) { return events.rows.filter((r) => r.uid === uid || r.seriesMaster === uid); }
+      async listCalendars() { return [{ accountId: "g", id: "work", name: "Work", selected: events.selected }]; }
     },
     PimWorker: class { start() { state.started(); } stop() {} async triggerImmediate() { state.triggered(); } },
   };
@@ -78,6 +79,7 @@ beforeEach(async () => {
   try { previousPlatform = getPlatformServices(); } catch { previousPlatform = undefined; }
   setPlatformServices({ ...previousPlatform, loadSettings: async () => ({ keys: async () => [], get: async () => null, set: async () => {}, delete: async () => false, save: async () => {} }) } as Parameters<typeof setPlatformServices>[0]);
   events.rows = [occurrence(0), occurrence(1)];
+  events.selected = true;
   pendingEventWrites.clear();
   pim.stopPim();
   await pim.startPim({ vaultId: "v", db: { name: "v" } } as unknown as MobileVault);
@@ -101,5 +103,21 @@ describe("deleting a whole series on the phone (issue 119, R7)", () => {
     window.dispatchEvent(new CustomEvent("m-pim-changed"));
     await settle();
     expect(pendingEventWrites.snapshot()).toEqual([]);
+  });
+});
+
+describe("a new event on the phone is drawn only where its calendar is shown (issue 119)", () => {
+  it("a created event in a hidden calendar stays in the overlay but is not drawn; shown again, it is", async () => {
+    expect.hasAssertions();
+    events.rows = [];
+    state.rows.set("v", [{ id: "g", provider: "google", label: "G", config: {}, enabled: true } as PimAccountRow]);
+    const created = { accountId: "g", calendarId: "work", uid: "plainva-new", title: "Team sync", start: { ts: 1_500 }, end: { ts: 2_500 }, allDay: false } as PimEventRow;
+    pendingEventWrites.settle(pendingEventWrites.begin({ kind: "create", row: created }), undefined, 0);
+    await settle();
+    events.selected = false;
+    expect(await pim.listShownPimEvents(0, 10_000)).toEqual([]);
+    events.selected = true;
+    expect((await pim.listShownPimEvents(0, 10_000)).map((row) => row.uid)).toEqual(["plainva-new"]);
+    state.rows.delete("v");
   });
 });

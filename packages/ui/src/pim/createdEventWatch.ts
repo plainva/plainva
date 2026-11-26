@@ -1,10 +1,10 @@
-import { forgetCreatedAddress, type IPimTarget, type PimAccountRow, type PimCalendar, type PimEventRow } from "@plainva/core";
+import type { IPimTarget, PimAccountRow, PimCalendar, PimEventRow } from "@plainva/core";
 import i18n from "../i18n";
 import { logDiagnostic } from "../services/diagnosticsLog";
 import { refusalReason } from "../lib/errorText";
 import { toast } from "../services/toastStore";
-import { createCalendarEvent, createChange, deleteCalendarEvent, draftToRow } from "./eventWrite";
-import { pendingEventRow, SETTLED_EVENT_WRITE_TTL_MS, showWrittenEvents, writeEventOptimistically, type CreatedEventChange, type PendingEventWrites } from "./pendingEventWrites";
+import { createCalendarEvent, createChange, draftToRow } from "./eventWrite";
+import { pendingEventRow, SETTLED_EVENT_WRITE_TTL_MS, writeEventOptimistically, type CreatedEventChange, type PendingEventWrites } from "./pendingEventWrites";
 
 /**
  * A created event the views still draw from the overlay, settled where the
@@ -15,8 +15,9 @@ import { pendingEventRow, SETTLED_EVENT_WRITE_TTL_MS, showWrittenEvents, writeEv
  *
  *  - a sync has it - the cache, by the event's id, whatever range a view
  *    shows: the overlay ends; from then on the cache is the truth, so an event
- *    deleted elsewhere later is never reported as lost. A move's copy: the
- *    source is deleted now, and only then does the source leave the screen,
+ *    deleted elsewhere later is never reported as lost. A cache that cannot
+ *    be read is no evidence either way: the event stays and is not asked
+ *    about in that round,
  *  - its account or its calendar is gone from the cache (removed, not just
  *    switched off or hidden): the overlay ends without a word,
  *  - the provider says it does not have it - asked with the read-back's
@@ -25,10 +26,15 @@ import { pendingEventRow, SETTLED_EVENT_WRITE_TTL_MS, showWrittenEvents, writeEv
  *
  * Hidden calendars and switched-off accounts keep their events here (the
  * views do not draw them) and are asked about all the same; sleep, a provider
- * that does not answer, or one that wants a sign-in end nothing. A provider
- * that cannot be asked (the device's own calendars) keeps the event until a
- * run lists it. Closing the vault empties the overlay (the shells do that);
+ * that does not answer, or one that wants a sign-in end nothing. The device's
+ * own calendars are not asked (their target has no `eventExists`): the store
+ * takes a create at once and the next run lists it, so such an event stays
+ * until that run. Closing the vault empties the overlay (the shells do that);
  * restarting the runtime in the same vault does not.
+ *
+ * Google and Microsoft are asked by the id they gave the event in their answer
+ * (`row.uid`), so their "no" is about exactly this event; "Try again" creating
+ * it anew there cannot duplicate one they still hold.
  */
 export const CREATED_EVENT_ASK_EVERY_MS = SETTLED_EVENT_WRITE_TTL_MS;
 export const CREATED_EVENT_DENIALS = 3;
@@ -42,7 +48,7 @@ export interface CreatedEventWatchCache {
 export interface CreatedEventWatchDeps {
   cache: CreatedEventWatchCache;
   targetFor(accountId: string): Promise<IPimTarget | null>;
-  /** A created event the provider does not have. Default: the message that names it, with "Try again" for a new one. */
+  /** A created event the provider does not have. Default: the message that names it, with "Try again" for one typed into the form. */
   onGone?(created: CreatedEventChange): void;
 }
 
@@ -55,9 +61,7 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
     const cached = await deps.cache.findEventsByUid(row.uid).catch(() => null);
     if (cached === null) continue;
     if (cached.some((cachedRow) => cachedRow.accountId === row.accountId && cachedRow.calendarId === row.calendarId)) {
-      if (row.href) forgetCreatedAddress(row.href);
-      if (created.moveFrom) await finishMove(store, deps, created);
-      else store.dropCreated(row);
+      store.dropCreated(row);
       continue;
     }
     const accountGone = !accounts.some((a) => a.id === row.accountId);
@@ -86,21 +90,6 @@ export async function settleCreatedEvents(store: PendingEventWrites, deps: Creat
   }
 }
 
-/** A move whose copy a sync now lists: the source is deleted now, and leaves the screen once the cache agrees. */
-async function finishMove(store: PendingEventWrites, deps: CreatedEventWatchDeps, created: CreatedEventChange): Promise<void> {
-  const source = created.moveFrom!;
-  try {
-    await deleteCalendarEvent({ targetFor: deps.targetFor }, source);
-    store.dropCreated(created.row);
-    showWrittenEvents(store, [{ kind: "delete", ref: source }]);
-  } catch (error) {
-    // The copy stands; the source could not be deleted - two events, never none.
-    store.dropCreated(created.row);
-    logDiagnostic("pim", `moved event: source not deleted: ${refusalReason(error)}`);
-    toast.error(i18n.t("pim.eventMoveLeftSource", { title: source.title, reason: refusalReason(error) }));
-  }
-}
-
 /** Runs `settleCreatedEvents` every minute until the returned stop. */
 export function watchCreatedEvents(store: PendingEventWrites, deps: CreatedEventWatchDeps, everyMs = 60_000): () => void {
   let running = false;
@@ -119,26 +108,26 @@ export function watchCreatedEvents(store: PendingEventWrites, deps: CreatedEvent
 
 /**
  * The message for a created event the provider does not have, naming what it
- * was. A new event offers "Try again", which creates exactly it again under
- * the same uid. A move's copy says the event was not moved - its source still
- * stands. A blocker says so; it is made again from its event.
+ * was. A new event typed into the form offers "Try again", which creates
+ * exactly it again under the same uid. A blocker and the copy a move made say
+ * so, without "Try again".
  */
 export function reportCreatedEventGone(store: PendingEventWrites, deps: Pick<CreatedEventWatchDeps, "targetFor">, created: CreatedEventChange): void {
   const { accountId, calendarId, title } = created.row;
   logDiagnostic("pim", `created ${created.what ?? "new"} event not held by the provider`);
-  if (created.what === "moved") {
-    toast.error(i18n.t("pim.eventMoveLost", { title }));
-    return;
-  }
   if (created.what === "blocker") {
     toast.error(i18n.t("pim.blockerCreateLost", { title }));
     return;
   }
-  const draft = created.draft;
-  if (!draft?.createAs) {
-    toast.error(i18n.t("pim.eventCreateLost", { title }));
+  // The copy a move made: after the move its source is deleted, so a copy the
+  // provider does not have is, as a rule, an event lost. Said - nothing about
+  // the source (its delete may have failed), and no "Try again".
+  if (created.what === "moved") {
+    toast.error(i18n.t("pim.eventMoveLost", { title }));
     return;
   }
+  const draft = created.draft;
+  if (!draft?.createAs) return;
   const create = { ...draft, createAs: draft.createAs };
   const again = () => {
     const id = store.reserve();

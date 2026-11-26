@@ -1,17 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
-import { CalDavPimTarget, expandIcsEvents, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventDraft, type PimEventRow } from "@plainva/core";
+import { CalDavPimTarget, expandIcsEvents, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventRow } from "@plainva/core";
 
 const bus = vi.hoisted(() => ({ request: (() => Promise.reject(new Error("no bus"))) as unknown }));
 vi.mock("./services/windowBus", () => ({ getWindowBus: async () => bus }));
 
 import { createRemotePimTarget } from "./services/pim/remotePimTarget";
+import i18n from "@plainva/ui/i18n";
 import {
   applyPendingEventWrites,
   CREATED_EVENT_ASK_EVERY_MS,
   reportCreatedEventGone,
   settleCreatedEvents,
   toast,
-  updateCalendarEvent,
+  updateEventWithBlockers,
   watchCreatedEvents,
   createCalendarEvent,
   createChange,
@@ -325,76 +326,53 @@ describe("a new event no sync lists yet (issue 119)", () => {
     error.mockRestore();
   });
 
-  it("names what was lost: a move's copy says the event was not moved, a blocker says blocker - neither offers 'Try again'", () => {
+  it("names what was lost, word for word: a new event with 'Try again'; a moved event and a blocker without", () => {
     expect.hasAssertions();
     const error = vi.spyOn(toast, "error").mockImplementation(() => 0);
     const store = new PendingEventWrites();
+    reportCreatedEventGone(store, { targetFor: async () => null }, createChange(created, single));
     reportCreatedEventGone(store, { targetFor: async () => null }, { kind: "create", row: created, what: "moved" });
     reportCreatedEventGone(store, { targetFor: async () => null }, { kind: "create", row: created, what: "blocker" });
-    expect(error.mock.calls.map((call) => [call[0].includes("Team sync"), call[1]])).toEqual([
-      [true, undefined],
-      [true, undefined],
+    expect(error.mock.calls.map((call) => [call[0], call[1]?.label ?? null])).toEqual([
+      [i18n.t("pim.eventCreateLost", { title: "Team sync" }), i18n.t("pim.eventWriteRetry")],
+      [i18n.t("pim.eventMoveLost", { title: "Team sync" }), null],
+      [i18n.t("pim.blockerCreateLost", { title: "Team sync" }), null],
     ]);
-    expect(error.mock.calls[0]![0]).not.toBe(error.mock.calls[1]![0]);
+    expect(new Set(error.mock.calls.map((call) => call[0])).size).toBe(3);
     error.mockRestore();
   });
-});
 
-describe("a move whose copy the provider does not show yet (issue 119)", () => {
-  const source = { accountId: "a1", calendarId: "old", uid: "ev-1", etag: '"s1"', href: "https://dav.example.org/cal/home/old/ev-1.ics", title: "Planning", start: { ts: start }, end: { ts: start + 3600_000 }, allDay: false } as PimEventRow;
-  const draft = { title: "Planning", start: { ts: start }, end: { ts: start + 3600_000 }, allDay: false } as PimEventDraft;
-
-  it("a copy shown at once: the source is deleted in the same step", async () => {
+  it("the copy a move made is named a moved event, and is reported only after the provider's third 'no' for its id", async () => {
     expect.hasAssertions();
-    const deleteEvent = vi.fn(async () => undefined);
-    const targets = { targetFor: async () => ({ provider: "caldav", createEvent: async (_c: string, d: PimEventCreate) => ({ uid: d.createAs, etag: '"c1"' }), deleteEvent }) as never };
-    const out = await updateCalendarEvent(targets, source, draft, { accountId: "a1", calendarId: CAL });
-    expect(deleteEvent).toHaveBeenCalledTimes(1);
-    expect(out).toMatchObject({ kind: "written", removed: { uid: "ev-1" } });
-  });
-
-  it("a copy not shown yet: the source stays at the provider, the screen shows the move, and the source goes once a sync lists the copy", async () => {
-    expect.hasAssertions();
-    const deleteEvent = vi.fn(async () => undefined);
-    const target = { provider: "caldav", createEvent: async (_c: string, d: PimEventCreate) => ({ uid: d.createAs, href: `${CAL}${d.createAs}.ics` }), deleteEvent } as never;
-    const out = await updateCalendarEvent({ targetFor: async () => target }, source, draft, { accountId: "a1", calendarId: CAL });
-    expect(deleteEvent).not.toHaveBeenCalled();
-    expect(out).toMatchObject({ kind: "written", sourceKept: true });
-    const copy = (out as { rows: PimEventRow[] }).rows[0]!;
+    const source = { ...created, calendarId: "old", uid: "ev-1", href: undefined } as PimEventRow;
+    const copy = { ...created, uid: "plainva-copy", href: `${CAL}plainva-copy.ics` };
+    const targets = { targetFor: async () => ({ provider: "caldav", createEvent: async (_c: string, d: PimEventCreate) => ({ uid: d.createAs, etag: '"c1"', href: copy.href }), deleteEvent: async () => undefined }) as never };
     const store = new PendingEventWrites();
-    const id = store.begin({ kind: "create", row: copy, what: "moved", moveFrom: source });
-    store.settle(id, undefined, 0);
-    // Cached: the source. Shown: the copy only.
-    expect(applyPendingEventWrites([source], store.snapshot()).map((row) => row.uid)).toEqual([copy.uid]);
-    store.reconcile([source, copy], 1_000);
-    expect(applyPendingEventWrites([source, copy], store.snapshot()).map((row) => row.uid)).toEqual([copy.uid]);
-    const vault = {
-      findEventsByUid: async (uid: string) => (uid === copy.uid ? [copy] : []),
-      listAccounts: async () => [{ id: "a1", enabled: true } as PimAccountRow],
-      listCalendars: async () => [{ accountId: "a1", id: CAL, selected: true } as PimCalendar & { accountId: string; selected: boolean }],
-    };
-    await settleCreatedEvents(store, { cache: vault, targetFor: async () => target }, 60_000);
-    expect(deleteEvent).toHaveBeenCalledTimes(1);
-    // The source leaves the screen until the cache agrees.
-    expect(applyPendingEventWrites([source, copy], store.snapshot()).map((row) => row.uid)).toEqual([copy.uid]);
-  });
-
-  it("a copy the provider does not have: the source stands again, and the message says the event was not moved", async () => {
-    expect.hasAssertions();
-    const store = new PendingEventWrites();
-    const copy = { ...source, calendarId: CAL, uid: "plainva-copy", href: `${CAL}plainva-copy.ics` };
-    const id = store.begin({ kind: "create", row: copy, what: "moved", moveFrom: source });
-    store.settle(id, undefined, 0);
+    const deps = { targets, blockersOf: async () => [], eventsByUid: async () => [], busyLabel: "Busy", store };
+    await updateEventWithBlockers(deps, source, { ...single, recurrence: undefined }, { moveTo: { accountId: "a1", calendarId: CAL } });
+    const [write] = store.settledCreates();
+    expect(write?.what).toBe("moved");
     const gone: CreatedEventChange[] = [];
-    const vault = {
-      findEventsByUid: async () => [],
-      listAccounts: async () => [{ id: "a1", enabled: true } as PimAccountRow],
-      listCalendars: async () => [{ accountId: "a1", id: CAL, selected: true } as PimCalendar & { accountId: string; selected: boolean }],
-    };
-    const targetFor = async () => ({ provider: "caldav", eventExists: async () => false }) as never;
-    for (const t of [CREATED_EVENT_ASK_EVERY_MS, 2 * CREATED_EVENT_ASK_EVERY_MS, 3 * CREATED_EVENT_ASK_EVERY_MS]) await settleCreatedEvents(store, { cache: vault, targetFor, onGone: (c) => gone.push(c) }, t);
-    expect(gone.map((c) => c.what)).toEqual(["moved"]);
-    expect(applyPendingEventWrites([source], store.snapshot()).map((row) => row.uid)).toEqual(["ev-1"]);
+    const asked: Array<{ uid: string }> = [];
+    const targetFor = async () => ({ provider: "caldav", eventExists: async (ref: { uid: string }) => (asked.push(ref), false) }) as never;
+    for (const t of [ASK, 2 * ASK]) await settleCreatedEvents(store, { cache: cache(), targetFor, onGone: (c) => gone.push(c) }, write!.settledAt + t);
+    expect(gone).toEqual([]);
+    await settleCreatedEvents(store, { cache: cache(), targetFor, onGone: (c) => gone.push(c) }, write!.settledAt + 3 * ASK);
+    expect(gone.map((c) => [c.what, c.row.uid])).toEqual([["moved", write!.row.uid]]);
+    expect(asked.every((ref) => ref.uid === write!.row.uid)).toBe(true);
+  });
+
+  it("a cache that cannot be read is no evidence: the event stays, nobody is asked, nothing is said", async () => {
+    expect.hasAssertions();
+    const store = new PendingEventWrites();
+    settledNew(store);
+    const gone: CreatedEventChange[] = [];
+    const { asked, targetFor } = asking([false, false, false, false]);
+    const broken = { ...cache(), findEventsByUid: async () => Promise.reject(new Error("database is locked")) };
+    for (const t of [ASK, 2 * ASK, 3 * ASK, 4 * ASK]) await settleCreatedEvents(store, { cache: broken, targetFor, onGone: (c) => gone.push(c) }, t);
+    expect(asked).not.toHaveBeenCalled();
+    expect(gone).toEqual([]);
+    expect(shownNow(store)).toHaveLength(1);
   });
 });
 

@@ -121,12 +121,8 @@ export function sameEventRef(
 }
 
 export type EventWriteOutcome =
-  /**
-   * Written; `rows` replaces the affected rows optimistically. A move whose
-   * copy the provider did not show yet keeps its source (`sourceKept`); it is
-   * deleted once a sync lists the copy (`watchCreatedEvents`).
-   */
-  | { kind: "written"; rows: PimEventRow[]; removed?: { accountId: string; calendarId: string; uid: string }; sourceKept?: true }
+  /** Written; `rows` replaces the affected rows optimistically. */
+  | { kind: "written"; rows: PimEventRow[]; removed?: { accountId: string; calendarId: string; uid: string } }
   /** The remote moved first — nothing was written, re-pull and reopen. */
   | { kind: "conflict" }
   /** Written, but the source copy of a move could not be deleted. */
@@ -191,12 +187,6 @@ export async function updateCalendarEvent(
     const res = await timedWrite(targets, moveTo!.accountId, "move/create", (target) => target.createEvent(moveTo!.calendarId, create), "no writable target for the destination account");
     forgetCreateUid("move", where, moved);
     const rows = [{ ...draftToRow(moveTo!.accountId, moveTo!.calendarId, res.uid, draft), etag: res.etag, href: res.href }];
-    // The source goes only once the copy is shown (issue 119). Shown at once -
-    // an etag from the answer or the read-back, the rule outside iCloud - it
-    // goes in this same step. Not shown yet: it stays at the provider until a
-    // sync lists the copy. Should the app close in between, both stand - two
-    // events, never none.
-    if (!res.etag) return { kind: "written", rows, sourceKept: true };
     const removed = { accountId: event.accountId, calendarId: event.calendarId, uid: event.uid };
     try {
       const oldTarget = await targets.targetFor(event.accountId);

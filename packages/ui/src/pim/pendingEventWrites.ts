@@ -53,16 +53,10 @@ export interface CreatedEventChange {
   /** What the person typed - only for a new event, whose "Try again" creates exactly it again. */
   draft?: PimEventDraft;
   /**
-   * What was created: a new event (the default), the copy a move makes, or a
+   * What was created: a new event (the default), the copy a move made, or a
    * blocker. The message for one the provider does not have names it.
    */
   what?: "new" | "moved" | "blocker";
-  /**
-   * A move whose copy the provider did not show yet (issue 119): the source
-   * still stands at the provider and is deleted once a sync lists the copy.
-   * Until then the screen shows the event moved - the source is laid aside.
-   */
-  moveFrom?: PimEventRow;
 }
 
 /**
@@ -215,10 +209,6 @@ export function applyPendingEventWrites(
         sameRef(row, write.ref) ? { ...row, ...write.patch, ...mark } : occurrenceOf(row, write.ref) ? { ...row, ...wide, ...mark } : row,
       );
     } else {
-      // The source of a move whose copy is not confirmed yet stands aside -
-      // until the watch has deleted it.
-      const source = write.moveFrom;
-      if (source) shown = shown.filter((row) => !reaches(row, source));
       if (listsCreated(shown, write.row)) continue;
       // A hidden calendar draws nothing - from the cache or from here.
       if (shownCalendar && !shownCalendar(write.row.accountId, write.row.calendarId)) continue;
@@ -239,8 +229,7 @@ export function unsettledEventWrites(rows: readonly PimEventRow[], writes: reado
     if (write.state === "sending") return true;
     // A created event is settled by `watchCreatedEvents`, not by a timeout:
     // the rows here are only the range a view shows.
-    // A move's copy waits for the watch, which deletes the source first.
-    if (write.kind === "create") return !!write.moveFrom || !listsCreated(rows, write.row);
+    if (write.kind === "create") return !listsCreated(rows, write.row);
     if (now - (write.settledAt ?? now) > SETTLED_EVENT_WRITE_TTL_MS) return false;
     if (write.kind === "stamp") return rows.some((row) => stamps(row, write));
     // A deleted series waits until none of its occurrences is listed (R7).

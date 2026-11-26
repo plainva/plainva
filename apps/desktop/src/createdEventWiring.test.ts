@@ -19,6 +19,12 @@ describe("the desktop settles created events with the vault", () => {
     expect(appShell).toContain("useEffect(() => () => pendingEventWrites.clear(), [vaultPath]);");
   });
 
+  it("the calendar view draws the overlay only for calendars it shows", () => {
+    expect.hasAssertions();
+    expect(calendarView).toMatch(/const shownCalendar = useCallback\(\s*\(accountId: string, calendarId: string\) =>\s*accounts\.some\(\(a\) => a\.id === accountId && a\.enabled\) && calendars\.some\(\(c\) => c\.accountId === accountId && c\.id === calendarId && c\.selected\)/);
+    expect(calendarView).toContain("useShownEvents(cachedEvents, pendingEventWrites, { startTs: rangeStartTs, endTs: rangeEndTs }, shownCalendar)");
+  });
+
   it("the calendar view keeps no clock of its own for it", () => {
     expect.hasAssertions();
     expect(calendarView).not.toMatch(/watchCreatedEvents|settleCreatedEvents|setInterval\(check/);

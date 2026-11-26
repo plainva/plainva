@@ -792,9 +792,9 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     mobile: "partial",
     mobileReason:
       "Same shared watch (`watchCreatedEvents`) on both shells. The phone's own " +
-      "calendars (the device account, which the desktop does not have) cannot be " +
-      "asked whether they hold an event: the store answers a create at once and the " +
-      "next run lists it, so such an event stays until that run and is never " +
+      "calendars (the device account, which the desktop does not have) are not " +
+      "asked: the device store takes a create at once and the next run lists it, " +
+      "so asking is not needed - such an event stays until that run and is never " +
       "reported as missing (decided 2026-11-25).",
     verified: "2026-11-25",
   },

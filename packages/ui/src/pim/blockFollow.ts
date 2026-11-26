@@ -249,11 +249,10 @@ function blockerPatchFor(blocker: ResolvedBlocker, draft: PimEventDraft, busyLab
 function settledUpdate(source: PimEventRow, patch: Partial<PimEventRow>, moving: boolean, result: EventWriteOutcome): PendingEventChange[] {
   if (result.kind === "conflict") return [];
   if (!moving) return [{ kind: "update", ref: source, patch }, ...etagStamp(source, result.rows[0]?.etag)];
-  // A copy the provider did not show yet carries its source along: the watch
-  // deletes the source once a sync lists the copy (issue 119).
-  const kept = result.kind === "written" && result.sourceKept;
-  const created = result.rows.map((row) => ({ kind: "create" as const, row, what: "moved" as const, ...(kept ? { moveFrom: source } : {}) }));
-  return result.kind === "written" && !kept ? [...created, { kind: "delete" as const, ref: source }] : created;
+  // The copy is named a moved event: should the provider not have it, the
+  // message says so (issue 119). Without `what` it would go without a word.
+  const created = result.rows.map((row) => ({ kind: "create" as const, row, what: "moved" as const }));
+  return result.kind === "written" ? [...created, { kind: "delete" as const, ref: source }] : created;
 }
 
 const isGone = (error: unknown): boolean => error instanceof PimRequestError && (error.status === 404 || error.status === 410);
