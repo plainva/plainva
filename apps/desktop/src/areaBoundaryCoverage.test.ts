@@ -147,7 +147,8 @@ describe("every surface of the desktop shell is an area of its own", () => {
 
   it("every settings page is a SettingsPage, and a SettingsPage is a boundary", () => {
     const src = read(`${SRC}/components/SettingsModal.tsx`);
-    const wrapper = src.slice(src.indexOf("const SettingsPage"), src.indexOf("export const SettingsModal"));
+    // The page lives in a file of its own since the AI's pages mount when first shown (review of L5, round 3).
+    const wrapper = read(`${SRC}/components/settings/SettingsPage.tsx`);
     expect(wrapper).toContain("<AreaBoundary area={`settings:${area}`}>");
     const pageSpans: Array<[number, number]> = [];
     for (const m of src.matchAll(/<SettingsPage\b/g)) pageSpans.push([m.index!, src.indexOf("</SettingsPage>", m.index!)]);

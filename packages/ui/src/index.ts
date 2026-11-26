@@ -268,6 +268,7 @@ export * from "./components/SuggestionDiff";
 export * from "./components/PublicationFeedback";
 export * from "./lib/publicationFeedback";
 export { suggestionBase, suggestionChunks, suggestionChunksReady, SuggestionDiffNotLoaded, type SuggestionChunk } from "./components/suggestMode";
+export { suggestionRoundEnds, suggestionToSend, type SuggestionToSend } from "./components/suggestionSend";
 export { reconcileParkedSuggestion, parkedSuggestionBlocks, type ReconciledSuggestion } from "./components/suggestionPark";
 export * from "./lib/noteTitle";
 export * from "./lib/occurrenceSnippet";

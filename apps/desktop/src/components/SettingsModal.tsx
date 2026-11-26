@@ -4,7 +4,7 @@ import { settingNotSaved } from "../services/settingNotSaved";
 import { getSettingsStore } from "../services/settingsStore";
 import { listVaultFolders as sharedListVaultFolders } from "../services/vaultFolders";
 import { open as openFolderDialog } from "@tauri-apps/plugin-dialog";
-import { AreaBoundary, clampBoundary, logDiagnostic, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, taskDatabaseLabels, toast } from "@plainva/ui";
+import { clampBoundary, logDiagnostic, placeStampEnabled, refuseVaultPathSetting, setExtraTextExtensions, setPlaceStampEnabled, splitTextFileExtensions, errorText, taskDatabaseLabels, toast } from "@plainva/ui";
 import { listTemplates } from "../services/newItemFlow";
 import { requestWelcomeOnNextStart } from "../services/whatsNew";
 import { mkdir } from "@tauri-apps/plugin-fs";
@@ -67,6 +67,7 @@ import { PimPage, MailPage, ContentPage, JournalPage, BackupPage, MaintenancePag
 import { BarsPage } from "./settings/BarsPage";
 import { CloudAccountsPage } from "./settings/CloudAccountsPage";
 import { deferredPart } from "../lib/deferredParts";
+import { SettingsPage } from "./settings/SettingsPage";
 import { SecuritySharingPage } from "./security/SecuritySharingPage";
 
 // The AI's pages bring the harness: loaded when one is first shown (review of L5, round 2).
@@ -96,22 +97,6 @@ const GENERAL = "general";
  * page carries its own overflow, so a short page shows no scrollbar at all.
  * Inactive pages are visibility-hidden: not clickable, not focusable, not in
  * the a11y tree — their handlers can only fire while their area is active. */
-/**
- * A page of the settings. `whenOpened`: its content mounts the first time the page is shown, not with the dialog —
- * the AI's pages, whose code is the harness's and loads with them (review of L5, round 2, 2026-11-25: opening the
- * settings loaded 222 modules of the AI with the dialog).
- */
-const SettingsPage: React.FC<{ area: string; active: boolean; whenOpened?: boolean; children: React.ReactNode }> = ({ area, active, whenOpened, children }) => {
-  const [opened, setOpened] = useState(active);
-  if (active && !opened) setOpened(true);
-  return (
-    <div className="pv-setpage custom-scrollbar" data-active={active ? "true" : "false"}>
-      {/* Every page an area of its own (stability plan R3): a page that fails
-          leaves the settings, their navigation and every other page. */}
-      <AreaBoundary area={`settings:${area}`}>{!whenOpened || opened ? <React.Suspense fallback={null}>{children}</React.Suspense> : null}</AreaBoundary>
-    </div>
-  );
-};
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, initialProvider, initialArea, initialAccountId, initialConnect }) => {
   const { vaultPath, recentVaults, vaultAdapter, queryService, autoOpenLastVault, setAutoOpenLastVault, syncWorker, refreshVault, rebuildIndex, openVault, closeVault, removeRecentVault } = useVault();
