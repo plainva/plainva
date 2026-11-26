@@ -89,7 +89,7 @@
     "@wdio/mocha-framework": "9",
     "@wdio/spec-reporter": "9",
     "@wdio/tauri-service": "1.5.1",
-    "jsdom": "^30.1.3",
+    "jsdom": "^31.0.1",
     "katex-0.16": "npm:katex@0.16.47",
     "typescript": "~6.0.3",
     "vite": "^8.3.8",
