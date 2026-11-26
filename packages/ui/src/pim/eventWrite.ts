@@ -1,4 +1,4 @@
-import { eventSubstanceOf, expandEventDraft, PIM_WINDOW_FUTURE_DAYS, PIM_WINDOW_PAST_DAYS, PimConflictError, type PimEventCreate, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
+import { eventSubstanceOf, PIM_WINDOW_FUTURE_DAYS, PIM_WINDOW_PAST_DAYS, PimConflictError, type PimEvent, type PimEventCreate, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
 import { logDiagnostic } from "../services/diagnosticsLog";
 import { createUidFor, forgetCreateUid } from "./createUids";
 import { isPendingEventUid, PENDING_EVENT_UID_PREFIX, type CreatedEventChange, type EtagStamp } from "./pendingEventWrites";
@@ -64,9 +64,23 @@ const DAY_MS = 24 * 3600_000;
  * `draft` stays with the change: should the provider turn out not to hold the
  * event, "Try again" has what the person typed.
  */
-export function createChange(row: PimEventRow, draft: PimEventDraft, now: number = Date.now()): CreatedEventChange {
-  if (!draft.recurrence) return { kind: "create", row, draft };
-  let expanded: ReturnType<typeof expandEventDraft>;
+/**
+ * The expansion of a draft into the occurrences a pull would bring
+ * (`expandEventDraft` of the core). Handed in by the callers that load with
+ * the calendar - it carries the CalDAV adapter and its calendar parser, which
+ * the start does not load. Without it a series is drawn as its first
+ * occurrence until a sync lists it; what is written does not depend on it.
+ */
+export type SeriesExpansion = (
+  draft: PimEventDraft,
+  ids: { uid: string; calendarId: string; href?: string; etag?: string },
+  rangeStartTs: number,
+  rangeEndTs: number,
+) => PimEvent[];
+
+export function createChange(row: PimEventRow, draft: PimEventDraft, expandEventDraft?: SeriesExpansion, now: number = Date.now()): CreatedEventChange {
+  if (!draft.recurrence || !expandEventDraft) return { kind: "create", row, draft };
+  let expanded: PimEvent[];
   try {
     // The window a sync fetches (`PimWorker`), not one of its own: the screen
     // shows the occurrences the sync will bring - no more, no fewer.

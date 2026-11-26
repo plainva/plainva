@@ -9,7 +9,7 @@ import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts, pickDefaultMailAccount } from "@plainva/ui/mail";
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
 import { createChange, errorText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
-import { PimConflictError, newPimCreateUid, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventCreate, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
+import { expandEventDraft, PimConflictError, newPimCreateUid, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventCreate, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
   deleteEventWithBlockers,
@@ -1062,9 +1062,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         void writeEventOptimistically(
           pendingEventWrites,
           // A series shows its occurrences from the first moment (issue 119).
-          createChange(pendingEventRow(id, shown), draft),
+          createChange(pendingEventRow(id, shown), draft, expandEventDraft),
           () => createCalendarEvent(actionTargets, accountId, calId, draft),
-          (out) => out.rows.map((row) => createChange(row, draft)),
+          (out) => out.rows.map((row) => createChange(row, draft, expandEventDraft)),
           id,
         ).then(
           () => {

@@ -1,4 +1,4 @@
-import { newPimCreateUid } from "../src/pim/CalDavPimTarget.ts";
+import { newPimCreateUid } from "../src/pim/createUid.ts";
 import { describe, expect, it } from "vitest";
 import { DevicePimTarget, deviceFieldVersion, deviceHandleOf, deviceUpdateSpan, anchorSeriesDraft, PimConflictError } from "../src/index.js";
 import type { DeviceCollection, DeviceEventDraft, DeviceEventHandle, DeviceEventRecord, DevicePimPort, DeviceReminderDraft, DeviceReminderRecord } from "../src/index.js";

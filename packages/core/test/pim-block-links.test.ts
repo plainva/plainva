@@ -1,4 +1,4 @@
-import { newPimCreateUid } from "../src/pim/CalDavPimTarget.ts";
+import { newPimCreateUid } from "../src/pim/createUid.ts";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GooglePimTarget, GOOGLE_BLOCK_SLOTS } from "../src/pim/GooglePimTarget.ts";
 import { GraphPimTarget, GRAPH_BLOCK_OF_PROPERTY_ID, GRAPH_BLOCKS_PROPERTY_ID } from "../src/pim/GraphPimTarget.ts";

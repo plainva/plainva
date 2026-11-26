@@ -1,4 +1,4 @@
-import { newPimCreateUid } from "../src/pim/CalDavPimTarget.ts";
+import { newPimCreateUid } from "../src/pim/createUid.ts";
 import { describe, expect, it, vi } from "vitest";
 import { CalDavPimTarget } from "../src/pim/CalDavPimTarget.ts";
 import { PimNotShownYetError } from "../src/pim/types.ts";

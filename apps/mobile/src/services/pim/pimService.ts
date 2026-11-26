@@ -803,12 +803,16 @@ export async function createPimEvent(calendarKey: string, draft: PimEventCreate)
   if (!key) throw new Error("no writable calendar selected");
   const id = pendingEventWrites.reserve();
   const { uid: _uid, ...shown } = draftToRow(key.accountId, key.calendarId, "", draft);
+  // Drawing a series by its occurrences needs the expansion, which loads with
+  // the calendar targets; without it the series is drawn by its first
+  // occurrence - what is written is the same either way.
+  const expandEventDraft = await pimTargets().then((m) => m.expandEventDraft).catch(() => undefined);
   const out = await writeEventOptimistically(
     pendingEventWrites,
     // A series shows its occurrences from the first moment (issue 119).
-    createChange(pendingEventRow(id, shown), draft),
+    createChange(pendingEventRow(id, shown), draft, expandEventDraft),
     () => createCalendarEvent(eventTargets, key.accountId, key.calendarId, draft),
-    (written) => written.rows.map((row) => createChange(row, draft)),
+    (written) => written.rows.map((row) => createChange(row, draft, expandEventDraft)),
     id,
   );
   pimSyncNow({ afterWrite: true });

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CalDavPimTarget, expandIcsEvents, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventRow } from "@plainva/core";
+import { CalDavPimTarget, expandEventDraft, expandIcsEvents, type FetchFn, type PimAccountRow, type PimCalendar, type PimEventCreate, type PimEventRow } from "@plainva/core";
 
 const bus = vi.hoisted(() => ({ request: (() => Promise.reject(new Error("no bus"))) as unknown }));
 vi.mock("./services/windowBus", () => ({ getWindowBus: async () => bus }));
@@ -99,9 +99,9 @@ async function createOnScreen(store: PendingEventWrites, target: CalDavPimTarget
   const targets = { targetFor: async () => target };
   const out = await writeEventOptimistically(
     store,
-    createChange(pendingEventRow(id, shown), draft),
+    createChange(pendingEventRow(id, shown), draft, expandEventDraft),
     () => createCalendarEvent(targets, "a1", CAL, draft),
-    (written) => written.rows.map((row) => createChange(row, draft)),
+    (written) => written.rows.map((row) => createChange(row, draft, expandEventDraft)),
     id,
   );
   return out.rows[0]!;
@@ -132,7 +132,7 @@ describe("a new series on screen (issue 119)", () => {
     const store = new PendingEventWrites();
     const id = store.reserve();
     const { uid: _uid, ...shown } = draftToRow("a1", CAL, "", weekly);
-    store.begin(createChange(pendingEventRow(id, shown), weekly), id);
+    store.begin(createChange(pendingEventRow(id, shown), weekly, expandEventDraft), id);
     const rows = applyPendingEventWrites([], store.snapshot(), { startTs: start - DAY, endTs: start + 14 * DAY });
     expect(rows).toHaveLength(2);
     expect(rows.every((row) => row.pending && isPendingEventUid(row.uid))).toBe(true);
@@ -151,15 +151,20 @@ describe("a new series on screen (issue 119)", () => {
   it("from a provider that names its own occurrences, they are shown but not written against", () => {
     expect.hasAssertions();
     const google = draftToRow("a1", "primary", "evt123", weekly);
-    const change = createChange(google, weekly);
+    const change = createChange(google, weekly, expandEventDraft);
     expect(change.occurrences?.length).toBeGreaterThan(0);
     expect(change.occurrences!.every((row) => isPendingEventUid(row.uid) && row.seriesMaster === "evt123")).toBe(true);
+  });
+
+  it("without the expansion (a caller that does not load the calendar), a series is drawn as its first occurrence - nothing written differs", () => {
+    expect.hasAssertions();
+    expect(createChange(draftToRow("a1", CAL, "u1", weekly), weekly).occurrences).toBeUndefined();
   });
 
   it("a single event stays one row", () => {
     expect.hasAssertions();
     const single = { ...weekly, recurrence: undefined };
-    expect(createChange(draftToRow("a1", CAL, "u1", single), single).occurrences).toBeUndefined();
+    expect(createChange(draftToRow("a1", CAL, "u1", single), single, expandEventDraft).occurrences).toBeUndefined();
   });
 });
 
@@ -382,7 +387,7 @@ describe("a new series shows what the sync will show (issue 119)", () => {
   it("a yearly event that started years ago shows this year's occurrence", () => {
     expect.hasAssertions();
     const birthday: PimEventCreate = { title: "Birthday", start: { ts: Date.parse("2000-05-10T00:00:00Z"), date: "2000-05-10" }, end: { ts: Date.parse("2000-05-11T00:00:00Z"), date: "2000-05-11" }, allDay: true, recurrence: { freq: "yearly", interval: 1 }, createAs: "plainva-bday" };
-    const change = createChange({ ...draftToRow("a1", CAL, "plainva-bday", birthday), href: `${CAL}plainva-bday.ics` }, birthday, now);
+    const change = createChange({ ...draftToRow("a1", CAL, "plainva-bday", birthday), href: `${CAL}plainva-bday.ics` }, birthday, expandEventDraft, now);
     const may = applyPendingEventWrites([], [{ ...change, id: 1, state: "settled" }], { startTs: Date.parse("2027-05-01T00:00:00Z"), endTs: Date.parse("2027-06-01T00:00:00Z") });
     expect(may).toHaveLength(1);
   });
@@ -391,7 +396,7 @@ describe("a new series shows what the sync will show (issue 119)", () => {
     expect.hasAssertions();
     const later = now + 300 * DAY;
     const series: PimEventCreate = { ...weekly, start: { ts: later }, end: { ts: later + 30 * 60_000 }, createAs: "plainva-later" };
-    const change = createChange({ ...draftToRow("a1", CAL, "plainva-later", series), href: `${CAL}plainva-later.ics` }, series, now);
+    const change = createChange({ ...draftToRow("a1", CAL, "plainva-later", series), href: `${CAL}plainva-later.ics` }, series, expandEventDraft, now);
     expect(change.occurrences!.every((row) => row.start.ts < now + 400 * DAY)).toBe(true);
     expect(change.occurrences!.length).toBeGreaterThan(0);
   });
