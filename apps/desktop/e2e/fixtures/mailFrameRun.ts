@@ -127,10 +127,12 @@ async function openFrame(api: MailFrameApi, doc: string, width: number): Promise
   // By each picture's own state, not its events: WebKit sends a frame without scripts no `load` to a listener outside it.
   const until = performance.now() + 5000;
   while (Array.from(frame.contentDocument!.images).some((image) => image.hasAttribute("src") && !image.complete) && performance.now() < until) await new Promise((resolve) => setTimeout(resolve, 20));
-  // Loaded is not yet drawn: WebKit decodes apart, and a shot taken before shows the words the picture will cover.
-  await Promise.all(Array.from(frame.contentDocument!.images).map((image) => image.decode().catch(() => undefined)));
+  // Loaded is not yet drawn: WebKit decodes apart, and a shot taken before shows the words the picture will cover. Only
+  // the pictures that came are waited for, and not without end: one that never comes would hold the gate.
+  const came = Array.from(frame.contentDocument!.images).filter((image) => image.complete && image.naturalWidth > 0);
+  await Promise.race([Promise.all(came.map((image) => image.decode().catch(() => undefined))), new Promise((resolve) => setTimeout(resolve, 2000))]);
   api.applyFrameFit(frame, { growHeight: true });
-  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  await new Promise((resolve) => setTimeout(resolve, 50));
   return frame;
 }
 
