@@ -193,6 +193,17 @@ export interface SecretsPortMeta {
    */
   floors?: Record<string, number>;
   /**
+   * Set by the first export of a version that writes every removal as a note
+   * (`retired`), once its lists were whole. A record without it was last
+   * written by a version that told a removal by comparing lists — 0.9.0 and
+   * the builds of `main` before this rule, which wrote no note for a mailbox:
+   * the first export here does that comparison once for them
+   * (`inferPendingRemovals`), so nothing that version would have written in its
+   * next round stays unwritten across the update (review 2026-11-26, fourth
+   * round). Said by the record itself, never by a clock.
+   */
+  notesRemovals?: true;
+  /**
    * The document, accounts and slots the last import took with nothing left
    * open, as a mark (`settledKey`). The same again is settled: nothing is
    * written and nothing reported (round seven).
@@ -316,6 +327,7 @@ const cloneMeta = (source: SecretsPortMeta | null): SecretsPortMeta => ({
   ...(source?.removedIds ? { removedIds: Object.fromEntries(Object.entries(source.removedIds).map(([id, state]) => [id, { ...state }])) } : {}),
   ...(source?.slotNames ? { slotNames: { ...source.slotNames } } : {}),
   ...(source?.floors ? { floors: { ...source.floors } } : {}),
+  ...(source?.notesRemovals ? { notesRemovals: true as const } : {}),
   ...(source?.settled ? { settled: source.settled } : {}),
 });
 
@@ -539,27 +551,37 @@ function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSe
  *    under the new name with the version it had, so it never beats a newer
  *    one there.
  *
- * Nothing is carried from a name another account here still has (two rows,
- * one name), from an alias, or between two kinds. Without a note of its slot
- * (a record written by 0.9.0 or before) nothing is carried: the device behaves
- * as those versions did until its first round writes the note.
+ * Nothing is carried from a name another account here still had before this
+ * round (two rows, one name), from an alias, or between two kinds. Two
+ * accounts of one user that move at once — A from a to c, B from b to a —
+ * each carry their own: a is B's name now, but it was A's (review 2026-11-26,
+ * fourth round, M2). What every slot carries is read as the record stood
+ * before any of them moved. Without a note of its slot (a record written by
+ * 0.9.0 or before) nothing is carried: the device behaves as those versions
+ * did until its first round writes the note. A list that may not be whole
+ * (`accountsReady`) carries nothing: an account it leaves out may still hold
+ * the old name.
  */
-async function carryRepairedKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], mark: SecretsMarker): Promise<void> {
-  const listed = new Set(candidates.map((candidate) => candidate.logicalId));
+async function carryRepairedKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], mark: SecretsMarker, ready: ListsReady): Promise<void> {
+  const before = { entries: { ...meta.entries }, imported: { ...meta.imported }, floors: { ...(meta.floors ?? {}) } };
+  // A name another account here held already before this round — or one whose
+  // slot this device has no note of — is that account's.
+  const heldBy = (former: string, candidate: LocalSecretCandidate) =>
+    candidates.some((other) => other !== candidate && other.logicalId === former && (meta.slotNames?.[other.slot] ?? former) === former);
   for (const candidate of candidates) {
-    if (!isShareableSecretType(candidate.binding.secretType)) continue;
+    if (!isShareableSecretType(candidate.binding.secretType) || !ready(candidate.binding.service)) continue;
     const id = candidate.logicalId;
     const former = meta.slotNames?.[candidate.slot];
-    if (!former || former === id || listed.has(former)) continue;
-    const known = meta.entries[former];
+    if (!former || former === id || heldBy(former, candidate)) continue;
+    const known = before.entries[former];
     if (known && (known.alias || known.binding.secretType !== candidate.binding.secretType)) continue;
-    if (meta.imported[former]) meta.imported[id] = true;
+    if (before.imported[former]) meta.imported[id] = true;
     else delete meta.imported[id];
     if (!known) continue;
-    const floor = Math.max(known.entryRev, known.heldRev ?? 0, meta.floors?.[former] ?? 0);
+    const floor = Math.max(known.entryRev, known.heldRev ?? 0, before.floors[former] ?? 0);
     if (floor > (meta.floors?.[id] ?? 0)) meta.floors = { ...(meta.floors ?? {}), [id]: floor };
     if (known.tombstone || isLostMark(mark, known.hash) || known.sinceLoss || known.held || known.unconfirmed) continue;
-    const here = meta.entries[id];
+    const here = before.entries[id];
     if (here?.tombstone) continue;
     if (here && candidate.secret && here.hash === (await pairMark(mark, candidate.binding, candidate.secret))) continue;
     const seen = Math.max(known.heldRev ?? 0, here?.entryRev ?? 0, here?.heldRev ?? 0);
@@ -585,22 +607,87 @@ function floorOf(meta: SecretsPortMeta, id: string): number {
   return meta.floors?.[id] ?? 0;
 }
 
-/** Notes the name each slot is listed under now (`slotNames`); a note whose slot and record are both gone goes. */
-function noteSlotNames(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[]): void {
+/**
+ * Whether the list of a kind of account is whole now (`accountsReady`, asked
+ * once a round). A list that may not be whole decides nothing: what it leaves
+ * out is no account gone (review 2026-11-26, fourth round, S2).
+ */
+type ListsReady = ((service: SecretBinding["service"]) => boolean) & { all: boolean };
+async function listsReady(host: Pick<SecretsPortHost, "accountsReady">): Promise<ListsReady> {
+  const answers = new Map<SecretBinding["service"], boolean>();
+  for (const service of ["calendar", "mail", "files"] as const) answers.set(service, host.accountsReady ? await host.accountsReady(service) : true);
+  return Object.assign((service: SecretBinding["service"]) => answers.get(service) ?? true, { all: [...answers.values()].every(Boolean) });
+}
+
+/**
+ * The comparison of lists a version before `notesRemovals` ran in every
+ * export, done once on its record: every record of an account no longer
+ * listed, which that version would have tombstoned in its next round, is
+ * noted as a removal (`retired`, as "Remove account" notes one). Left out,
+ * as 25.11. decided and that version did not: an address repaired here (an
+ * account of the same user and kind listed under another address). Left
+ * out, as that version did: the same credential listed under another
+ * spelling (folded), a record of an old type, an old name read for an account
+ * (`alias`), a tombstone. True once done — with a record of none (a new
+ * device) at once; while a list it needs may not be whole, or comes back
+ * empty though accounts were known (that version's guard), it waits for
+ * the next round.
+ */
+function inferPendingRemovals(
+  meta: SecretsPortMeta,
+  candidates: readonly LocalSecretCandidate[],
+  knownIds: ReadonlySet<string>,
+  ready: ListsReady,
+  stamp: string,
+  hadRecord: boolean,
+): boolean {
+  if (!hadRecord) return true;
+  if (candidates.length === 0 && Object.keys(meta.entries).length > 0) return false;
+  let whole = true;
+  for (const [id, previous] of Object.entries(meta.entries)) {
+    if (previous.tombstone || previous.alias || !isShareableSecretType(previous.binding.secretType) || knownIds.has(id) || meta.retired?.[id]) continue;
+    if (!ready(previous.binding.service)) {
+      whole = false;
+      continue;
+    }
+    // The same user and kind listed here — at another address (repaired) or
+    // this one under another spelling (folded): no removal.
+    const repaired = candidates.some(
+      (candidate) =>
+        candidate.binding.secretType === previous.binding.secretType &&
+        bindingMatchesExceptFamily({ ...previous.binding, endpoint: candidate.binding.endpoint }, candidate.binding, "fold"),
+    );
+    if (repaired) continue;
+    meta.retired = { ...(meta.retired ?? {}), [id]: { ...previous.binding, removedAt: stamp } };
+  }
+  return whole;
+}
+
+/**
+ * Notes the name each slot is listed under now (`slotNames`); a note whose
+ * slot and record are both gone goes, and a floor whose name is listed no
+ * more and has no removal still to be written — but only after a round whose
+ * lists were all whole: a slot a list leaves out for a round is still here
+ * (`ListsReady`).
+ */
+function noteSlotNames(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], ready: ListsReady): void {
   const slots = new Set<string>();
   for (const candidate of candidates) {
     if (!isShareableSecretType(candidate.binding.secretType)) continue;
     slots.add(candidate.slot);
+    // Not on a list that may not be whole: its carry waits (`carryRepairedKnowledge`), so the note does too.
+    if (!ready(candidate.binding.service)) continue;
     if (meta.slotNames?.[candidate.slot] !== candidate.logicalId) meta.slotNames = { ...(meta.slotNames ?? {}), [candidate.slot]: candidate.logicalId };
   }
   for (const [slot, id] of Object.entries(meta.slotNames ?? {})) {
-    if (!slots.has(slot) && !meta.entries[id]) delete meta.slotNames![slot];
+    if (ready.all && !slots.has(slot) && !meta.entries[id]) delete meta.slotNames![slot];
   }
   if (meta.slotNames && Object.keys(meta.slotNames).length === 0) delete meta.slotNames;
   const names = new Set(candidates.map((candidate) => candidate.logicalId));
   for (const id of Object.keys(meta.floors ?? {})) {
     const record = meta.entries[id];
-    if (!names.has(id) || (record && record.entryRev >= meta.floors![id])) delete meta.floors![id];
+    // A removal still to be written under the name goes above its floor (`tombstone`).
+    if ((ready.all && !names.has(id) && !meta.retired?.[id]) || (record && record.entryRev >= meta.floors![id])) delete meta.floors![id];
   }
   if (meta.floors && Object.keys(meta.floors).length === 0) delete meta.floors;
 }
@@ -834,9 +921,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       waiting = Object.values(meta.entries).some((entry) => entry.sinceLoss) || openRemoval(meta);
       const lostRecords = Object.values(meta.entries).filter((entry) => entry.sinceLoss && !entry.held).length;
       if (lostRecords > 0) logDiagnosticCounted("settings-sync", `secrets: ${lostRecords} record(s) made with a lost mark key, restored from the shared document`);
-      await carryRepairedKnowledge(meta, candidates, mark);
+      const ready = await listsReady(host);
+      await carryRepairedKnowledge(meta, candidates, mark, ready);
       await carryOldKnowledge(meta, candidates, mark);
-      noteSlotNames(meta, candidates);
+      noteSlotNames(meta, candidates, ready);
       reopenOldNames(meta, candidates);
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
       // Every account this device KNOWS, with or without a stored secret.
@@ -981,9 +1069,20 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           meta.entries[id] = { ...rest, hash: "", entryRev, updatedAt: stamp, deviceId, tombstone: true };
         }
       };
+      // The first export on a record of a version that told a removal by
+      // comparing lists (`notesRemovals`): what that version would have
+      // tombstoned in its next round is a removal here, as "Remove account"
+      // writes one — a mailbox removed on 0.9.0 wrote no note, and the app
+      // may update before its next round (review 2026-11-26, fourth round,
+      // S1). Not a repaired address: an account of the same user and kind
+      // listed here under another address writes none (review 2026-11-25),
+      // nor one folded into another (the same credential still listed).
+      if (!meta.notesRemovals) {
+        if (inferPendingRemovals(meta, candidates, knownIds, ready, stamp, !!read)) meta.notesRemovals = true;
+      }
       for (const [id, removed] of Object.entries(meta.retired ?? {})) {
         // A list that may not be whole yet cannot say the account is gone.
-        if (host.accountsReady && !(await host.accountsReady(removed.service))) continue;
+        if (!ready(removed.service)) continue;
         delete meta.retired![id];
         if (knownIds.has(id)) continue;
         const { withProfile: _w, removedAt: _r, ...left } = removed;
@@ -1039,9 +1138,11 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         viaOldName: boolean;
       }> = [];
       const result = emptyImportResult();
-      await carryRepairedKnowledge(meta, candidates, mark);
+      const ready = await listsReady(host);
+      let notWhole = false;
+      await carryRepairedKnowledge(meta, candidates, mark, ready);
       await carryOldKnowledge(meta, candidates, mark);
-      noteSlotNames(meta, candidates);
+      noteSlotNames(meta, candidates, ready);
       reopenOldNames(meta, candidates);
       openRemovedIds(meta, candidates);
       const closedOldName = (id: string) => !!meta.oldNameTombstones?.[id] || !!meta.closedOldNames?.[id];
@@ -1278,6 +1379,14 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // The old name and the exact one of one account share one record of having been imported.
         const pairImported = !!meta.imported[logicalId] || (!!candidate && !!meta.imported[candidate.logicalId]);
 
+        // An entry for no account listed here, of a kind whose list may not
+        // be whole: nothing is decided from it — not remembered, not reported
+        // as waiting — until a round whose list is (`ListsReady`).
+        if (!candidate && !ready(entry.binding.service)) {
+          notWhole = true;
+          recordImportResult(result, logicalId, "unchanged", "list-not-whole");
+          continue;
+        }
         if (!candidate && entry.tombstone) {
           await rememberEntry(logicalId, entry);
           delete meta.imported[logicalId];
@@ -1415,7 +1524,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
 
       // Settled when nothing is left open: no slot failed, no account is
       // waiting, no retired entry asks to be reported again.
-      const open = result.errors.length > 0 || result.unknownAccounts.length > 0 || result.legacyEntries.length > 0;
+      const open = notWhole || result.errors.length > 0 || result.unknownAccounts.length > 0 || result.legacyEntries.length > 0;
       // Taken against the slots as they are now: what this import wrote is the
       // state the next round finds.
       const settled = open ? undefined : successfulSlots.size > 0 ? await settledKey(mark, bundle, await host.candidates()) : key;

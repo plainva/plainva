@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { canonicalSecretId, type PimAccountRow, type SecretsBundle } from "@plainva/core";
-import { calDavSecretBinding, imapSecretBinding, retiredServiceSignIn, setPlatformServices } from "@plainva/ui";
+import { calDavSecretBinding, imapSecretBinding, removeAfterSecretsNote, retiredServiceSignIn, setPlatformServices } from "@plainva/ui";
 
 /**
  * What takes a calendar account or a mailbox away on the desktop, run through
@@ -209,5 +209,15 @@ describe("desktop: a removal whose note for the secrets sync cannot be written d
     const after = await portFor(runtime).exportBundle();
     expect(after.entries[calId("anna")]?.tombstone).toBe(true);
     expect(after.entries[mailId("bert@example.com")]?.tombstone).toBe(true);
+  });
+});
+
+describe("removeAfterSecretsNote, the order of note and removal", () => {
+  it("a note that takes the account takes it once; one with nothing to note leaves the removal to it; a failed note removes nothing", async () => {
+    const taken: string[] = [];
+    await removeAfterSecretsNote(async (take) => { await take(); }, async () => { taken.push("noted"); });
+    await removeAfterSecretsNote(async () => undefined, async () => { taken.push("nothing to note"); });
+    await expect(removeAfterSecretsNote(async () => { throw new Error("store refused"); }, async () => { taken.push("refused"); })).rejects.toThrow("store refused");
+    expect(taken).toEqual(["noted", "nothing to note"]);
   });
 });

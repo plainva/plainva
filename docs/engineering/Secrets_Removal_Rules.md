@@ -59,6 +59,7 @@ devices that never saw each other — the merge keeps.
 | Removal tombstone | "Remove account" on an updated device | one above all the device knew of the name when the account was removed (the revisions it saw and did not take, and the floor of a repair, included) | when the device registered the act |
 | Taking-back tombstone | an updated device whose account was removed (on it, or elsewhere and brought by the profile), for an entry it wrote for that account itself (by its device id, above a tombstone too) or carried to a new name by a repair (`moved`) — under the account's name and under every earlier address of the same user that no account on it has any more; never for an entry it only received | one above its value | that round |
 | Absence tombstone of an older device | 0.9.0 (current types) and 0.8.7 (old types), when an account is missing from their list | one above their record | that round |
+| The same, once, after an update | an updated device's first round on a record an older version wrote (see "Across an update"), as a removal tombstone | as a removal tombstone | that round |
 
 An updated device cannot tell a removal tombstone of another device from an
 absence tombstone of a device on 0.9.0: they have the same shape. It
@@ -78,7 +79,7 @@ device never keeps that device's password back (statement 4).
 | Two rows merged or folded | the kept row keeps its slot | nothing |
 | The settings profile takes the account away (removed elsewhere) | row and slot go (calendar and mailbox alike); the profile import says so to the secrets sync (`noteSecretLeftWithProfile`) — it is never read from a missing row | taking-back tombstones for what this device wrote for the account itself or carried by a repair; nothing for a password it only took from the sync (its publisher takes it back) |
 | The account arrives through the profile (new, or added again) | empty, or as it was | nothing; an open removal of that name on this device ends |
-| A calendar list that is not whole yet (runtime starting) | unchanged | nothing is decided from it: a removal waits, no tombstone is written |
+| A list of a kind of account that may not be whole (`accountsReady`: the calendar runtime starting, or missing) | unchanged | nothing is decided from what it leaves out: a removal waits and no tombstone is written; no floor and no note of a slot goes; no repair is carried, and the note of the slot waits with it; an entry of the document for no account on the list is neither remembered nor reported as waiting; the first round after an update waits (see "Across an update") |
 
 ## A repair changes the name, not the history
 
@@ -117,11 +118,25 @@ name. Every cell is a test, for a calendar account and a mailbox, in
 `apps/desktop/src/services/secretsRepairCells.test.ts`, each checked by what
 the device does: the first export after the repair, a newer password from
 another device under the new name, and a password typed after the repair.
+The row of the records after a lost key is a test for each of the three (a
+lost key, held, waiting to be confirmed), the row of a typed password once
+more with a newer password seen there and not taken; the chain of repairs
+is a test of its own.
 
-Nothing at all is carried from a name another account on the device still
-has (two rows, one name), from an alias, or without a note of the slot. An
+Nothing at all is carried from a name another account on the device had
+already before this round (two rows, one name), from an alias, or without a
+note of the slot. Two accounts of one user that move at once — A from a to c,
+B from b to a — each carry their own: a is B's name now, but it was A's. What
+each slot carries is read as the record stood before any of them moved. An
 entry carried with its version is this device's to take back (`moved`) until
 it takes a newer password under that name or one is typed there.
+
+The floor holds over a chain of repairs (c to a to b: what the slot knew
+under c is a floor under b), and it stays while a removal of its name is
+still to be written: "Remove account" right after a repair writes its
+tombstone above it. It goes once the device's record under the name is at
+or above it, or the name is listed no more, with every list whole and no
+removal pending.
 
 An edit of an account — its address repaired — is no act of the settings
 profile: the profile orders only "removed" and "revived" (`laterAccountAct`),
@@ -134,6 +149,32 @@ note for every account listed then. A repair made before that first round
 carries nothing: the device behaves as those versions did for that one repair
 — it loses nothing, and its password goes out under the new name as a new
 value (revision 1 there).
+
+## Across an update
+
+0.9.0, and the builds of `main` before these rules, told a removal by
+comparing lists: an account in their record and missing from their list got
+a tombstone at their next round, and a mailbox removed there left no note.
+The app may update between the removal and that round (remove, quit, the
+desktop updates on the next start). So nothing such a version would have
+written in its next round stays unwritten: the first round of this version on
+a record that version wrote does that comparison once (`inferPendingRemovals`).
+The record says which it is, never a clock: every export of this version
+marks it (`notesRemovals`); a record without the mark was last written by a
+version without notes. A device whose record is empty (new) has nothing to
+infer.
+
+| Pending at the update | 0.9.0 / `main` before, in its next round | This version, in its first round |
+|---|---|---|
+| A mailbox removed on purpose | an absence tombstone (no note) | a removal tombstone (inferred) |
+| A calendar account removed on purpose | a removal tombstone (its note, `retireSecret`) | a removal tombstone (the same note) |
+| An account the profile took away (removed elsewhere), mailbox or calendar | an absence tombstone | a removal tombstone (inferred); the remover's own tombstone is there as well |
+| An address repaired (mailbox or calendar) | an absence tombstone under the old address (the comparison of lists 25.11. ended) | none: an account of the same user and kind listed under another address is a repair; the old address keeps its entry, as for a repair on this version |
+| Two rows folded into one | none (the same credential still listed) | none |
+| An account only missing from a list that may not be whole, or from a list that came back empty though accounts were known | none (their guards) | none; the comparison waits for a round whose lists are whole and not empty |
+
+After that round the device never compares lists again. Fixed cases: "R4upd"
+in `apps/desktop/src/services/secretsRemovalCases.test.ts`.
 
 ## What arrives
 
@@ -242,6 +283,32 @@ Each stands with its steps as a fixed case in
   on those devices and types the password there again. Calendar accounts,
   and fleets without a device on 0.9.0, end on the new password.
 
+- An account removed on 0.9.0 (or a build before these rules) while another
+  account of the same user and kind stays on that device, with the app
+  updated before its next round: the comparison of the first round cannot
+  tell the removal from a repair onto the other account's address, and a
+  tombstone in doubt is not written (25.11.). The removed account's password
+  stays in the document until its publisher takes it back.
+
+## Checks that decide nothing on their own
+
+Three checks in `packages/ui/src/lib/secretsPort.ts` no test can tell from
+their absence; each is a second guard of a rule another place already holds,
+kept so the rule does not hang on the order of the code.
+
+- **The kind of the record a repair carries from** (`carryRepairedKnowledge`,
+  `known.binding.secretType`). A slot is a calendar slot (`pimSecretKey`) or a
+  mailbox slot (`mailSecretKey`) in both shells, and each kind has one
+  shareable type: the name a slot was noted under is of its own type.
+- **An open removal at the start of an export** (`waiting`). The export asks
+  again at its end; in between only an account listed again
+  (`openRemovedIds`) closes a removal, and a removal closed so needs no
+  reading of the document.
+- **A slot signed out here among the slots emptied outside the port** (the
+  refill in `importBundle`). Not refilled there, it reaches the signed-out
+  branch below, which takes nothing either; only the reason in the result
+  differs.
+
 ## Limits outside these rules
 
 - **A note to the secrets sync that the store refuses, when the profile
@@ -262,6 +329,24 @@ Each stands with its steps as a fixed case in
   it counts as typed here: it no longer follows a change made elsewhere.
 
 ## Findings outside these rules
+
+- **A password typed on a device that lagged yields to a higher revision it
+  never saw (review 2026-11-26, fourth round, M3; open decision).** A value
+  goes out one revision above all its device knew; a device that missed P2
+  and P3 and types NEW writes it at revision 2, and P3 at revision 3 wins
+  everywhere, on the device that typed NEW too. Every version since 0.8.7
+  decides so under one name. After a repair this version decides the same
+  (the carried version keeps the order of what was known), where 0.9.0 and
+  `main` before let the device that typed keep NEW under the new name.
+  Fixed cases with today's outcome: "R4edit" and "R4editCtl" in
+  `apps/desktop/src/services/secretsRemovalCases.test.ts`.
+- **Two accounts with one name on a device (on `main` as well).** Two rows of
+  one mailbox under different ids — connected twice, or a user changed on
+  another device onto an address this device already has — are two
+  candidates with one name: every version writes both under that name, the
+  record follows whichever went last, and the device sends every round until
+  the person folds them (the account repair shows each such group,
+  `mailboxDuplicates.ts`).
 
 - **A change made on 0.8.7, taken by an updated device (round eight).** Steps:
   a device on 0.8.7 (D1) has the password m1 it typed; an updated device (D0)

@@ -31,8 +31,8 @@ import {
  * All data invented.
  */
 
-const URLS = { a: "https://cloud.example.com/remote.php/dav", b: "https://dav.example.org/remote.php/dav" } as const;
-const HOSTS = { a: "imap.example.com", b: "mail.example.org" } as const;
+const URLS = { a: "https://cloud.example.com/remote.php/dav", b: "https://dav.example.org/remote.php/dav", c: "https://cal.example.net/remote.php/dav" } as const;
+const HOSTS = { a: "imap.example.com", b: "mail.example.org", c: "post.example.net" } as const;
 type At = keyof typeof URLS;
 type Kind = "calendar" | "mail";
 interface Row {
@@ -46,6 +46,9 @@ interface Device {
   slots: Map<string, string>;
   keyring: Map<string, unknown>;
   meta: SecretsPortMeta | null;
+  /** The host cannot vouch for the list of this kind (`accountsReady`); the rows in `hidden` are left out of it. */
+  unsure?: boolean;
+  hidden?: Set<string>;
 }
 
 let clock = 0;
@@ -61,8 +64,9 @@ function host(d: Device) {
     writeMeta: async (meta: SecretsPortMeta) => {
       d.meta = structuredClone(meta);
     },
+    accountsReady: async (service: SecretBinding["service"]) => !d.unsure || service !== (d.kind === "mail" ? "mail" : "calendar"),
     candidates: async (): Promise<LocalSecretCandidate[]> =>
-      d.rows.map((row) => {
+      d.rows.filter((row) => !d.hidden?.has(row.id)).map((row) => {
         const pass = d.slots.get(row.id);
         return {
           logicalId: idOf(d.kind, row),
@@ -110,7 +114,7 @@ async function round(d: Device): Promise<SecretsBundle> {
   return local;
 }
 
-const OLD = ["none", "received", "typed", "lost key", "foreign tombstone", "own removal"] as const;
+const OLD = ["none", "received", "typed", "typed, saw a newer one", "lost key", "held", "unconfirmed", "foreign tombstone", "own removal"] as const;
 const NEW = ["none", "same password", "other password", "foreign tombstone", "own removal, open", "own removal, confirmed"] as const;
 type Old = (typeof OLD)[number];
 type New = (typeof NEW)[number];
@@ -172,12 +176,30 @@ async function setUp(kind: Kind, old: Old, fresh: New): Promise<{ d: Device; x: 
       await roundOrExport(d);
       known = Math.max(known, 1);
       break;
+    case "typed, saw a newer one":
+      // Typed here, then a newer password from elsewhere seen and not taken (`heldRev` 9).
+      d.slots.set("x", "P1");
+      await roundOrExport(d);
+      put(kind, x, { rev: 9, device: "N2", pass: "P5" });
+      await importOnly(d, idOf(kind, x));
+      known = Math.max(known, 9);
+      break;
     case "lost key":
+    case "held":
+    case "unconfirmed":
       put(kind, x, { rev: 3, device: "N2", pass: "P1" });
       if (open) await importOnly(d, idOf(kind, x));
       else await round(d);
       d.keyring.clear();
       await exportOnly(d);
+      if (old === "held") {
+        // The document has that very version with another password: held here (a local conflict).
+        doc = { ...doc, entries: { ...doc.entries, [idOf(kind, x)]: { ...doc.entries[idOf(kind, x)]!, secret: { pass: "P7" } } } };
+        await importOnly(d, idOf(kind, x));
+      } else if (old === "unconfirmed") {
+        // An import that finds nothing for it: the baseline waits to be confirmed.
+        await createSecretsPort(host(d)).importBundle({ ...doc, entries: {} });
+      }
       known = Math.max(known, 3);
       break;
     case "foreign tombstone":
@@ -210,14 +232,15 @@ async function setUp(kind: Kind, old: Old, fresh: New): Promise<{ d: Device; x: 
 
 /** What the table says the first export after the repair publishes for the unchanged password under b. */
 function expectedVersion(old: Old, fresh: New, known: number): { rev: number; device: string } {
-  const settledValue = old === "received" || old === "typed";
+  const settledValue = old === "received" || old === "typed" || old === "typed, saw a newer one";
   const tombAtB = fresh === "foreign tombstone" || fresh.startsWith("own removal");
-  const sameAtB = fresh === "same password" && old !== "lost key";
+  const afterLoss = old === "lost key" || old === "held" || old === "unconfirmed";
+  const sameAtB = fresh === "same password" && !afterLoss;
   if (sameAtB) return { rev: 5, device: "N3" };
   if (settledValue && !tombAtB) return old === "received" ? { rev: 3, device: "N2" } : { rev: 1, device: "D" };
   return { rev: known + 1, device: "D" };
 }
-const receivedIn = (old: Old) => old === "received" || old === "lost key" || old === "foreign tombstone";
+const receivedIn = (old: Old) => old === "received" || old === "lost key" || old === "held" || old === "unconfirmed" || old === "foreign tombstone";
 
 for (const kind of ["calendar", "mail"] as const) {
   describe(`a repair changes the name, not the history (${kind})`, () => {
@@ -261,6 +284,31 @@ for (const kind of ["calendar", "mail"] as const) {
       expect(d.slots.get("x"), "as on 0.9.0: after a repair a received password counts as typed here").toBe("P1");
     });
 
+    for (const fresh of ["none", "foreign tombstone"] as const) {
+      it(`a chain of repairs c -> a -> b, the slot empty at a, b: ${fresh} — the floor of the first repair holds under the last`, async () => {
+        clock = 0;
+        doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+        const x: Row = { id: "x", user: "cora@example.com", at: "c" };
+        const z: Row = { id: "z", user: "cora@example.com", at: "b" };
+        const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+        put(kind, x, { rev: 9, device: "N2", pass: "P1" });
+        // Tombstones another device left at a (and at b): remembered here, no account of this device there.
+        put(kind, { ...x, at: "a" }, { rev: 2, device: "V" });
+        if (fresh === "foreign tombstone") put(kind, z, { rev: 2, device: "V" });
+        await round(d);
+        expect(d.slots.get("x")).toBe("P1");
+        // Repaired c -> a; the slot is emptied before any export at a (the keychain entry deleted).
+        d.rows = [{ ...x, at: "a" }];
+        d.slots.delete("x");
+        await round(d);
+        // Repaired a -> b; a password typed there.
+        d.rows = [{ ...x, at: "b" }];
+        d.slots.set("x", "P8");
+        const out = await exportOnly(d);
+        expect(out.entries[idOf(kind, { ...x, at: "b" })]?.entryRev, "above revision 9, known under c two repairs ago").toBe(10);
+      });
+    }
+
     it("from a name another account here still has, nothing is carried", async () => {
       const { d, x } = await setUp(kind, "received", "none");
       // A second row of the same account at a (two rows, one name) stays there.
@@ -269,6 +317,90 @@ for (const kind of ["calendar", "mail"] as const) {
       const b = { ...x, at: "b" as At };
       const first = await round(d);
       expect({ rev: first.entries[idOf(kind, b)]?.entryRev, device: first.entries[idOf(kind, b)]?.deviceId }, "a new value under b, not a's version").toEqual({ rev: 1, device: "D" });
+    });
+
+    // One case for each rule a mutation of the port survived (fourth review round, rerun of mut4.py).
+    it("from a name another account here still has, nothing is carried — not either on a list that is not whole and leaves that account out", async () => {
+      const { d, x } = await setUp(kind, "received", "none");
+      d.rows.push({ id: "y", user: "cora@example.com", at: "a" });
+      d.slots.set("y", "P1");
+      d.unsure = true;
+      d.hidden = new Set(["y"]);
+      const b = { ...x, at: "b" as At };
+      const first = await round(d);
+      expect({ rev: first.entries[idOf(kind, b)]?.entryRev, device: first.entries[idOf(kind, b)]?.deviceId }, "a new value under b: the list may leave out who still holds a").toEqual({ rev: 1, device: "D" });
+      d.unsure = false;
+      d.hidden = undefined;
+      const next = await round(d);
+      expect({ rev: next.entries[idOf(kind, b)]?.entryRev, device: next.entries[idOf(kind, b)]?.deviceId }, "and the whole list sees y at a: still nothing carried").toEqual({ rev: 1, device: "D" });
+    });
+
+    it("the note of a slot a list that is not whole leaves out stays: the repair after it changes the name, not the history", async () => {
+      const { d, x } = await setUp(kind, "none", "other password");
+      const b = { ...x, at: "b" as At };
+      d.unsure = true;
+      d.hidden = new Set(["x"]);
+      await round(d);
+      d.unsure = false;
+      d.hidden = undefined;
+      await round(d);
+      put(kind, b, { rev: 50, device: "N4", pass: "P9" });
+      await round(d);
+      expect(d.slots.get("x"), "typed here, as under a: not replaced from elsewhere").toBe("P1");
+    });
+
+    it("two accounts of one user shift, B listed before A (A a -> c, B b -> a): A carries what it knew under a, not what B brings there", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const a: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const bb: Row = { id: "w", user: "cora@example.com", at: "b" };
+      const d: Device = { kind, rows: [{ ...bb }, { ...a }], slots: new Map([["w", "PB"]]), keyring: new Map(), meta: null };
+      put(kind, a, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      await round(d);
+      expect(d.slots.get("x")).toBe("P1");
+      d.rows = [{ ...bb, at: "a" }, { ...a, at: "c" }];
+      const first = await round(d);
+      const c = { ...a, at: "c" as At };
+      expect({ rev: first.entries[idOf(kind, c)]?.entryRev, device: first.entries[idOf(kind, c)]?.deviceId }, "A's version from a").toEqual({ rev: 3, device: "N2" });
+      put(kind, c, { rev: 50, device: "N4", pass: "P9" });
+      await round(d);
+      expect([d.slots.get("x"), d.slots.get("w")], "A received its password and follows; B typed its own and keeps it").toEqual(["P9", "PB"]);
+    });
+
+    it("a repair from a name with a foreign tombstone carries the floor only: the empty slot takes the password under the new name", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 2, device: "V" });
+      await round(d);
+      put(kind, { ...x, at: "b" }, { rev: 1, device: "N3", pass: "P5" });
+      d.rows = [{ ...x, at: "b" }];
+      await round(d);
+      await round(d);
+      expect(d.slots.get("x"), "nothing under a is a version of b").toBe("P5");
+    });
+
+    it("a repair an import sees first (the address changed between the two halves of a round) is carried there", async () => {
+      const { d, x } = await setUp(kind, "received", "none");
+      const b = { ...x, at: "b" as At };
+      put(kind, b, { rev: 50, device: "N4", pass: "P9" });
+      await createSecretsPort(host(d)).importBundle(doc);
+      expect(d.slots.get("x"), "received under a: it follows a change made elsewhere under b").toBe("P9");
+    });
+
+    it("an import on a list that is not whole settles nothing: once whole, the same document reports the account it does not know", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [], slots: new Map(), keyring: new Map(), meta: null, unsure: true };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      const port = createSecretsPort(host(d));
+      expect((await port.importBundle(doc)).settled, "the list may not be whole").not.toBe(true);
+      d.unsure = false;
+      const whole = await createSecretsPort(host(d)).importBundle(doc);
+      expect(whole.unknownAccounts, "an account in the document not set up here").toEqual([idOf(kind, x)]);
     });
   });
 }

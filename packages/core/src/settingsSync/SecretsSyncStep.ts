@@ -35,6 +35,7 @@ export type SecretImportReason =
   | "already-current"
   | "binding-mismatch"
   | "legacy-secret-type"
+  | "list-not-whole"
   | "local-secret-conflict"
   | "local-secret-protected"
   | "older-entry"

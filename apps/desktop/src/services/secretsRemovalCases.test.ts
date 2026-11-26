@@ -34,8 +34,8 @@ import * as v090 from "../../../../packages/core/test/fixtures/secretsV090";
  * data invented.
  */
 
-const URLS = { a: "https://cloud.example.com/remote.php/dav", b: "https://dav.example.org/remote.php/dav" } as const;
-const HOSTS = { a: "imap.example.com", b: "mail.example.org" } as const;
+const URLS = { a: "https://cloud.example.com/remote.php/dav", b: "https://dav.example.org/remote.php/dav", c: "https://cal.example.net/remote.php/dav" } as const;
+const HOSTS = { a: "imap.example.com", b: "mail.example.org", c: "post.example.net" } as const;
 type At = keyof typeof URLS;
 type Row = { id: string; user: string; kind?: "mail"; at?: At };
 type Kind = "new" | "v090" | "v087";
@@ -53,6 +53,10 @@ const newBinding = (row: Row): SecretBinding =>
   row.kind === "mail" ? imapSecretBinding("imap", HOSTS[row.at ?? "a"], 993, row.user) : calDavSecretBinding("webdav", URLS[row.at ?? "a"], row.user);
 
 interface Device {
+  /** Every list comes back empty for a round, though the host calls it whole (a store read that failed quietly). */
+  listsEmpty?: boolean;
+  /** The calendar list is whole, but the host cannot say so yet (`accountsReady` false). */
+  calendarUnsure?: boolean;
   name: string;
   kind: Kind;
   rows: Row[];
@@ -102,6 +106,7 @@ const retiredHost = (d: Device) => ({
 });
 
 function candidates(d: Device): LocalSecretCandidate[] {
+  if (d.listsEmpty) return [];
   return d.rows.filter((row) => !(d.calendarHidden && row.kind !== "mail")).map((row) => {
     const binding = d.kind === "v087" ? oldBinding(row) : newBinding(row);
     const slot = d.slots.get(row.id);
@@ -128,7 +133,7 @@ function portOf(d: Device) {
       d.slots.set(slot, value as string);
       d.typed.delete(slot);
     },
-    accountsReady: async (service: string) => service === "mail" || !d.calendarHidden,
+    accountsReady: async (service: string) => service === "mail" || !(d.calendarHidden || d.calendarUnsure),
     removeSlot: async (slot: string) => {
       if (d.rows.some((row) => row.id === slot) && typeof d.slots.get(slot) === "string") d.emptiedAny.push(`${d.name}:${slot}`);
       if (d.kind === "new" && d.rows.some((row) => row.id === slot) && typeof d.slots.get(slot) === "string") d.emptiedByPort.push(slot);
@@ -571,5 +576,296 @@ describe("found by the random run of the fourth round", () => {
     expect([d0.pushes, d1.pushes], "no device keeps sending its own").toEqual([0, 0]);
     expect(slotOf(d1, "e")).toBe("e2");
     expect(slotOf(d0, "a"), "typed on D0: it keeps its own").toBe("a1");
+  });
+});
+
+describe("the probes of the fourth review round, with the outcome the rules give", () => {
+  for (const kind of [undefined, "mail" as const]) {
+    for (const after of ["v090", "new"] as const) {
+      it(`R4upd ${kind ?? "calendar"} -> ${after}: removed on 0.9.0, the app updated before its next secrets round; the password leaves the document`, async () => {
+        remote = null; clock = 0;
+        const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+        const v = device("V", "v090", [X, K(kind)], 0, "on");
+        const n = device("N", "new", [X, K(kind)], 0, "on");
+        typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+        await rr([v, n], 3);
+        expect(slotOf(n, "x")).toBe("P1");
+        await removeOnPurpose(v, "x");
+        await leftByProfile(n, "x");
+        v.kind = after;
+        await rr([v, n], 6);
+        expect(docAt(X, "a").startsWith("val"), "statement 2: the removed account's password leaves the document").toBe(false);
+      });
+    }
+
+    it(`R4upd counterpart ${kind ?? "calendar"}: an address repaired on 0.9.0, the app updated before its next round; no tombstone for the old address (review 2026-11-25)`, async () => {
+      remote = null; clock = 0;
+      const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+      const v = device("V", "v090", [X, K(kind)], 0, "on");
+      const n = device("N", "new", [X, K(kind)], 0, "on");
+      typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+      await rr([v, n], 3);
+      repairAll([v, n], "x", "b");
+      v.kind = "new";
+      await rr([v, n], 6);
+      expect(docAt(X, "a"), "the old address keeps its entry: a repair is no removal").toContain("val(P1)");
+      expect([slotOf(v, "x"), slotOf(n, "x")]).toEqual(["P1", "P1"]);
+    });
+
+    it(`R4upd counterpart ${kind ?? "calendar"}: a device updated with no record of a removal infers nothing more after its first round`, async () => {
+      remote = null; clock = 0;
+      const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+      const v = device("V", "v090", [X, K(kind)], 0, "on");
+      const n = device("N", "new", [X, K(kind)], 0, "on");
+      typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+      await rr([v, n], 3);
+      v.kind = "new";
+      await rr([v, n], 2);
+      // Gone from V's list afterwards, not removed (the profile is off on V): no tombstone.
+      v.profile = "off";
+      v.rows = v.rows.filter((row) => row.id !== "x");
+      await rr([v, n], 4);
+      expect(docAt(X, "a"), "after its first round, a list says nothing about a removal").toContain("val(P1)");
+    });
+
+    it(`R4upd received ${kind ?? "calendar"}: removed on 0.9.0 by a device that only received the password, typed on one that is off since; the password leaves the document`, async () => {
+      remote = null; clock = 0;
+      const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+      const t = device("T", "new", [X, K(kind)], 0, "on");
+      const v = device("V", "v090", [X, K(kind)], 0, "on");
+      const n = device("N", "new", [X, K(kind)], 0, "on");
+      typeInto(t, "x", "P1"); typeInto(t, "k", "K");
+      await rr([t, v, n], 3);
+      expect([slotOf(v, "x"), slotOf(n, "x")]).toEqual(["P1", "P1"]);
+      await removeOnPurpose(v, "x");
+      await leftByProfile(n, "x");
+      v.kind = "new";
+      await rr([v, n], 6);
+      expect(docAt(X, "a").startsWith("val"), "as 0.9.0 would have written in its next round: a tombstone, whoever typed it").toBe(false);
+    });
+  }
+
+  it("R4upd counterpart while the calendar list is not whole: an address repaired on 0.9.0 is no removal once the list is whole", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", at: "a" };
+    const v = device("V", "v090", [X, K("mail")], 0, "on");
+    const n = device("N", "new", [X, K("mail")], 0, "on");
+    typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+    await rr([v, n], 3);
+    repairAll([v, n], "x", "b");
+    v.kind = "new";
+    v.calendarHidden = true;
+    await rr([v], 1);
+    v.calendarHidden = false;
+    await rr([v, n], 6);
+    expect(docAt(X, "a"), "the old address keeps its entry").toContain("val(P1)");
+    expect([slotOf(v, "x"), slotOf(n, "x")]).toEqual(["P1", "P1"]);
+  });
+
+  for (const variant of ["hidden", "signedOut+hidden", "emptied+hidden"] as const) {
+    it(`R4hide ${variant}: a calendar list not whole for a round after a repair onto a tombstoned name keeps the floor; a sign-in there wins`, async () => {
+      remote = null; clock = 0;
+      const X: Row = { id: "x", user: "cora@example.test", at: "a" };
+      const Z: Row = { id: "z", user: "cora@example.test", at: "b" };
+      const n1 = device("N1", "new", [X, Z, K()], 0, "on");
+      const n2 = device("N2", "new", [X, Z, K()], 0, "on");
+      typeInto(n2, "z", "Z1"); typeInto(n2, "k", "K");
+      await rr([n2, n1], 2);
+      await removeOnPurpose(n2, "z");
+      await leftByProfile(n1, "z");
+      await rr([n2, n1], 2);
+      for (let i = 1; i <= 5; i++) {
+        typeInto(n2, "x", `P${i}`);
+        await rr([n2, n1], 1);
+      }
+      await rr([n2, n1], 2);
+      if (variant.startsWith("signedOut")) n1.slots.set("x", { signedOut: true });
+      else n1.slots.delete("x");
+      // Emptied outside the port, the repair follows before N1's next round (the review's R4hide).
+      if (variant !== "emptied+hidden") await rr([n1], 1);
+      repairAll([n2, n1], "x", "b");
+      await rr([n1], 1);
+      n1.calendarHidden = true;
+      await rr([n1], 1);
+      n1.calendarHidden = false;
+      await rr([n2], 1);
+      typeInto(n1, "x", "NEW");
+      await rr([n1, n2], 6);
+      expect(slotOf(n1, "x"), "the password typed last, here, stays").toBe("NEW");
+      expect(docAt(X, "b"), "and goes out above all N1 knew under both names").toContain("val(NEW)");
+    });
+  }
+
+  it("R4hide import: a tombstone read while the calendar list is not whole takes nothing; the received password still follows a change", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", at: "a" };
+    const v = device("V", "v090", [X, K()], 0, "on");
+    const n1 = device("N1", "new", [X, K()], 0, "on");
+    const n2 = device("N2", "new", [X, K()], 0, "on");
+    typeInto(n2, "x", "P1"); typeInto(n2, "k", "K");
+    await rr([n2, n1, v], 3);
+    // V repairs its own row a->b (its profile does not bring that further): 0.9.0 writes a tombstone for a.
+    v.profile = "off";
+    repairAll([v], "x", "b");
+    await rr([v], 2);
+    expect(docAt(X, "a")).toMatch(/^TOMB/);
+    n1.calendarHidden = true;
+    await rr([n1], 2);
+    n1.calendarHidden = false;
+    await rr([n1, n2], 3);
+    typeInto(n2, "x", "P2");
+    await rr([n2, n1], 4);
+    expect(slotOf(n1, "x"), "statement 5: received, it follows the change made elsewhere").toBe("P2");
+  });
+
+  it("R4upd while the calendar list is not whole: the first round after the update waits for it, then infers nothing for an account still here", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", at: "a" };
+    const v = device("V", "v090", [X, K("mail")], 0, "on");
+    const n = device("N", "new", [X, K("mail")], 0, "on");
+    typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+    await rr([v, n], 3);
+    v.kind = "new";
+    v.calendarHidden = true;
+    await rr([v, n], 2);
+    v.calendarHidden = false;
+    await rr([v, n], 3);
+    expect(docAt(X, "a"), "the calendar account was only left out of a list: no removal").toContain("val(P1)");
+    expect(slotOf(n, "x")).toBe("P1");
+  });
+
+  it("a repair seen on a list the host cannot vouch for yet is carried at the next whole one: the received password still follows", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", at: "a" };
+    const n1 = device("N1", "new", [X, K()], 0, "on");
+    const n2 = device("N2", "new", [X, K()], 0, "on");
+    typeInto(n2, "x", "P1"); typeInto(n2, "k", "K");
+    await rr([n2, n1], 3);
+    repairAll([n2, n1], "x", "b");
+    n1.calendarUnsure = true;
+    await rr([n2, n1], 2);
+    n1.calendarUnsure = false;
+    await rr([n2, n1], 2);
+    typeInto(n2, "x", "P2");
+    await rr([n2, n1], 4);
+    expect(slotOf(n1, "x"), "statement 5: received under a, it follows a change under b").toBe("P2");
+  });
+
+  for (const kind of [undefined, "mail" as const]) {
+    it(`R4twin ${kind ?? "calendar"}: account A a->c while account B of the same user b->a, then both change; each follows its own`, async () => {
+      remote = null; clock = 0;
+      const A: Row = { id: "pa", user: "cora@example.test", kind, at: "a" };
+      const B: Row = { id: "pb", user: "cora@example.test", kind, at: "b" };
+      const n1 = device("N1", "new", [A, B], 0, "on");
+      const n2 = device("N2", "new", [A, B], 0, "on");
+      typeInto(n2, "pa", "A1"); typeInto(n2, "pb", "B1");
+      await rr([n2, n1], 3);
+      repairAll([n2, n1], "pa", "c");
+      repairAll([n2, n1], "pb", "a");
+      await rr([n2, n1], 3);
+      typeInto(n2, "pa", "A2"); typeInto(n2, "pb", "B2");
+      await rr([n2, n1], 4);
+      expect([slotOf(n1, "pa"), slotOf(n1, "pb")], "statement 5 for both").toEqual(["A2", "B2"]);
+      for (const d of [n1, n2]) d.pushes = 0;
+      await rr([n2, n1], 3);
+      expect([n1.pushes, n2.pushes], "the fleet settles").toEqual([0, 0]);
+    });
+  }
+
+  for (const kind of [undefined, "mail" as const]) {
+    for (const repaired of [true, false]) {
+      it(`R4edit${repaired ? "" : "Ctl"} ${kind ?? "calendar"} (M3, open decision; today's rule): a device that lagged types NEW${repaired ? " with a new address" : ""}; the higher revision P3 wins everywhere`, async () => {
+        remote = null; clock = 0;
+        const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+        const n1 = device("N1", "new", [X, K(kind)], 0, "on");
+        const d2 = device("D2", "new", [X, K(kind)], 0, "on");
+        const n3 = device("N3", "new", [X, K(kind)], 0, "on");
+        typeInto(n1, "x", "P1"); typeInto(n1, "k", "K");
+        await rr([n1, d2, n3], 3);
+        typeInto(n1, "x", "P2");
+        await rr([n1, n3], 2);
+        typeInto(n1, "x", "P3");
+        await rr([n1, n3], 2);
+        if (repaired) repairAll([d2], "x", "b");
+        typeInto(d2, "x", "NEW");
+        await rr([d2], 1);
+        if (repaired) repairAll([n1, n3], "x", "b");
+        await rr([n1, n3, d2], 6);
+        expect([slotOf(n1, "x"), slotOf(d2, "x"), slotOf(n3, "x")], "a value goes out one revision above all this device knew: NEW at r2 yields to P3 at r3").toEqual(["P3", "P3", "P3"]);
+      });
+    }
+  }
+});
+
+describe("one case for each rule a mutation of the port survived (fourth review round)", () => {
+  it("the first round after an update waits while every list comes back empty though accounts were known; nothing is inferred for an account still here", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", kind: "mail", at: "a" };
+    const v = device("V", "v090", [X, K("mail")], 0, "on");
+    const n = device("N", "new", [X, K("mail")], 0, "on");
+    typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+    await rr([v, n], 3);
+    v.kind = "new";
+    v.listsEmpty = true;
+    await rr([v, n], 2);
+    v.listsEmpty = false;
+    await rr([v, n], 3);
+    expect([docAt(X, "a"), slotOf(n, "x")], "no tombstone for accounts only missing from an empty list").toEqual(["val(P1) r1 V", "P1"]);
+  });
+
+  it("a removal the profile notes after \"Remove account\" noted it stays an act: the tombstone goes over a password this device only received", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", at: "a" };
+    const d1 = device("D1", "new", [X, K()], 0, "on");
+    const d2 = device("D2", "new", [X, K()], 0, "on");
+    typeInto(d2, "x", "P1"); typeInto(d2, "k", "K");
+    await rr([d2, d1], 3);
+    d2.profile = "off";
+    // A profile import that read the row before D1 took it notes the same account as left with the profile, after the act.
+    await retireSecret(retiredHost(d1), newBinding(X), async () => removedByProfile(d1, "x"), nowOf(d1)());
+    await noteSecretLeftWithProfile(retiredHost(d1), newBinding(X));
+    await secretsRound(d1);
+    expect(docAt(X, "a"), "\"Remove account\" writes its tombstone, whatever the profile noted after it").toMatch(/^TOMB .* D1$/);
+  });
+
+  it("a removal of the only device that had the account is confirmed by its own next import; an account added again elsewhere later keeps its password", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", at: "a" };
+    const d1 = device("D1", "new", [X, K()], 0, "on");
+    typeInto(d1, "x", "P1"); typeInto(d1, "k", "K");
+    await rr([d1], 3);
+    await removeOnPurpose(d1, "x");
+    await rr([d1], 3);
+    // Added again on a new device with a new password, above the tombstone.
+    const n = device("N", "new", [X, K()], 0, "on");
+    typeInto(n, "x", "P2");
+    remote = { ...remote!, entries: Object.fromEntries(Object.entries(remote!.entries).filter(([id]) => id !== idOf(K()))) };
+    await rr([n, d1], 4);
+    expect([docAt(X, "a").startsWith("val(P2)"), slotOf(n, "x")], "a confirmed removal yields to what came after it").toEqual([true, "P2"]);
+  });
+
+  it("the tombstone of \"Remove account\" stands above the floor a repair left under the name", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", at: "a" };
+    const Z: Row = { id: "z", user: "cora@example.test", at: "b" };
+    const n1 = device("N1", "new", [X, Z, K()], 0, "on");
+    const n2 = device("N2", "new", [X, Z, K()], 0, "on");
+    typeInto(n2, "z", "Z1"); typeInto(n2, "k", "K");
+    await rr([n2, n1], 2);
+    await removeOnPurpose(n2, "z");
+    await leftByProfile(n1, "z");
+    await rr([n2, n1], 2);
+    for (let i = 1; i <= 5; i++) {
+      typeInto(n2, "x", `P${i}`);
+      await rr([n2, n1], 1);
+    }
+    n2.profile = "off";
+    // On N1: the account moves onto b (a tombstone of revision 2 there), its slot emptied, then removed at once.
+    n1.slots.delete("x");
+    repairAll([n1], "x", "b");
+    await secretsRound(n1);
+    await removeOnPurpose(n1, "x");
+    await secretsRound(n1);
+    expect(docAt(X, "b"), "above revision 5, known under a").toMatch(/^TOMB r6 N1/);
   });
 });
