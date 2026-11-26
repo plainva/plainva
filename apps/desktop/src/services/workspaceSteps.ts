@@ -61,7 +61,7 @@ export function createStepPorts<R>(parts: {
    * is (one another reload replaced is not left for the step) — and makes the
    * load that opened the step's from there on.
    */
-  stop(step: { mine(): boolean; reopen(load: () => Promise<void>): Promise<void> }): Promise<"same" | "renewed">;
+  stop(step: { mine(): boolean; reopen(load: () => Promise<boolean | void>): Promise<void> }): Promise<"same" | "renewed">;
   current(): { load: AbortSignal; runtime: R } | null;
   retire(load: AbortSignal): void;
 }): StepPorts<R> {
@@ -77,8 +77,12 @@ export function createStepPorts<R>(parts: {
         mine: own,
         reopen: async (load) => {
           if (!own()) return;
-          await load();
-          mine = parts.current()?.load ?? null;
+          const before = parts.current()?.load ?? null;
+          // Only a load this reopen opened is the step's (review B2, round 7, H4): where the vault was loading
+          // already, `loadVault` skips the call (false) and what comes is another load's — the step did not run.
+          const opened = await load();
+          const now = parts.current()?.load ?? null;
+          mine = opened !== false && now !== null && now !== before && !now.aborted ? now : null;
         },
       });
     },

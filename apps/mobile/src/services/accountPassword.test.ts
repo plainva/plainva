@@ -42,6 +42,7 @@ vi.mock("../adapters/webdavHttp", () => ({allowHttpOrigin: () => {},webdavFetch:
 vi.mock("@plainva/core", async (original) => ({
   ...(await original<typeof import("@plainva/core")>()),
   WebDavSyncTarget: class {async listFolders() {await probe("files"); return []; }},
+  S3SyncTarget: class {async listFolders() {await probe("files"); return []; }},
   CalDavPimTarget: class {async listCalendars() {await probe("calendar"); return [{id:"calendar"}]; }},
 }));
 
@@ -95,6 +96,20 @@ describe("password repair through actual account and protected credential slots"
     // the old password.
     expect(heldAtWrite).toEqual([1]);
     expect(filePassword()).toBe("new-password");
+  });
+
+  it("writes an S3 account's new secret key while the vault's sync is held — the write inside the hold, not after it", async () => {
+    expect.hasAssertions();
+    // An S3 connection: its secret key is its password (`passwordServicesOf`).
+    const s3: CloudAccountRecord = { id: "bucket", family: "s3", label: "Bucket", services: { files: { provider: "s3" } } } as CloudAccountRecord;
+    state.settings.set(cloudAccountsRegistryKey(vault), [structuredClone(s3)]);
+    write(filesKey, { provider: "s3", creds: { endpoint: "https://s3.example.invalid", region: "auto", bucket: "notes", accessKeyId: "key", secretAccessKey: "old-secret" } });
+    const heldAtWrite: number[] = [];
+    state.beforeCas = (key) => { if (key === filesKey) heldAtWrite.push(state.held); };
+    await beginPasswordChange(mobilePasswordChangePorts(vault, s3), "new-secret");
+    // THE DEFECT (review B2, round 7, M4): only the WebDAV target was under a test; S3's write could leave the hold.
+    expect(heldAtWrite).toEqual([1]);
+    expect(read(filesKey).creds.secretAccessKey).toBe("new-secret");
   });
 
   it("updates all three actual slots even while the calendar vault is closed", async () => {

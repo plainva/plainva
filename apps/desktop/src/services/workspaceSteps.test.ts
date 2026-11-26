@@ -32,7 +32,7 @@ type Runtime = { belowChain: ReturnType<typeof memVault> | null; name: string };
  * "same" stops the worker in time; "renewed" leaves the old runtime (called
  * off) and opens the vault anew — or, with `reopenFails`, does not manage to.
  */
-function vaultOnScreen(how: "same" | "renewed", options: { reopenFails?: boolean; reloadedMeanwhile?: boolean } = {}) {
+function vaultOnScreen(how: "same" | "renewed", options: { reopenFails?: boolean; reloadedMeanwhile?: boolean; reopenSkipped?: "the old load stays" | "another load lands" } = {}) {
   const fence = createVaultCallOff();
   const oldFiles: Files = new Map();
   const old: Runtime = { name: "old", belowChain: fence.storage(memVault(oldFiles) as never) as unknown as ReturnType<typeof memVault> };
@@ -64,6 +64,15 @@ function vaultOnScreen(how: "same" | "renewed", options: { reopenFails?: boolean
         return "renewed";
       }
       fence.callOff();
+      // `loadVault` was loading the vault already: it skips the call (false). What is there afterwards is the old,
+      // called-off load, or another one that lands meanwhile — neither is this reopen's.
+      if (options.reopenSkipped) {
+        await step.reopen(async () => {
+          if (options.reopenSkipped === "another load lands") load(other);
+          return false;
+        });
+        return "renewed";
+      }
       await step.reopen(async () => {
         world.live = null;
         // The vault opens anew: a new runtime with a new worker, started through its load's gate.
@@ -243,6 +252,21 @@ describe("a step whose runtime another reload replaced while it waited for the s
       expect(world.live?.runtime.name, "the step's stop opened nothing anew for it").toBe("another reload's");
       expect(toastStore.get().map((t) => t.message)).toEqual([i18n.t("closing.stepNotRun", { vault: "Notes" })]);
       expect(world.worker.running, "that reload's sync runs once the step is through").toBe(true);
+    });
+  }
+});
+
+describe("a step whose reopen found the vault loading already (review B2, round 7, H4)", () => {
+  for (const skipped of ["the old load stays", "another load lands"] as const) {
+    it(`(${skipped}) goes on with no runtime: the step did not run — never with the called-off one, nor with another load's`, async () => {
+      expect.hasAssertions();
+      const { world, ports } = vaultOnScreen("renewed", { reopenSkipped: skipped });
+      let ranOn: string | null = null;
+      const outcome = await withSyncStopped(ports, async (on) => { ranOn = on.name; }).then(() => "done", (e: Error) => e.name);
+      // THE DEFECT: `step.reopen` took the load there after the skipped call as the step's own.
+      expect(outcome).toBe("StepNotRunError");
+      expect(ranOn).toBeNull();
+      expect(world.live?.runtime.name).toBe(skipped === "another load lands" ? "another reload's" : "old");
     });
   }
 });

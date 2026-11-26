@@ -50,7 +50,10 @@ import {
 import {
   activateMobileWorkspaceOwnerTransfer,
   activatePreparedMobileWorkspace,
+  begunMobileDecommission,
   decommissionMobileWorkspace,
+  finishMobileDecommission,
+  readMobileEncryptionLift,
   loadMobileWorkspaceRuntime,
   discardPreparedMobileWorkspace,
   getMobileWorkspaceStatus,
@@ -193,6 +196,46 @@ describe("mobile encrypted-workspace decommission", () => {
     expect(await state.loadMeta()).not.toBeNull();
     return state;
   }
+
+  it("an interrupted decommission goes on when pressed again, and the vault's next open finishes one nobody presses again (review B2, round 7, M3)", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    // A switch closes the vault's database midway: its state cannot be cleared any more.
+    const closing = Object.assign(Object.create(state) as MemoryWorkspaceStateStore, { clearWorkspaceState: async () => { throw new Error("the database is closed"); } });
+    await expect(decommissionMobileWorkspace({ vaultId: "v1", state: closing, stopSync: async () => {} })).rejects.toThrow("the database is closed");
+    expect(await getMobileWorkspaceStatus("v1")).toBeNull();
+    expect(secrets.has("workspace_runtime_mobile_v1")).toBe(false);
+    expect(await state.loadMeta(), "the state is still there").not.toBeNull();
+    // THE DEFECT: pressed again, it refused ("this vault is not an encrypted workspace on this device") — the gate and
+    // the key were gone, the state was not, and "check what is missing" led nowhere.
+    expect(await begunMobileDecommission("v1")).not.toBeNull();
+    await decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => {} });
+    expect(await state.loadMeta()).toBeNull();
+    expect(await begunMobileDecommission("v1"), "and it is over").toBeNull();
+  });
+
+  it("the vault's next open finishes an interrupted lift: the state goes, every file is queued, the lift is marked", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    const closing = Object.assign(Object.create(state) as MemoryWorkspaceStateStore, { clearWorkspaceState: async () => { throw new Error("the database is closed"); } });
+    await expect(decommissionMobileWorkspace({ vaultId: "v1", state: closing, stopSync: async () => {}, lift: true })).rejects.toThrow();
+    const begun = await begunMobileDecommission("v1");
+    expect(begun).toMatchObject({ lift: true });
+    const queued: string[] = [];
+    await finishMobileDecommission("v1", begun!, { state, enqueueAll: async () => { queued.push("all"); } });
+    expect(await state.loadMeta()).toBeNull();
+    expect(queued).toEqual(["all"]);
+    expect(await readMobileEncryptionLift("v1")).not.toBeNull();
+    expect(await begunMobileDecommission("v1")).toBeNull();
+  });
+
+  it("a decommission whose sync did not stop has begun nothing: the step did not run, and nothing is marked", async () => {
+    expect.hasAssertions();
+    const state = await joined();
+    await expect(decommissionMobileWorkspace({ vaultId: "v1", state, stopSync: async () => { throw new Error("not run"); } })).rejects.toThrow("not run");
+    expect(await begunMobileDecommission("v1")).toBeNull();
+    expect(await getMobileWorkspaceStatus("v1")).not.toBeNull();
+  });
 
   it("stops being a workspace without touching the network", async () => {
     const state = await joined();

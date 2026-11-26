@@ -228,19 +228,23 @@ describe("the deadline of a close", () => {
     const phone = readFileSync(join(ROOT, "apps/mobile/src/services/vaultService.ts"), "utf8");
     const settle = phone.slice(phone.indexOf("async function settleBeforeClosing"), phone.indexOf("function leaveVault"));
     // The sync is taken off the vault first, before anything awaits, and drained after the saves.
-    expect(settle).toMatch(/^async function settleBeforeClosing[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*const detached = detachSync\(\);/);
-    expect(settle).toMatch(/flushDraftsBeforeClosing\(current\)[\s\S]*noteSaver\.flushAll\(\)[\s\S]*detached\.drain\(\)[\s\S]*waitWithDeadline\(drain, now\)[\s\S]*step\.kind !== "saving"[\s\S]*left\.flushOwed\(\)[\s\S]*left\.callOff\(\)/);
+    expect(settle).toMatch(/^async function settleBeforeClosing[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*const detached = drainedOnce\(detachSync\(\)\);\n\s*taken\.sync = detached;/);
+    // The saves of the vault it closes, never of all (review B2, round 7, S4).
+    expect(settle).toMatch(/flushDraftsBeforeClosing\(current\)[\s\S]*if \(current\) await noteSaver\.flushAll\(current\);[\s\S]*detached\.drain\(\)[\s\S]*waitWithDeadline\(drain, now\)[\s\S]*step\.kind !== "saving"[\s\S]*left\.flushOwed\(\)[\s\S]*left\.callOff\(\)/);
     // The vault closes after the drain (never under a save still running), and is called off only after it closed.
     const leave = phone.slice(phone.indexOf("async function leaveVault"), phone.indexOf("\n}\n", phone.indexOf("async function leaveVault")));
     expect(leave).toMatch(/settled\.drain[\s\S]*\.then\(\(\) => current\.dispose\(\)\)[\s\S]*await disposed;\s*await current\.ended\(\);/);
+    // Every transition closes through its turn of the one frame (`screenTransition`): the close's wait, then the leave.
+    const frame = phone.slice(phone.indexOf("function screenTransition<T>"), phone.indexOf("\n}\n", phone.indexOf("function screenTransition<T>")));
+    expect(frame).toContain("settle: async () => (settled = await settleBeforeClosing(current, taken)),");
+    expect(frame).toContain("await leaveVault(current, closed ?? settled ??");
     for (const name of ["async function switchTo", "export function reloadActiveMobileVault"]) {
       const body = phone.slice(phone.indexOf(name), phone.indexOf("\n}\n", phone.indexOf(name)));
-      expect(body, name).toContain("await settleBeforeClosing(current)");
-      expect(body, name).toContain("await leaveVault(current, settled");
+      expect(body, name).toMatch(/await turn\.settle\(\);[\s\S]*await turn\.leaveVault\(/);
     }
     // The boot of a vault waits for the end of its previous runtime (text 7), before its own fence.
     expect(phone).toMatch(/waitForClosingVault\(closingAt\(entry\.id, entry\.external\)[\s\S]*const callOff = createVaultCallOff\(\);[\s\S]*callOff\.storage\(opened\)[\s\S]*callOff\.database\(/);
     // Deleting a vault: one deadline over its saves and a start still opening (text 6).
-    expect(phone).toMatch(/await noteSaver\.flushAll\(\);[\s\S]*waiting\.on = "opening";[\s\S]*waitWithDeadline\(waited, [\s\S]*\{ kind: "opening", vault: name \}/);
+    expect(phone).toMatch(/await noteSaver\.flushAll\(savesOf\(id\)\);[\s\S]*waiting\.on = "opening";[\s\S]*waitWithDeadline\(waited, [\s\S]*\{ kind: "opening", vault: name \}/);
   });
 });

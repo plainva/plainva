@@ -22,7 +22,7 @@ import {
   discardPreparedMobileEncryption,
   prepareMobileEncryption,
 } from "../services/mobileSettingsSync";
-import { reloadActiveMobileVault, type MobileVault } from "../services/vaultService";
+import type { MobileVault } from "../services/vaultService";
 
 /**
  * The two security wizards, as one flow and one destination (S37).
@@ -200,7 +200,8 @@ export function SecurityWizardScreen({ flow, vault, onBack, onDone }: {
             setWorkspaceDraft(null); // activated: the keys belong to the keystore now
             return true;
           },
-          then: async (done) => { if (done) await reloadActiveMobileVault("security-wizard"); },
+          // Its own runtime reloaded, and only that one (`withRuntimeStep`).
+          reload: { own: "security-wizard", when: (done) => done },
         });
         if (!activated) { toast.error(t("workspaceSecurity.setupFailed")); setStep(2); return; }
       } else {

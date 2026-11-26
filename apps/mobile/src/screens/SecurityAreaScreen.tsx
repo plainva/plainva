@@ -16,7 +16,7 @@ import { vaultEntryName } from "../services/vaultEntryName";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, mobileEncryptedRemotePorts, quarantineSync, restartSyncIfActive, withRuntimeStep } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, endMobileDecommission, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core/workspace";
 import { AppBar } from "../components/AppBar";
@@ -300,7 +300,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       const runtime = await completeMobileWorkspacePairing(vault.vaultId, await getMobileWorkspaceObjectStore(vault.vaultId));
       if (!runtime) { toast.info(t("workspaceSecurity.waitingApproval", { defaultValue: "Approval has not arrived yet." })); return; }
       toast.success(t("workspaceSecurity.paired", { defaultValue: "Device paired" }));
-      await reloadActiveMobileVault("security-area");
+      await reloadActiveMobileVault("security-area", { runtime: vault });
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusyAction(null); }
   };
@@ -337,7 +337,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     try {
       await recoverMobileWorkspace({ vaultId: vault.vaultId, store: await getMobileWorkspaceObjectStore(vault.vaultId), bytes: recoveryBytes, code: recoveryCode, deviceName });
       toast.success(t("workspaceSecurity.recovered", { defaultValue: "Workspace access restored" }));
-      await reloadActiveMobileVault("security-area");
+      await reloadActiveMobileVault("security-area", { runtime: vault });
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusyAction(null); }
   };
@@ -380,7 +380,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await approveMobileWorkspacePairing(vault.vaultId, await getMobileWorkspaceObjectStore(vault.vaultId), vault.workspaceRuntime, pairPreview.token);
       setPairPreview(null);
       toast.success(t("workspaceSecurity.deviceApproved", { defaultValue: "Device approved" }));
-      await reloadActiveMobileVault("security-area");
+      await reloadActiveMobileVault("security-area", { runtime: vault });
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusyAction(null); }
   };
@@ -390,7 +390,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
     try {
       const unlocked = await unlockMobileWorkspace(vault.vaultId);
       if (!unlocked) throw new Error(t("workspaceSecurity.unlockFailed"));
-      await reloadActiveMobileVault("security-area");
+      await reloadActiveMobileVault("security-area", { runtime: vault });
       await refresh();
     } catch (error) { toast.error(error instanceof Error ? error.message : String(error)); }
     finally { setBusyAction(null); }
@@ -745,7 +745,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           });
           toast.info(t("workspaceSecurity.migrationStarted", { n: result.queued, total: result.total }));
         },
-        then: async () => { await reloadActiveMobileVault("security-area"); },
+        // Its own runtime reloaded, and only that one (`withRuntimeStep`).
+        reload: { own: "security-area" },
       });
       await refresh();
     } catch (error) {
@@ -783,14 +784,17 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await withRuntimeStep({ vaultId: vault.vaultId, runtime: vault }, {
         work: async (stop) => {
           let on = vault;
-          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop, (fresh) => { on = fresh; }), runtime: vault.workspaceRuntime });
+          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop, (fresh) => { on = fresh; }), runtime: vault.workspaceRuntime, lift: true });
           // The queue table lives in the vault's own database, which is still open
           // here — the reload below boots a plain vault whose worker drains it.
+          // Interrupted before the end, the vault's next open finishes the lift (`finishMobileDecommission`).
           await on.syncQueue?.enqueueAllLocalFiles();
           await markMobileEncryptionLift(vault.vaultId);
+          await endMobileDecommission(vault.vaultId);
           toast.info(t("workspaceSecurity.liftEncryptionDone"));
         },
-        then: async () => { await reloadActiveMobileVault("security-area"); },
+        // Its own runtime reloaded, and only that one (`withRuntimeStep`).
+        reload: { own: "security-area" },
       });
     } catch (error) {
       console.error("[SecurityAreaScreen] lift encryption failed", error);
@@ -821,7 +825,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop), runtime: vault.workspaceRuntime });
           toast.info(t("workspaceSecurity.decommissionDone"));
         },
-        then: async () => { await reloadActiveMobileVault("security-area"); },
+        // Its own runtime reloaded, and only that one (`withRuntimeStep`).
+        reload: { own: "security-area" },
       });
     } catch (error) {
       console.error("[SecurityAreaScreen] workspace decommission failed", error);

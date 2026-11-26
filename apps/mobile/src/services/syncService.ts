@@ -51,8 +51,9 @@ import { rotateLegacyFileGrant } from "./accountGrantMigration";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { applyTemplateSettingsTo, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
-import { renewAfterSyncGaveUp, runtimeOnScreen, type MobileVault } from "./vaultService";
+import { reloadActiveMobileVault, renewAfterSyncGaveUp, runtimeOnScreen, transitionsSettled, type MobileVault } from "./vaultService";
 import { registerLoadedSync } from "./loadedSync";
+import { holdVaultSync, registerSyncHolds, vaultSyncHeld } from "./syncHolds";
 import { vaultEntryName } from "./vaultEntryName";
 import { enterMadeVault } from "./flowVault";
 import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
@@ -434,7 +435,11 @@ async function startSyncDecided(v: MobileVault): Promise<void> {
   // A step holds the vault's sync (`holdVaultSync`): nothing starts before its last release, which starts it. And
   // no worker is built for a runtime that is not the open one on screen — one a transition is leaving, one still
   // opening: that start belongs to the next one (the start after its boot, or the release, or `resumeOnScreen`).
-  if (syncHeld(v.vaultId) || runtimeOnScreen() !== v) return;
+  if (runtimeOnScreen() !== v) return;
+  if (syncHeld(v.vaultId)) {
+    sayHeld(v.vaultId);
+    return;
+  }
   if (worker || settingsOnlySync || !syncPossible(v)) return;
   const generation = startGeneration;
   watchFilesSwitch();
@@ -1119,44 +1124,31 @@ export function detachSync(): DetachedSync {
 // cannot be asked for: the sync registers its detach there as it loads (performance plan L5).
 registerLoadedSync({ detachSync });
 
-/**
- * The holds of a vault's sync, counted, by vault (`holdVaultSync`): every
- * step that stops the sync to work on the vault holds one of its own for its
- * whole length — a step on the workspace, the remote folder, a sign-in — and
- * gives it back on every way out. While one is held, no start and no restart
- * of that vault's sync does anything; with the last release the sync starts
- * once, through the one start, on the vault's runtime open on screen then
- * (where none is open, the start after its boot does it). A hold is the
- * vault's, not a runtime's: it lasts the step, also across a switch away and
- * back — the step's own body may still reach the vault's folder.
- */
-const syncHolds = new Map<string, number>();
-
-function syncHeld(vaultId: string): boolean {
-  return (syncHolds.get(vaultId) ?? 0) > 0;
-}
-
-/** Whether a step holds the vault's sync now (`holdVaultSync`). */
-export function vaultSyncHeld(vaultId: string): boolean {
-  return syncHeld(vaultId);
-}
-
-/** Holds the vault's sync for a step; the returned function gives the hold back (once). */
-function holdVaultSync(vaultId: string): () => void {
-  syncHolds.set(vaultId, (syncHolds.get(vaultId) ?? 0) + 1);
-  let given = false;
-  return () => {
-    if (given) return;
-    given = true;
-    const left = (syncHolds.get(vaultId) ?? 1) - 1;
-    if (left > 0) {
-      syncHolds.set(vaultId, left);
-      return;
-    }
-    syncHolds.delete(vaultId);
+// The holds of a vault's sync (`syncHolds.ts`): what a hold says while the vault is on screen, and what the last
+// release starts — told there as the sync loads.
+registerSyncHolds({
+  held: (vaultId) => sayHeld(vaultId),
+  released: (vaultId) => {
     const now = runtimeOnScreen();
     if (now?.vaultId === vaultId) void startSyncIfConfigured(now).catch((e: unknown) => console.error("[sync] start after a step failed", e));
-  };
+  },
+});
+
+/** Re-exported for the screens and the tests: whether something holds the vault's sync now. */
+export { vaultSyncHeld };
+
+const syncHeld = vaultSyncHeld;
+
+/**
+ * While something holds the sync of the vault on screen and nothing of its
+ * sync runs any more, its status says so: paused (`mobile.syncDisconnected`),
+ * never the last word of another vault or of the cycle the step stopped
+ * (review B2, round 7, M1). The start after the last release says what
+ * follows.
+ */
+function sayHeld(vaultId: string): void {
+  if (!syncHeld(vaultId) || runtimeOnScreen()?.vaultId !== vaultId || worker || settingsOnlySync) return;
+  setState({ status: "off", message: null });
 }
 
 /**
@@ -1188,13 +1180,19 @@ export async function stopSyncForStep(step: StepTarget, options: { say?: boolean
   if (!onScreen()) throw notRunIn(await named())();
   const taken = takeSync(false);
   // Nothing ran: nothing to wait for — the step goes on with its runtime as it is now.
-  if (!taken.running) return null;
+  if (!taken.running) {
+    sayHeld(step.vaultId);
+    return null;
+  }
   const drain = taken.drain();
   const vault = await named();
   const notRun = notRunIn(vault);
   const outcome = await waitWithDeadline(drain, () => ({ kind: "sync", vault }));
   if (!onScreen()) throw notRun();
-  if (outcome === "done") return null;
+  if (outcome === "done") {
+    sayHeld(step.vaultId);
+    return null;
+  }
   // The one way of leaving the vault and opening it anew (vaultService), for this very runtime only. Its new
   // runtime's sync waits for the step's hold (`withRuntimeStep`), or, for a restart, for the start chain it runs in.
   return renewAfterSyncGaveUp({ drain: drain.catch(() => undefined), place: taken.place, runtime: runtime!, vault, notRun });
@@ -1205,15 +1203,25 @@ export async function stopSyncForStep(step: StepTarget, options: { say?: boolean
  * wizard, resuming, lifting or leaving a workspace, a new remote folder. It
  * holds the vault's sync for its whole length (`holdVaultSync`); `work` stops
  * the sync when it is ready to (`stop`, within the deadline, answering the
- * runtime it goes on with) and does the step; `then` — the step's own reload,
- * say — runs still within the hold. A failure of `work` while the step's
- * runtime is no longer the open one on screen (a switch, a reload, a renew
- * while it worked) is that the step did not finish (`stepInterrupted`),
- * never a raw error.
+ * runtime it goes on with) and does the step.
+ *
+ * `reload`: the step's own reload, still within the hold — of the runtime
+ * the step went on with, and of that one only (`reloadActiveMobileVault`
+ * with `runtime`, checked at the reload's turn). Where that runtime is not
+ * on screen any more when the reload's turn comes (the person switched away,
+ * or the vault was opened anew), nothing is reloaded: the step's work is
+ * done, and the vault opens in its new state whenever it opens next. A reload
+ * that waits behind someone's input holds the sync from there on itself, so
+ * the step's release starts nothing on the runtime it changed.
+ *
+ * A failure of `work` while the step's runtime is no longer the open one on
+ * screen — once the transitions under way have run (a reload that failed
+ * gives its runtime back) — is that the step did not finish
+ * (`stepInterrupted`), never a raw error.
  */
 export async function withRuntimeStep<T>(
   step: StepTarget,
-  run: { work(stop: () => Promise<MobileVault>): Promise<T>; then?(result: T): Promise<void> },
+  run: { work(stop: () => Promise<MobileVault>): Promise<T>; reload?: { own: string; when?: (result: T) => boolean } },
   options: { say?: boolean } = {},
 ): Promise<T> {
   const release = holdVaultSync(step.vaultId);
@@ -1226,11 +1234,14 @@ export async function withRuntimeStep<T>(
         return on;
       });
     } catch (error) {
-      if (isStepNoticeError(error) || runtimeOnScreen() === on) throw error;
+      if (isStepNoticeError(error)) throw error;
+      // Judged once what is under way has run: a transition that failed and gave the runtime back closed nothing.
+      await transitionsSettled();
+      if (runtimeOnScreen() === on) throw error;
       const vault = vaultEntryName((await getVaultEntry(step.vaultId).catch(() => null))?.name);
       throw options.say === false ? new StepNoticeError(i18n.t("closing.stepInterrupted", { vault }), "interrupted") : stepInterrupted(vault);
     }
-    await run.then?.(result);
+    if (run.reload && on && (run.reload.when?.(result) ?? true)) await reloadActiveMobileVault(run.reload.own, { runtime: on });
     return result;
   } finally {
     release();
@@ -1270,10 +1281,16 @@ export async function withVaultSyncStopped<T>(vaultId: string, body: () => Promi
 /** The stop of `withVaultSyncStopped`: taken at once (no wait before it), then drained within the deadline. */
 async function stopForSignIn(runtime: MobileVault): Promise<void> {
   const taken = takeSync(false);
-  if (!taken.running) return;
+  if (!taken.running) {
+    sayHeld(runtime.vaultId);
+    return;
+  }
   const drain = taken.drain();
   const vault = vaultEntryName((await getVaultEntry(runtime.vaultId).catch(() => null))?.name);
-  if ((await waitWithDeadline(drain, () => ({ kind: "sync", vault }))) === "done") return;
+  if ((await waitWithDeadline(drain, () => ({ kind: "sync", vault }))) === "done") {
+    sayHeld(runtime.vaultId);
+    return;
+  }
   // Given up: the runtime is left and opened anew where it is still on screen; its sync stays held by the step.
   // Where it is not (a switch meanwhile), nothing of it runs either — a quiet notice, never said, is all that comes.
   const quiet = () => new StepNoticeError(i18n.t("closing.stepNotRun", { vault }), "not-run");

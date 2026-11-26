@@ -155,7 +155,7 @@ vi.mock("./vaultRegistry", async (original) => ({
     if (patch.syncedBefore !== undefined) state.syncedBefore = patch.syncedBefore;
   },
 }));
-vi.mock("./vaultService", () => ({ getMobileVault: async () => vault, switchVault: vi.fn(), renewAfterSyncGaveUp: state.renew, runtimeOnScreen: () => state.screen ?? vault }));
+vi.mock("./vaultService", () => ({ getMobileVault: async () => vault, switchVault: vi.fn(), renewAfterSyncGaveUp: state.renew, runtimeOnScreen: () => state.screen ?? vault, reloadActiveMobileVault: vi.fn(async () => true), transitionsSettled: async () => {} }));
 vi.mock("./flowVault", () => ({ enterMadeVault: async () => undefined }));
 vi.mock("./mobileSettingsSync", () => ({
   mobileSyncDeviceId: async () => "phone",

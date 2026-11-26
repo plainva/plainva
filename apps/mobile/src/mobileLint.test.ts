@@ -1486,14 +1486,15 @@ describe("a vault switch the program starts is offered, not taken", () => {
     expect(callers("createExternalVault")).toEqual(["services/vaultService.ts"]);
     // "Delete" on a vault's page.
     expect(callers("deleteVault")).toEqual(["VaultDetailScreen.tsx", "services/vaultService.ts"]);
-    // A button of the screen on top (retry, the security steps, the rebuilt index).
+    // A button of the screen on top (retry, the security steps, the rebuilt index); a step's own reload goes through
+    // its frame (`withRuntimeStep`, for the runtime the step went on with).
     expect(callers("reloadActiveMobileVault")).toEqual([
       "AddVaultScreen.tsx",
       "VaultDetailScreen.tsx",
       "screens/SearchScreen.tsx",
       "screens/SecurityAreaScreen.tsx",
-      "screens/SecurityWizardScreen.tsx",
       "screens/base/BaseScreen.tsx",
+      "services/syncService.ts",
       "services/vaultService.ts",
     ]);
   });

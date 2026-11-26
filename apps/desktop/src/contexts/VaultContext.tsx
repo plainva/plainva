@@ -817,10 +817,11 @@ export const VaultProvider: React.FC<{
     encryptedRemoteRetryRef.current?.cancel();
     encryptedRemoteRetryRef.current = null;
 
-    // If we're already loading this exact path, ignore the duplicate call
+    // If we're already loading this exact path, ignore the duplicate call — and say so: a step's reopen asks
+    // whether the load it called is the one that opens the vault (`workspaceSteps.ts`, `step.reopen`).
     if (activeLoadPathRef.current === path) {
       console.log(`[VaultContext] Already loading ${path}, skipping duplicate call`);
-      return;
+      return false;
     }
     
     // If we are loading a DIFFERENT path, abort the old one (basic tracking)
