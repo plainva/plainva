@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import * as fs from "node:fs/promises";
+import { writeFileSync } from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { beforeEveryWrite, realSqlite } from "./helpers/realSqlite.js";
@@ -575,14 +576,15 @@ describe("the hosts' queueing answers what happened, and only a queued or refuse
     await owedWorkspaceDeletions(state, names);
     let restored = false;
     const { h } = workspaceShaped(state, (p) => {
-      // While A is asked, another program puts B back.
+      // While A is asked, another program puts B back — written before this check
+      // answers, so it is there whenever B's turn comes, on a slow machine too.
       if (p === "A.md" && !restored) {
         restored = true;
-        void fs.writeFile(onDisk("B.md"), "# B is back\n", "utf8");
+        writeFileSync(onDisk("B.md"), "# B is back\n", "utf8");
       }
       return true;
     });
-    // The write above lands before the entry: the checks of B and C come after it. Two are queued, and the report says two.
+    // B is back before its check: two are queued, and the report says two.
     expect(await sweepWorkspaceOwed(db, h)).toEqual({ deletions: 2, writes: 0, failed: 0 });
     expect((await state.listQueue()).filter((e) => e.operation === "delete").map((e) => e.path)).toEqual(["A.md", "C.md"]);
     // B's mark goes as every mark of a file that is back: the next pass judges it.

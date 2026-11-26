@@ -1,4 +1,4 @@
-import { DeletionConfirmation, IVaultAdapter, VaultError, VaultFileInfo, VaultListing, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { DeletionConfirmation, IVaultAdapter, VaultError, VaultFileInfo, VaultListing, type VaultWalkOptions, indexReadsOf } from "./IVaultAdapter.js";
 import { contentSha256Of } from "./localText.js";
 import { isQueueLocalOnlyPath } from "./QueueingVaultAdapter.js";
 
@@ -43,7 +43,11 @@ export function isStructureNeedsIndexError(error: unknown): error is StructureNe
  *    files): the queue never carries those either.
  */
 export class StructureRefusingVaultAdapter implements IVaultAdapter {
-  constructor(private readonly inner: IVaultAdapter) {}
+  /** Handed on from the inner adapter where it has one (`indexReadsOf`). */
+  readonly readFilesForIndex?: IVaultAdapter["readFilesForIndex"];
+  constructor(private readonly inner: IVaultAdapter) {
+    this.readFilesForIndex = indexReadsOf(inner);
+  }
 
   initialize(): Promise<void> {
     return this.inner.initialize();

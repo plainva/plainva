@@ -38,7 +38,7 @@ class CountingAdapter extends LocalVaultAdapter {
   }
 }
 
-async function harness() {
+async function harness(options: { monotonicNow?: () => number } = {}) {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "plainva-typing-lag-"));
   const vault = new CountingAdapter(tmpDir);
   await vault.initialize();
@@ -48,6 +48,7 @@ async function harness() {
   const indexer = new VaultIndexer(vault, db, {
     onLocalFileDeleted: (p) => deleted.push(p),
     onFullScan: (info) => scans.push(info),
+    ...options,
   });
   const rows = async () => (await db.query<{ path: string }>("SELECT path FROM files ORDER BY path")).map((r) => r.path);
   return {
@@ -143,7 +144,16 @@ describe("the app's own temp file of an atomic save", () => {
 
 describe("a full scan says what it changed", () => {
   it("an unchanged vault: nothing added, changed or removed, folders as they were, no file read", async () => {
-    const h = await harness();
+    // A clock on which every tick is long over when the next reading begins:
+    // each reading vouches for its file's timestamp (`readingVouches`). On the
+    // machine's own clock the files written just before the first scan leave
+    // rows that are not confirmed yet, and a second scan that comes after the
+    // tick bound reads them once more, as it is meant to — on a slow machine
+    // that was "3 files read" (CI, 26.11.). Here no row waits for its
+    // confirmation, and every row would be due for one by the clock: a file
+    // the unchanged scan reads is one it did not need.
+    let now = 0;
+    const h = await harness({ monotonicNow: () => (now += 60_000) });
     try {
       await h.vault.createDir("Projects/Sub");
       await h.vault.createDir("Empty");
@@ -157,6 +167,9 @@ describe("a full scan says what it changed", () => {
       // Nothing to compare with yet: unknown counts as changed.
       expect(first.foldersChanged).toBe(true);
       expect(scanChangedNothing(first)).toBe(false);
+
+      const unconfirmed = await h.db.query<{ path: string }>("SELECT path FROM files WHERE stamp_vouched = 0");
+      expect(unconfirmed, "every row of the first scan is confirmed").toEqual([]);
 
       h.vault.reads = 0;
       const second = await h.indexer.indexVaultFull("automatic refresh");

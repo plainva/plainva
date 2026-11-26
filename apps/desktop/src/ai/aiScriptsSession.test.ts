@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { leaksOf } from "../../../../packages/core/test/helpers/leaks";
 import {
   DEFAULT_AI_APP_SETTINGS,
   EMPTY_INSTRUCTION_APPROVALS,
@@ -595,7 +596,8 @@ describe("a script as a tool of a conversation", () => {
 
     // What the script returned is a program's output: data, fenced — and it holds nothing of the note kept from the cloud.
     expect(result).toBe('<untrusted_data origin="script:tag-count" trust="3">\n{"tag":"client","count":2,"notes":["Projects/Offer.md","Projects/Plan.md"]}\n</untrusted_data>');
-    for (const request of fake.sent) expect(JSON.stringify(request.body)).not.toMatch(/Salaries|5200/);
+    // Looked for in every value of each request, not in its text: its own ids and timestamps can hold "5200".
+    for (const request of fake.sent) expect(leaksOf(request.body, { words: ["Salaries"], numbers: [5200] })).toEqual([]);
 
     // The run's record: which script, how it ended, how many calls — and what it read counts as read by the conversation.
     expect(record.runs[0]!.scripts).toEqual({ runs: [{ script: "tag-count", outcome: "done", calls: 3 }] });
