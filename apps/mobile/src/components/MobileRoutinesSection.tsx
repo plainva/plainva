@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { CalendarClock, Plus } from "lucide-react";
-import { ROUTINES_MAX, type Routine } from "@plainva/core";
-import { AreaBoundary, GroupCard, ICON, Row, RowList, routineModelOptions, routineNow, routineRows, routineSkillOptions, SectionLabel, toast, useDirectFolders, useMinuteClock, useTodayKey, useWeekStartDay } from "@plainva/ui";
+import { ROUTINES_MAX, type Routine } from "@plainva/core/ai";
+import { AreaBoundary, GroupCard, ICON, Row, RowList, SectionLabel, toast, useMinuteClock, useTodayKey, useWeekStartDay } from "@plainva/ui";
+import { routineModelOptions, routineNow, routineRows, routineSkillOptions, useDirectFolders } from "@plainva/ui/ai";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 import { mActions, mConfirm } from "../services/mobileDialogs";
 import { RoutineSheet } from "./RoutineSheet";

@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
+import { packageBarrels } from "../../scripts/vite/packageBarrels.mjs";
+import { startChunk } from "../../scripts/vite/startChunk.mjs";
 import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
 import { e2eBundleBuild, e2eBundlePlugins } from "./scripts/e2e-bundle.mjs";
 
@@ -14,17 +16,27 @@ const labsEnv = (): Record<string, string | undefined> => ({ ...process.env, PLA
 
 // https://vite.dev/config/
 export default defineConfig(async ({ mode }) => {
+  const start = startChunk(/apps\/desktop\/src\/main\.tsx$/);
   // Unit tests run in one fixed zone, set before any worker starts (R9, scripts/test-clock.mjs).
   if (mode === "test") pinTestTimeZone();
   // The bundle the E2E suite runs against in CI (`--mode e2e`, R10); nothing for any other mode.
   const root = fileURLToPath(new URL(".", import.meta.url));
   return {
-  plugins: [react(), ...e2eBundlePlugins(mode, root)],
+  // Named imports of the shared packages go to the defining module in a build, and what the start loads statically
+  // forms one chunk (performance plan L5).
+  plugins: [packageBarrels(), start.plugin, react(), ...e2eBundlePlugins(mode, root)],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   define: buildInfoDefine(mode === "labs" ? labsEnv() : undefined),
   // The installed SDK has a deliberately smaller API. Both shells and every
   // shared UI import use ONE source module in dev, tests and production builds.
-  resolve: { alias: [{ find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) }] },
+  resolve: {
+    alias: [
+      { find: /^@plainva\/core$/, replacement: fileURLToPath(new URL("../../packages/core/src/index.ts", import.meta.url)) },
+      // The parts of the core the start does not need have entries of their own, so a static import of the main entry
+      // never drags them into the start bundle (performance plan L5).
+      { find: /^@plainva\/core\/(ai|import|workspace)$/, replacement: fileURLToPath(new URL("../../packages/core/src/$1/index.ts", import.meta.url)) },
+    ],
+  },
 
   // Dependencies that only load through LAZY chunks (P2.8/P2.9/P3.4/P3.5).
   // Without pre-bundling, the dev server discovers them on first open,
@@ -112,7 +124,8 @@ export default defineConfig(async ({ mode }) => {
         // closes the class for every module instead of rewriting each read.
         strictExecutionOrder: true,
         manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
+          // What the entry reaches through static imports goes into one chunk, `start` (startChunk.mjs).
+          if (!id.includes("node_modules")) return start.chunkOf(id);
 
           if (id.includes("@codemirror") || id.includes("@lezer") || id.includes("@uiw/")) {
             // Statisch benoetigter Sprach-Stack des Markdown-Editors: lang-markdown
@@ -135,7 +148,7 @@ export default defineConfig(async ({ mode }) => {
             return "react";
           }
 
-          return undefined;
+          return start.chunkOf(id);
         },
       },
     },

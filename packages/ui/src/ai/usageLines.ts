@@ -1,4 +1,4 @@
-import { cacheShare, type ConversationUsage } from "@plainva/core";
+import { cacheShare, type ConversationUsage } from "@plainva/core/ai";
 
 type T = (key: string, vars?: Record<string, unknown>) => string;
 

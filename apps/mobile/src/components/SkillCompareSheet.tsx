@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, GroupCard, LineCompare, Row, RowList, skillCompareFacts, toast } from "@plainva/ui";
+import { Button, GroupCard, LineCompare, Row, RowList, toast } from "@plainva/ui";
+import { skillCompareFacts } from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { getMobileAiSession } from "../services/ai/mobileAi";
 

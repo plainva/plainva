@@ -27,7 +27,8 @@
  * else - a note without comments never had one, so nothing changes for anyone
  * who does not use them.
  */
-import { commentAuthorKey, commentCreatedAt, resolveCommentAnchor, stripAnchorMarkers, type WorkspaceCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core";
+import { commentAuthorKey, commentCreatedAt } from "@plainva/core";
+import { resolveCommentAnchor, stripAnchorMarkers, type WorkspaceCommentAnchor, type WorkspaceCommentRecord } from "@plainva/core/workspace";
 import i18n from "../i18n";
 import { buildCommentThreads, isCommentThreadOpen, type CommentThread } from "./commentThreads.js";
 

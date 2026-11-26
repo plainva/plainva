@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { WRITE_REFUSALS } from "@plainva/core";
+import { WRITE_REFUSALS } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
 import { LOCAL, chat } from "./mcpSessionHarness";
 import { at, ownSkill, routineSession, routineVault, toolNames } from "./routineSessionHarness";

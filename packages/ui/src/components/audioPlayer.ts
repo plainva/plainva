@@ -1,6 +1,6 @@
 import { ICON } from "../lib/iconSizes";
 import i18n from "../i18n";
-import { audioTranscriber, onAudioTranscriberChange, type AudioPlace } from "../ai/aiTranscribe";
+import { audioTranscriber, onAudioTranscriberChange, type AudioPlace } from "../aiPorts/slots";
 
 /**
  * What a sound embed looks like, in one place (plan Journal-Erweiterungen, X3).

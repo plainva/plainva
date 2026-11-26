@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildLinkNameIndex, filesALinkCouldMean, mcpToolKind, parseMemory, toolByName, toolsFor, type EgressRecipient } from "@plainva/core";
+import { buildLinkNameIndex, filesALinkCouldMean, mcpToolKind, parseMemory, toolByName, toolsFor, type EgressRecipient } from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
 import {
   CHAT_TOOL_NAMES,
-  captureVocabularyOf,
   createVaultPolicy,
   createVaultToolExecutor,
   furtherToolNames,
@@ -12,7 +12,7 @@ import {
   type ToolScope,
   type VaultToolDeps,
   type WriteRun,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { eventHandle } from "../../../../packages/ui/src/ai/eventDetails";
 import { plannerRowsFromTasks } from "../../../../packages/ui/src/lib/taskPlannerRows";

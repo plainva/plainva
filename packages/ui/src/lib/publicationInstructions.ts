@@ -10,7 +10,7 @@
  * advice, and a second copy is how desktop and mobile come to tell a publisher
  * two different things about the same folder.
  */
-import { PUBLISHED_NOTE_REFUSED, refusedNotePaths, type PublishedSliceInstruction, type PublishedSlicePermissionHint } from "@plainva/core";
+import { PUBLISHED_NOTE_REFUSED, refusedNotePaths, type PublishedSliceInstruction, type PublishedSlicePermissionHint } from "@plainva/core/workspace";
 
 /** Fallbacks, so a missing translation degrades to English instead of a blank line. */
 const DEFAULTS: Record<string, string> = {

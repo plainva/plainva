@@ -15,7 +15,7 @@ import {
   type ScriptParameter,
   type ScriptParameterType,
   type ScriptProblem,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { ScriptDraft, ScriptWriteOutcome } from "./aiSession";
 
 /**

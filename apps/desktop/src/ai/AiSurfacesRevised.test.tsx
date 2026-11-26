@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
-import { aiSetupStep, AiConversation, AiSessionContext, failureSender, takeAiSettingsIntent, type AiSession } from "@plainva/ui";
+import { aiSetupStep, AiConversation, AiSessionContext, failureSender, takeAiSettingsIntent, type AiSession } from "@plainva/ui/ai";
 import { CLOUD, LOCAL, mcpSession, turn } from "./mcpSessionHarness";
 
 /**

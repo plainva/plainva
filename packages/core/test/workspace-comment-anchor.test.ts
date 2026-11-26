@@ -22,7 +22,7 @@ import {
   resolvePropertyAnchor,
   stripAnchorMarkers,
   type WorkspaceCommentAnchor,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 const SENTENCE = "Der Vertrag laeuft bis Ende des Jahres und wird danach automatisch verlaengert.";
 

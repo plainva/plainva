@@ -1,4 +1,5 @@
-import { buildLinkTargetIndex, linkTargetMayNameNote, resolveMarkdownTargetIndexed, resolveNotePathIndexed, type AnswerGrounding, type VaultLinkFile } from "@plainva/core";
+import { buildLinkTargetIndex, linkTargetMayNameNote, resolveMarkdownTargetIndexed, resolveNotePathIndexed } from "@plainva/core";
+import { type AnswerGrounding, type VaultLinkFile } from "@plainva/core/ai";
 import { parseInlineMarkdown, type InlineNode } from "../lib/inlineMarkdown";
 import { planLinkOpen, type LinkOpenOutcome, type LinkToOpen } from "../lib/linkOpen";
 import { parseAnswer, type AnswerBlock } from "./answerBlocks";

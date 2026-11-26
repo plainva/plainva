@@ -147,7 +147,8 @@ describe("every surface of the desktop shell is an area of its own", () => {
 
   it("every settings page is a SettingsPage, and a SettingsPage is a boundary", () => {
     const src = read(`${SRC}/components/SettingsModal.tsx`);
-    const wrapper = src.slice(src.indexOf("const SettingsPage"), src.indexOf("export const SettingsModal"));
+    // The page lives in a file of its own since the AI's pages mount when first shown (review of L5, round 3).
+    const wrapper = read(`${SRC}/components/settings/SettingsPage.tsx`);
     expect(wrapper).toContain("<AreaBoundary area={`settings:${area}`}>");
     const pageSpans: Array<[number, number]> = [];
     for (const m of src.matchAll(/<SettingsPage\b/g)) pageSpans.push([m.index!, src.indexOf("</SettingsPage>", m.index!)]);
@@ -180,6 +181,7 @@ describe("every surface of the desktop shell is an area of its own", () => {
     const QUIET: Record<string, string> = {
       "editor:selectionToolbar": "appears with every text selection",
       "menu:aiSelection": "the AI menu of that toolbar, mounted whenever the assistant is on",
+      "host:ai": "the AI's host, mounted on its own once the AI was asked for; it draws nothing",
       "menu:recentSearches": "opens by itself when the empty search field takes the focus",
     };
     const found = new Set<string>();
@@ -193,6 +195,10 @@ describe("every surface of the desktop shell is an area of its own", () => {
     expect([...found].sort()).toEqual(Object.keys(QUIET).sort());
     const editor = read(`${SRC}/components/Editor.tsx`);
     expect(editor).toMatch(/<AreaBoundary area="editor:selectionToolbar" size="quiet">\s*<SelectionToolbar\b/);
+  });
+
+  it("a database embedded in a note is an area of its own: its failure takes the embed, not the tab (review of L5)", () => {
+    expect(read(`${SRC}/components/MarkdownReader.tsx`)).toMatch(/<AreaBoundary area="embed:base"[^>]*>\s*<Suspense\b[^\n]*?<BaseViewer\b[^\n]*?<\/Suspense><\/AreaBoundary>/);
   });
 
   it("the dialog and the floating window carry a boundary around their content", () => {

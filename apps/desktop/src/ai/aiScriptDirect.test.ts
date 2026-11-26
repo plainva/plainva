@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { DIRECT_TOOL_NAMES, readSkillImport, SCRIPT_LIMIT_DEFAULTS, SCRIPT_WRITE_TOOL_NAMES } from "@plainva/core";
-import type { ScriptDraft } from "@plainva/ui";
+import { DIRECT_TOOL_NAMES, readSkillImport, SCRIPT_LIMIT_DEFAULTS, SCRIPT_WRITE_TOOL_NAMES } from "@plainva/core/ai";
+import type { ScriptDraft } from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { results, turn } from "./mcpSessionHarness";
 import { gateSession, gateVault, removeGateVaults } from "./writeGateHarness";

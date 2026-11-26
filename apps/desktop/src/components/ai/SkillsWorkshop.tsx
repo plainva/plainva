@@ -1,32 +1,35 @@
 import { Fragment, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { CodeXml, Download, FlaskConical, Link2, MoreHorizontal, Plus, RefreshCw } from "lucide-react";
-import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core";
+import { LEARN_LOG_FILE, type InstructionEntry, type SkillImport } from "@plainva/core/ai";
 import {
   Button,
   ICON,
   IconButton,
   MenuItem,
   MenuSurface,
+  RowActionList,
+  SettingCard,
+  SettingCardNote,
+  SettingRow,
+  skillRowActions,
+  Switch,
+  toast,
+  type SkillRowCaps,
+} from "@plainva/ui";
+import {
   observedFailures,
   openLearnSurface,
   serverSkillGroupNote,
   serverSkillRefreshText,
   serverSkillRowDescription,
   workshopWaits,
-  RowActionList,
-  SettingCard,
-  SettingCardNote,
-  SettingRow,
   skillRestoreRefusalText,
-  skillRowActions,
   skillRowDescription,
   skillTestOverview,
   skillTestPlanFor,
   skillView,
-  Switch,
   takeSharedUpkeepStep,
-  toast,
   useAiSession,
   useAiState,
   useSkillTestPlan,
@@ -34,10 +37,9 @@ import {
   workshopSections,
   workshopTitle,
   type AiServerSkills,
-  type SkillRowCaps,
   type UpkeepRow,
   startAiSkill,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { appConfirm } from "../../services/appDialogs";
 import { pickSkillArchive } from "../../services/ai/skillImport";
 import { NewSkillModal } from "./NewSkillModal";

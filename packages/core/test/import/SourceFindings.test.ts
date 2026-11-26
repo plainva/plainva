@@ -2,15 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   BackupVaultAdapter,
   ConflictAwareVaultAdapter,
+  QueueingVaultAdapter,
+} from '../../src/index.js';
+import {
   EvernoteEnexImporter,
   GoogleKeepImporter,
   NotionFileImporter,
-  QueueingVaultAdapter,
   normalizePath,
   relativeFrom,
   resolveFrom,
   rewriteNotionLinks,
-} from '../../src/index.js';
+} from '../../src/import/index.js';
 
 /**
  * The source-specific findings of P1.3: each one is a way an import quietly

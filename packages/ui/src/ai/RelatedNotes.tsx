@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FileText, Info, MoreHorizontal, Pause, Play } from "lucide-react";
 import { Button } from "../components/ui/Button";
@@ -26,41 +26,7 @@ import {
  * pair. The same list in both shells.
  */
 
-/** Waits this long after the last change before asking: switching through notes asks for the last one only. */
-const SETTLE_MS = 150;
-
-/**
- * The answer for one note, asked again when the note changes, when a run of
- * the pipeline ends (its vectors may be current now), and when the setting or
- * the reader's word changed — not for every note a first run embeds.
- */
-export function useRelatedNotes(path: string | null): RelatedAnswer | null {
-  const { controller, state } = useLocalEmbeddings();
-  const [answer, setAnswer] = useState<{ path: string; answer: RelatedAnswer } | null>(null);
-  const ready = state?.engine.kind === "ready";
-  const settled = state && state.progress.state !== "working" ? state.progress.current : -1;
-  const version = state?.related.version ?? 0;
-  useEffect(() => {
-    if (!controller || !path || !/\.md$/i.test(path)) return;
-    let alive = true;
-    const timer = setTimeout(() => {
-      void controller.related(path).then(
-        (found) => alive && setAnswer({ path, answer: found }),
-        () => alive && setAnswer({ path, answer: { kind: "off" } }),
-      );
-    }, SETTLE_MS);
-    return () => {
-      alive = false;
-      clearTimeout(timer);
-    };
-  }, [controller, path, ready, settled, version]);
-  return answer && answer.path === path ? answer.answer : null;
-}
-
-/** How many hints a surface shows for the answer (the section's count, whether it has content). */
-export function relatedCount(answer: RelatedAnswer | null): number {
-  return answer?.kind === "hints" ? answer.hints.length : 0;
-}
+export { useRelatedNotes, relatedCount } from "../aiPorts/noteAnswers";
 
 export function RelatedNotesList({
   path,

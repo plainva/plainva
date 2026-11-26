@@ -1,19 +1,15 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { BookMarked, CloudOff, FileText, MoreHorizontal, Plus, Scale, X } from "lucide-react";
-import { memoryFileOf, STYLE_EXAMPLES_MAX, type MemoryPlace } from "@plainva/core";
+import { memoryFileOf, STYLE_EXAMPLES_MAX, type MemoryPlace } from "@plainva/core/ai";
 import {
   Banner,
   Button,
   Chip,
   cx,
   EmptyState,
-  filterMemoryRows,
   ICON,
   IconButton,
-  memoryGroups,
-  MEMORY_SEARCH_FROM,
-  MemoryMeter,
   memoryRowActions,
   MenuItem,
   MenuSurface,
@@ -23,19 +19,25 @@ import {
   SettingCard,
   SettingCardNote,
   SettingRow,
-  skillView,
-  styleView,
   Switch,
   toast,
+  type MemoryRowCaps,
+} from "@plainva/ui";
+import {
+  filterMemoryRows,
+  memoryGroups,
+  MEMORY_SEARCH_FROM,
+  MemoryMeter,
+  skillView,
+  styleView,
   useAiSession,
   useAiState,
   useUpkeepRows,
   workshopSections,
   type MemoryRow,
-  type MemoryRowCaps,
   type UpkeepRow,
   startAiSkill,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { SkillApprovalModal } from "./SkillApprovalModal";
 import { appConfirm } from "../../services/appDialogs";
 import { MemoryEntryModal } from "./MemoryEntryModal";

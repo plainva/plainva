@@ -3,11 +3,24 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import {
-  BundleCommentStore, WorkspaceCommentStore, CommentIdentityConflictError, createWorkspaceObjectId,
-  commentsDevicePath, parseCommentsBundle, MemoryWorkspaceStateStore, SqlWorkspaceStateStore,
-  createPersonalWorkspaceBootstrap, personalWorkspaceRuntime, initializePersonalWorkspaceMigration,
-  EncryptedWorkspaceWorker, FakeWorkspaceObjectStore, type IDatabaseAdapter, type CommentPostInput,
+  BundleCommentStore,
+  WorkspaceCommentStore,
+  CommentIdentityConflictError,
+  commentsDevicePath,
+  parseCommentsBundle,
+  type IDatabaseAdapter,
+  type CommentPostInput,
 } from "../src/index.js";
+import {
+  createWorkspaceObjectId,
+  MemoryWorkspaceStateStore,
+  SqlWorkspaceStateStore,
+  createPersonalWorkspaceBootstrap,
+  personalWorkspaceRuntime,
+  initializePersonalWorkspaceMigration,
+  EncryptedWorkspaceWorker,
+  FakeWorkspaceObjectStore,
+} from "../src/workspace/index.js";
 import { LocalVaultAdapter } from "../src/vault/LocalVaultAdapter.js";
 import { realSqlite } from "./helpers/realSqlite.js";
 

@@ -1,4 +1,4 @@
-import { estimateTokens, nameOf, parseSkillFile, sameGrant, serializeSkillFile, SKILL_FILE, type InstructionEntry, type ModelFailure, type SkillTestRecord, type WriteDraft } from "@plainva/core";
+import { estimateTokens, nameOf, parseSkillFile, sameGrant, serializeSkillFile, SKILL_FILE, type InstructionEntry, type ModelFailure, type SkillTestRecord, type WriteDraft } from "@plainva/core/ai";
 import { compareLines, type CompareLine } from "../lib/compareVersions";
 import { canRewriteSkill, type LearnOutcome, type LearnPlan, type LearnRefusal } from "./aiLearn";
 import type { SkillRestoreOutcome, SkillTestPlan } from "./aiSession";

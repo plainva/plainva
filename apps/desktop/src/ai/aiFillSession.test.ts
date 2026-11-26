@@ -11,14 +11,14 @@ import {
   type EgressManifest,
   type HttpRequestSpec,
   type LedgerEntry,
-} from "@plainva/core";
+} from "@plainva/core/ai";
+import { captureVocabularyOf } from "@plainva/ui";
 import {
   AiSession,
   CHAT_TOOL_NAMES,
   FILL_INSTRUCTION,
   FILL_LIMITS,
   FILTER_INSTRUCTION,
-  captureVocabularyOf,
   createVaultToolExecutor,
   furtherToolNames,
   noteMovePlan,
@@ -29,7 +29,7 @@ import {
   type ProposalRound,
   type VaultToolDeps,
   type VaultWriteDeps,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 
 /**

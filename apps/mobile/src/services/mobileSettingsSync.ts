@@ -13,12 +13,10 @@ import {
   createKeyfile,
   evaluateManifestGuard,
   exportRecoveryCode,
-  fromBase64,
   isEncryptedState,
   openBlob,
   parseManifest,
   sealBlob,
-  toBase64,
   unlockAllKeys,
   type ConnectionE2EState,
   type ISyncTarget,
@@ -31,6 +29,10 @@ import {
   type SettingsSyncRunner,
   SecretPolicyError,
 } from "@plainva/core";
+import {
+  fromBase64,
+  toBase64,
+} from "@plainva/core/workspace";
 import {
   cloudRegistryToLogical,
   shouldAnnounceProfileImport,

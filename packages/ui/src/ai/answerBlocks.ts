@@ -1,4 +1,5 @@
-import { atxHeading, createFenceTracker, readQuoteDepth } from "@plainva/core";
+import { createFenceTracker, readQuoteDepth } from "@plainva/core";
+import { atxHeading } from "@plainva/core/ai";
 
 /**
  * The block structure of an AI answer (P1a): paragraphs, headings, lists,

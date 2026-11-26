@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DISPATCH_TOOL, FIND_TOOL, isScriptToolName, scriptToolName, toolByName } from "@plainva/core";
-import { APP_LANGUAGES, scriptToolLabel, SKILL_TOOL_NAMES } from "@plainva/ui";
+import { DISPATCH_TOOL, FIND_TOOL, isScriptToolName, scriptToolName, toolByName } from "@plainva/core/ai";
+import { APP_LANGUAGES } from "@plainva/ui";
+import { scriptToolLabel, SKILL_TOOL_NAMES } from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 
 /**

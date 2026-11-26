@@ -23,7 +23,7 @@
  * caught up retroactively, and silence is a state (per note, per vault) rather
  * than a switch you have to hunt for.
  */
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { mentionsMember } from "./commentMentions.js";
 import { isCommentThreadOpen } from "./commentThreads.js";
 

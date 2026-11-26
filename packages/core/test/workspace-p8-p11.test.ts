@@ -17,7 +17,7 @@ import {
   inviteWorkspaceMember,
   applyWorkspaceGovernanceUpdate,
   type WorkspaceRuntimeMeta,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 
 function meta(workspaceId = "01".repeat(16)): WorkspaceRuntimeMeta {
   return { workspaceId, memberId: "02".repeat(16), deviceId: "03".repeat(16), groupId: "04".repeat(16), keyEpoch: 1, policyHash: "05".repeat(32), phase: "active", recoveryConfirmedAt: "2026-07-22T00:00:00.000Z", sequence: 0, previousOperationHash: null, catalogVersion: 0, previousCatalogHash: null, catalogHeads: {}, checkpointVersion: 0, previousCheckpointHash: null, remoteHeadEtag: null, migrationTotal: 1, migrationCompleted: 1, migrationInventoryComplete: true, lastSyncAt: null, lastError: null, operationHeads: {}, needsPublication: false, pendingPublication: null };

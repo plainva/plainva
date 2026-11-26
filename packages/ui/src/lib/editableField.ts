@@ -9,8 +9,9 @@
  *    which fire the beforeinput/input events CodeMirror already handles.
  */
 
-import { selectAll } from "@codemirror/commands";
-import { EditorView } from "@codemirror/view";
+// The editor's own "Select all" loads with the first editor a menu stands over (performance plan L5).
+let codeMirror: typeof import("./codeMirrorSelectAll") | null = null;
+const loadCodeMirror = () => import("./codeMirrorSelectAll").then((module) => (codeMirror = module));
 import { markdownToPlainText } from "./markdownToPlainText";
 
 export type EditableKind = "input" | "textarea" | "contenteditable";
@@ -47,6 +48,8 @@ export function findEditable(target: EventTarget | null): EditableTarget | null 
   // editor carries contenteditable="false", which this selector excludes.
   const ceHost = el.closest<HTMLElement>('[contenteditable=""], [contenteditable="true"]');
   if (ceHost) {
+    // An editor under the menu: its own "Select all" is loaded now, so it is there when the item is chosen.
+    if (!codeMirror && ceHost.closest(".cm-editor")) void loadCodeMirror().catch(() => undefined);
     return { kind: "contenteditable", el: ceHost, selStart: null, selEnd: null };
   }
   return null;
@@ -125,14 +128,19 @@ export function selectAllInEditable(t: EditableTarget): void {
     // `findFromDOM` looks for the text inside what it is given, and an editor
     // nested in the text (an embed) would answer first.
     const root = t.el.closest<HTMLElement>(".cm-editor");
-    const view = root ? EditorView.findFromDOM(root) : null;
-    if (view) {
-      view.focus();
-      selectAll(view);
+    const platform = () => {
+      t.el.focus();
+      document.execCommand("selectAll");
+    };
+    if (!root) return platform();
+    // Loaded when the menu found the editor (`findEditable`); the first time without, it follows a moment later.
+    if (codeMirror) {
+      if (!codeMirror.selectAllInCodeMirror(root)) platform();
       return;
     }
-    t.el.focus();
-    document.execCommand("selectAll");
+    void loadCodeMirror().then((module) => {
+      if (!module.selectAllInCodeMirror(root)) platform();
+    }, platform);
     return;
   }
   const el = t.el as HTMLInputElement | HTMLTextAreaElement;

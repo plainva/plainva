@@ -13,8 +13,8 @@ import {
   type HttpRequestSpec,
   type ToolExecutor,
   type ToolResultPart,
-} from "@plainva/core";
-import { createPrivateDataExecutor, createVaultToolExecutor, eventHandle, newRunReading, situationEvents, type MailSource, type QuarantineReader, type VaultToolDeps } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { createPrivateDataExecutor, createVaultToolExecutor, eventHandle, newRunReading, situationEvents, type MailSource, type QuarantineReader, type VaultToolDeps } from "@plainva/ui/ai";
 import type { MailEnvelope, MailMessage } from "@plainva/ui/mail";
 
 /**

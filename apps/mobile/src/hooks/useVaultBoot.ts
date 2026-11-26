@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { setNoteLinksVaultLoading } from "@plainva/ui";
+import { setNoteLinksVaultLoading, toast } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
+import { loadBootModules } from "../services/bootModules";
 import { getMobileVault, type MobileVault } from "../services/vaultService";
 import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
-import { startSyncIfConfigured } from "../services/syncService";
-import { isPimRuntimeReady, restartPimAfterImport, startPim, stopPim } from "../services/pim/pimService";
+// The sync and the calendars start after the first picture and load then (performance plan L5); what the boot asks
+// of a running calendar is the runtime's, which stays light.
+import { isPimRuntimeReady, stopPim } from "../services/pim/pimRuntime";
+import { prefetchDeferredParts } from "../lib/deferredParts";
+const pimServiceModule = () => import("../services/pim/pimService");
 import { startCloudAccountsReconcile } from "../services/cloudAccountsStore";
 import { resumePimOAuthResult } from "../services/pim/pimOAuth";
 import { startMobileMail, stopMobileMail } from "../services/mail/mailRuntime";
@@ -81,6 +86,22 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         // the first picture, a short gap apart, and all at once at the first
         // touch (bootStagger.ts, performance plan L4).
         stagger?.cancel();
+        stagger = null;
+        // The sync and the calendars come from chunks of their own (performance plan L5): both are loaded first, so
+        // the steps below run in the order and with the gaps they always had.
+        // A load that fails is said as a sync error and tried again (`bootModules.ts`), never left as a silent sync.
+        const staggered = loadBootModules({
+          load: () => Promise.all([import("../services/syncService"), pimServiceModule()]),
+          current,
+          onFailure: (e) => {
+            console.error("[boot] the sync's and the calendars' modules did not load", e);
+            toast.error(`${i18n.t("mobile.syncError")}: ${e instanceof Error ? e.message : String(e)}`);
+          },
+        });
+        void staggered.then((loaded) => {
+        if (!loaded || !current()) return;
+        const [{ startSyncIfConfigured }, { startPim }] = loaded;
+        stagger?.cancel();
         stagger = staggerAfterFirstPaint([
           () => { if (current()) void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e)); },
           () => {
@@ -96,7 +117,10 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
           // One mailbox stored several times under one id folds back into one
           // row (finding 2026-11-06, M2; the desktop does the same on vault open).
           () => { if (current()) void healMailAccounts(v.vaultId).catch(() => undefined); },
+          // The screens likely to open soon load while the app idles, so their first use does not wait (performance plan L5).
+          () => { if (current()) prefetchDeferredParts(); },
         ]);
+        });
       }, (error: unknown) => {
         if (!current()) return;
         console.error("[boot] the vault did not open", error);
@@ -128,7 +152,7 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
       stagger?.now();
       void getMobileVault().then((v) => {
         // Queued behind a sign-in that is being stored (pimService).
-        void restartPimAfterImport(v).catch((e) => console.error("[import] pim restart failed", e));
+        void pimServiceModule().then(({ restartPimAfterImport }) => restartPimAfterImport(v)).catch((e) => console.error("[import] pim restart failed", e));
         stopMobileMail();
         startMobileMail(v);
         handlersRef.current.onAccountsImported();

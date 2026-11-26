@@ -1,6 +1,6 @@
-import { readContentBinary, reportingTo } from "@plainva/ui";
+import { readContentBinary, reportingTo, suggestionRoundEnds, suggestionToSend } from "@plainva/ui";
 import { chromeScrollPublisher, getChromeScroll, readerScrollSource, resetChromeScroll, scrolledToEnd } from "./services/chromeScroll";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { SheetGrip } from "./components/SheetGrip";
 import { createPhoneTasksQueryHost } from "./components/phoneTasksQueryHost";
 import { useTranslation } from "react-i18next";
@@ -41,10 +41,10 @@ import {
 import { copyPhoneLineLink } from "./services/noteLinkRoute";
 import { answerEditorPathProbe, noteEmbedPreview, resolveNoteEmbed, registerCommentEditor, observeCompletedCommentRounds, runVisibleCommentOperation, commentActionErrorKey, applySelectionFormat, ANCHOR_JUMP_EVENT, consumePendingAnchorJump, requestAnchorJump, resolveAnchor, type AnchorFrameHint, type AnchorHighlight, baseEmbedText, createInlineBase, folderOf, resolveOpenAction, SelectionToolbar, planPaste, importAttachment, errorText, useStableHandler, applyBlockAction, type BlockAction, type BlockTarget, buildMarkdownTable, buildNoteEmbedCoreExtension, buildWikiTargetSet, embedTargetKindOf, isEditorInteractive, mountFileEmbedCard, Button, Chip, consumePendingSearchJump, consumePendingTemplateCaret, templateInsertInEditor, createEditorSession, cycleHeading, deleteColumn, deleteRow, DockedToolbar, type EditorSession, type EditorSessionDeps, resolveSearchJump, getPlatformServices, ICON, IconButton, insertColumn, jumpToLineTop, selectAndCenter, insertRow, insertWikiLink, markdownToPlainText, openFindPanel, openSlashMenu, parseMarkdownTable, performBlockMove, planTableInsertion, redo, serializeTable, setColumnAlign, setWikiResolver, type TemplateItem, TextInput, toggleInlineMark, toggleLinePrefix, undo, shiftListIndent } from "@plainva/ui";
 import { Camera, MediaTypeSelection } from "@capacitor/camera";
-import { selectNoteFragment, planCommentRound, commentOperationMatchesInput, commentActionController, CommentActionNotStartedError, noteBodyOf, buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
+import { selectNoteFragment, commentActionController, CommentActionNotStartedError, noteBodyOf, writeParkedSuggestion, clearParkedSuggestion } from "@plainva/core";
+import { buildCommentAnchor, createWorkspaceObjectId, mintAnchorMarkerId, MAX_ANCHOR_QUOTE_BYTES } from "@plainva/core/workspace";
 import { EMBED_ROWS, scopedEmbedRows } from "./services/baseOps";
 import { ColorPickSheet } from "./components/ColorPickSheet";
-import { EmojiPickSheet } from "./components/EmojiPickSheet";
 import { TableMenuSheet, type TableMenuAction } from "./components/TableMenuSheet";
 import { TemplatePickSheet } from "./components/TemplatePickSheet";
 import {
@@ -56,7 +56,8 @@ import {
   vaultOps,
   type MobileVault,
 } from "./services/vaultService";
-import { AreaBoundary, decideDirtyExternalUpdate, textDirectionOf, toast, imageExplainer } from "@plainva/ui";
+import { AreaBoundary, decideDirtyExternalUpdate, textDirectionOf, toast } from "@plainva/ui";
+import { imageExplainer } from "@plainva/ui";
 import { getConflict, noteConflict, subscribeConflicts } from "./services/conflictState";
 import { ConflictCompareSheet } from "./components/ConflictCompareSheet";
 import { NoteConflictCard } from "./components/NoteConflictCard";
@@ -72,6 +73,10 @@ import { pickDeviceFiles } from "./services/pickFiles";
 import { editedNoteProperties, recallScrollTop, rememberScrollTop, withNoteColor, withNoteIcon } from "@plainva/ui";
 import { readSelectionVerbs, selectAll, SelectionToolbarSurface, type SelectionToolbarPosition } from "@plainva/ui";
 import { flushDraftOf } from "./services/draftJournal";
+import { deferredPart } from "./lib/deferredParts";
+
+// The emoji and icon picker loads when it opens (performance plan L5).
+const EmojiPickSheet = deferredPart(() => import("./components/EmojiPickSheet").then((m) => m.EmojiPickSheet));
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the
@@ -235,7 +240,7 @@ export function EditorHost({
       const session = sessionRef.current;
       const db = vault.db;
       if (!session || !db || !suggestingRef.current) return;
-      const { base } = session.suggestion();
+      const base = session.suggestionBase();
       if (base === null) return;
       void writeParkedSuggestion(db, { path, base, copy: session.view.state.doc.toString(), note: suggestNoteRef.current, savedAt: new Date().toISOString() }).catch(reportingTo("suggestion:park"));
     }, 500);
@@ -796,12 +801,19 @@ export function EditorHost({
     };
     const stopObservingRounds = observeCompletedCommentRounds(mobileCommentOperations(vault), vault.vaultId, path, (operation) => {
       if (sessionRef.current !== session || !suggestingRef.current) return;
-      const { base, chunks } = session.suggestion();
-      if (base === null || !chunks.length || !commentOperationMatchesInput(operation, planCommentRound(path, base, chunks, suggestNoteRef.current))) return;
-      suggestingRef.current = false;
-      session.setSuggesting(false);
-      forgetPark();
-      window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { vaultId: vault.vaultId, path, sent: operation.markers.length } }));
+      void suggestionRoundEnds({
+        session,
+        operation,
+        notePath: path,
+        note: () => suggestNoteRef.current,
+        current: () => sessionRef.current === session && suggestingRef.current,
+      }).then((ends) => {
+        if (!ends) return;
+        suggestingRef.current = false;
+        session.setSuggesting(false);
+        forgetPark();
+        window.dispatchEvent(new CustomEvent("m-editor-suggest-done", { detail: { vaultId: vault.vaultId, path, sent: operation.markers.length } }));
+      }, reportingTo("suggestion:round"));
     });
     const unregisterCommentEditor = registerCommentEditor(vault.vaultId, path, () => {
       const revision = noteSaver.getRevision(path, vault);
@@ -1093,15 +1105,17 @@ export function EditorHost({
       const session = sessionRef.current;
       if (!hit || !session) return;
       const note = typeof hit.detail.note === "string" ? hit.detail.note : "";
-      const copy = session.view.state.doc.toString();
-      const current = () => sessionRef.current === session && suggestingRef.current
-        && session.view.state.doc.toString() === copy && suggestNoteRef.current === note;
-      const { base, chunks } = session.suggestion();
+      // The proposal of this moment, from the word diff — waited for, never a coarser stand-in (review of L5).
+      const proposal = suggestionToSend(session, MAX_ANCHOR_QUOTE_BYTES);
       void (async () => {
         try {
           await starting;
-          if (base === null || !chunks.length) { toast.info(t("comments.suggestNothing")); return; }
-          if (chunks.some((chunk) => new TextEncoder().encode(base.slice(chunk.fromA, chunk.toA)).length > MAX_ANCHOR_QUOTE_BYTES)) { toast.warning(t("comments.suggestTooLarge")); return; }
+          const planned = await proposal;
+          if (planned.kind === "nothing") { toast.info(t("comments.suggestNothing")); return; }
+          if (planned.kind === "tooLarge") { toast.warning(t("comments.suggestTooLarge")); return; }
+          const { copy, base, chunks } = planned;
+          const current = () => sessionRef.current === session && suggestingRef.current
+            && session.view.state.doc.toString() === copy && suggestNoteRef.current === note;
           const batchId = createWorkspaceObjectId();
           const markers = chunks.map((chunk, index) => ({ path, body: "", parentCommentId: null,
             anchor: buildCommentAnchor(base, chunk.fromA, chunk.toA, mintAnchorMarkerId(base)),
@@ -1761,7 +1775,7 @@ export function EditorHost({
 
       {emojiPick && (
         <AreaBoundary area="sheet:emoji" size="dialog" exit={{ label: t("common.close"), onExit: () => setEmojiPick(null) }}>
-        <EmojiPickSheet
+        <Suspense fallback={null}><EmojiPickSheet
           onClose={() => setEmojiPick(null)}
           onPick={handleEmojiPick}
           onRemove={
@@ -1774,7 +1788,7 @@ export function EditorHost({
           }
           showRemove={emojiPick === "icon"}
           title={emojiPick === "icon" ? t("docHeader.addIcon") : t("editor.slashEmoji")}
-        />
+        /></Suspense>
         </AreaBoundary>
       )}
 

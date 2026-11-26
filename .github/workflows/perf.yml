@@ -83,6 +83,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The gate opens each built bundle in a browser: what loads shortly after the start, apart from the start.
+      - name: Install Playwright Chromium
+        run: pnpm --filter desktop exec playwright install --with-deps chromium
+
       - name: Start bundles against the baseline
         run: pnpm perf:bundle --json "$RUNNER_TEMP/perf-bundle.json"
 

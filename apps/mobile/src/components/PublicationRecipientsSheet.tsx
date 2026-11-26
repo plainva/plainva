@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Share } from "@capacitor/share";
 import { Copy } from "lucide-react";
-import type { PublicationRecipient, WorkspacePublicationRecord } from "@plainva/core";
+import type { PublicationRecipient, WorkspacePublicationRecord } from "@plainva/core/workspace";
 import { Banner, Button, ICON, IconButton, QrImage, Row, RowList, SettingField, TextInput, toast } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";

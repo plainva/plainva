@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { WRITE_RESULTS } from "@plainva/core";
+import { WRITE_RESULTS } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
 import { answering, results, turn, viaDispatch } from "./mcpSessionHarness";
 import { gateSession, gateVault, removeGateVaults } from "./writeGateHarness";

@@ -73,16 +73,9 @@ vi.mock("@plainva/core", async (original) => {
   return {
     ...await original<typeof import("@plainva/core")>(),
     SyncWorker: FakeWorker,
-    EncryptedWorkspaceWorker: FakeWorker,
-    initializePersonalWorkspaceMigration: async () => {
-      if (!state.joinGate) return;
-      state.joinGate.reached = true;
-      await state.joinGate.promise;
-    },
     SettingsOnlySync: FakeSettingsOnly,
     SyncEngine: class {},
     DeletionJournal: class {},
-    createProviderWorkspaceObjectStore: () => ({ get: async () => null }),
     // The folder's genesis, as the vault's own target reads it (R8).
     WebDavSyncTarget: class extends (await original<typeof import("@plainva/core")>()).WebDavSyncTarget {
       override async download(path: string): Promise<Uint8Array | null> {
@@ -94,6 +87,17 @@ vi.mock("@plainva/core", async (original) => {
     },
   };
 });
+// The workspace worker is the same fake as the sync worker: the mocked main entry hands it over.
+vi.mock("@plainva/core/workspace", async (original) => ({
+  ...await original<typeof import("@plainva/core/workspace")>(),
+  EncryptedWorkspaceWorker: (await import("@plainva/core")).SyncWorker,
+  initializePersonalWorkspaceMigration: async () => {
+    if (!state.joinGate) return;
+    state.joinGate.reached = true;
+    await state.joinGate.promise;
+  },
+  createProviderWorkspaceObjectStore: () => ({ get: async () => null }),
+}));
 vi.mock("@plainva/ui", async (original) => ({
   ...await original<typeof import("@plainva/ui")>(),
   // This phone's confirmed addresses (endpointConfirmation.ts), as the gates ask them.

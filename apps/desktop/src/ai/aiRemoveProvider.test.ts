@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { DEFAULT_AI_APP_SETTINGS, type AiEgress } from "@plainva/core";
-import { AiSession, getDiagnostics, clearDiagnosticsForTests, toast, toastStore } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS, type AiEgress } from "@plainva/core/ai";
+import { getDiagnostics, clearDiagnosticsForTests, toast, toastStore } from "@plainva/ui";
+import { AiSession } from "@plainva/ui/ai";
 
 /**
  * Removing an AI provider whose key cannot be deleted (stability plan R4): the

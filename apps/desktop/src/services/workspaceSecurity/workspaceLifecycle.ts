@@ -1,4 +1,8 @@
 import {
+  type ISyncTarget,
+  type IVaultAdapter,
+} from "@plainva/core";
+import {
   createPersonalWorkspaceBootstrap,
   createProviderWorkspaceObjectStore,
   createWorkspaceRecoveryPackage,
@@ -6,12 +10,10 @@ import {
   personalWorkspaceRuntime,
   wipeWorkspaceRuntimeSecrets,
   workspaceDocumentHash,
-  type ISyncTarget,
-  type IVaultAdapter,
   type PersonalWorkspaceRuntime,
   type WorkspaceProviderName,
   type WorkspaceStateStore,
-} from "@plainva/core";
+} from "@plainva/core/workspace";
 import { credentialManager } from "../CredentialManager";
 import {
   getWorkspaceSecurityStatus,
@@ -224,9 +226,7 @@ async function runWorkspaceMigration(input: {
   }
 }
 
-export function workspaceProviderName(provider: "webdav" | "drive" | "onedrive" | "dropbox" | "s3"): WorkspaceProviderName {
-  return provider === "drive" ? "google-drive" : provider;
-}
+export { workspaceProviderName } from "./workspaceProvider";
 
 /** Content-shaped remote paths left from the plaintext sync mode. */
 export async function listLegacyRemotePlaintext(rawTarget: ISyncTarget): Promise<string[]> {

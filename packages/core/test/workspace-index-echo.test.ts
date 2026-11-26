@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  VaultIndexer,
+  type IDatabaseAdapter,
+} from "../src/index.js";
+import {
   EncryptedWorkspaceWorker,
   FakeWorkspaceObjectStore,
   PermissionedVaultAdapter,
   SqlWorkspaceStateStore,
-  VaultIndexer,
   WorkspaceQueueingVaultAdapter,
   acceptWorkspacePairing,
   approveWorkspacePairing,
@@ -17,11 +20,10 @@ import {
   publishWorkspaceGovernanceUpdate,
   workspaceDocumentHash,
   workspaceSliceIdsForObject,
-  type IDatabaseAdapter,
   type PersonalWorkspaceRuntime,
   type WorkspaceMutationAuthorizationRequest,
   type WorkspacePolicyPayload,
-} from "../src/index.js";
+} from "../src/workspace/index.js";
 import { MemoryVaultAdapter } from "./helpers/memoryVault.js";
 import { realSqlite } from "./helpers/realSqlite.js";
 

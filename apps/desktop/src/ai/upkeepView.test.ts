@@ -12,8 +12,9 @@ import {
   type InstructionSource,
   type MemoryEntry,
   type UpkeepHint,
-} from "@plainva/core";
-import { APP_SKILL_SOURCES, skillCompareFacts, upkeepRowActions, upkeepRows, upkeepTitle } from "@plainva/ui";
+} from "@plainva/core/ai";
+import { upkeepRowActions } from "@plainva/ui";
+import { APP_SKILL_SOURCES, skillCompareFacts, upkeepRows, upkeepTitle } from "@plainva/ui/ai";
 
 /**
  * Upkeep hints as both shells show them (plan KI-Harness P6-3): each hint as

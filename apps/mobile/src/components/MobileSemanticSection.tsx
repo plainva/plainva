@@ -1,30 +1,33 @@
 import { useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AI_EMBEDDING_PROFILE, SEMANTIC_BY_PROVIDER, semanticSourceOf, type EmbeddingModelSpec } from "@plainva/core";
-import { AreaBoundary,
-  AiSendOverview,
+import { AI_EMBEDDING_PROFILE, SEMANTIC_BY_PROVIDER, semanticSourceOf, type EmbeddingModelSpec } from "@plainva/core/ai";
+import {
+  AreaBoundary,
   Banner,
   Button,
   GroupCard,
+  Row,
+  RowList,
+  SectionLabel,
+  toast,
+} from "@plainva/ui";
+import {
+  AiSendOverview,
   measurementRows,
   measurementText,
   packageInstalled,
-  Row,
-  RowList,
   searchRests,
-  SectionLabel,
   semanticFailureText,
   semanticModelRows,
   semanticProgressLine,
   semanticReadyLine,
   semanticRunFailureText,
   semanticUnusedLine,
-  toast,
   useLocalEmbeddings,
   type AiSession,
   type StandingApproval,
   type UnusedEmbeddings,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { ChoiceMark } from "./ChoiceMark";
 import { SemanticLoadSheet } from "./SemanticLoadSheet";
 import { mConfirm } from "../services/mobileDialogs";

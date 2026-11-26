@@ -1,5 +1,5 @@
 import { registerPlugin } from "@capacitor/core";
-import { readMcpOAuthIssuer, readMcpOAuthStatus, readMcpRegisteredServers, type McpHttpChunk, type McpHttpPort, type McpNativeHost, type McpOAuthHost } from "@plainva/core";
+import { readMcpOAuthIssuer, readMcpOAuthStatus, readMcpRegisteredServers, type McpHttpChunk, type McpHttpPort, type McpNativeHost, type McpOAuthHost } from "@plainva/core/ai";
 
 /**
  * The phone's native side of foreign MCP servers (plan KI-Harness P4.5): the

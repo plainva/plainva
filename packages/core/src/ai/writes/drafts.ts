@@ -3,9 +3,9 @@ import { MEMORY_LIMITS, memoryTextProblem, type MemoryPlace } from "../memory/me
 import { AI_POLICY_DIMENSIONS, type AiPolicyDimension } from "../policy.js";
 import { SKILL_DESCRIPTION_MAX, skillNameProblems } from "../skills/skillFile.js";
 import { SKILLS_FOLDER } from "../skills/sources.js";
-import { machineAuthorKind } from "./authors.js";
+import { machineAuthorKind } from "../../proposals/authors.js";
 import { parseMissingLinks } from "./links.js";
-import type { PropertyValue } from "./properties.js";
+import type { PropertyValue } from "../../proposals/properties.js";
 
 /**
  * A draft: something an assistant wants to exist that does not exist yet

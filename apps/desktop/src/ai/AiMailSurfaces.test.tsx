@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { startConversation, type ConversationRecord, type EgressManifest, type RunReading } from "@plainva/core";
+import { startConversation, type ConversationRecord, type EgressManifest, type RunReading } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiEffectApproval, AiSendOverview, transcriptOf } from "@plainva/ui";
+import { AiEffectApproval, AiSendOverview, transcriptOf } from "@plainva/ui/ai";
 
 /**
  * The surfaces of mail and the tool search (plan KI-Harness P4-4), shared by

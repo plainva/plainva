@@ -31,7 +31,7 @@ import {
   type SkillProblem,
   type SkillScenarioResult,
   type SkillTestRecord,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { compareLines, type CompareLine } from "../lib/compareVersions";
 import { appSkillOf } from "./appSkills";
 import type { AiServerSkills, AiSkillsState, ServerSkillText, SkillTestOutcome, SkillTestPlan } from "./aiSession";

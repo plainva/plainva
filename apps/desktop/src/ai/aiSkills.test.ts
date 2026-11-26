@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import i18n from "@plainva/ui/i18n";
-import { EMPTY_INSTRUCTION_APPROVALS, resolveInstructions, skillCatalog, skillGrant, switchInstruction, TOOL_MANIFESTS } from "@plainva/core";
-import { APP_SKILL_FOLDERS, APP_SKILL_SOURCES, APP_SKILLS, appSkillScenarios, buildAppCommands, mcpSkillPrompts, startableSkills, type CommandDeps } from "@plainva/ui";
+import { EMPTY_INSTRUCTION_APPROVALS, resolveInstructions, skillCatalog, skillGrant, switchInstruction, TOOL_MANIFESTS } from "@plainva/core/ai";
+import { buildAppCommands, type CommandDeps } from "@plainva/ui";
+import { APP_SKILL_FOLDERS, APP_SKILL_SOURCES, APP_SKILLS, appSkillScenarios, mcpSkillPrompts, startableSkills } from "@plainva/ui/ai";
 
 const t = (key: string, vars?: Record<string, unknown>) => i18n.t(key, vars);
 const entries = () => resolveInstructions(APP_SKILL_SOURCES, EMPTY_INSTRUCTION_APPROVALS);

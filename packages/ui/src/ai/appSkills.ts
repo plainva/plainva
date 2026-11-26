@@ -1,4 +1,4 @@
-import { appSkillSource, type InstructionSource } from "@plainva/core";
+import { appSkillSource, type InstructionSource } from "@plainva/core/ai";
 import { BookOpenCheck, CalendarCheck, CalendarClock, CalendarRange, Feather, FolderKanban, History, Inbox, Link2, ListOrdered, PenLine, ShieldCheck, Sprout, Telescope, type LucideIcon } from "lucide-react";
 
 /**

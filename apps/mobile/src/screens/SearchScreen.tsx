@@ -2,20 +2,52 @@ import { isHiddenPath, trimChars } from "@plainva/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowUpDown, Clock, FilePlus, Search } from "lucide-react";
-import { AreaBoundary,
-  useSearchPages, recallSearchSession, rememberSearchSession, Button, Chip, commandTitle, DocIcon, EmptyState, filterCommands, fuzzyFilter, ICON, loadRecentSearches, renderSnippetNodes,
-  rememberSearch, SearchField,
-  setPendingSearchJump, useDebouncedValue, type AppCommand, ScrollEdge,
-  IconButton, SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey,
-  ActiveSearchModeSwitch, ActiveSemanticCoverage, FoundChip, meaningActive, useLocalEmbeddings } from "@plainva/ui";
+import {
+  AreaBoundary,
+  useSearchPages,
+  recallSearchSession,
+  rememberSearchSession,
+  Button,
+  Chip,
+  commandTitle,
+  DocIcon,
+  EmptyState,
+  filterCommands,
+  fuzzyFilter,
+  ICON,
+  loadRecentSearches,
+  renderSnippetNodes,
+  rememberSearch,
+  SearchField,
+  setPendingSearchJump,
+  useDebouncedValue,
+  type AppCommand,
+  ScrollEdge,
+  IconButton,
+  SEARCH_SORT_KEYS,
+  listSortLabelKey,
+  nextSearchSort,
+  readStoredSearchSort,
+  writeStoredSearchSort,
+  type SearchSort,
+  type SearchSortKey,
+} from "@plainva/ui";
+import { meaningActive, useLocalEmbeddings } from "@plainva/ui";
+import { deferredAiPart } from "../lib/deferredParts";
 import type { SearchResult } from "@plainva/core";
 import { FileText } from "lucide-react";
 import { reloadActiveMobileVault, vaultOps, type MobileVault } from "../services/vaultService";
 import { AppBar } from "../components/AppBar";
 import { FullTextDamageNotice, useSearchDamageNotice } from "../components/FullTextDamageNotice";
-import { getMobileAiSession } from "../services/ai/mobileAi";
+import { mobileAiLoader } from "../services/ai/mobileAiLoader";
 import { SortSheet } from "../components/SortSheet";
 import { appendOperator, OPERATOR_CHIPS, parseQuery } from "../lib/searchMode";
+
+// The parts of meaning search come with the AI: drawn once it is loaded, nothing before — the search itself loads no
+// code of the AI while the AI is off (review of L5, round 2, 2026-11-25).
+const ActiveSearchModeSwitch = deferredAiPart("ActiveSearchModeSwitch");
+const ActiveSemanticCoverage = deferredAiPart("ActiveSemanticCoverage");
+const FoundChip = deferredAiPart("FoundChip");
 
 /** First plain search term (no operators/exclusions) — the jump target. */
 const jumpTermOf = (q: string): string => {
@@ -337,7 +369,7 @@ export function SearchScreen({
           {meaningOn && (
             <div className="pv-resulthead">
               <span />
-              <ActiveSearchModeSwitch onChange={(mode) => void getMobileAiSession().updateSettings((s) => ({ ...s, searchMode: mode }))} />
+              <ActiveSearchModeSwitch onChange={(mode) => void mobileAiLoader.session()?.updateSettings((s) => ({ ...s, searchMode: mode }))} />
             </div>
           )}
           {(nameMatches.length > 0 || bothGroups) && (

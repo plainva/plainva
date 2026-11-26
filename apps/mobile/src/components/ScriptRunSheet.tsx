@@ -2,13 +2,19 @@ import { useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Play } from "lucide-react";
 import {
-  AiRunWrites,
   Banner,
   Button,
   GroupCard,
   ICON,
   Row,
   RowList,
+  Select,
+  Switch,
+  TextInput,
+  toast,
+} from "@plainva/ui";
+import {
+  AiRunWrites,
   ScriptCallList,
   scriptCallLines,
   scriptFieldDefaults,
@@ -18,15 +24,11 @@ import {
   scriptTypeLabel,
   scriptUsageLine,
   scriptValueText,
-  Select,
-  Switch,
-  TextInput,
-  toast,
   useDraftActions,
   useScriptRun,
   workshopTitle,
   type ScriptFieldValues,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { SheetGrip } from "./SheetGrip";
 import { useSheetGuard } from "../hooks/useSheetGuard";
 import { getMobileAiSession } from "../services/ai/mobileAi";

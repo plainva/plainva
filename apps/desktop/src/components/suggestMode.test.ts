@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { createSuggestMode } from "../../../../packages/ui/src/components/suggestMode";
+import { createSuggestMode, loadSuggestionDiff } from "../../../../packages/ui/src/components/suggestMode";
 import { suggestionBase, suggestionChunks } from "@plainva/ui";
 
 /**
@@ -10,8 +10,10 @@ import { suggestionBase, suggestionChunks } from "@plainva/ui";
  * the mode edits a copy, the base stays; the chunks between the two are what
  * the shell turns into proposal records; stopping puts the base back.
  */
+const BASE = "The contract runs until the end of the year.\nThe electrician is a separate firm.\nReserve 10 %.\n";
+
 describe("suggest mode", () => {
-  const BASE = "The contract runs until the end of the year.\nThe electrician is a separate firm.\nReserve 10 %.\n";
+  beforeAll(() => loadSuggestionDiff());
 
   function viewWith(): { view: EditorView; mode: ReturnType<typeof createSuggestMode> } {
     const mode = createSuggestMode();

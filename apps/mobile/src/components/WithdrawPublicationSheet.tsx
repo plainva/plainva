@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { WorkspacePublicationRecord } from "@plainva/core";
+import type { WorkspacePublicationRecord } from "@plainva/core/workspace";
 import { Banner, Button } from "@plainva/ui";
 import { SheetGrip } from "./SheetGrip";
 

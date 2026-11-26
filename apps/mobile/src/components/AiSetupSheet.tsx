@@ -1,24 +1,26 @@
 import { useState, useSyncExternalStore } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useTranslation } from "react-i18next";
-import { customEndpointId, normalizeBaseUrl, providerById, type ProviderInfo } from "@plainva/core";
+import { customEndpointId, normalizeBaseUrl, providerById, type ProviderInfo } from "@plainva/core/ai";
 import {
-  aiFailureText,
-  aiSetupOffer,
-  aiSetupStart,
   AreaBoundary,
   Button,
-  configuredProviders,
-  failureRecipient,
   getPlatformServices,
   GroupCard,
   Row,
   RowList,
-  startAiConversation,
   TextInput,
   WizardSteps,
-  type AiSetupKind,
 } from "@plainva/ui";
+import {
+  aiFailureText,
+  aiSetupOffer,
+  aiSetupStart,
+  configuredProviders,
+  failureRecipient,
+  startAiConversation,
+  type AiSetupKind,
+} from "@plainva/ui/ai";
 import { ChoiceMark } from "./ChoiceMark";
 import { SheetGrip } from "./SheetGrip";
 import { AiModelSheet } from "./AiModelSheet";

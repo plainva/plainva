@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { ExternalLink, PanelTop, Sparkles, SquarePen, X } from "lucide-react";
 import { editorSelectionReader } from "../../services/editorSelection";
 import { requestSkillsView } from "../../services/ai/desktopAi";
-import { AiConversation, ICON, IconButton } from "@plainva/ui";
+import { ICON, IconButton } from "@plainva/ui";
+import { AiConversation } from "@plainva/ui/ai";
 
 export interface AiDockProps {
   activeNote: { path: string; title: string } | null;

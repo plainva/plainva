@@ -1,7 +1,8 @@
 import { extensionOfType } from "./attachmentSave";
 import { mailAccountKind, type MailAccountConfig } from "./mailAccounts";
 import { GRAPH_FILE_LIMIT } from "./graphMail";
-import { guessAttachmentMime, type MailAttachment } from "./mailOut";
+import { guessAttachmentMime } from "./attachmentMime";
+import type { MailAttachment } from "./mailOut";
 import { mailFailureWords } from "./mailErrorText";
 import type { AttachmentFetchFailure, AttachmentFetchResult, MailAttachmentInfo, MailMessage } from "./types";
 

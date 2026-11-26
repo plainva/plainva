@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { WebFetcher, WebFetchResult } from "@plainva/core";
+import type { WebFetcher, WebFetchResult } from "@plainva/core/ai";
 
 /**
  * The desktop's page fetch for the assistant (plan KI-Harness P4): the Rust

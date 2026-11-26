@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { EFFECT_DECLINED, WRITE_REFUSALS, WRITE_RESULTS, acpAuthorId, mcpAuthorId, planCommentDecision, readFrontmatterPath } from "@plainva/core";
-import { acpPlanNoteWrite, acpProposeRound, applyTextShape, proposeSuggestionRound, readTextShape, type AcpVaultAccess } from "@plainva/ui";
+import { planCommentDecision, readFrontmatterPath } from "@plainva/core";
+import { EFFECT_DECLINED, WRITE_REFUSALS, WRITE_RESULTS, acpAuthorId, mcpAuthorId } from "@plainva/core/ai";
+import { applyTextShape, readTextShape } from "@plainva/ui";
+import { acpPlanNoteWrite, acpProposeRound, proposeSuggestionRound, type AcpVaultAccess } from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
 import { LOCAL, answering, chat, results, turn, viaDispatch } from "./mcpSessionHarness";
 import { gateSession, gateVault, removeGateVaults, type GateVault } from "./writeGateHarness";

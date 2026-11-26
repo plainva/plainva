@@ -27,7 +27,7 @@ import { wikiLinkPlugin, type LinkKind } from "./WikiLinkPlugin";
 import { tagPillPlugin } from "./TagPillPlugin";
 import { anchorHighlightExtension, commentAnchorHandlers, setAnchorHighlights, suggestionActionHandlers, type AnchorFrameHint, type AnchorHighlight } from "./anchorHighlight";
 import { anchorMarkerHidePlugin } from "./anchorMarkerHide";
-import { createSuggestMode, suggestionBase, suggestionChunks, type SuggestionChunk } from "./suggestMode";
+import { createSuggestMode, suggestionBase, suggestionChunksReady, type SuggestionChunk } from "./suggestMode";
 import { editorCompletion } from "./editorCompletion";
 import { documentHeaderExtension, type DocumentHeaderTexts } from "./documentHeader";
 import { listKeymap } from "./listKeymap";
@@ -298,7 +298,15 @@ export interface EditorSession {
    * host stops saving while it is on and turns `suggestion()` into records.
    */
   setSuggesting(on: boolean): void;
-  suggestion(): { base: string | null; chunks: SuggestionChunk[] };
+  /** The base the mode started from, or null outside it. */
+  suggestionBase(): string | null;
+  /**
+   * The proposal of this moment: the base, and the chunks of the word diff between base and copy, read from the
+   * state at the call. It waits for the word diff (a chunk of its own, performance plan L5) and never makes the
+   * chunks of anything else: what is written does not depend on whether a chunk has loaded (review of L5). It
+   * rejects when the diff cannot be loaded after its tries.
+   */
+  suggestion(): Promise<{ base: string | null; chunks: SuggestionChunk[] }>;
   destroy(): void;
 }
 
@@ -666,8 +674,12 @@ export function createEditorSession(cfg: EditorSessionConfig): EditorSession {
       if (on) suggestMode.start(view, (count) => deps.current.onSuggestionChunks?.(count));
       else suggestMode.stop(view);
     },
-    suggestion() {
-      return { base: suggestionBase(view.state), chunks: suggestionChunks(view.state) };
+    suggestionBase() {
+      return suggestionBase(view.state);
+    },
+    async suggestion() {
+      const state = view.state;
+      return { base: suggestionBase(state), chunks: await suggestionChunksReady(state) };
     },
     setMode(mode) {
       if (mode === currentMode) return;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_AI_APP_SETTINGS } from "@plainva/core";
-import { aiSetupOffer, aiSetupStart } from "@plainva/ui";
+import { DEFAULT_AI_APP_SETTINGS } from "@plainva/core/ai";
+import { aiSetupOffer, aiSetupStart } from "@plainva/ui/ai";
 
 /** Plan Oberfläche O7, T9 (mockup M7): the setup in three steps — what it offers and where it starts. */
 const state = (over: Partial<typeof DEFAULT_AI_APP_SETTINGS> = {}, keys: Record<string, boolean> = {}, tests: Record<string, unknown> = {}) => ({

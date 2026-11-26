@@ -1,4 +1,9 @@
 import {
+  frontmatterSpan,
+  isReservedPropertyName,
+  upsertFrontmatterKeys,
+} from "@plainva/core";
+import {
   ACP_ERROR_INVALID_PARAMS,
   ACP_ERROR_NOT_FOUND,
   AcpRefusal,
@@ -7,21 +12,18 @@ import {
   acpLines,
   acpVaultPath,
   changedProperties,
-  frontmatterSpan,
   gateDecision,
-  isReservedPropertyName,
   isRuleOrTrustProperty,
   noteBodyStart,
   planPropertyChange,
   propertyTarget,
-  upsertFrontmatterKeys,
   type AcpFileRead,
   type AcpFileWrite,
   type EffectivePolicy,
   type EgressRecipient,
   type GateRun,
   type PropertyValue,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { generatedStamp } from "../lib/okfProvenance";
 import { selectionChunks, type SuggestionAuthor } from "./aiSelectionActions";
 import { defuseNewAddresses, defuseNoteText } from "./aiWriteLint";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { WorkspaceCommentAnchor, WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentAnchor, WorkspaceCommentRecord } from "@plainva/core/workspace";
 import { hasOpenAnnotations, renderNoteExport } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 

@@ -1,5 +1,5 @@
 import React from "react";
-import { LUCIDE_ICON_MAP } from "./lucideIconData";
+import { docIconSet, loadDocIconSet, useDocIconSet } from "./docIconData";
 
 /**
  * Document icons come in two flavours (ADR 0009): a plain emoji/grapheme, or
@@ -23,10 +23,11 @@ export function docIconValue(name: string): string {
   return `${LUCIDE_PREFIX}${name}`;
 }
 
-/** False only for icon-set references whose name is unknown to the registry. */
+/** False only for icon-set references whose name is unknown to the registry (while the set loads, every name is taken). */
 export function isRenderableDocIcon(icon: string): boolean {
   const parsed = parseDocIcon(icon);
-  return parsed.kind === "emoji" || LUCIDE_ICON_MAP.has(parsed.name);
+  const set = docIconSet();
+  return parsed.kind === "emoji" || !set || set.has(parsed.name);
 }
 
 const SVG_PROPS = {
@@ -43,6 +44,7 @@ export const DocIcon: React.FC<{ icon: string; color?: string; size: number }> =
   size,
 }) => {
   const parsed = parseDocIcon(icon);
+  const set = useDocIconSet();
   if (parsed.kind === "emoji") {
     return (
       <span aria-hidden="true" style={{ fontSize: size, lineHeight: 1 }}>
@@ -50,7 +52,9 @@ export const DocIcon: React.FC<{ icon: string; color?: string; size: number }> =
       </span>
     );
   }
-  const entry = LUCIDE_ICON_MAP.get(parsed.name);
+  // The set loads with the first icon: its place is held at its size meanwhile.
+  if (!set) return <span aria-hidden="true" style={{ display: "inline-block", width: size, height: size, flexShrink: 0 }} />;
+  const entry = set.get(parsed.name);
   if (!entry) return null;
   return (
     <svg
@@ -79,7 +83,21 @@ export function renderDocIconDOM(icon: string, color: string | undefined, size: 
     span.setAttribute("aria-hidden", "true");
     return span;
   }
-  const entry = LUCIDE_ICON_MAP.get(parsed.name);
+  const set = docIconSet();
+  if (!set) {
+    // The set loads with the first icon: the place is held at its size and filled when it arrives.
+    const place = document.createElement("span");
+    place.setAttribute("aria-hidden", "true");
+    place.style.display = "inline-block";
+    place.style.width = `${size}px`;
+    place.style.height = `${size}px`;
+    void loadDocIconSet().then(() => {
+      const drawn = renderDocIconDOM(icon, color, size);
+      if (drawn) place.replaceWith(drawn);
+    }, () => undefined);
+    return place;
+  }
+  const entry = set.get(parsed.name);
   if (!entry) return null;
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 24 24");

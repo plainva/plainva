@@ -36,7 +36,8 @@ vi.mock("@capacitor/app", () => ({
   },
 }));
 vi.mock("./services/mobileSettings", () => ({ getMobileSettings: () => settings }));
-vi.mock("./services/pim/pimService", () => ({ getPimCache: () => null }));
+// The scheduler reads the calendar's cache from the runtime, which the start carries (performance plan L5).
+vi.mock("./services/pim/pimRuntime", () => ({ getPimCache: () => null }));
 vi.mock("./services/vaultService", () => ({
   getMobileVault: async () => ({ vaultId: "v1", queryService: { listTasks: async () => [] } }),
   vaultOps: { read: async () => "" },

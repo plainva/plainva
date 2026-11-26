@@ -9,7 +9,7 @@ import {
   type ImportPlan,
   type ImportReport,
   type ImportSourceId,
-} from '@plainva/core';
+} from '@plainva/core/import';
 import { useVault } from '../../contexts/VaultContext';
 import { syncStatusStore } from '../../services/syncStatusStore';
 import { TauriVaultAdapter } from '../../adapters/TauriVaultAdapter';

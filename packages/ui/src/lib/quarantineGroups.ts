@@ -1,4 +1,4 @@
-import { isQuarantineHintedFamily, quarantineReasonFamilyOf, type QuarantineReasonFamily, type WorkspaceQuarantineRecord } from "@plainva/core";
+import { isQuarantineHintedFamily, quarantineReasonFamilyOf, type QuarantineReasonFamily, type WorkspaceQuarantineRecord } from "@plainva/core/workspace";
 
 /**
  * The quarantine list as groups (finding 2026-09-03), for both shells.

@@ -6,7 +6,8 @@
  * nobody asked for. The hue is derived from the member id, so the same person
  * keeps the same colour on every device without anything being stored.
  */
-import { commentAuthorKey, type WorkspaceCommentRecord } from "@plainva/core";
+import { commentAuthorKey } from "@plainva/core";
+import { type WorkspaceCommentRecord } from "@plainva/core/workspace";
 
 export const AUTHOR_HUES = 6;
 

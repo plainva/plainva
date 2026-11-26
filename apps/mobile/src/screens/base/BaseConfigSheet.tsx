@@ -10,9 +10,13 @@ import { FolderPickerSheet } from "../../components/FolderPickerSheet";
 import { AreaBoundary, ColumnSummarySelect, useFilterRuleDraft, type ViewsChange } from "@plainva/ui";
 import { baseFilterCatalog, baseFilterKind, baseFilterOperators, baseFilterOpLabels, MetadataFilterValue, Select, stripPropertyFilters, type BaseFilterField } from "@plainva/ui";
 import type { MobileVault } from "../../services/vaultService";
-import { addFilterRules, FilterInWords, filterSchemaOf, inferColumnType, type BaseAi } from "@plainva/ui";
+import { addFilterRules, useAiModule, inferColumnType, type BaseAi } from "@plainva/ui";
+import { deferredAiPart } from "../../lib/deferredParts";
 import { addContextFilter, addGroupWithRule, addRuleToGroup, addTopFilterRule, parsePropertyFilter, parseSourceClause, resolveTaskCompletionModel, resolveTaskListName, resolveTaskListTarget, taskListPickerOptions, BASE_CONFIG_AREAS, baseConfigArea, baseViewTypeMeta, offeredViewTypes, buildSourceClause, buildUIFilterModel, Button, Chip, columnsForBaseSelector, type FilterEntryRef, type FilterOp, getContextFilters, groupTemplatesForBase, ICON, IconButton, isSourceCondition, isValidNewPropertyName, moveTopFilterEntries, enableSubItemsConfig, GroupCard, noteDisplayName, Row, RowList, toast, type PropertyFilterRule, removeContextFilter, removeFilterEntry, removeGroupRule, SectionLabel, serializePropertyFilter, setGroupLogic, Switch, TextInput, type UIGroupItem, updateGroupRule, updateTopFilterRule } from "@plainva/ui";
 import { loadScopedTemplates } from "../../services/templateAssignment";
+
+// A filter in words needs the harness: drawn once the AI is loaded, nothing before (review of L5, 2026-11-25).
+const FilterInWords = deferredAiPart("FilterInWords");
 
 /**
  * Per-view configuration sheet (R4.4, E6 "desktop-oriented"): view management
@@ -124,8 +128,12 @@ export function BaseConfigSheet({
   const filterLabel = (column: string) => filterFields.find((field) => field.column === column)?.label ?? columnLabel(column);
   // What a sentence may filter by (plan KI-Harness P5-4): the property columns, each with its kind — the declared
   // one, or what its values say where none is declared — and its choices. Built only while the assistant is offered.
-  const filterWordsColumns = ai
-    ? filterSchemaOf(
+  // The harness is loaded whenever the assistant is offered (`useBaseAi`): its schema reader is asked of it, and the
+  // panel draws again when it arrives.
+  const loadedAi = useAiModule();
+  const aiHarness = ai ? loadedAi : null;
+  const filterWordsColumns = aiHarness
+    ? aiHarness.filterSchemaOf(
         filterFields.filter((field) => field.kind === "property").map((field) => field.column),
         columnLabel,
         (column) => {

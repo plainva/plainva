@@ -1,8 +1,9 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Bot, Plus, Trash2 } from "lucide-react";
-import { acpCommandText } from "@plainva/core";
-import { agentArgsFromText, agentSeenText, Banner, Button, ICON, IconButton, Modal, SettingCardNote, SettingRow, TextArea, TextInput, toast, useDiscardGuard, type AiSession } from "@plainva/ui";
+import { acpCommandText } from "@plainva/core/ai";
+import { Banner, Button, ICON, IconButton, Modal, SettingCardNote, SettingRow, TextArea, TextInput, toast, useDiscardGuard } from "@plainva/ui";
+import { agentArgsFromText, agentSeenText, type AiSession } from "@plainva/ui/ai";
 import { appConfirm } from "../../services/appDialogs";
 import { getDesktopAiSession } from "../../services/ai/desktopAi";
 

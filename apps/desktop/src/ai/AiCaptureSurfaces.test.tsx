@@ -2,9 +2,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { DEFAULT_AI_APP_SETTINGS, effectivePolicy, notePolicyFrom, readConversationRecord, readFrontmatterPath, type AiEgress, type ConversationRecord, type EgressChunk, type LedgerEntry } from "@plainva/core";
+import { readFrontmatterPath } from "@plainva/core";
+import { DEFAULT_AI_APP_SETTINGS, effectivePolicy, notePolicyFrom, readConversationRecord, type AiEgress, type ConversationRecord, type EgressChunk, type LedgerEntry } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiConversation, AiEffectApproval, AiSession, AiSessionContext, CHAT_TOOL_NAMES, createVaultToolExecutor, toast, toastStore, writeCapturedNote, type AiVaultHost, type VaultToolDeps } from "@plainva/ui";
+import { toast, toastStore } from "@plainva/ui";
+import { AiConversation, AiEffectApproval, AiSession, AiSessionContext, CHAT_TOOL_NAMES, createVaultToolExecutor, writeCapturedNote, type AiVaultHost, type VaultToolDeps } from "@plainva/ui/ai";
 
 /**
  * "Keep as a note" as the reader sees it (plan KI-Harness P4-6), shared by

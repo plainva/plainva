@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, upkeepRowActions, upkeepTitle, type UpkeepRow } from "@plainva/ui";
+import { Button, ICON, IconButton, SettingCard, SettingCardNote, SettingRow, upkeepRowActions } from "@plainva/ui";
+import { upkeepTitle, type UpkeepRow } from "@plainva/ui/ai";
 
 /**
  * "Tidy up" in the AI tab (plan KI-Harness P6-3, mockup chapter 22, step 7):

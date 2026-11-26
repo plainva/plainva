@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { i18nReady } from "@plainva/ui/i18n";
+import { startDesktopAiIfOn } from "./services/ai/desktopAiLoader";
 import "@plainva/ui/styles/base-colors.css";
 import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
@@ -161,6 +162,9 @@ void i18nReady.then(async () => {
       reportingTo("settings-sync:seal-marks"),
     );
   }
+  // The AI loads beside the vault's open when its switch is on (performance plan L5), not with the start: it is
+  // ready by the time the window is, as it was when it came with the start.
+  if (isOwnerWindow) void startDesktopAiIfOn().catch(reportingTo("ai:start"));
   const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
 
   // A note link clicked in any window but the central one opens in the central

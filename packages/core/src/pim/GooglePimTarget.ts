@@ -36,8 +36,7 @@ import { decodeBlockRef, encodeBlockRef, uniqueBlockRefs } from "./blockLinks.js
 
 const CAL_BASE = "https://www.googleapis.com/calendar/v3";
 const TASKS_BASE = "https://tasks.googleapis.com/tasks/v1";
-export const GOOGLE_CALENDAR_SCOPES =
-  "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks openid email";
+export { GOOGLE_CALENDAR_SCOPES } from "./scopes.js";
 
 interface GoogleEventItem {
   id: string;

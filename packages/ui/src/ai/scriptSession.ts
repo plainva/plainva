@@ -14,7 +14,7 @@ import {
   type ScriptOutcome,
   type ScriptSandbox,
   type ToolExecutor,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { ProtectedSecretStore } from "../lib/passwordChangeJournal";
 
 /**

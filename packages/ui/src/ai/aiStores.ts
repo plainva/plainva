@@ -19,7 +19,7 @@ import {
   type ConversationRepository,
   type ConversationSummary,
   type LedgerEntry,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import type { AiLedgerStore } from "./aiSession";
 import type { RoutineStore } from "./routineSession";
 

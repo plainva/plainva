@@ -10,7 +10,7 @@ import { isMobileWorkspaceLocked } from "../services/mobileWorkspaceLock";
 import type { MobileCommentNotifierDeps } from "../services/commentNotifier";
 import type { MobileVault } from "../services/vaultService";
 import type { CommentNotificationNote } from "@plainva/ui";
-import type { WorkspaceCommentRecord } from "@plainva/core";
+import type { WorkspaceCommentRecord } from "@plainva/core/workspace";
 
 /**
  * Hands the notifier what only the shell can read (Stufe F, F3).

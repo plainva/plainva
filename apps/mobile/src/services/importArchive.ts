@@ -3,10 +3,13 @@ import {
   classifyArchiveEntry,
   DEFAULT_EXTRACT_LIMITS,
   isTextPath,
-  readTarEntries, JEX_LIMITS, checkArchiveAbort, type ArchiveReadControl,
+  readTarEntries,
+  JEX_LIMITS,
+  checkArchiveAbort,
+  type ArchiveReadControl,
   type ExtractSkipReason,
   type UnpackedFile,
-} from "@plainva/core";
+} from "@plainva/core/import";
 
 /**
  * Unpacking an import archive on the phone (S40).

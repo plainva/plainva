@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import i18n from "@plainva/ui/i18n";
-import type { AiSession, AiState } from "@plainva/ui";
+import type { AiSession, AiState } from "@plainva/ui/ai";
 
 /**
  * The phone's AI entry — its tab in the bar and its row in the areas sheet (F71 of release 0.9.0, mockup M10, review
@@ -21,6 +21,8 @@ const session = {
 vi.mock("./services/ai/mobileAi", async (orig) => ({ ...(await orig<Record<string, unknown>>()), getMobileAiSession: () => session }));
 
 const { NavBar } = await import("./components/NavBar");
+// What the AI's host counts for the entries (performance plan L5: the count loads with the harness).
+const { AiBadgeCount } = await import("./components/AiBadgeCount");
 const { AreasSheet } = await import("./components/AreasSheet");
 const { TAB_POOL } = await import("./navigation");
 
@@ -61,6 +63,7 @@ async function entry() {
   await act(async () => {
     root!.render(
       <>
+        <AiBadgeCount session={session} />
         <NavBar activeTab={tabs[1]!} areasOpen={false} navCollapsed={false} onOpenAreas={noop} onOpenSettings={noop} onPick={noop} tabs={tabs} />
         <AreasSheet active={tabs[1]!} onPick={noop} onArrange={noop} onClose={noop} />
       </>,

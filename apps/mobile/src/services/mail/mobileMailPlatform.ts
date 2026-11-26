@@ -1,4 +1,4 @@
-import { createSocketMailTransport, setMailPlatform, setMailSocket } from "@plainva/ui/mail";
+import { createLazySocketMailTransport, setMailPlatform, setMailSocket } from "@plainva/ui/mail";
 import type { MailTransport } from "@plainva/ui/mail";
 import { webdavFetch } from "../../adapters/webdavHttp";
 import { hasNativeMailSocket, nativeMailSocket } from "../../adapters/mailNet";
@@ -52,7 +52,8 @@ export function registerMobileMailPlatform(): void {
   const native = hasNativeMailSocket();
   if (native) setMailSocket(nativeMailSocket);
   setMailPlatform({
-    transport: native ? createSocketMailTransport() : unavailableImapTransport,
+    // IMAP and SMTP load with the first call to a mailbox, not with the start (performance plan L5).
+    transport: native ? createLazySocketMailTransport() : unavailableImapTransport,
     http: { api: webdavFetch, token: webdavFetch },
   });
 }

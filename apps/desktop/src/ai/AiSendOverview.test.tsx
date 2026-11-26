@@ -2,9 +2,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { EgressManifest } from "@plainva/core";
+import type { EgressManifest } from "@plainva/core/ai";
 import i18n from "@plainva/ui/i18n";
-import { AiSendOverview } from "@plainva/ui";
+import { AiSendOverview } from "@plainva/ui/ai";
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;

@@ -6,7 +6,7 @@ import { GistReader, GistWriter, areaGistKey, VAULT_GIST_KEY, type GistModel } f
 import { GistStore } from "../src/ai/context/gistStore.js";
 import { withinAsync } from "./helpers/timeBudget.js";
 import { gateDecision, type EgressRecipient } from "../src/ai/egressGate.js";
-import { buildLinkNameIndex, filesALinkCouldMean } from "../src/ai/linkNames.js";
+import { buildLinkNameIndex, filesALinkCouldMean } from "../src/withholding/linkNames.js";
 import { DEFAULT_AI_POLICY, effectivePolicy, notePolicyFrom } from "../src/ai/policy.js";
 import { VaultIndexer } from "../src/vault/VaultIndexer.js";
 import { VaultQueryService } from "../src/vault/VaultQueryService.js";

@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
-import { parsePolicyFile, type AiWriteRule, type FolderPolicyRule } from "@plainva/core";
+import { parsePolicyFile, type AiWriteRule, type FolderPolicyRule } from "@plainva/core/ai";
 import {
-  AI_POLICY_FILE,
   Banner,
   Button,
-  changeFolderRules,
   ICON,
-  memorySummary,
-  skillView,
-  waitingCount,
-  workshopSections,
   IconButton,
-  ruleOf,
   Select,
   SettingCard,
   SettingCardActions,
@@ -23,12 +16,21 @@ import {
   Switch,
   TextInput,
   toast,
+} from "@plainva/ui";
+import {
+  AI_POLICY_FILE,
+  changeFolderRules,
+  memorySummary,
+  skillView,
+  waitingCount,
+  workshopSections,
+  ruleOf,
   unruledFolders,
   withoutRule,
   withRuleValue,
   withWriteRule,
   type PolicyChoice,
-} from "@plainva/ui";
+} from "@plainva/ui/ai";
 import { useVault } from "../../contexts/VaultContext";
 import { currentAiPolicy, getDesktopAiSession, requestMemoryView, requestSkillsView } from "../../services/ai/desktopAi";
 import { AreaHead } from "./AppPages";

@@ -6,13 +6,13 @@ import { fileURLToPath } from "node:url";
 // The file format reference names who stamps `generated` (F31 of the known-defects
 // list for release 0.9.0): it once named three actors while the AI, the MCP server,
 // external agents and scripts stamped too. Every writer prefix of
-// `packages/core/src/ai/writes/authors.ts` appears on the page in every language.
+// `packages/core/src/proposals/authors.ts` appears on the page in every language.
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const DOCS_USER = join(ROOT, "docs", "user");
 
 function writerPrefixes(): string[] {
-  const source = readFileSync(join(ROOT, "packages", "core", "src", "ai", "writes", "authors.ts"), "utf8");
+  const source = readFileSync(join(ROOT, "packages", "core", "src", "proposals", "authors.ts"), "utf8");
   return [...source.matchAll(/^const [A-Z]+_PREFIX = "([^"]+)";$/gm)].map((match) => match[1]!);
 }
 

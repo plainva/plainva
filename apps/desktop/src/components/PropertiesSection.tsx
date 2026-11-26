@@ -43,8 +43,9 @@ import { getConfiguredNoteType, getConfiguredDailyNoteType } from "../services/n
 import { loadPropertyTypes, setPropertyType, clearPropertyType, renamePropertyType } from "./propertyTypeStore";
 import { resolveGoverningBase, clearGoverningBaseCache, governingBasesBelongTo, governingBaseMemory, type GoverningBase } from "../services/baseSchema";
 import { PropertyRow, AddPropertyPopover, type RelationCandidate } from "./PropertyValues";
-import { useAiOn, parseWikiLinkValue, pathsSharingNames, propertyNameFixed, renamedNoteProperty, stripWikiLink, wikiLinkTextFor, wikiTargetPath } from "@plainva/ui";
-import { getDesktopAiSession } from "../services/ai/desktopAi";
+import { parseWikiLinkValue, pathsSharingNames, propertyNameFixed, renamedNoteProperty, stripWikiLink, wikiLinkTextFor, wikiTargetPath } from "@plainva/ui";
+import { useAiOn } from "@plainva/ui";
+import { useDesktopAiSession } from "../services/ai/desktopAiLoader";
 import { useWikiResolver } from "../hooks/useWikiResolver";
 import {
   propertyCommentStore,
@@ -235,7 +236,8 @@ export function PropertiesSection({ onCountChange, onOpenPath, channel = activeD
   // icon, header colour) has its own UI in the editor; it is hidden from the
   // list but stays in `properties`, so apply() writes it back untouched.
   // "Trust & provenance" only while the AI is on or the note carries such fields (plan Oberfläche O7, D11).
-  const aiOn = useAiOn(getDesktopAiSession());
+  const aiSession = useDesktopAiSession();
+  const aiOn = useAiOn(aiSession);
   const model = useMemo(() => propertyPanelModel(properties as Record<string, unknown>, { aiOn }), [properties, aiOn]);
   const { trust, showStatusRow, showStaleRow } = model;
   const visibleKeys = model.genericKeys;

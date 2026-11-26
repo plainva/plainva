@@ -39,7 +39,7 @@ import {
   type AcpToolUpdate,
   type AcpUpdate,
   type EndpointConfirmText,
-} from "@plainva/core";
+} from "@plainva/core/ai";
 import { AcpFileRefusal, acpGate, acpPlanNoteWrite, acpPlanWrite, acpProposeRound, acpReadFile, acpSpelledPath, type AcpFileRefusalReason, type AcpVaultAccess } from "./acpFiles";
 import type { AcpAgentSeen, AcpDeviceStore, AcpSessionEnd, AcpSessionEntry, AcpVaultStore } from "./acpStores";
 

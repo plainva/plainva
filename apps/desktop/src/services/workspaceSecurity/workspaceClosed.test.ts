@@ -31,7 +31,7 @@ vi.mock("../settingsStore", () => ({
   }),
 }));
 
-import { createPersonalWorkspaceBootstrap, personalWorkspaceRuntime } from "@plainva/core";
+import { createPersonalWorkspaceBootstrap, personalWorkspaceRuntime } from "@plainva/core/workspace";
 import * as keychain from "./workspaceKeychain";
 import { lockWorkspaceRuntime, persistWorkspaceRuntime, readWorkspaceRuntime, unlockWorkspaceRuntime, type WorkspaceSecurityPublicStatus } from "./workspaceKeychain";
 import * as closedHere from "./workspaceClosed";

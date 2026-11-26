@@ -3,7 +3,8 @@ import { appConfirm, appConfirmOption, dialogStore } from "../services/appDialog
 import { copyDesktopNoteLink } from "../services/noteLinkReceiver";
 import { confirmDeletion, countAffectedFiles } from "../services/deleteConfirm";
 import { requestCascadeDelete } from "../services/cascadeDelete";
-import { ActiveSemanticCoverage, EmptyState, FoundChip, ICON, meaningActive, toast, errorText, useLocalEmbeddings, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
+import { EmptyState, ICON, toast, errorText, useSearchPages, Button, MoveBlockedError, moveItemName } from "@plainva/ui";
+import { meaningActive, useLocalEmbeddings } from "@plainva/ui";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 import { isHiddenPath, isInternalPath, toPathIdentity, VaultQueryService, type SearchOccurrence, type SearchResult } from "@plainva/core";
@@ -54,6 +55,11 @@ import { DEFAULT_FOLDER_SORT, type FolderSort, type SearchSort } from "@plainva/
 import { newNoteOpensInNewTab } from "../services/newNoteTab";
 import { useVaultLabels, vaultAppName } from "../services/vaultNames";
 import { FullTextDamageNotice, useSearchDamageNotice } from "./FullTextDamageNotice";
+import { deferredAiPart } from "../lib/deferredParts";
+
+// Parts of search by meaning: drawn by the harness once it is loaded; nothing before, as while no model is active (performance plan L5).
+const ActiveSemanticCoverage = deferredAiPart("ActiveSemanticCoverage");
+const FoundChip = deferredAiPart("FoundChip");
 
 // The tree's multi-select toggle modifier is platform-aware (⌘ on macOS, Ctrl
 // elsewhere) — see clickSelectionMode. Detected once; it never changes at runtime.

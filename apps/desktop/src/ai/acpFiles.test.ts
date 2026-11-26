@@ -14,8 +14,9 @@ import {
   frontmatterBlockText,
   type AcpFileRefusalReason,
   type AcpWritePlan,
-} from "@plainva/ui";
-import { isCloudRecipient, readFrontmatterPath } from "@plainva/core";
+} from "@plainva/ui/ai";
+import { readFrontmatterPath } from "@plainva/core";
+import { isCloudRecipient } from "@plainva/core/ai";
 import { AGENT_NOTES, memoryAcpVault, ROOT } from "./acpTestHost";
 
 const read = (path: string, extra: { line?: number; limit?: number } = {}) => ({ sessionId: "s", path: `${ROOT}/${path}`, line: extra.line ?? null, limit: extra.limit ?? null });

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
-import type { EditableTarget, ImagePlace, LineLinkMode } from "@plainva/ui";
+import type { EditableTarget, LineLinkMode } from "@plainva/ui";
+import type { ImagePlace } from "@plainva/ui/ai";
 
 /**
  * Tiny store for the app's own right-click menu (webview hardening, 2026-07-07).

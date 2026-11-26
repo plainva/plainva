@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { type EgressRecipient } from "@plainva/core";
-import { createVaultPolicy } from "@plainva/ui";
+import { type EgressRecipient } from "@plainva/core/ai";
+import { createVaultPolicy } from "@plainva/ui/ai";
 import { buildContextPackage } from "../../../../packages/core/src/ai/context/package";
 import { resetGistStores, GistStore } from "../../../../packages/core/src/ai/context/gistStore";
 import { areaGistKey, GistReader, VAULT_GIST_KEY } from "../../../../packages/core/src/ai/context/gistWriter";

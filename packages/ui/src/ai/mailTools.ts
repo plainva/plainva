@@ -1,4 +1,5 @@
-import { inertLine, type IDatabaseAdapter, type QuarantinedText, type ToolManifest, type ToolOutcome } from "@plainva/core";
+import { type IDatabaseAdapter } from "@plainva/core";
+import { inertLine, type QuarantinedText, type ToolManifest, type ToolOutcome } from "@plainva/core/ai";
 import { listMailAccounts, mailAccountKind } from "../mail/mailAccounts";
 import { cachedEnvelopes, cachedMessage } from "../mail/mailCache";
 import { fetchMessage, listEnvelopes, listMailboxesFor, searchEnvelopes } from "../mail/mailClient";
