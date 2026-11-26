@@ -58,6 +58,8 @@ export async function runMailFrames(api: MailFrameApi, cases: readonly MailFrame
 export interface MarkedFrameResult extends MailFrameResult {
   /** The frame on the page. */
   clip: PageBox;
+  /** Everything the assistant reads of the mail, as it reads it. */
+  aiText: string;
   words: MarkedWord[];
 }
 
@@ -68,12 +70,14 @@ const marked = () => document.getElementById(MARKED_FRAME) as HTMLIFrameElement;
  * Renders a case as `runMailFrames` does and leaves its frame on the page, its
  * marker words wrapped for the pixel judge (`markWords`); the test shoots it.
  */
-export async function openMarked(api: MailFrameApi, html: string, width: number, only?: readonly string[]): Promise<MarkedFrameResult> {
+export async function openMarked(api: MailFrameApi, html: string, width: number, only?: readonly string[], pictures = false): Promise<MarkedFrameResult> {
   document.getElementById(MARKED_FRAME)?.remove();
   window.scrollTo(0, 0);
-  const shown = api.mailBodyView ? api.mailBodyView({ html, text: null })?.html ?? "" : api.sanitizeEmailHtml(html).html;
+  // `pictures`: the reader after the person chose to load pictures from the network (review B7-2, S3).
+  const options = { allowRemoteImages: pictures };
+  const shown = api.mailBodyView ? api.mailBodyView({ html, text: null }, options)?.html ?? "" : api.sanitizeEmailHtml(html, options).html;
   const read = await api.readableBody({ html }, 100_000);
-  const frame = await openFrame(api, api.buildMailFrameDoc(shown, {}), width);
+  const frame = await openFrame(api, api.buildMailFrameDoc(shown, options), width);
   frame.id = MARKED_FRAME;
   const seen = judgeFrame(frame);
   const words = markWords(frame, only);
@@ -82,6 +86,7 @@ export async function openMarked(api: MailFrameApi, html: string, width: number,
     name: "",
     ai: [...new Set(Array.from(read.text.matchAll(MARKER), (m) => m[0]))].sort(),
     aiLinks: read.links.map((link) => link.url),
+    aiText: read.text,
     frame: seen,
     clip: { x: Math.floor(at.left + window.scrollX), y: Math.floor(at.top + window.scrollY), width: Math.ceil(at.width), height: Math.ceil(at.height) },
     words,

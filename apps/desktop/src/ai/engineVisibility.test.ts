@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { blanked, elementPath, engineHiddenWords, hasLayoutEngine, mailHtmlView } from "@plainva/ui/mail";
 import { readableBodyInEngine, UNREADABLE_BODY } from "@plainva/ui/ai";
@@ -60,4 +62,23 @@ describe("when the engine cannot finish", () => {
       doc.elementsFromPoint = before;
     }
   }, 20_000);
+});
+
+describe("the reader's rules for pictures, from one source (review B7-2, S3)", () => {
+  const read = (path: string) => readFileSync(resolve(__dirname, "../../../..", path), "utf8");
+
+  it("the reader's frame and the frame the engine measures in both take them from MAIL_IMAGE_RULES", () => {
+    const sanitize = read("packages/ui/src/mail/mailSanitize.ts");
+    expect(sanitize).toMatch(/export const MAIL_IMAGE_RULES = "img\{[^"]+\}";/);
+    // The one builder writes them; no second rule for pictures is written into a frame anywhere.
+    expect(sanitize.match(/\$\{MAIL_IMAGE_RULES\}/g)).toHaveLength(1);
+    expect(sanitize.replace(/export const MAIL_IMAGE_RULES = "[^"]+";/, "")).not.toMatch(/img\{/);
+    // Both shells' readers and the engine's frame are made by that builder.
+    for (const file of ["apps/desktop/src/components/mail/MailView.tsx", "apps/mobile/src/screens/MailMessageScreen.tsx"]) expect(read(file), file).toMatch(/buildMailFrameDoc\(/);
+    expect(sanitize).toMatch(/engineHiddenWords\(buildMailFrameDoc\(/);
+    // The engine adds no rule of its own for pictures: what the reader leaves to a picture is asked of the layout.
+    const engine = read("packages/ui/src/mail/engineVisibility.ts");
+    expect(engine).not.toMatch(/img\{|img:not\(\[src\]\):not/);
+    expect(engine).toMatch(/remotePictureFreedom\(doc\)/);
+  });
 });

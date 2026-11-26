@@ -133,6 +133,6 @@ export function applyFrameFit(
   }
 
   if (options?.growHeight) frame.style.height = `${fit.height}px`;
-  if (options?.reader) noteMailReaderWidth(frame.clientWidth);
+  if (options?.reader) noteMailReaderWidth(frame.clientWidth, frame);
   return fit;
 }

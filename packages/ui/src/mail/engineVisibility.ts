@@ -1,7 +1,7 @@
 import { applyFrameFit } from "./frameFit";
-import { mailReaderWidth } from "./readerWidth";
+import { mailReaderWidths } from "./readerWidth";
 
-export { forgetMailReaderWidth, mailReaderWidth, noteMailReaderWidth } from "./readerWidth";
+export { forgetMailReaderFrame, forgetMailReaderWidth, mailReaderWidth, mailReaderWidths, noteMailReaderWidth, READER_WIDTHS_MEASURED } from "./readerWidth";
 
 /**
  * Which words of a mail the engine itself hides (plan Umsetzung 0.9.x, B7; Fehlerliste 0.9.0 F23): words the walk over
@@ -40,18 +40,26 @@ export interface EngineHidden {
 /** The widths of the readers: the phone's frame and the desktop's. */
 export const ENGINE_WIDTHS = [343, 760] as const;
 
-/** The widths a mail is measured at: the two of the gate, and the width of this device's reader. */
+/**
+ * The widths a mail is measured at: the two of the gate, and the widths this device's readers show mails in — every
+ * reader on screen, then the latest kept (review B7-2, H13), at most `READER_WIDTHS_MEASURED` of them.
+ */
 export function engineWidths(): number[] {
-  const own = mailReaderWidth();
-  return [...new Set([...ENGINE_WIDTHS, ...(own === null ? [] : [own])])].sort((a, b) => a - b);
+  return [...new Set([...ENGINE_WIDTHS, ...mailReaderWidths()])].sort((a, b) => a - b);
 }
 
 /** The time the whole pass may take for one mail, all widths together; past it, nothing of the mail is read. */
 export const ENGINE_BUDGET_MS = 3000;
 /** The longest the pass holds the interface between two of its turns. */
 const SLICE_MS = 12;
-/** The height a picture from the network without a size of its own is measured with (it is not loaded). */
+/** The least height a picture from the network whose height the reader does not fix is measured with (it is not loaded). */
 const REMOTE_PICTURE_HEIGHT = 1000;
+/** The intrinsic sizes a picture from the network is tried with, to learn which of its sizes the reader fixes. */
+const PROBE_SIZES: ReadonlyArray<readonly [number, number]> = [
+  [1, 1],
+  [1, 4000],
+  [4000, 1],
+];
 
 /** A cover fainter than this lets the words below it through (`MIN_OPACITY` of the walk and of the gate). */
 const COVER_OPACITY = 0.1;
@@ -64,7 +72,23 @@ const NOT_WORDS = new Set(["style", "script", "noscript", "template", "title", "
 /** Elements that paint their box whatever their colours say. */
 const REPLACED = new Set(["img", "svg", "video", "picture", "object", "embed", "canvas", "iframe", "input", "meter", "progress", "hr"]);
 
-const turn = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+/**
+ * The interface's turn (review B7-2, H15): a message task, not a timer — an engine throttles the timers of a hidden or
+ * minimised window to about one a second, a message it hands on at once, so the pass keeps its pace there too.
+ */
+const turn = () =>
+  new Promise<void>((resolve) => {
+    if (typeof MessageChannel === "undefined") {
+      setTimeout(resolve, 0);
+      return;
+    }
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      resolve();
+    };
+    channel.port2.postMessage(0);
+  });
 
 /** The path of an element from the body: its index among element children at each step. */
 export function elementPath(element: Element, body: Element): string | null {
@@ -252,10 +276,7 @@ async function openFrame(frameDoc: string, width: number): Promise<HTMLIFrameEle
     new Promise<boolean>((resolve) => (timer = setTimeout(() => resolve(false), LOAD_WAIT_MS))),
   ]);
   // Every box answers the hit test: a mail cannot take a cover out of it.
-  // A picture from the network is never loaded here; one without a size of its own is measured as large as the frame
-  // lets it be (B7, review M8): in the flow it only pushes, and it covers what it would cover once the person loads it.
-  const remote = `img:not([src]):not([width]):not([style*="width"]){width:100%!important}img:not([src]):not([height]):not([style*="height"]){height:var(--pv-remote-height,${REMOTE_PICTURE_HEIGHT}px)!important}img:not([src]){display:inline-block}`;
-  frame.srcdoc = frameDoc.replace("</head>", `<style>*{pointer-events:auto!important}${remote}</style></head>`);
+  frame.srcdoc = frameDoc.replace("</head>", `<style>*{pointer-events:auto!important}</style></head>`);
   document.body.append(frame);
   const came = await loaded;
   clearTimeout(timer);
@@ -264,24 +285,59 @@ async function openFrame(frameDoc: string, width: number): Promise<HTMLIFrameEle
     frame.remove();
     return null;
   }
-  const images = Array.from(doc.images).filter((image) => !image.complete);
-  if (images.length) {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      Promise.all(images.map((image) => new Promise((resolve) => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); }))),
-      new Promise((resolve) => (timer = setTimeout(resolve, IMAGES_WAIT_MS))),
-    ]);
-    clearTimeout(timer);
-  }
+  await picturesLoaded(doc);
+  // The pictures from the network (B7, review M8; review B7-2, S3): never loaded here. Which of a picture's sizes the
+  // reader fixes is asked of the layout under the reader's own rules (`MAIL_IMAGE_RULES`), not of its markup: it is
+  // tried with pictures of three shapes, and a size that changes with the picture is the picture's — as large as the
+  // reader lets it be then: as wide as its box, as tall as the whole mail laid out (`max-width`/`max-height` bound it).
+  const free = await remotePictureFreedom(doc);
   applyFrameFit(frame, { growHeight: true });
-  // A picture from the network without a height of its own could be as tall as anything: it is made as tall as the
-  // whole mail laid out, so it reaches past every word before it that could run into it (B7, review M8). It is as
-  // wide as its box lets it be (the frame keeps every picture inside its box).
-  if (doc.querySelector("img:not([src])")) {
-    doc.documentElement.style.setProperty("--pv-remote-height", `${Math.max(doc.documentElement.scrollHeight, REMOTE_PICTURE_HEIGHT)}px`);
+  if (free.length) {
+    const tall = `${Math.max(doc.documentElement.scrollHeight, REMOTE_PICTURE_HEIGHT)}px`;
+    for (const { picture, width, height } of free) {
+      if (width) picture.style.setProperty("width", "100%", "important");
+      if (height) picture.style.setProperty("height", tall, "important");
+    }
     applyFrameFit(frame, { growHeight: true });
   }
   return frame;
+}
+
+/** Waits for the pictures of the frame (data: only here) to load or fail; throws where they do not in time. */
+async function picturesLoaded(doc: Document): Promise<void> {
+  const images = Array.from(doc.images).filter((image) => image.hasAttribute("src") && !image.complete);
+  if (!images.length) return;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const all = Promise.all(images.map((image) => new Promise((resolve) => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); })));
+  const came = await Promise.race([all.then(() => true), new Promise<boolean>((resolve) => (timer = setTimeout(() => resolve(false), IMAGES_WAIT_MS)))]);
+  clearTimeout(timer);
+  if (!came) throw new Error("the mail's pictures did not load in time");
+}
+
+/** A picture of `width` × `height` that loads at once and shows nothing: the stand-in of a picture from the network. */
+const probePicture = (width: number, height: number) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"/>`)}`;
+
+/**
+ * Which sizes of each picture from the network the reader leaves to the picture (review B7-2, S3): each is shown with
+ * stand-ins of three shapes in turn; a width or height that differs between them is not fixed by the mail under the
+ * reader's rules. The stand-in of 1 × 1 stays in place afterwards.
+ */
+async function remotePictureFreedom(doc: Document): Promise<Array<{ picture: HTMLImageElement; width: boolean; height: boolean }>> {
+  const pictures = Array.from(doc.querySelectorAll<HTMLImageElement>("img:not([src])"));
+  if (!pictures.length) return [];
+  const seen = pictures.map(() => [] as Array<{ width: number; height: number }>);
+  for (const [width, height] of PROBE_SIZES) {
+    for (const picture of pictures) picture.setAttribute("src", probePicture(width, height));
+    await picturesLoaded(doc);
+    pictures.forEach((picture, n) => {
+      const box = picture.getBoundingClientRect();
+      seen[n]!.push({ width: box.width, height: box.height });
+    });
+  }
+  for (const picture of pictures) picture.setAttribute("src", probePicture(1, 1));
+  await picturesLoaded(doc);
+  const differs = (values: number[]) => values.some((value) => Math.abs(value - values[0]!) > 0.5);
+  return pictures.map((picture, n) => ({ picture, width: differs(seen[n]!.map((size) => size.width)), height: differs(seen[n]!.map((size) => size.height)) }));
 }
 
 /** The hidden ranges of one width, added to `out`. Throws where the frame could not be laid out.  */
@@ -317,9 +373,11 @@ function clipped(text: Text, lines: readonly Box[], win: Window): boolean {
 }
 
 /** Everything in the mail that paints its box — a background, a picture, a border —, found by where it lies. */
-function paintingBoxes(doc: Document, win: Window): { over(text: Text, lines: readonly Box[]): boolean } {
+async function paintingBoxes(doc: Document, win: Window, pace: Pace): Promise<{ over(text: Text, lines: readonly Box[]): boolean }> {
   const cells = new Map<string, Array<{ element: Element; box: Box }>>();
   for (const element of Array.from(doc.body.querySelectorAll("*"))) {
+    // In step with the interface (review B7-2, H14): a mail of thousands of painting boxes holds it no longer than a slice.
+    await pace.step();
     const style = win.getComputedStyle(element);
     if (style.visibility !== "visible" || style.display === "none") continue;
     const paints =
@@ -379,6 +437,56 @@ function overriddenRanges(text: Text, win: Window): Array<[number, number]> {
   return out;
 }
 
+/** A letter of a script written right to left (Hebrew, Arabic, Syriac, Thaana, N'Ko …). */
+const RTL_LETTER = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]|\uD802[\uDC00-\uDFFF]|\uD803[\uDC00-\uDE7F]/;
+/** A letter of a script written left to right (Latin, Greek, Cyrillic … — anything with letters that is not the above). */
+const LTR_LETTER = /[A-Za-z\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF]/;
+/** What can turn the order of words around without an override: marks, embeddings, isolates, a right-to-left box. */
+const REORDERING = /[\u200F\u061C\u202B\u2067\u2068]/;
+
+/** Whether the order of a text's words on screen can differ from their order in the text (a cheap check first). */
+function mayReorder(text: Text, win: Window): boolean {
+  if (REORDERING.test(text.data)) return true;
+  // Not `unicode-bidi` itself: the engine's own sheet makes every block an isolate, and a block of left-to-right text
+  // turns nothing around.
+  for (let at = text.parentElement; at; at = at.parentElement) {
+    if (at.localName === "bdi" || at.hasAttribute("dir")) return true;
+    if (win.getComputedStyle(at).direction === "rtl") return true;
+  }
+  return false;
+}
+
+/**
+ * Words a person reads in another order than they stand in the text, without an override (review B7-2, M11): two words
+ * of a left-to-right script on one line, with no letter of a right-to-left script between them, the later one drawn
+ * before the earlier — only invisible marks, embeddings or isolates turn them so. Both are left out, as under an
+ * override. Right-to-left text, and a left-to-right name inside it, keep their order and are read.
+ */
+function reorderedWords(words: ReadonlyArray<{ index: number; word: string; box: Box | null }>, data: string): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  // The last word of a left-to-right script before this one, with no right-to-left letter since: marks, spaces and
+  // punctuation between them are skipped, a word of a right-to-left script starts over.
+  let last: { index: number; word: string; box: Box } | null = null;
+  for (const word of words) {
+    if (RTL_LETTER.test(word.word)) {
+      last = null;
+      continue;
+    }
+    if (!LTR_LETTER.test(word.word) || !word.box) continue;
+    const a = last;
+    last = { index: word.index, word: word.word, box: word.box };
+    if (!a || RTL_LETTER.test(data.slice(a.index + a.word.length, word.index))) continue;
+    // One line: the same top within a fifth of the word's height — lines laid over each other are not one line.
+    const height = Math.min(a.box.bottom - a.box.top, word.box.bottom - word.box.top);
+    const oneLine = Math.abs(a.box.top - word.box.top) < 0.2 * height && Math.abs(a.box.bottom - word.box.bottom) < 0.2 * height;
+    if (oneLine && word.box.right <= a.box.left + 0.5) {
+      out.push([a.index, a.index + a.word.length]);
+      out.push([word.index, word.index + word.word.length]);
+    }
+  }
+  return out;
+}
+
 /** The pass ran out of its budget (B7, review M4): the mail is too long to check in time, not unsafe. */
 export class EngineBudgetError extends Error {
   constructor() {
@@ -422,7 +530,7 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
     // First the texts as a whole (B7, review M4): their line boxes, and what paints anywhere in the mail. Only a text
     // whose lines meet something that paints and holds no part of it, a later text, a clipping box's edge or the
     // frame's edge is asked word by word; every other text is seen as it stands — nothing lies over it.
-    const painters = paintingBoxes(doc, win);
+    const painters = await paintingBoxes(doc, win, pace);
     const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
     /** The offset of a text in its parent's own text, kept per parent while the walk is in it. */
     const offsets = new Map<Element, number>();
@@ -450,6 +558,22 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
       // Under a direction override a person sees the letters mirrored: none of it is read (B7, review H7).
       const overridden = overriddenRanges(text, win);
       for (const [from, to] of overridden) hide(path, offset + from, offset + to);
+      // Words turned around without one (review B7-2, M11): left out the same way.
+      if (mayReorder(text, win)) {
+        const all: Array<{ index: number; word: string; box: Box | null }> = [];
+        for (const { index, word } of wordsOf(text.data)) {
+          const range = doc.createRange();
+          range.setStart(text, index);
+          range.setEnd(text, index + word.length);
+          all.push({ index, word, box: boxesOf(range, win)[0] ?? null });
+          await pace.step();
+        }
+        for (const [from, to] of reorderedWords(all, text.data)) {
+          hide(path, offset + from, offset + to);
+          overridden.push([from, to]);
+        }
+        await pace.step();
+      }
       // Its own later lines over its earlier ones (lines laid on top of each other) count as well.
       const own = new LaterWords();
       lines.forEach((line, n) => own.add(n, line));
@@ -465,12 +589,15 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
       }
       // Word by word: each one's boxes, and the words after it in this text, which paint over it where they meet.
       const words = wordsOf(text.data).filter(({ index }) => !overridden.some(([from, to]) => index >= from && index < to));
-      const measured = words.map(({ index, word }) => {
+      // Each word's boxes in step with the interface (review B7-2, H14): a text of thousands of words is no one task.
+      const measured: Array<{ index: number; length: number; boxes: Box[] }> = [];
+      for (const { index, word } of words) {
         const range = doc.createRange();
         range.setStart(text, index);
         range.setEnd(text, index + word.length);
-        return { index, length: word.length, boxes: boxesOf(range, win) };
-      });
+        measured.push({ index, length: word.length, boxes: boxesOf(range, win) });
+        await pace.step();
+      }
       const laterWords = new LaterWords();
       measured.forEach((word, n) => word.boxes.forEach((box) => laterWords.add(n, box)));
       for (let n = 0; n < measured.length; n++) {

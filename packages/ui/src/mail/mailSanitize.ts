@@ -513,6 +513,13 @@ export function mailCanvasRules(canvas: MailCanvas | null | undefined, sanitized
  * theme's canvas when the host passes one (`options.canvas`, read from the
  * theme by `readMailCanvas`): in the dark design it used to be a white sheet
  * as well, although nothing in it asked for one (finding X3). */
+/**
+ * How the reader lays out a mail's pictures (review B7-2, S3): never wider than their box, their height following
+ * their width. The one source of the reader's frame and of the frame the engine measures in (`engineVisibility.ts`):
+ * what the reader leaves to a picture is asked of the layout under exactly these rules.
+ */
+export const MAIL_IMAGE_RULES = "img{max-width:100%;height:auto}";
+
 export function buildMailFrameDoc(sanitizedHtml: string, options?: MailFrameOptions): string {
   const imgSrc = options?.allowRemoteImages ? "data: https:" : "data:";
   return (
@@ -525,7 +532,7 @@ export function buildMailFrameDoc(sanitizedHtml: string, options?: MailFrameOpti
     // -webkit-touch-callout: a held link shows the APP's sheet with its target
     // (mailLinks.ts), not the system's link preview — which would load the page.
     // A line that runs past the frame stays as the mail sets it: the frame scrolls to it (`frameFit.ts`).
-    `img{max-width:100%;height:auto}table{max-width:100%}a{text-decoration:underline;cursor:pointer;-webkit-touch-callout:none}</style>` +
+    `${MAIL_IMAGE_RULES}table{max-width:100%}a{text-decoration:underline;cursor:pointer;-webkit-touch-callout:none}</style>` +
     `</head><body>${sanitizedHtml}</body></html>`
   );
 }

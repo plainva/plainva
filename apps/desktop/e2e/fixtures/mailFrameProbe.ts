@@ -11,18 +11,21 @@ export interface MailFrameProbeWindow extends Window {
     run(cases: MailFrameCase[], width: number): Promise<MailFrameResult[]>;
     corpus(cases: MailFrameCase[], width: number, pictures: boolean, mainDocs: Record<string, string>): Promise<MailCorpusResult[]>;
     scroll(html: string, width: number): ReturnType<typeof frameScroll>;
-    open(html: string, width: number, only?: string[]): Promise<MarkedFrameResult>;
+    open(html: string, width: number, only?: string[], pictures?: boolean): Promise<MarkedFrameResult>;
     marked: typeof markedFrame;
     /** The reader of this device shows mails at `width` (B7, review S2): the engine measures there too. */
     readerWidth(width: number): void;
+    /** What the assistant reads of a mail, and nothing of the judge's work: the product's way alone. */
+    read(html: string): Promise<{ text: string }>;
   };
 }
 
 (window as unknown as MailFrameProbeWindow).mailFrameProbe = {
   run: (cases, width) => runMailFrames({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, cases, width),
   scroll: (html, width) => frameScroll({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, html, width),
-  open: (html, width, only) => openMarked({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, html, width, only),
+  open: (html, width, only, pictures) => openMarked({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, html, width, only, pictures),
   marked: markedFrame,
   readerWidth: (width) => noteMailReaderWidth(width),
+  read: async (html) => ({ text: (await readableBodyInEngine({ html }, 100_000)).text }),
   corpus: (cases, width, pictures, mainDocs) => runMailCorpus({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, cases, width, pictures, mainDocs),
 };

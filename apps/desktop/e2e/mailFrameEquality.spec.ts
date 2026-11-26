@@ -24,9 +24,15 @@ import type { MarkedFrameResult } from "./fixtures/mailFrameRun";
  *    the reader shows now.
  * And ordinary newsletters look as at `main` (the second measure, below).
  */
+/** A picture of 400 × 400 pixels in one colour: what a picture from the network brings once the person loads it (review B7-2). */
+const TALL_PICTURE = "iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAIAAAAP3aGbAAAD40lEQVR42u3UMQ0AAAjAsPk3DSo4SJpUwY41BfCCBIBhARgWYFgAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFGJYEgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhARgWYFgAhgUYFoBhARgWYFgAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFGBaAYQEYFmBYAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhARgWYFgAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBRgWgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhARgWYFgAhgUYFoBhARgWYFgAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFGBaAYQEYFmBYAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhARgWYFgAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBRgWgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhAUgAGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhARgWYFgAhgVgWIBhARgWgGEBhgVgWAASAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhARgWYFgAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBWBYgGEBGBZgWBIAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFYFiAYQEYFmBYAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhARgWYFgAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBWBYgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAIYFYFiAYQEYFoBhAYYFYFgAhgUYFoBhARgWYFgAhgVgWIBhARgWYFgAhgVgWIBhARgWgGEBhgVgWACGBRgWgGEBGBZgWACGBWBYgGEBGBaAYQGGBWBYAIYFGBaAYQEYFmBYAKcWwDKzcxmh0qoAAAAASUVORK5CYII=";
+/** The address the gate answers with it; nothing else from the network loads. */
+const PICTURE_HOST = "https://img.example";
+
 async function loadProbe(page: Page) {
   await page.route("**/__mail_frames", (route) => route.fulfill({ contentType: "text/html", body: `<!doctype html><html><body><script type="module">
     await import('/e2e/fixtures/mailFrameProbe.ts');</script></body></html>` }));
+  await page.route(`${PICTURE_HOST}/**`, (route) => route.fulfill({ contentType: "image/png", body: Buffer.from(TALL_PICTURE, "base64") }));
   await openProbePage(page, "/__mail_frames", () => !!(window as unknown as MailFrameProbeWindow).mailFrameProbe);
 }
 
@@ -179,12 +185,20 @@ const DIRECTION = {
     { name: "U+202E override", html: `<p>VISIBLEd1</p><p>&#x202E;SECRETd1 gnissim&#x202C; after</p>` },
     { name: "bdo dir=rtl", html: `<p>VISIBLEd2</p><p><bdo dir="rtl">SECRETd2 words</bdo></p>` },
     { name: "U+202D override", html: `<p>VISIBLEd3</p><p>&#x202D;SECRETd3&#x202C;</p>` },
+    // Turned around without an override (review B7-2, M11): the person reads the second before the first.
+    { name: "U+2067 isolate with a mark between two Latin words", html: `<p>VISIBLEd4 &#x2067;SECRETd4a &#x200F; SECRETd4b&#x2069; end</p>` },
+    { name: "dir=rtl paragraph with a mark between two Latin words", html: `<p>VISIBLEd5</p><p dir="rtl">SECRETd5a &#x200F; SECRETd5b</p>` },
+    { name: "U+202B embedding with a mark between two Latin words", html: `<p>VISIBLEd6 &#x202B;SECRETd6a &#x200F; SECRETd6b&#x202C; end</p>` },
   ],
   kept: [
     { name: "dir=rtl paragraph with Latin words", html: `<p dir="rtl">VISIBLEr1 שלום עולם VISIBLEr1b</p>` },
     { name: "U+202B embedding", html: `<p>&#x202B;VISIBLEr2 مرحبا&#x202C; VISIBLEr2b</p>` },
     { name: "U+2067 isolate", html: `<p>start &#x2067;VISIBLEr3 مرحبا&#x2069; VISIBLEr3b</p>` },
     { name: "Arabic newsletter row", html: `<table dir="rtl" width="100%"><tr><td>VISIBLEr4 النشرة الإخبارية</td><td>VISIBLEr4b</td></tr></table>` },
+    // A Latin name of two words inside a Hebrew or an Arabic sentence keeps its order: it is read (M11).
+    { name: "a Latin brand of two words in a Hebrew sentence", html: `<p dir="rtl">קנו עכשיו VISIBLEr5 VISIBLEr5b במבצע</p>` },
+    { name: "a Latin product name in an Arabic sentence with marks", html: `<p dir="rtl">&#x200F;اشترِ VISIBLEr6 VISIBLEr6b الآن&#x200F;</p>` },
+    { name: "numbers in a right-to-left sentence", html: `<p dir="rtl">VISIBLEr7 السعر 12 34 دينار</p>` },
   ],
 };
 
@@ -283,6 +297,165 @@ for (const width of [343, 760] as const) {
     });
   }
 }
+
+/**
+ * Pictures from the network (review B7-2, S3; regel B): the engine never loads them, and the person may. Whatever size
+ * the reader leaves to the picture counts as large as the reader allows; the assistant reads only words the pixel judge
+ * sees in the reader without pictures AND with them loaded. The first seven are the review's p1–p7; the rest are
+ * ordinary forms of newsletters, which must keep every word a person sees both ways.
+ */
+const SRC = `${PICTURE_HOST}/tall.png`;
+const PICTURES = [
+  { name: "p1 width/height attributes, 4 px high by its attribute", html: `<div style="height:0;white-space:nowrap">SECRETATTR here</div><div><img src="${SRC}" width="300" height="4"></div><p>VISIBLEATTR</p>` },
+  { name: "p2 style height:auto", html: `<div style="height:0;white-space:nowrap">SECRETAUTO here</div><div><img src="${SRC}" style="height:auto"></div><p>VISIBLEAUTO</p>` },
+  { name: "p3 style min-height:1px", html: `<div style="height:0;white-space:nowrap">SECRETMINH here</div><div><img src="${SRC}" style="min-height:1px"></div><p>VISIBLEMINH</p>` },
+  { name: "p4 style line-height:1", html: `<div style="height:0;white-space:nowrap">SECRETLINEH here</div><div><img src="${SRC}" style="line-height:1"></div><p>VISIBLELINEH</p>` },
+  { name: "p5 no size at all", html: `<div style="height:0;white-space:nowrap">SECRETNOSIZE here</div><div><img src="${SRC}"></div><p>VISIBLENOSIZE</p>` },
+  { name: "p6 an inline size of 300 × 4 px keeps it", html: `<div style="height:0;white-space:nowrap">VISIBLEINLINE here</div><div><img src="${SRC}" style="width:300px;height:4px"></div><p>VISIBLEINLINEB</p>` },
+  { name: "p7 a width attribute only", html: `<div style="height:0;white-space:nowrap">SECRETWONLY here</div><div><img src="${SRC}" width="300"></div><p>VISIBLEWONLY</p>` },
+  // As wide as its box by its own width, its height left to the picture up to 30 px: covers the line above it, not one 60 px below.
+  { name: "a max-height bounds it", html: `<div style="height:0;white-space:nowrap">SECRETMAXH here</div><div><img src="${SRC}" style="width:100%;max-height:30px"></div><div style="height:0;padding-top:60px;white-space:nowrap">VISIBLEBELOWMAX here</div><p>VISIBLEMAXH</p>` },
+  { name: "ordinary: a logo without size above the text", html: `<table width="600"><tr><td align="center"><img src="${SRC}" alt="Shop"></td></tr><tr><td>VISIBLEn1 Neuheiten der Woche</td></tr></table>` },
+  { name: "ordinary: a hero picture held by height:auto, text below", html: `<img src="${SRC}" style="width:100%;height:auto;display:block"><h2>VISIBLEn2 Sale</h2><p>VISIBLEn3 Nur heute</p>` },
+  { name: "ordinary: a picture beside the text in a table, width attribute only", html: `<table width="600"><tr><td width="200"><img src="${SRC}" width="180"></td><td valign="top">VISIBLEn4 Artikel und Preis</td></tr></table>` },
+  { name: "ordinary: icons without size in a line of text", html: `<p><img src="${SRC}" style="vertical-align:middle"> VISIBLEn5 Folge uns <img src="${SRC}" style="vertical-align:middle"></p>` },
+];
+
+test("pictures from the network: the assistant reads only what the reader shows with them and without them", async ({ page }) => {
+  test.setTimeout(420_000);
+  await page.setViewportSize({ width: 1800, height: 1400 });
+  await loadProbe(page);
+  const wrong: string[] = [];
+  let takenAway = 0;
+  for (const entry of PICTURES) {
+    for (const width of [343, 760, 1200]) {
+      await page.evaluate((w) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.readerWidth(w), width);
+      const shown = new Map<string, number>();
+      let ai: string[] = [];
+      for (const pictures of [false, true]) {
+        const open = await page.evaluate(([h, w, p]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w, undefined, p), [entry.html, width, pictures] as const);
+        ai = open.ai;
+        const shares = await inkShares(page, open);
+        for (const word of Array.from(entry.html.matchAll(/(?:SECRET|VISIBLE)[A-Z0-9a-z]+/g), (m) => m[0])) {
+          const share = open.frame.seen.includes(word) ? (shares.get(word) ?? 0) : 0;
+          shown.set(word, Math.min(shown.get(word) ?? 1, share));
+        }
+      }
+      for (const [word, share] of shown) {
+        const read = ai.includes(word);
+        if (read && share < MIN_INK_SHARE) wrong.push(`${entry.name}: at ${width} px the assistant reads ${word}, the reader does not show it ${share < MIN_INK_SHARE ? "with or without pictures" : ""}`);
+        if (!read && share >= MIN_INK_SHARE) {
+          takenAway++;
+          wrong.push(`${entry.name}: at ${width} px the assistant leaves out ${word}, the reader shows it both ways (${Math.round(share * 100)} %)`);
+        }
+      }
+    }
+  }
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
+  test.info().annotations.push({ type: "visible words taken away", description: String(takenAway) });
+  expect(wrong).toEqual([]);
+});
+
+test("a mail too long to check in time: the assistant reads none of it, and is told why (review B7-2, F3)", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await loadProbe(page);
+  // 20 000 words, each one running into the next box: every one is asked of the engine, past the budget.
+  const words = Array.from({ length: 20_000 }, (_, n) => `w${n}`).join(" ");
+  const html = `<div style="height:0;white-space:nowrap">${words}</div><div style="height:0;white-space:nowrap">${words}</div><p>VISIBLEend</p>`;
+  const open = await page.evaluate(([h]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, 760), [html] as const);
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
+  expect(open.ai).toEqual([]);
+  expect(open.aiText).toContain("too long for Plainva to check in time");
+});
+
+/**
+ * The pass in step with the interface (review B7-2, H14/H15): a mail of 3 000 boxes that paint holds the interface no
+ * longer than a slice at a time, and in a hidden window — whose timers the engine throttles — an ordinary mail is
+ * still read in time. Measured, and the numbers go into the report.
+ */
+test("the engine pass keeps its pace with many painting boxes and in a hidden window", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await loadProbe(page);
+  const painting = `<p>VISIBLEpaint</p>${Array.from({ length: 3000 }, (_, n) => `<span style="background-color:#eef;border:1px solid #ccd">c${n}</span>`).join(" ")}`;
+  const ordinary = MAIL_CORPUS.find((entry) => entry.name === "dark theme newsletter")!.html;
+  // A mail of real work for the pass — 3 000 words that all run into the next box, each asked of the engine: a few
+  // hundred milliseconds, many turns of the interface.
+  const words = Array.from({ length: 3000 }, (_, n) => `w${n}`).join(" ");
+  const heavy = `<div style="height:0;white-space:nowrap">${words}</div><div style="height:0;white-space:nowrap">${words}</div><p>VISIBLEheavy</p>`;
+  // Each measure a mail of its own: the reader keeps a mail's reading once made (`mailHtmlView`), a second one of the
+  // same text would measure nothing.
+  let made = 0;
+  const measure = (html: string) =>
+    page.evaluate(async ([h]) => {
+      const longest = { ms: 0 };
+      const observer = new PerformanceObserver((list) => {
+        for (const entry of list.getEntries()) longest.ms = Math.max(longest.ms, entry.duration);
+      });
+      try {
+        observer.observe({ type: "longtask", buffered: false });
+      } catch {
+        /* silent: an engine without long-task entries reports 0 */
+      }
+      // The product's way alone: what the assistant reads, timed without the judge's frames.
+      const started = performance.now();
+      const read = await (window as unknown as MailFrameProbeWindow).mailFrameProbe.read(h);
+      const took = performance.now() - started;
+      observer.disconnect();
+      return { took, longest: longest.ms, ai: Array.from(read.text.matchAll(/\b(?:SECRET|VISIBLE)[A-Za-z0-9_]*/g), (m) => m[0]), tooLong: read.text.includes("too long for Plainva to check in time") };
+    }, [`${html}<!-- mail ${++made} -->`] as const);
+  // Once to warm the engine and the modules up; the second is what a person meets.
+  const cold = await measure(painting);
+  const shown = await measure(painting);
+  const shownHeavy = await measure(heavy);
+  test.info().annotations.push({ type: "engine pass · painting, first run", description: `${Math.round(cold.took)} ms, longest task ${Math.round(cold.longest)} ms` });
+  // A hidden or minimised window (H15): the engine throttles its timers to about one a second. Headless Chromium does
+  // not hide a page behind another, so the throttling is laid on here — every timer of the page waits a second at least.
+  const throttled = await page.evaluate(async () => {
+    const plain = window.setTimeout.bind(window);
+    (window as unknown as { setTimeout: unknown }).setTimeout = (handler: TimerHandler, ms?: number, ...rest: unknown[]) => plain(handler, Math.max(ms ?? 0, 1000), ...rest);
+    // The throttling holds: a timer of no delay now waits a second.
+    const at = performance.now();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return performance.now() - at;
+  });
+  expect(throttled).toBeGreaterThan(900);
+  const plainHeavy = shownHeavy;
+  const hidden = await measure(ordinary);
+  const hiddenPainting = await measure(painting);
+  const hiddenHeavy = await measure(heavy);
+  for (const [name, m] of [["painting", shown], ["heavy", plainHeavy], ["throttled ordinary", hidden], ["throttled painting", hiddenPainting], ["throttled heavy", hiddenHeavy]] as const) {
+    test.info().annotations.push({ type: `engine pass · ${name}`, description: `${Math.round(m.took)} ms, longest task ${Math.round(m.longest)} ms, too long ${m.tooLong}` });
+  }
+  expect(shown.ai).toContain("VISIBLEpaint");
+  // No task of the pass holds the interface longer than laying the mail out once does — what the reader itself pays
+  // when it shows the mail, and what no pass can cut (review B7-2, H14).
+  const layout = await page.evaluate(async ([h]) => {
+    const frame = document.createElement("iframe");
+    frame.style.cssText = "width:760px;height:600px;border:0";
+    const loaded = new Promise<void>((resolve) => frame.addEventListener("load", () => resolve(), { once: true }));
+    frame.srcdoc = `<!doctype html><html><body style="margin:12px;font:14px/1.5 system-ui,sans-serif">${h}</body></html>`;
+    document.body.append(frame);
+    await loaded;
+    const at = performance.now();
+    void frame.contentDocument!.body.getBoundingClientRect();
+    const took = performance.now() - at;
+    frame.remove();
+    return took;
+  }, [`${painting}<!-- layout -->`] as const);
+  test.info().annotations.push({ type: "the mail laid out once (no pass)", description: `${Math.round(layout)} ms` });
+  // The way word by word holds no task long (it did: 488 ms in one). Open: a mail of thousands of painting boxes
+  // still has one task of about 150 ms while its texts are gathered, not its layout — named in Performance_Notes.md.
+  expect(plainHeavy.longest).toBeLessThan(100);
+  expect(hidden.tooLong).toBe(false);
+  expect(hidden.ai.length).toBeGreaterThan(0);
+  expect(hiddenPainting.tooLong).toBe(false);
+  // The mail of real work is read throttled as it is in front: the pass does not wait for timers.
+  expect(plainHeavy.tooLong).toBe(false);
+  expect(hiddenHeavy.tooLong).toBe(false);
+  expect(hiddenHeavy.ai).toContain("VISIBLEheavy");
+});
 
 test("a mail wider than a phone's frame at its least scale scrolls sideways to its far edge", async ({ page }) => {
   await page.setViewportSize({ width: 1000, height: 900 });
