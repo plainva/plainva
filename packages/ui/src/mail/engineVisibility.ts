@@ -269,7 +269,9 @@ async function openFrame(frameDoc: string, width: number): Promise<HTMLIFrameEle
   frame.setAttribute("sandbox", "allow-same-origin");
   frame.setAttribute("aria-hidden", "true");
   frame.tabIndex = -1;
-  frame.style.cssText = `position:fixed;left:-20000px;top:0;width:${width}px;height:600px;border:0;opacity:0;pointer-events:none`;
+  // In the window, not beside it (review B7-2): WebKit answers no hit test in a frame outside the window — every word
+  // asked one by one would count as covered. Seen by nobody (opacity 0), behind everything, taking no click or focus.
+  frame.style.cssText = `position:fixed;left:0;top:0;width:${width}px;height:600px;border:0;opacity:0;pointer-events:none;z-index:-2147483647`;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const loaded = Promise.race([
     new Promise<boolean>((resolve) => frame.addEventListener("load", () => resolve(true), { once: true })),
@@ -303,15 +305,17 @@ async function openFrame(frameDoc: string, width: number): Promise<HTMLIFrameEle
   return frame;
 }
 
-/** Waits for the pictures of the frame (data: only here) to load or fail; throws where they do not in time. */
+/**
+ * Waits for the pictures of the frame (data: only here) to load or fail; throws where they do not in time. Asked of each
+ * picture's own state in step with the interface, not of its events (review B7-2): WebKit sends a frame without scripts
+ * no `load` to a listener outside it, though the picture is there.
+ */
 async function picturesLoaded(doc: Document): Promise<void> {
-  const images = Array.from(doc.images).filter((image) => image.hasAttribute("src") && !image.complete);
-  if (!images.length) return;
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const all = Promise.all(images.map((image) => new Promise((resolve) => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); })));
-  const came = await Promise.race([all.then(() => true), new Promise<boolean>((resolve) => (timer = setTimeout(() => resolve(false), IMAGES_WAIT_MS)))]);
-  clearTimeout(timer);
-  if (!came) throw new Error("the mail's pictures did not load in time");
+  const until = now() + IMAGES_WAIT_MS;
+  while (Array.from(doc.images).some((image) => image.hasAttribute("src") && !image.complete)) {
+    if (now() > until) throw new Error("the mail's pictures did not load in time");
+    await turn();
+  }
 }
 
 /** A picture of `width` × `height` that loads at once and shows nothing: the stand-in of a picture from the network. */

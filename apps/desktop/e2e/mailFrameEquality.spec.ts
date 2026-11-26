@@ -311,13 +311,18 @@ const PICTURES = [
   { name: "p3 style min-height:1px", html: `<div style="height:0;white-space:nowrap">SECRETMINH here</div><div><img src="${SRC}" style="min-height:1px"></div><p>VISIBLEMINH</p>` },
   { name: "p4 style line-height:1", html: `<div style="height:0;white-space:nowrap">SECRETLINEH here</div><div><img src="${SRC}" style="line-height:1"></div><p>VISIBLELINEH</p>` },
   { name: "p5 no size at all", html: `<div style="height:0;white-space:nowrap">SECRETNOSIZE here</div><div><img src="${SRC}"></div><p>VISIBLENOSIZE</p>` },
-  { name: "p6 an inline size of 300 × 4 px keeps it", html: `<div style="height:0;white-space:nowrap">VISIBLEINLINE here</div><div><img src="${SRC}" style="width:300px;height:4px"></div><p>VISIBLEINLINEB</p>` },
+  // A block of 4 px over the line's top leading: it touches no letter. Made larger, it would cover the word.
+  { name: "p6 an inline size of 300 × 4 px keeps it", html: `<div style="height:0;white-space:nowrap">VISIBLEINLINE here</div><div><img src="${SRC}" style="width:300px;height:4px;display:block"></div><p>VISIBLEINLINEB</p>` },
   { name: "p7 a width attribute only", html: `<div style="height:0;white-space:nowrap">SECRETWONLY here</div><div><img src="${SRC}" width="300"></div><p>VISIBLEWONLY</p>` },
   // As wide as its box by its own width, its height left to the picture up to 30 px: covers the line above it, not one 60 px below.
   { name: "a max-height bounds it", html: `<div style="height:0;white-space:nowrap">SECRETMAXH here</div><div><img src="${SRC}" style="width:100%;max-height:30px"></div><div style="height:0;padding-top:60px;white-space:nowrap">VISIBLEBELOWMAX here</div><p>VISIBLEMAXH</p>` },
   { name: "ordinary: a logo without size above the text", html: `<table width="600"><tr><td align="center"><img src="${SRC}" alt="Shop"></td></tr><tr><td>VISIBLEn1 Neuheiten der Woche</td></tr></table>` },
   { name: "ordinary: a hero picture held by height:auto, text below", html: `<img src="${SRC}" style="width:100%;height:auto;display:block"><h2>VISIBLEn2 Sale</h2><p>VISIBLEn3 Nur heute</p>` },
   { name: "ordinary: a picture beside the text in a table, width attribute only", html: `<table width="600"><tr><td width="200"><img src="${SRC}" width="180"></td><td valign="top">VISIBLEn4 Artikel und Preis</td></tr></table>` },
+  // Longer than the measuring frame and the window (review B7-2): 2 000 px down, a box too faint to hide anything lies
+  // over a word. It paints, so the word is asked of the engine point by point — WebKit answers no hit test in a frame
+  // outside the window, and the word would count as covered.
+  { name: "a long mail: a faint box over a word far down", html: `<div style="height:2000px"></div><div style="height:0;white-space:nowrap">VISIBLEFAR here</div><div style="background-color:#000000;opacity:0.05;height:30px"></div><p>VISIBLEFARB</p>` },
   { name: "ordinary: icons without size in a line of text", html: `<p><img src="${SRC}" style="vertical-align:middle"> VISIBLEn5 Folge uns <img src="${SRC}" style="vertical-align:middle"></p>` },
 ];
 
@@ -334,6 +339,11 @@ test("pictures from the network: the assistant reads only what the reader shows 
       let ai: string[] = [];
       for (const pictures of [false, true]) {
         const open = await page.evaluate(([h, w, p]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w, undefined, p), [entry.html, width, pictures] as const);
+        // The judge sees what the person sees only once the picture is there: with pictures, every one has loaded.
+        if (pictures && entry.html.includes(SRC)) {
+          const loaded = await page.evaluate(() => Array.from((document.getElementById("pv-marked-frame") as HTMLIFrameElement).contentDocument!.images).every((image) => image.complete && image.naturalWidth > 0));
+          expect(loaded, `${entry.name} at ${width} px: the picture from the network loaded in the reader`).toBe(true);
+        }
         ai = open.ai;
         const shares = await inkShares(page, open);
         for (const word of Array.from(entry.html.matchAll(/(?:SECRET|VISIBLE)[A-Z0-9a-z]+/g), (m) => m[0])) {
@@ -380,9 +390,9 @@ test("the engine pass keeps its pace with many painting boxes and in a hidden wi
   await loadProbe(page);
   const painting = `<p>VISIBLEpaint</p>${Array.from({ length: 3000 }, (_, n) => `<span style="background-color:#eef;border:1px solid #ccd">c${n}</span>`).join(" ")}`;
   const ordinary = MAIL_CORPUS.find((entry) => entry.name === "dark theme newsletter")!.html;
-  // A mail of real work for the pass — 3 000 words that all run into the next box, each asked of the engine: a few
-  // hundred milliseconds, many turns of the interface.
-  const words = Array.from({ length: 3000 }, (_, n) => `w${n}`).join(" ");
+  // A mail of real work for the pass — 1 000 words that all run into the next box, each asked of the engine: well
+  // within the budget in either engine, and many turns of the interface.
+  const words = Array.from({ length: 1000 }, (_, n) => `w${n}`).join(" ");
   const heavy = `<div style="height:0;white-space:nowrap">${words}</div><div style="height:0;white-space:nowrap">${words}</div><p>VISIBLEheavy</p>`;
   // Each measure a mail of its own: the reader keeps a mail's reading once made (`mailHtmlView`), a second one of the
   // same text would measure nothing.

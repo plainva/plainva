@@ -124,12 +124,13 @@ async function openFrame(api: MailFrameApi, doc: string, width: number): Promise
   frame.srcdoc = doc;
   document.body.append(frame);
   await loaded;
-  const images = Array.from(frame.contentDocument!.images).filter((image) => !image.complete);
-  await Promise.race([
-    Promise.all(images.map((image) => new Promise((resolve) => { image.addEventListener("load", resolve, { once: true }); image.addEventListener("error", resolve, { once: true }); }))),
-    new Promise((resolve) => setTimeout(resolve, 3000)),
-  ]);
+  // By each picture's own state, not its events: WebKit sends a frame without scripts no `load` to a listener outside it.
+  const until = performance.now() + 5000;
+  while (Array.from(frame.contentDocument!.images).some((image) => image.hasAttribute("src") && !image.complete) && performance.now() < until) await new Promise((resolve) => setTimeout(resolve, 20));
+  // Loaded is not yet drawn: WebKit decodes apart, and a shot taken before shows the words the picture will cover.
+  await Promise.all(Array.from(frame.contentDocument!.images).map((image) => image.decode().catch(() => undefined)));
   api.applyFrameFit(frame, { growHeight: true });
+  await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   return frame;
 }
 
