@@ -116,7 +116,8 @@ test.beforeEach(async ({ page }) => {
           if (q.includes('FROM pim_accounts')) return (window as any).__pimAccounts ?? [];
           if (q.includes('FROM pim_calendars')) return (window as any).__pimCalendars ?? [];
           if (q.includes('FROM pim_events') || q.includes('FROM pim_tasklists') || q.includes('FROM pim_tasks')) return [];
-          if (q.includes('SELECT path, title, content FROM fts_notes')) {
+          // listTasks: the task table's rows are none here, so every note comes with its text (db/noteTasks.ts).
+          if (q.includes('SELECT path, title, content FROM fts_notes') || q.includes('LEFT JOIN note_tasks t')) {
             return noteRows()
               .filter((r) => r.mode !== 'attachment')
               .map((r) => ({ path: r.path, title: r.title, content: fs.__fts[r.path] ?? fs['/test-vault/' + r.path] }));

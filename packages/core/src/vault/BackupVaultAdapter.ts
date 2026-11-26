@@ -1,4 +1,4 @@
-import { IVaultAdapter, DeletionConfirmation, SnapshotBeforeDeleteError, VaultListing, VaultFileInfo, VaultFileNotFoundError, type VaultWalkOptions } from "./IVaultAdapter.js";
+import { IVaultAdapter, DeletionConfirmation, SnapshotBeforeDeleteError, VaultListing, VaultFileInfo, VaultFileNotFoundError, type VaultWalkOptions, indexReadsOf } from "./IVaultAdapter.js";
 import {
   backupDirFor,
   isPlainvaInternalPath,
@@ -73,6 +73,8 @@ interface FileBackupEntry {
 }
 
 export class BackupVaultAdapter implements IVaultAdapter {
+  /** Handed on from the inner adapter where it has one (`indexReadsOf`). */
+  readonly readFilesForIndex?: IVaultAdapter["readFilesForIndex"];
   private policy: BackupRetentionPolicy;
   private readonly now: () => number;
   private readonly onBackupError?: (path: string, error: unknown) => void;
@@ -87,6 +89,7 @@ export class BackupVaultAdapter implements IVaultAdapter {
     private readonly inner: IVaultAdapter,
     options: BackupVaultAdapterOptions = {}
   ) {
+    this.readFilesForIndex = indexReadsOf(inner);
     this.policy = {
       ...DEFAULT_BACKUP_RETENTION,
       ...(options.maxBackupsPerFile !== undefined ? { maxBackupsPerFile: options.maxBackupsPerFile } : {}),
