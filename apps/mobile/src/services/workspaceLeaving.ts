@@ -1,6 +1,6 @@
 import { SqlWorkspaceStateStore } from "@plainva/core/workspace";
 import { decommissionMobileWorkspace, markMobileEncryptionLift, mobileDecommissionUnfinished, type MobileLeaving } from "./mobileWorkspaceSecurity";
-import { withRuntimeStep } from "./syncService";
+import { retireWorkspaceRuntime, withRuntimeStep } from "./syncService";
 import type { MobileVault } from "./vaultService";
 
 /**
@@ -38,13 +38,19 @@ export async function stopSyncLeaving(vault: MobileVault, stop: () => Promise<Mo
 /**
  * Decommissions the vault's workspace, or lifts its encryption (`intent`),
  * holding its sync for the whole step. On success the vault opens anew
- * without its workspace. On a failure past the gate — the status went, and
- * the runtime still carries the workspace in memory (review B2, round 10,
- * SP1) — the vault opens anew as well, and its sync is never given back to
- * that runtime; the new one is held by the fact of the gate until the person
- * finishes. `done` runs once the step's work is through (a notice).
+ * without its workspace. Past the gate — the status went, and the runtime
+ * still carries the workspace in memory — that runtime is retired at once
+ * (`retireWorkspaceRuntime`): it never gets a sync again, whatever follows
+ * (review B2, rounds 10 and 11). A failure past the gate opens the vault anew
+ * as well — also one after the decommission itself finished and removed its
+ * fact (a lift that could not queue its files) — and the new runtime is held
+ * by the fact of the gate where it still stands. `done` runs once the step's
+ * work is through (a notice).
  */
 export async function leaveWorkspaceStep(vault: MobileVault, intent: MobileLeaving, done?: () => void): Promise<void> {
+  // "Past the gate", not "while the fact stands" (review B2, round 11): the lift's own steps after the decommission
+  // come after its fact is gone.
+  let pastGate = false;
   await withRuntimeStep({ vaultId: vault.vaultId, runtime: vault }, {
     work: async (stop) => {
       let on = vault;
@@ -54,6 +60,10 @@ export async function leaveWorkspaceStep(vault: MobileVault, intent: MobileLeavi
         stopSync: () => stopSyncLeaving(vault, stop, (fresh) => { on = fresh; }),
         runtime: vault.workspaceRuntime,
         intent,
+        passedGate: () => {
+          pastGate = true;
+          retireWorkspaceRuntime(on);
+        },
       });
       if (intent === "lift") {
         // The queue table lives in the vault's own database, which is still open
@@ -63,7 +73,7 @@ export async function leaveWorkspaceStep(vault: MobileVault, intent: MobileLeavi
       }
       done?.();
     },
-    reload: { own: OWN, afterFailure: async () => !!(await mobileDecommissionUnfinished(vault.vaultId)) },
+    reload: { own: OWN, afterFailure: async () => pastGate },
   });
 }
 

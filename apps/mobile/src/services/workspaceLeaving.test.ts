@@ -9,7 +9,10 @@ import type { MobileVault } from "./vaultService";
  */
 
 const m = vi.hoisted(() => ({
-  decommissioned: [] as Array<{ vaultId: string; state: unknown; runtime: unknown; intent?: string; stopSync: () => Promise<unknown> }>,
+  decommissioned: [] as Array<{ vaultId: string; state: unknown; runtime: unknown; intent?: string; stopSync: () => Promise<unknown>; passedGate?: () => void }>,
+  /** Where the stand-in decommission fails: before its gate, or past it. */
+  failAt: "before the gate" as "before the gate" | "past the gate",
+  retired: [] as unknown[],
   lifted: [] as string[],
   unfinished: null as null | "decommission" | "lift",
   steps: [] as Array<{ reload?: { own: string; afterFailure?: () => Promise<boolean> } }>,
@@ -19,16 +22,19 @@ const m = vi.hoisted(() => ({
 }));
 
 vi.mock("./mobileWorkspaceSecurity", () => ({
-  decommissionMobileWorkspace: async (input: { vaultId: string; state: unknown; runtime: unknown; intent?: string; stopSync: () => Promise<{ state: unknown } | null> }) => {
+  decommissionMobileWorkspace: async (input: { vaultId: string; state: unknown; runtime: unknown; intent?: string; stopSync: () => Promise<{ state: unknown } | null>; passedGate?: () => void }) => {
     m.decommissioned.push(input);
     const renewed = await input.stopSync();
     if (renewed) m.decommissioned[m.decommissioned.length - 1]!.state = renewed.state;
+    if (m.failWith && m.failAt === "before the gate") throw m.failWith;
+    input.passedGate?.();
     if (m.failWith) throw m.failWith;
   },
   markMobileEncryptionLift: async (vaultId: string) => { m.lifted.push(vaultId); },
   mobileDecommissionUnfinished: async () => m.unfinished,
 }));
 vi.mock("./syncService", () => ({
+  retireWorkspaceRuntime: (runtime: unknown) => { m.retired.push(runtime); },
   withRuntimeStep: async (_step: unknown, run: { work(stop: () => Promise<unknown>): Promise<unknown>; reload?: { own: string; afterFailure?: () => Promise<boolean> } }) => {
     m.steps.push(run);
     return run.work(async () => m.stopAnswers);
@@ -49,6 +55,8 @@ beforeEach(() => {
   m.steps.length = 0;
   m.unfinished = null;
   m.failWith = null;
+  m.failAt = "before the gate";
+  m.retired.length = 0;
   m.stopAnswers = null;
 });
 
@@ -87,18 +95,47 @@ describe("leaving the workspace from the Security area", () => {
     expect(m.lifted).toEqual(["v1"]);
   });
 
-  it("SP1: a failure past the gate opens the vault anew — the step's reload asks the fact of the gate", async () => {
+  it("SP1: a failure past the gate opens the vault anew, and the runtime is retired the moment the gate opens", async () => {
     expect.hasAssertions();
     const vault = vaultOf();
     m.stopAnswers = vault;
     m.failWith = new Error("keychain locked");
+    m.failAt = "past the gate";
     await expect(leaveWorkspaceStep(vault, "decommission")).rejects.toThrow("keychain locked");
-    const reload = m.steps[0]!.reload!;
-    expect(reload.own).toBe("security-area");
-    m.unfinished = "decommission";
-    expect(await reload.afterFailure!(), "past the gate: opened anew").toBe(true);
+    expect(m.retired, "never a sync again on the runtime past the gate").toEqual([vault]);
+    expect(await m.steps[0]!.reload!.afterFailure!(), "opened anew").toBe(true);
+    expect(m.steps[0]!.reload!.own).toBe("security-area");
+  });
+
+  it("a failure before the gate reloads nothing and retires nothing: the workspace is whole", async () => {
+    expect.hasAssertions();
+    const vault = vaultOf();
+    m.stopAnswers = vault;
+    m.failWith = new Error("the keystore refused");
+    await expect(leaveWorkspaceStep(vault, "decommission")).rejects.toThrow();
+    expect(m.retired).toEqual([]);
+    expect(await m.steps[0]!.reload!.afterFailure!()).toBe(false);
+  });
+
+  it("round 11: a lift whose decommission finished (its fact removed) and whose queueing then fails still opens the vault anew — past the gate, not while the fact stands", async () => {
+    expect.hasAssertions();
+    const vault = vaultOf({ syncQueue: { enqueueAllLocalFiles: async () => { throw new Error("the queue is closed"); } } } as never);
+    m.stopAnswers = vault;
     m.unfinished = null;
-    expect(await reload.afterFailure!(), "before the gate: nothing to open anew").toBe(false);
+    await expect(leaveWorkspaceStep(vault, "lift")).rejects.toThrow("the queue is closed");
+    expect(m.retired).toEqual([vault]);
+    // THE DEFECT (round 11): "does the fact still stand?" said no, nothing reloaded, and the release gave the sync back
+    // to the runtime with the workspace in memory.
+    expect(await m.steps[0]!.reload!.afterFailure!()).toBe(true);
+  });
+
+  it("a runtime renewed within the step is the one retired", async () => {
+    expect.hasAssertions();
+    const vault = vaultOf();
+    const fresh = vaultOf();
+    m.stopAnswers = fresh;
+    await leaveWorkspaceStep(vault, "decommission");
+    expect(m.retired).toEqual([fresh]);
   });
 
   it("N7: the row shows what was asked for, and only where a decommission passed its gate and stopped", async () => {

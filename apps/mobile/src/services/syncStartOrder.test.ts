@@ -196,6 +196,7 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
+import { retireWorkspaceRuntime } from "./syncService";
 import { connectProvider, detachSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncForStep, withRuntimeStep, withVaultSyncStopped } from "./syncService";
 
 function holdTheStart(): void {
@@ -548,6 +549,23 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
     expect(getSyncStatus()).toMatchObject({ status: "error", message: i18n.t("workspaceSecurity.decommissionUnfinished") });
     expect(reloadActiveMobileVault).toHaveBeenCalledWith("security-area", { runtime: ws });
+  });
+
+  it("round 11: a runtime past a decommission's gate gets no sync again, also once the fact is gone — and \"released\" never turns into \"joined\"", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    // The decommission finished: no status, no fact, the departure noted. A lift's queueing failed after it.
+    state.wsStatus = null;
+    state.decommissionUnfinished = null;
+    state.settings.set("encryptedRemote_v", { v: 2, state: "released", workspace: "ws-1" });
+    retireWorkspaceRuntime(ws);
+    await startSyncIfConfigured(ws).catch(() => undefined);
+    await restartSyncIfActive("v");
+    // THE DEFECT: the encrypted worker started on the runtime with the workspace in memory, and wrote "joined".
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "released" });
+    expect(getSyncStatus().status).toBe("off");
   });
 
   it("S2: the same vault opened anew, without its workspace in memory — held, with the row's text", async () => {

@@ -1159,6 +1159,11 @@ export async function decommissionMobileWorkspace(input: {
   vaultId: string;
   /** What the person asked for: lifting the encryption, or (by default) decommissioning the workspace. */
   intent?: MobileLeaving;
+  /**
+   * Told the moment the gate opens (the fact written, before the status goes): from then on the runtime that
+   * carries the workspace in memory is no valid one any more, whatever follows (review B2, round 11).
+   */
+  passedGate?: () => void;
   state: WorkspaceStateStore | null;
   /** Stops and drains the sync worker. Injected so this module stays free of
    *  the vault/sync services (they import this one), and so the test can prove
@@ -1187,6 +1192,7 @@ export async function decommissionMobileWorkspace(input: {
   // (2) The gate. First the fact that it opens (`leavingKey`): from here on a run that stops is said as one that did
   // not finish — and only shown, never finished by itself. Where writing it fails, nothing has changed.
   await Preferences.set({ key: leavingKey(vaultId), value: input.intent ?? "decommission" });
+  input.passedGate?.();
   await Preferences.remove({ key: statusKey(vaultId) });
   cache.delete(vaultId); locked.delete(vaultId);
   // Read the publication ids while the table still exists: the keystore cannot

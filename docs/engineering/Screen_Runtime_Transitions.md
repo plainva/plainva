@@ -92,6 +92,7 @@ The removal waits for every hold on the vault's sync outside the queue (a step's
 
 - It holds the vault's sync from its press to its end.
 - Its own reload (`reload`) is for the runtime it went on with, and only that one.
+- A decommission or a lift retires that runtime the moment its gate opens (`retireWorkspaceRuntime`): it never gets a sync again, and a failure after that point — also one after the decommission itself finished — opens the vault anew (`afterFailure`: past the gate, not while the fact stands).
 - A reload that waits behind someone's input takes the hold over, so the step's release starts nothing on the runtime it changed.
 - A failure of its work is judged once the transitions under way have run. Where its runtime is `open` again, the failure is the work's own. Where it is not, the step did not finish (`closing.stepInterrupted`).
 - Its work succeeding after its vault was left is a success. Nothing is reloaded for it: the work landed before the runtime closed (a write after the close fails), and the vault opens in its new state the next time.
@@ -110,6 +111,7 @@ Columns: the fact; the status; the device key; the workspace's state in the data
 | no | no | any | any | no | P1 (a setup stopped between the key and the status), P2 (a key a reinstall kept), a plain vault | none, as on `main` | as on `main` (the folder's gate decides) | none |
 | yes | no | yes or no | yes or no | no | stopped past the gate (the vault closed, or opened anew), also after the state was cleared and before the departure was noted | `decommissionUnfinished`, or `liftUnfinished` for a lift | held, saying the same, never plain text | "Decommission workspace": asks for the vault's name, goes on from what is left, notes the departure, removes the fact |
 | yes | no | yes or no | yes or no | yes | a step failed past the gate while its runtime stayed open (the keychain, the database) | as above, once the vault opened anew | never on that runtime: the fact is asked before the workspace in memory, and the step opens the vault anew (`afterFailure`) — then as above | as above |
+| no (removed at the decommission's end) | no | no | no | yes | a lift whose decommission finished, then its queueing or its mark failed | none | never on that runtime: it was retired the moment the gate opened (`retireWorkspaceRuntime`); the step opens the vault anew (`afterFailure`: past the gate) | none; the vault syncs as its departure has it (`released`: plain, its files not queued) |
 | yes | no | no | no | any | everything done, only removing the fact failed (W2b) | `decommissionUnfinished` until pressed again | held | pressing again removes the fact; a departure that cannot tell never replaces one noted before (`released` stays) |
 | yes, older than a new status | yes | yes | yes | any | Q2 (set up again afterwards) | none: the new status removed the fact | as the workspace has it | the workspace's own |
 | no (taken by the new setup) | no | yes (new) | new | no | an old fact, then a new setup that stopped between its key and its status (H4): the setup removes the fact before it writes its key | none, as P1 | as P1 | none |

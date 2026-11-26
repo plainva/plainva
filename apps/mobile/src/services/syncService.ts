@@ -431,11 +431,29 @@ function inStartChain(step: () => Promise<void>): Promise<void> {
  */
 let startGeneration = 0;
 
+/**
+ * Runtimes a decommission or lift has taken past its gate (`retireWorkspaceRuntime`): whatever follows — the step
+ * failing, its reload put off or failing — none of them gets a sync again (review B2, round 11). The workspace they
+ * carry in memory is half or wholly gone; their encrypted worker would write "joined" over the departure and work
+ * on it. Only the vault opened anew syncs, as its own state has it.
+ */
+const retiredWorkspaceRuntimes = new WeakSet<MobileVault>();
+
+/** A decommission's gate opened on this runtime: it never gets a sync again (`retiredWorkspaceRuntimes`). */
+export function retireWorkspaceRuntime(runtime: MobileVault): void {
+  retiredWorkspaceRuntimes.add(runtime);
+}
+
 async function startSyncDecided(v: MobileVault): Promise<void> {
   // A step holds the vault's sync (`holdVaultSync`): nothing starts before its last release, which starts it. And
   // no worker is built for a runtime that is not the open one on screen — one a transition is leaving, one still
   // opening: that start belongs to the next one (the start after its boot, or the release, or `resumeOnScreen`).
   if (runtimeOnScreen() !== v) return;
+  if (retiredWorkspaceRuntimes.has(v)) {
+    // Its sync stays off until the vault opens anew; the status says so (paused), never the last word of its worker.
+    if (!worker && !settingsOnlySync) setState({ status: "off", message: null });
+    return;
+  }
   if (syncHeld(v.vaultId)) {
     sayHeld(v.vaultId);
     return;
