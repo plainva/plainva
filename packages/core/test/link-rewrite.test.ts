@@ -618,7 +618,7 @@ describe("the rounds of a rename in one paragraph", () => {
     let most = 0;
     // Random paragraphs, and cascades behind an open backtick long enough to pass the rounds: each link left out hands
     // its backtick to the next one.
-    const cascades = [8, 17, 40, 120].flatMap((n) => [`\` ${"[[Alt]] ".repeat(n)}\n`, `[[Alt]] x \` ${"[t](Alt.md) [[Alt]] ".repeat(n)}\n`, `${"[[Alt]] \` ".repeat(n)}\n`]);
+    const cascades = [8, 17, 40, 120].flatMap((n) => [`\` ${"[[Alt]] ".repeat(n)}\n`, `[[Alt]] x \` ${"[t](Alt.md) [[Alt]] ".repeat(n)}\n`, `${"[[Alt]] ` ".repeat(n)}\n`]);
     try {
       for (let k = 0; k < 3_000 + cascades.length; k++) {
         const note = k < cascades.length ? cascades[k] : `${Array.from({ length: 3 + Math.floor(random() * 40) }, () => tokens[Math.floor(random() * tokens.length)]).join(" ")}\n`;

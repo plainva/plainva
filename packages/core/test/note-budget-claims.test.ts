@@ -98,7 +98,7 @@ for (const [shell, budget] of SHELLS) {
       // A quote of one paragraph: a block that is not cut.
       { name: "a quote of one paragraph too heavy for a piece", make: (n) => `# Big\n\n${quoted(n)}\n`, again: (n) => `# Big\n\n${quoted(n, "\n\n")}\n`, how: "split with blank lines", tasks: true, tags: true },
       // A list under one item: cut at the items of its outermost list only, which has one.
-      { name: "a list under one item too heavy for a piece", make: (n) => `# Big\n\n- outer\n${nested(n)}\n- [ ] task in the unread part\n`, again: (n) => `# Big\n\n- outer\n${nested(n).replace(/^  - /gm, "- ")}\n- [ ] task in the unread part\n`, how: "its items moved up a level", tasks: true, tags: false },
+      { name: "a list under one item too heavy for a piece", make: (n) => `# Big\n\n- outer\n${nested(n)}\n- [ ] task in the unread part\n`, again: (n) => `# Big\n\n- outer\n${nested(n).replace(/^ {2}- /gm, "- ")}\n- [ ] task in the unread part\n`, how: "its items moved up a level", tasks: true, tags: false },
       // Behind an unclosed `---` in the first line no line opens a list: such a paragraph is not cut either.
       { name: "such a paragraph behind an unclosed `---`", make: (n) => `---\n${paragraph(n)}\n- [ ] task in the unread part\n`, again: (n) => `---\n${paragraph(n, "\n\n")}\n- [ ] task in the unread part\n`, how: "split with blank lines", tasks: true, tags: true },
     ];

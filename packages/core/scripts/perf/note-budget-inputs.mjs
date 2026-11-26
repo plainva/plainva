@@ -1,3 +1,4 @@
+/* global process, console */
 // The files the note budget's search and check read (`note-budget.ts` and every module it imports, by relative
 // path), and the files beside them that change what they measure: the calibration, the dependencies and their
 // patches, the workflow. The performance workflow runs those jobs only when a push changes one of them (and
