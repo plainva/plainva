@@ -82,6 +82,8 @@ const m = vi.hoisted(() => ({
   /** The runtime the step that reloads went on with, and whether the turn under way is that step's reload. */
   stepOn: null as unknown,
   turnOwner: null as null | string,
+  /** The vaults whose container the delete removed. */
+  removed: [] as string[],
   /** A real save coordinator in place of the stand-in's saves (`noteSaver`), where a test sets one. */
   saver: null as null | { flushAll(ctx?: unknown): Promise<void>; pendingPaths(ctx?: unknown): string[] },
   /** One wait of a stand-in: held until the driver lets it go. */
@@ -169,7 +171,7 @@ vi.mock("./vaultService", () => ({
 }));
 vi.mock("./flowVault", () => ({ enterMadeVault: async () => undefined }));
 vi.mock("./mobileSettingsSync", () => ({ mobileSyncDeviceId: async () => "phone", prepareMobileSettingsSync: async (_v: unknown, _p: unknown, raw: unknown) => ({ target: raw, runner: { run: async () => undefined } }) }));
-vi.mock("./mobileWorkspaceSecurity", () => ({ loadMobilePublicationRuntime: async () => null, getMobileWorkspaceStatus: async () => null }));
+vi.mock("./mobileWorkspaceSecurity", () => ({ loadMobilePublicationRuntime: async () => null, getMobileWorkspaceStatus: async () => null, mobileDecommissionUnfinished: async () => false }));
 vi.mock("../adapters/webdavHttp", () => ({ webdavFetch: vi.fn(), allowHttpOrigin: vi.fn() }));
 vi.mock("../adapters/syncUpload", () => ({ createContentRefResolver: () => ({}), mobileSyncUploader: {} }));
 
@@ -217,6 +219,7 @@ function harness() {
   m.owedFor = null;
   m.stepOn = null;
   m.turnOwner = null;
+  m.removed.length = 0;
   let n = 0;
   const runtimes: Runtime[] = [];
   const violations: string[] = [];
@@ -291,6 +294,8 @@ function harness() {
     removeDataFolder: async (folder: string) => {
       const id = folder.replace(/^vaults\//, "");
       if ((m.stepsRunning.get(id) ?? 0) > 0) violations.push(`${id} removed while a step on it runs`);
+      if (runtimes.some((r) => r.vaultId === id && r.disposed === 0)) violations.push(`${id} removed while a runtime of it is open`);
+      m.removed.push(id);
       await m.wait("the removal");
     },
     forgetVaultData: async () => [],
@@ -983,9 +988,130 @@ describe("review B2, round 7 — the ways out the model did not have", () => {
   it("H1: a runtime comes back on screen only from `leaving`, and only where it was open when the turn left it", () => {
     expect.hasAssertions();
     const frame = source.slice(source.indexOf("function screenTransition<T>"), source.indexOf("\n}\n", source.indexOf("function screenTransition<T>")));
-    expect(frame).toContain("if (!current || current !== wasOpen || gone || settled?.calledOff) return leaveForGood();");
+    expect(frame).toContain("if (!current || current !== wasOpen || gone || abandoned || settled?.calledOff) return leaveForGood();");
     const back = source.slice(source.indexOf("function backOnScreen("), source.indexOf("\n}\n", source.indexOf("function backOnScreen(")));
     expect(back).toContain('if (screen.state !== "leaving") return;');
+  });
+});
+
+describe("review B2, round 8", () => {
+  it("R8-T1 (MG4): a switch whose settings fail and whose way back fails too leaves the runtime for good — what the registry names opens", async () => {
+    expect.hasAssertions();
+    const h = harness();
+    const first = await openFirst(h);
+    const orig = m.wait;
+    let once = false;
+    m.wait = (label) => {
+      if (label === "settings" && !once) {
+        once = true;
+        // From now on the registry cannot be written: the switch's catch cannot make `notes` active again.
+        return orig(label).then(() => { m.failActive = true; throw new Error("settings unreadable"); });
+      }
+      return orig(label);
+    };
+    const failing = h.api.switchVault("work").then(() => "switched", (e: Error) => e.message);
+    await until(h, failing);
+    await h.drain(() => runningOn().length > 0);
+    expect(await failing).toBe("settings unreadable");
+    // THE DEFECT: `notes` came back open on screen while the registry named `work`.
+    expect((h.api.runtimeOnScreen() as Runtime | null)?.vaultId).toBe(m.active);
+    expect(first.disposed).toBe(1);
+    expect(runningOn().map((w) => (w.runtime as Runtime).vaultId)).toEqual([m.active]);
+    expect(h.violations).toEqual([]);
+  });
+
+  it("R8-T2: a delete while the vault's reload waits behind someone's input — the hold goes with the runtime, the removal runs, nothing stays held", async () => {
+    expect.hasAssertions();
+    const h = harness();
+    const first = await openFirst(h);
+    const step = withRuntimeStep({ vaultId: "notes", runtime: first as never }, {
+      work: async (stop) => { await stop(); m.foreignInput = true; },
+      reload: { own: "security-area" },
+    }, { say: false }).then(() => "done", (e: Error) => e.name);
+    await until(h, step);
+    expect(vaultSyncHeld("notes")).toBe(true);
+    const del = h.api.deleteVault("notes").then(() => "removed", (e: Error) => e.message);
+    await until(h, del);
+    await h.drain(() => true);
+    expect(await del).toBe("removed");
+    expect(vaultSyncHeld("notes")).toBe(false);
+    expect(h.violations).toEqual([]);
+  });
+
+  it("R8-T3: a switch whose registry write fails after the deadline was given up in saving: open again, the sync once, on its runtime", async () => {
+    expect.hasAssertions();
+    const h = harness();
+    const first = await openFirst(h);
+    m.deadlineGivesUp = true;
+    m.failActive = true;
+    const failing = h.api.switchVault("work").then(() => "switched", (e: Error) => e.message);
+    await until(h, failing);
+    m.deadlineGivesUp = false;
+    await h.drain(() => runningOn().length > 0);
+    expect(runningOn().map((w) => w.runtime)).toEqual([first]);
+    expect(h.violations).toEqual([]);
+  });
+
+  it("MG5: a delete whose switch away fails removes nothing and leaves the vault open", async () => {
+    expect.hasAssertions();
+    const h = harness();
+    const first = await openFirst(h);
+    m.failActive = true;
+    const del = h.api.deleteVault("notes").then(() => "removed", (e: Error) => e.message);
+    await until(h, del);
+    m.failActive = false;
+    expect(await del).toBe("registry unwritable");
+    expect(first.disposed).toBe(0);
+    expect(h.api.runtimeOnScreen()).toBe(first);
+    expect(m.removed).toEqual([]);
+    expect(h.violations).toEqual([]);
+  });
+
+  it("MG5: a delete whose registry cannot be read still switches away from the vault on screen — it never waits for a runtime nobody closes", async () => {
+    expect.hasAssertions();
+    const h = harness();
+    await openFirst(h);
+    // The delete's wait for its saves gives up (no runtime at hand then), and its look at the active vault fails (its
+    // third registry read): only the screen still says the vault is open.
+    m.deadlineGivesUp = true;
+    const orig = m.wait;
+    let reads = 0;
+    m.wait = (label) => {
+      if (label === "registry read" && ++reads === 3) return orig(label).then(() => { throw new Error("registry unreadable"); });
+      return orig(label);
+    };
+    const del = h.api.deleteVault("notes").then(() => "removed", (e: Error) => e.message);
+    let ended = false;
+    void del.then(() => { ended = true; });
+    await h.drain(() => ended);
+    // THE DEFECT (found by the model, round 7; also on main): no switch, and the delete waited for good.
+    expect(ended).toBe(true);
+    expect(await del).toBe("removed");
+    expect(m.removed).toEqual(["notes"]);
+    expect(h.violations).toEqual([]);
+  });
+
+  it("MG5: a switch back to the vault while it is being deleted — the delete fails at its removal's turn, nothing is removed, the runtime opened again stays", async () => {
+    expect.hasAssertions();
+    const h = harness();
+    await openFirst(h);
+    // A step holds the vault's sync, so the removal waits; meanwhile the person switches back to the vault.
+    let end!: () => void;
+    const ends = new Promise<void>((r) => (end = r));
+    const step = withRuntimeStep({ vaultId: "notes", runtime: h.runtimes[0] as never }, { work: async (stop) => { await stop(); await ends; } }, { say: false }).catch(() => undefined);
+    await h.drain(() => true);
+    const del = h.api.deleteVault("notes").then(() => "removed", (e: Error) => e.message);
+    await h.drain(() => h.api.runtimeOnScreen()?.vaultId === "local");
+    await until(h, h.api.switchVault("notes"));
+    await h.drain(() => h.api.runtimeOnScreen()?.vaultId === "notes");
+    end();
+    await until(h, Promise.all([step, del]));
+    expect(await del).toBe("the vault is still open");
+    expect(m.removed).toEqual([]);
+    const again = h.api.runtimeOnScreen() as Runtime;
+    expect(again.vaultId).toBe("notes");
+    expect(again.disposed).toBe(0);
+    expect(h.violations).toEqual([]);
   });
 });
 
@@ -1053,9 +1179,14 @@ describe("the guard of the queue and of its one frame", () => {
     expect.hasAssertions();
     // By its form, not by the care of each transition (review B2, round 7): a transition reaches the state only
     // through its turn (`turn.leave`, `stay`, `leaveVault`, `clear`), and the frame ends every turn that threw.
-    const assigns = (n: ts.Node) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ["bootPromise", "screen", "screenBoot"].includes(n.left.getText(file));
-    const calls = (n: ts.Node) => ts.isCallExpression(n) && ["retireBoot", "leaveVault", "leaveScreen", "backOnScreen", "clearScreen", "bootAbort.abort", "bootAbort?.abort"].includes(n.expression.getText(file));
-    expect(places((n) => assigns(n) || calls(n), within(["screenTransition"]))).toEqual([]);
+    // Also through a property (`screen.state = …`) or a reference (`const end = clearScreen; end();`), not only by
+    // name in a call (review B2, round 8, H-a).
+    const assigns = (n: ts.Node) => ts.isBinaryExpression(n) && n.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && n.operatorToken.kind <= ts.SyntaxKind.LastAssignment && /^(?:bootPromise|screen|screenBoot)\b/.test(n.left.getText(file));
+    const named = (n: ts.Identifier) =>
+      ((ts.isFunctionDeclaration(n.parent) || ts.isPropertyAccessExpression(n.parent) || ts.isMethodSignature(n.parent) || ts.isPropertyAssignment(n.parent) || ts.isPropertySignature(n.parent)) && (n.parent as { name?: ts.Node }).name === n);
+    const refs = (n: ts.Node) => ts.isIdentifier(n) && ["retireBoot", "leaveVault", "leaveScreen", "backOnScreen", "clearScreen"].includes(n.text) && !named(n);
+    const aborts = (n: ts.Node) => ts.isPropertyAccessExpression(n) && /^bootAbort\??\.abort$/.test(n.getText(file));
+    expect(places((n) => assigns(n) || refs(n) || aborts(n), within(["screenTransition"]))).toEqual([]);
     // The event that begins the next start: sent by a transition in its turn.
     expect(places((n, text) => ts.isNewExpression(n) && n.expression.getText(file) === "CustomEvent" && /"m-vault-switched"/.test(text), within(["screenTransition"]))).toEqual([]);
     // Every turn of the frame is a turn of the queue, and the frame's catch ends what the turn left.

@@ -7382,6 +7382,7 @@
     "decommissionNote": "Efface les clés locales ; les fichiers chiffrés du cloud restent — supprimez ensuite le dossier vous-même.",
     "decommissionTypeName": "Pour confirmer, saisis le nom du vault : {{name}}",
     "decommissionNameMismatch": "Ce n'est pas le nom du vault — rien n'a été modifié.",
+    "decommissionUnfinished": "La mise hors service ne s’est pas terminée sur cet appareil. Tant qu’elle ne l’est pas, ce vault ne synchronise rien.",
     "orphanRecovery": "L’espace de travail dans le cloud est absent ou endommagé — la synchronisation reste arrêtée. Mettez-le hors service ci-dessous pour réinitialiser.",
     "setupTitle": "Configurer l’espace chiffré",
     "setupProgress": "Étape {{step}} sur 3",

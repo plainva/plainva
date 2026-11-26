@@ -59,7 +59,7 @@ import { enterMadeVault } from "./flowVault";
 import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "./fileMoved";
-import { getMobileWorkspaceStatus, loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
+import { getMobileWorkspaceStatus, loadMobilePublicationRuntime, mobileDecommissionUnfinished } from "./mobileWorkspaceSecurity";
 import {
   addVault,
   getActiveVaultEntry,
@@ -931,6 +931,13 @@ async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, raw
       await markEncryptedRemoteJoined(ports);
       held = { vaultId: v.vaultId, attempt: 0 };
       setState({ status: "error", message: i18n.t(status.phase === "locked" ? "workspaceSecurity.lockedMessage" : "workspaceSecurity.keyBundleMissingMessage"), errorKind: "pair-required" });
+      return true;
+    }
+    // A decommission that stopped midway (review B2, round 8): what is left of the workspace is here, its status is
+    // not. Never the plain sync on it — held, and said, until the person finishes the decommission in the Security area.
+    if (await mobileDecommissionUnfinished(v.vaultId, v.db).catch(() => false)) {
+      held = { vaultId: v.vaultId, attempt: 0 };
+      setState({ status: "error", message: i18n.t("workspaceSecurity.decommissionUnfinished"), errorKind: "pair-required" });
       return true;
     }
     const binding = await mobileSyncBinding(v, p);

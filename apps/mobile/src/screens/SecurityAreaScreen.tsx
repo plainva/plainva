@@ -16,7 +16,7 @@ import { vaultEntryName } from "../services/vaultEntryName";
 import type { MobileVault } from "../services/vaultService";
 import { reloadActiveMobileVault } from "../services/vaultService";
 import { findMobileWorkspaceObjectStore, getMobileRemoteWorkspaceInfo, getMobileWorkspaceObjectStore, getStoredProvider, mobileEncryptedRemotePorts, quarantineSync, restartSyncIfActive, withRuntimeStep } from "../services/syncService";
-import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, endMobileDecommission, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
+import { activateMobileWorkspaceRecovery, approveMobileWorkspacePairing, assignMobileWorkspaceRole, createMobilePublication, mobilePublicationRecipients, invitePublicationRecipientFromMobile, revokePublicationRecipientFromMobile, createMobileWorkspaceGroup, createMobileWorkspaceSlice, listMobilePublications, mobilePublicationPendingCounts, withdrawMobilePublication, previewMobilePublication, previewMobileWorkspaceSlice, decommissionMobileWorkspace, mobileDecommissionUnfinished, refreshMobileWorkspaceSliceCounts, prepareMobileWorkspaceOwnerTransfer, activateMobileWorkspaceOwnerTransfer, revokeMobileWorkspaceDevice, revokeMobileWorkspaceMember, getMobileWorkspaceRekey, inviteMobileWorkspaceMember, beginMobileWorkspacePairing, completeMobileWorkspacePairing, getMobileWorkspaceStatus, updateMobileQuarantine, exportMobileQuarantineDiagnostics, inspectMobileWorkspacePairing, lockMobileWorkspace, recoverMobileWorkspace, resumeMobileWorkspaceSetup, markMobileEncryptionLift, readMobileEncryptionLift, clearMobileEncryptionLift, discardMobileLocalFork, rotateMobileWorkspaceRecovery, unlockMobileWorkspace, type MobileWorkspaceStatus } from "../services/mobileWorkspaceSecurity";
 import { getActiveVaultEntry, getVaultEntry } from "../services/vaultRegistry";
 import { SqlWorkspaceStateStore } from "@plainva/core/workspace";
 import { AppBar } from "../components/AppBar";
@@ -84,7 +84,8 @@ async function stopSyncLeaving(vault: MobileVault, stop: () => Promise<MobileVau
   const on = await stop();
   if (on === vault) return null;
   renewedTo?.(on);
-  return { state: on.workspaceState };
+  // A vault whose decommission stopped midway opens without its workspace: its state is read from its database.
+  return { state: on.workspaceState ?? (on.db ? new SqlWorkspaceStateStore(on.db) : null) };
 }
 
 export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorkspace, initialArea }: {
@@ -120,6 +121,8 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
   const [resumeProgress, setResumeProgress] = useState<{ done: number; total: number } | null>(null);
   /** A lift under way: when it started and how many files still wait in the plaintext queue (4.6). */
   const [lift, setLift] = useState<{ since: string; pending: number } | null>(null);
+  /** A decommission that stopped midway: offered again here, never finished by itself (`mobileDecommissionUnfinished`). */
+  const [unfinished, setUnfinished] = useState(false);
   // The desktop's second level (settings plan 2026-10-29, E12): an overview
   // with two ways in — "Your access" (devices, recovery) and "Sharing"
   // (members, groups, slices, publications) — from the shared security
@@ -186,6 +189,7 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
 
   const refresh = useCallback(async () => {
     setStatus(await getMobileWorkspaceStatus(vault.vaultId));
+    setUnfinished(await mobileDecommissionUnfinished(vault.vaultId, vault.db ?? null).catch(() => false));
     setQuarantine(vault.workspaceState ? await vault.workspaceState.listQuarantine() : []);
     setLocalForks(vault.workspaceState ? await vault.workspaceState.listLocalForks() : []);
     setRekey(await getMobileWorkspaceRekey(vault.workspaceState));
@@ -784,13 +788,11 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       await withRuntimeStep({ vaultId: vault.vaultId, runtime: vault }, {
         work: async (stop) => {
           let on = vault;
-          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop, (fresh) => { on = fresh; }), runtime: vault.workspaceRuntime, lift: true });
+          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop, (fresh) => { on = fresh; }), runtime: vault.workspaceRuntime });
           // The queue table lives in the vault's own database, which is still open
           // here — the reload below boots a plain vault whose worker drains it.
-          // Interrupted before the end, the vault's next open finishes the lift (`finishMobileDecommission`).
           await on.syncQueue?.enqueueAllLocalFiles();
           await markMobileEncryptionLift(vault.vaultId);
-          await endMobileDecommission(vault.vaultId);
           toast.info(t("workspaceSecurity.liftEncryptionDone"));
         },
         // Its own runtime reloaded, and only that one (`withRuntimeStep`).
@@ -822,7 +824,10 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
       // The step holds the vault's sync from here to its reload (`withRuntimeStep`).
       await withRuntimeStep({ vaultId: vault.vaultId, runtime: vault }, {
         work: async (stop) => {
-          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state: vault.workspaceState, stopSync: () => stopSyncLeaving(vault, stop), runtime: vault.workspaceRuntime });
+          // Also a decommission that stopped midway, pressed again: the vault opened without its workspace, and its
+          // state is read from its database.
+          const state = vault.workspaceState ?? (vault.db ? new SqlWorkspaceStateStore(vault.db) : null);
+          await decommissionMobileWorkspace({ vaultId: vault.vaultId, state, stopSync: () => stopSyncLeaving(vault, stop), runtime: vault.workspaceRuntime });
           toast.info(t("workspaceSecurity.decommissionDone"));
         },
         // Its own runtime reloaded, and only that one (`withRuntimeStep`).
@@ -874,7 +879,19 @@ export function SecurityAreaScreen({ vault, onBack, onConnectCloud, onSetupWorks
           plain/local vault — only the joined and joinable cases add this row.
           Unlocking belongs to the status, not to an area, so it sits with it and
           above the area switch (N3.2). */}
-      {area === "overview" && !status && plainFolderOffered && (
+      {/* A decommission that stopped midway (review B2, round 8): said as it is, with its button — the vault's sync
+          stays held until it is done, and nothing finishes it by itself. */}
+      {area === "overview" && !status && unfinished && (
+        <GroupCard tone="danger"><RowList><Row
+          data-testid="workspace-decommission-unfinished"
+          disabled={busy}
+          icon={busyAction === "decommission" ? <span className="m-actionspin" aria-hidden /> : <ShieldOff className="m-danger" size={ICON.ui} />}
+          onClick={() => void decommission()}
+          subtitle={t("workspaceSecurity.decommissionUnfinished")}
+          title={<span className="m-danger">{t("workspaceSecurity.decommission")}</span>}
+        /></RowList></GroupCard>
+      )}
+      {area === "overview" && !status && !unfinished && plainFolderOffered && (
         <GroupCard><RowList><Row
           data-testid="workspace-plain-folder"
           disabled={busy}

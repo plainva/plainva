@@ -7090,6 +7090,7 @@
     "decommissionNote": "删除本地密钥；云端的加密文件会保留——请之后自行删除该文件夹。",
     "decommissionTypeName": "请输入仓库名称以确认：{{name}}",
     "decommissionNameMismatch": "这不是仓库的名称，未做任何更改。",
+    "decommissionUnfinished": "此设备上的停用尚未完成。完成之前，此仓库不会同步任何内容。",
     "orphanRecovery": "云端的工作区丢失或已损坏——同步保持停止。请在下方停用它以重置。",
     "setupTitle": "设置加密工作区",
     "setupProgress": "设置步骤{{step}}/3",

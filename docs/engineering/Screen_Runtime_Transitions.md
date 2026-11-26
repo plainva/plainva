@@ -42,7 +42,8 @@ A runtime that stays (`turn.stay()`) gets its sync back through the one start (`
 | saves | throws | `open` again | runs again once the taken sync drained, or held by X | the save's failure |
 | saves | deadline | goes on | — | the close's notice |
 | sync drain | called off | goes on to the next vault | — | the close's notice |
-| registry write, settings | throws, runtime whole | `open` again, the vault active again | runs again, or held by X | the switch's failure |
+| registry write, settings | throws, runtime whole, the way back holds | `open` again, the vault active again | runs again, or held by X | the switch's failure |
+| registry write, settings | throws, and the way back fails too (the registry or the settings name the other vault) | `none` → `opening` (what the registry names; `turn.abandon`) | after the boot | the switch's failure |
 | registry write, settings | throws after a call-off | `none` → `opening` (the same vault anew, once the old runtime ended) | after the boot | the switch's failure |
 | any, nothing was open (start retired) | throws | `none` → `opening` | after the boot | the switch's failure |
 | leaving the vault | comes back | `none` → `opening` (the new vault) | after the boot | nothing |
@@ -78,9 +79,10 @@ The reload is for what its caller had: `runtime` (a step's own), `vaultId`, or t
 |---|---|---|---|---|
 | saves of this vault, a start still opening | come back, or deadline | unchanged | unchanged | the close's notice |
 | switch to the local vault | as in the switch's table | as there | as there | as there |
-| after the switch | the vault still on screen (the switch did not happen; also where the registry could not be read) | unchanged | unchanged | the delete's failure; nothing is removed |
+| the look at the active vault | throws (the registry cannot be read) | the screen decides: a vault on screen or opening is switched away from | as in the switch's table | — |
 | the vault's runtimes end | comes back | unchanged | — | — |
 | a hold on the vault | released | unchanged | — | — |
+| removal (in a turn of the queue) | the vault on screen again (a switch back to it) | unchanged | unchanged | the delete's failure; nothing is removed |
 | removal (in a turn of the queue) | each part comes back or is listed | unchanged | held by the removal; the vault is gone | the parts that could not be removed |
 
 The removal waits for every hold on the vault's sync outside the queue (a step's renew waits in the queue), then runs in a turn of its own, holding the sync itself. A hold taken again meanwhile sends it back to the wait. A vault opened again meanwhile (a switch back to it) is not removed: the delete fails.
@@ -92,6 +94,14 @@ The removal waits for every hold on the vault's sync outside the queue (a step's
 - A reload that waits behind someone's input takes the hold over, so the step's release starts nothing on the runtime it changed.
 - A failure of its work is judged once the transitions under way have run. Where its runtime is `open` again, the failure is the work's own. Where it is not, the step did not finish (`closing.stepInterrupted`).
 - Its work succeeding after its vault was left is a success. Nothing is reloaded for it: the work landed before the runtime closed (a write after the close fails), and the vault opens in its new state the next time.
+
+## A decommission that stopped midway
+
+- Nothing lifts an encryption or ends a workspace unless the person asks for it at that moment. A vault's open reads the workspace's status as it is and finishes nothing.
+- A decommission (or a lift) interrupted after its gate leaves the device key or the state behind while the status is gone: the vault opens without its workspace.
+  - The Security area says so (`workspaceSecurity.decommissionUnfinished`) and offers the decommission again (`mobileDecommissionUnfinished`). Pressed again, it asks for the vault's name as always and goes on from what is left. Whether this device was the workspace's only one is asked of the runtime the vault has open; without one nobody can tell, and the folder stays the other devices' (`left`, R8).
+  - The vault's sync stays held meanwhile and says the same text. It never syncs plain text.
+- The desktop reaches the same result its own way: it clears its gate (the keychain entry) last. A run interrupted before that leaves the vault a workspace, and pressing again goes on.
 
 ## Saves
 

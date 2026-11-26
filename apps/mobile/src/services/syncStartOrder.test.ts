@@ -43,6 +43,8 @@ const state = vi.hoisted(() => ({
   genesis: "none" as "none" | "found" | "error",
   /** A stored workspace status (a member) - with or without its keys. */
   wsStatus: null as null | { phase: string },
+  /** What is left of a workspace whose decommission stopped midway (`mobileDecommissionUnfinished`). */
+  decommissionUnfinished: false,
   /** How often the genesis was read on its own. */
   genesisReads: 0,
   /** The settings store fails for the encrypted-remote fact. */
@@ -161,7 +163,7 @@ vi.mock("./mobileSettingsSync", () => ({
   mobileSyncDeviceId: async () => "phone",
   prepareMobileSettingsSync: async (_v: unknown, _p: unknown, raw: unknown) => ({ target: raw, runner: { run: async () => undefined } }),
 }));
-vi.mock("./mobileWorkspaceSecurity", () => ({ loadMobilePublicationRuntime: async () => null, getMobileWorkspaceStatus: async () => state.wsStatus }));
+vi.mock("./mobileWorkspaceSecurity", () => ({ loadMobilePublicationRuntime: async () => null, getMobileWorkspaceStatus: async () => state.wsStatus, mobileDecommissionUnfinished: async () => state.decommissionUnfinished }));
 vi.mock("../adapters/webdavHttp", () => ({ webdavFetch: vi.fn(), allowHttpOrigin: vi.fn() }));
 vi.mock("../adapters/syncUpload", () => ({ createContentRefResolver: () => ({}), mobileSyncUploader: {} }));
 
@@ -218,6 +220,7 @@ beforeEach(() => {
   state.settingsOnly.length = 0;
   state.genesis = "none";
   state.wsStatus = null;
+  state.decommissionUnfinished = false;
   state.genesisReads = 0;
   state.brokenStore = false;
   state.confirmedEndpoints.clear();
@@ -495,6 +498,16 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
     expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "pair-required" });
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
+  });
+
+  it("a vault whose decommission stopped midway never starts the plain sync, and says why (review B2, round 8)", async () => {
+    expect.hasAssertions();
+    // The status went, the device key or the state did not: the vault opened without its workspace.
+    state.decommissionUnfinished = true;
+    state.genesis = "error";
+    await startSyncIfConfigured(vault);
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "pair-required", message: i18n.t("workspaceSecurity.decommissionUnfinished") });
   });
 
   it("a store that fails inside the rule does not stop the start", async () => {

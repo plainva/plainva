@@ -7236,6 +7236,7 @@
     "decommissionNote": "Wist de lokale sleutels; versleutelde bestanden in de cloud blijven staan — verwijder de map daarna zelf.",
     "decommissionTypeName": "Typ ter bevestiging de naam van de kluis: {{name}}",
     "decommissionNameMismatch": "Dat is niet de naam van de kluis — er is niets gewijzigd.",
+    "decommissionUnfinished": "Het buiten gebruik stellen is op dit apparaat niet afgerond. Tot het is afgerond, synchroniseert deze kluis niets.",
     "orphanRecovery": "De werkruimte in de cloud ontbreekt of is beschadigd — synchronisatie blijft gestopt. Stel de werkruimte hieronder buiten gebruik om te resetten.",
     "setupTitle": "Versleutelde workspace instellen",
     "setupProgress": "Stap {{step}} van 3",

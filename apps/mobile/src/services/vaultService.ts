@@ -545,6 +545,11 @@ interface ScreenTurn {
   leaveVault(settled?: Pick<SettledClose, "drain" | "gaveUp" | "place" | "vault">): Promise<void>;
   /** Nothing is on screen until the next start (`clearScreen`); the transition sends the event itself. */
   clear(): void;
+  /**
+   * The runtime may not stay, whatever else holds: the registry or the settings name another vault now (a switch
+   * that could not go back). A throw after this leaves it for good, and what the registry names opens.
+   */
+  abandon(): void;
 }
 
 /**
@@ -576,6 +581,7 @@ function screenTransition<T>(run: (turn: ScreenTurn) => Promise<T>): Promise<T> 
     let settled: SettledClose | null = null;
     let gone = false;
     let over = false;
+    let abandoned = false;
     const leaveForGood = async () => {
       if (current && !gone) {
         gone = true;
@@ -595,7 +601,7 @@ function screenTransition<T>(run: (turn: ScreenTurn) => Promise<T>): Promise<T> 
       },
       settle: async () => (settled = await settleBeforeClosing(current, taken)),
       stay: async () => {
-        if (!current || current !== wasOpen || gone || settled?.calledOff) return leaveForGood();
+        if (!current || current !== wasOpen || gone || abandoned || settled?.calledOff) return leaveForGood();
         over = true;
         backOnScreen(current);
         resumeOnScreen(current, taken.sync);
@@ -608,6 +614,9 @@ function screenTransition<T>(run: (turn: ScreenTurn) => Promise<T>): Promise<T> 
       clear: () => {
         over = true;
         clearScreen();
+      },
+      abandon: () => {
+        abandoned = true;
       },
     };
     try {
@@ -844,8 +853,12 @@ async function switchTo(id: string, turn: ScreenTurn): Promise<void> {
     if (leaving !== undefined && leaving !== id) {
       const now = await getActiveVaultEntry().catch(() => null);
       if (now?.id !== leaving) {
-        await setActiveVault(leaving).catch((e: unknown) => console.error("[switch] the vault on screen could not be made active again", e));
-        await reloadMobileSettingsForActiveVault().catch(() => {});
+        // Where the way back fails too (the registry, or the settings slice of the vault on screen), the runtime does
+        // not stay: open on screen while the registry or the settings name the other vault is no cell of the table
+        // (review B2, round 8, MG4). It is left for good, and what the registry names opens.
+        const back = await setActiveVault(leaving).then(() => true, (e: unknown) => { console.error("[switch] the vault on screen could not be made active again", e); return false; });
+        const settings = await reloadMobileSettingsForActiveVault().then(() => true, () => false);
+        if (!back || !settings) turn.abandon();
       }
     }
     throw error;
@@ -1164,9 +1177,8 @@ export async function deleteVault(id: string): Promise<string[]> {
   // not be read must not leave the vault open and the delete waiting for the
   // end of a runtime nobody closes (found by the model of review B2, round 7).
   const onScreen = () => runtimeOnScreen()?.vaultId === id || (screen.state === "opening" && bootEntry?.id === id);
+  // A switch that does not happen throws; one back to the vault afterwards is caught at the removal's turn below.
   if ((await getActiveVaultEntry().catch(() => null))?.id === id || current?.vaultId === id || onScreen()) await switchVault(LOCAL_VAULT_ID);
-  // A switch that did not happen leaves the vault on screen: nothing of it is removed.
-  if (onScreen()) throw new Error("the vault is still open");
   if (booting) await booting.then((v) => (v.vaultId === id ? v.ended() : undefined), () => undefined);
   await closingAt(id, entry?.external);
   // Nothing of it is removed while something holds its sync (review B2, round 7, M2): a step's body may still reach
@@ -1176,8 +1188,11 @@ export async function deleteVault(id: string): Promise<string[]> {
   for (;;) {
     await syncReleased(id);
     const removed = await inScreenTransitions(async () => {
-      // Opened again meanwhile (a switch back to it): nothing of it is removed under its runtime.
-      if (onScreen()) throw new Error("the vault is still open");
+      // Opened again meanwhile (a switch back to it, a step's renew): nothing of it is removed under its runtime. A
+      // start still opening has its answer first — which vault it opens is known only then (found by the model,
+      // review B2, round 8); a start does not wait on this queue.
+      if (screen.state === "opening") await bootPromise?.catch(() => null);
+      if (onScreen() || runtimeOnScreen()?.vaultId === id) throw new Error("the vault is still open");
       if (vaultSyncHeld(id)) return null;
       const release = holdVaultSync(id);
       try {
@@ -1391,11 +1406,10 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
   const containerExisted = await adapter.exists("");
   await adapter.initialize();
   // The encrypted workspace's keys and runtime load with the vault, not with the start (performance plan L5).
-  const { begunMobileDecommission, finishMobileDecommission, getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } = await import("./mobileWorkspaceSecurity");
-  // A decommission its last runtime began and did not finish opens the vault plain, and is finished below, once its
-  // database is open and before its sync starts (review B2, round 7, M3).
-  const decommissionBegun = await begunMobileDecommission(entry.id);
-  const workspaceStatus = decommissionBegun ? null : await getMobileWorkspaceStatus(entry.id);
+  const { getMobileWorkspaceStatus, loadMobileWorkspaceRuntime } = await import("./mobileWorkspaceSecurity");
+  // Read as it is: nothing at an open lifts an encryption or ends a workspace (review B2, round 8) — a decommission
+  // that stopped midway is the Security area's to offer again (`mobileDecommissionUnfinished`).
+  const workspaceStatus = await getMobileWorkspaceStatus(entry.id);
   const workspaceRuntime = workspaceStatus ? await loadMobileWorkspaceRuntime(entry.id) : null;
 
   // Registry creation intent AND a previously absent container are required.
@@ -1522,11 +1536,6 @@ async function boot(entry: VaultEntry, signal?: AbortSignal): Promise<MobileVaul
     };
     queue = new SyncQueue(db);
     workspaceState = workspaceStatus ? new SqlWorkspaceStateStore(db) : null;
-    if (decommissionBegun) {
-      const owed = queue;
-      await finishMobileDecommission(entry.id, decommissionBegun, { state: new SqlWorkspaceStateStore(db), enqueueAll: () => owed.enqueueAllLocalFiles() })
-        .catch(reportingTo("workspace:finish-decommission"));
-    }
     // The chain every write of the app goes through, in its one order
     // (`buildVaultChain`, stability plan R2), the desktop's own. With the
     // workspace's state: what the worker brought from another device is

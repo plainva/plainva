@@ -1,5 +1,5 @@
 import { projectPublicationFeedbackForOwner } from "@plainva/core/workspace";
-import { type IVaultAdapter } from "@plainva/core";
+import { type IDatabaseAdapter, type IVaultAdapter } from "@plainva/core";
 import {
   acceptWorkspacePairing,
   approveWorkspacePairing,
@@ -65,6 +65,7 @@ import {
   type WorkspaceRekeyMode,
   type WorkspaceRole,
   type WorkspaceStateStore,
+  SqlWorkspaceStateStore,
 } from "@plainva/core/workspace";
 import { createLimiter, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemoteDeparted, workspaceDeparture } from "@plainva/ui";
 import { Preferences } from "@capacitor/preferences";
@@ -1144,12 +1145,6 @@ export async function unlockMobileWorkspace(vaultId: string): Promise<PersonalWo
  */
 export async function decommissionMobileWorkspace(input: {
   vaultId: string;
-  /**
-   * Lifting the encryption, not only leaving: the begun mark stays until the
-   * lift has queued every file and marked itself (`endMobileDecommission`),
-   * so an interrupted lift is finished at the next open as well.
-   */
-  lift?: boolean;
   state: WorkspaceStateStore | null;
   /** Stops and drains the sync worker. Injected so this module stays free of
    *  the vault/sync services (they import this one), and so the test can prove
@@ -1162,115 +1157,63 @@ export async function decommissionMobileWorkspace(input: {
 }): Promise<void> {
   const { vaultId, stopSync } = input;
   let state = input.state;
-  // A decommission begun before and interrupted (a switch closed the database midway): taken up where it stopped.
-  const begun = await begunMobileDecommission(vaultId);
-  const departure = begun?.departure ?? workspaceDeparture(input.runtime ?? null);
   // (1) Refusal path: a locked keystore throws here, before any change.
   const runtime = await secureCredentialStore.readSecret<ReturnType<typeof serializePersonalWorkspaceRuntime>>(runtimeKey(vaultId));
-  if (!runtime && !begun && !(await getMobileWorkspaceStatus(vaultId))) throw new Error("this vault is not an encrypted workspace on this device");
+  // Pressed again after a run that was interrupted midway (review B2, round 8): what is left of the workspace — its
+  // device key, or its state — is still one to decommission, never "not a workspace".
+  if (!runtime && !(await getMobileWorkspaceStatus(vaultId)) && !(await state?.loadMeta().catch(() => null))) throw new Error("this vault is not an encrypted workspace on this device");
+  // Whether this device is the workspace's only one, asked at this press, of the runtime the vault has open. Pressed
+  // again after a run that stopped midway, the vault opened without its workspace: nobody can tell then whether other
+  // devices still use it, and the folder stays theirs (R8) — never an answer frozen from before.
+  const departure = workspaceDeparture(input.runtime ?? null);
   // A cycle mid-flight would write workspace objects into a state we are about
   // to clear.
   const renewed = await stopSync();
   if (renewed) state = renewed.state;
-  // (2) The gate. Before it, the mark that the decommission has begun (review B2, round 7, M3): from here on a run
-  // that is interrupted — the vault closed under it — is finished by the vault's next open, before its sync starts
-  // (`finishMobileDecommission`), and pressed again it goes on from where it stopped instead of refusing a vault
-  // that is no workspace any more and no plain vault yet.
-  const mark: BegunDecommission = { departure, publicationIds: begun?.publicationIds ?? [], lift: input.lift === true || begun?.lift === true };
-  await writeBegunDecommission(vaultId, mark);
+  // (2) The gate.
   await Preferences.remove({ key: statusKey(vaultId) });
   cache.delete(vaultId); locked.delete(vaultId);
   // Read the publication ids while the table still exists: the keystore cannot
   // be listed, so after `clearWorkspaceState` their slots would be unreachable
-  // and their keys would outlive the workspace they belong to. Kept in the mark
-  // too, for a run that stops after the table went.
-  const listed = (await state?.listPublications() ?? []).map((record) => record.publicationId);
-  mark.publicationIds = [...new Set([...mark.publicationIds, ...listed])];
-  await writeBegunDecommission(vaultId, mark);
-  await finishDecommissionParts(vaultId, mark, state);
-  if (!mark.lift) await endMobileDecommission(vaultId);
+  // and their keys would outlive the workspace they belong to.
+  const publicationIds = (await state?.listPublications() ?? []).map((record) => record.publicationId);
+  await secureCredentialStore.removeSecret(runtimeKey(vaultId));
+  await secureCredentialStore.removeSecret(pendingKey(vaultId));
+  await clearMobilePublicationRuntimes(vaultId, publicationIds);
+  await state?.clearWorkspaceState();
+  // What the folder is now (R8, `workspaceDeparture`): the remote is not
+  // touched - its `.pvws/` objects are immutable and the workspace lives on for
+  // every other device. Only this workspace's single device of its single
+  // member ended it, and may sync the folder plainly next to exactly that
+  // genesis; any other device LEFT, and the folder stays theirs. Without the
+  // mark the next start stays held (fail closed): the workspace is gone from
+  // this device either way, so a settings store that cannot be reached does
+  // not undo the decommission.
+  try {
+    await markEncryptedRemoteDeparted(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), vaultId), departure);
+  } catch (error) {
+    console.warn("[mobileWorkspaceSecurity] could not record the released workspace", error);
+  }
   if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("m-workspace-security-changed"));
 }
 
 /**
- * What a decommission has begun and not finished (`decommissionMobileWorkspace`):
- * the departure as the runtime had it, the publications whose keys go, and
- * whether it is a lift (every file queued as plain text afterwards).
+ * A decommission (or a lift) that stopped midway — the vault closed under it,
+ * a keystore that failed after the gate: the status went, and the vault opens
+ * without its workspace, but its device key or its state is still here.
+ * Nothing finishes it by itself: nothing lifts an encryption or ends a
+ * workspace unless the person asks for it at that moment (review B2, round
+ * 8). The Security area says so and offers the decommission again; the sync
+ * of the vault stays held meanwhile (`syncService`, never plain text).
  */
-export interface BegunDecommission {
-  departure: { workspace: string | undefined; sole: boolean | "unknown" };
-  publicationIds: string[];
-  lift: boolean;
-}
-
-const decommissionKey = (vaultId: string) => `workspace_decommission_mobile_${vaultId}`;
-
-/** The decommission begun for the vault and not finished yet, or null. */
-export async function begunMobileDecommission(vaultId: string): Promise<BegunDecommission | null> {
-  const value = (await Preferences.get({ key: decommissionKey(vaultId) })).value;
-  if (!value) return null;
-  try {
-    const parsed = JSON.parse(value) as Partial<BegunDecommission>;
-    return {
-      departure: parsed.departure ?? { workspace: undefined, sole: "unknown" },
-      publicationIds: Array.isArray(parsed.publicationIds) ? parsed.publicationIds.filter((id): id is string => typeof id === "string") : [],
-      lift: parsed.lift === true,
-    };
-  } catch {
-    // A mark that cannot be read still says a decommission began: finished without what it would have named.
-    return { departure: { workspace: undefined, sole: "unknown" }, publicationIds: [], lift: false };
-  }
-}
-
-async function writeBegunDecommission(vaultId: string, mark: BegunDecommission): Promise<void> {
-  await Preferences.set({ key: decommissionKey(vaultId), value: JSON.stringify(mark) });
-}
-
-/** The decommission is over: the mark goes (after a lift, once the lift has queued its files and marked itself). */
-export async function endMobileDecommission(vaultId: string): Promise<void> {
-  await Preferences.remove({ key: decommissionKey(vaultId) });
-}
-
-/**
- * The parts of a decommission after its gate, each one that is done already
- * done again without harm: the keys, the publications' keys, the workspace's
- * state, and what the folder is now (R8, `workspaceDeparture`): the remote is
- * not touched - its `.pvws/` objects are immutable and the workspace lives on
- * for every other device. Only this workspace's single device of its single
- * member ended it, and may sync the folder plainly next to exactly that
- * genesis; any other device LEFT, and the folder stays theirs. Without the
- * mark the next start stays held (fail closed): the workspace is gone from
- * this device either way, so a settings store that cannot be reached does
- * not undo the decommission.
- */
-async function finishDecommissionParts(vaultId: string, mark: BegunDecommission, state: WorkspaceStateStore | null): Promise<void> {
-  await Preferences.remove({ key: statusKey(vaultId) });
-  cache.delete(vaultId); locked.delete(vaultId);
-  await secureCredentialStore.removeSecret(runtimeKey(vaultId));
-  await secureCredentialStore.removeSecret(pendingKey(vaultId));
-  await clearMobilePublicationRuntimes(vaultId, mark.publicationIds);
-  await state?.clearWorkspaceState();
-  try {
-    await markEncryptedRemoteDeparted(encryptedRemoteSettingsPorts(await getPlatformServices().loadSettings(), vaultId), mark.departure);
-  } catch (error) {
-    console.warn("[mobileWorkspaceSecurity] could not record the released workspace", error);
-  }
-}
-
-/**
- * A decommission the vault's last runtime began and did not finish — a switch
- * or a reload closed its database midway — finished as the vault opens again,
- * before its sync starts (`vaultService` boot): what is left of the workspace
- * goes, the folder's departure is marked, and a lift queues every file as
- * plain text and marks itself, as the step would have.
- */
-export async function finishMobileDecommission(vaultId: string, mark: BegunDecommission, parts: { state: WorkspaceStateStore; enqueueAll(): Promise<void> }): Promise<void> {
-  await finishDecommissionParts(vaultId, mark, parts.state);
-  if (mark.lift) {
-    await parts.enqueueAll();
-    await markMobileEncryptionLift(vaultId);
-  }
-  await endMobileDecommission(vaultId);
+export async function mobileDecommissionUnfinished(
+  vaultId: string,
+  db: IDatabaseAdapter | null,
+  state: Pick<WorkspaceStateStore, "loadMeta"> | null = db ? new SqlWorkspaceStateStore(db) : null,
+): Promise<boolean> {
+  if (await getMobileWorkspaceStatus(vaultId)) return false;
+  if (await secureCredentialStore.readSecret(runtimeKey(vaultId))) return true;
+  return !!state && !!(await state.loadMeta().catch(() => null));
 }
 
 /**

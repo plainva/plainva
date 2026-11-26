@@ -7528,6 +7528,7 @@
     "decommissionNote": "Usuwa lokalne klucze; zaszyfrowane pliki w chmurze zostają — usuń folder samodzielnie później.",
     "decommissionTypeName": "Aby potwierdzić, wpisz nazwę sejfu: {{name}}",
     "decommissionNameMismatch": "To nie jest nazwa sejfu — nic nie zostało zmienione.",
+    "decommissionUnfinished": "Wycofanie nie zakończyło się na tym urządzeniu. Dopóki nie zostanie dokończone, ten sejf niczego nie synchronizuje.",
     "orphanRecovery": "Obszaru roboczego w chmurze brakuje lub jest uszkodzony — synchronizacja pozostaje zatrzymana. Wycofaj go poniżej, aby zresetować.",
     "setupTitle": "Skonfiguruj szyfrowany workspace",
     "setupProgress": "Krok {{step}} z 3",
