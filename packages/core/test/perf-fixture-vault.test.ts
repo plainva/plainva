@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fixtureFiles, summarizeFixture } from "../scripts/perf/fixtureVault.js";
-import { environmentName, judge, lookupBaseline, toBaseline } from "../scripts/perf/core-gate.js";
+import { environmentName, judge, lookupBaseline, medianBaseline, runRatio, toBaseline } from "../scripts/perf/core-gate.js";
 import type { CoreResult } from "../scripts/perf/coreBenchmark.js";
 
 /**
@@ -76,11 +76,47 @@ describe("the core gate's verdict", () => {
     expect(over).toEqual(["coldIndexMs"]);
   });
 
-  it("does not fail a small time for a change below its floor", () => {
-    // 4 ms → 6 ms is 50 % worse, but by 2 ms, which is the floor of a save: noise.
+  it("holds the save's median to 15 %, above a floor of half a millisecond", () => {
+    // Measured on the runners: unchanged code within 8 %, a save made 30 % slower at least 18 % worse.
     const fast = toBaseline(run(1000, { saveP50Ms: 4 }));
-    expect(judge(fast, run(1000, { saveP50Ms: 6 })).filter((v) => v.over)).toEqual([]);
-    expect(judge(fast, run(1000, { saveP50Ms: 6.5 })).filter((v) => v.over).map((v) => v.metric)).toEqual(["saveP50Ms"]);
+    expect(judge(fast, run(1000, { saveP50Ms: 4.5 })).filter((v) => v.over)).toEqual([]);
+    expect(judge(fast, run(1000, { saveP50Ms: 4.7 })).filter((v) => v.over).map((v) => v.metric)).toEqual(["saveP50Ms"]);
+    // 1 ms → 1.4 ms is 40 % worse, but by 0.4 ms: below the floor.
+    const tiny = toBaseline(run(1000, { saveP50Ms: 1 }));
+    expect(judge(tiny, run(1000, { saveP50Ms: 1.4 })).filter((v) => v.over)).toEqual([]);
+  });
+
+  it("holds the save's 95th percentile to 50 %: it moved by up to 37 % for nothing", () => {
+    expect(judge(baseline, run(1000, { saveP95Ms: 17 })).filter((v) => v.over)).toEqual([]);
+    expect(judge(baseline, run(1000, { saveP95Ms: 19 })).filter((v) => v.over).map((v) => v.metric)).toEqual(["saveP95Ms"]);
+  });
+
+  it("reads a metric of rounds against each round's own calibration, and takes the median of the rounds", () => {
+    const round = (calibrationMs: number, saveP50Ms: number) => ({ calibrationMs, fsWalkMs: 500, warmIndexMs: 400, saveP50Ms, saveP95Ms: 12, searchMs: 20, listTasksMs: 400 });
+    // The machine slowed down for two rounds, the code did not: each round's ratio is the same.
+    const steady = { ...run(1000, {}), rounds: [round(1000, 8), round(2000, 16), round(1000, 8), round(2500, 20), round(1000, 8)] };
+    expect(runRatio(steady, "saveP50Ms")).toBeCloseTo(0.008, 6);
+    // One round that met a neighbour is outvoted by the others.
+    const oneBad = { ...run(1000, {}), rounds: [round(1000, 8), round(1000, 30), round(1000, 8), round(1000, 8.2), round(1000, 7.9)] };
+    expect(runRatio(oneBad, "saveP50Ms")).toBeCloseTo(0.008, 6);
+    expect(judge(baseline, oneBad).filter((v) => v.over)).toEqual([]);
+    // A slower save in every round is a slower save.
+    const slower = { ...run(1000, {}), rounds: [1, 2, 3, 4, 5].map(() => round(1000, 10.4)) };
+    expect(judge(baseline, slower).filter((v) => v.over).map((v) => v.metric)).toEqual(["saveP50Ms"]);
+    // The pass without changes is read against each round's walk of the folder.
+    expect(runRatio(steady, "warmIndexMs")).toBeCloseTo(0.8, 6);
+  });
+
+  it("makes a baseline of many runs: each ratio the median of theirs, with their spread", () => {
+    const runs = [7.6, 8, 8.4, 8.1, 9.9].map((saveP50Ms) => run(1000, { saveP50Ms }));
+    const made = medianBaseline(runs);
+    expect(made.runs).toBe(5);
+    expect(made.ratios.saveP50Ms).toBeCloseTo(0.0081, 6);
+    expect(made.spread!.saveP50Ms[0]).toBeCloseTo(7.6 / 8.1, 3);
+    expect(made.spread!.saveP50Ms[1]).toBeCloseTo(9.9 / 8.1, 3);
+    const other = { ...run(1000, {}), fixture: { ...run(1000, {}).fixture, digest: "e" } };
+    expect(() => medianBaseline([...runs, other])).toThrow(/different fixtures/);
+    expect(() => medianBaseline([])).toThrow();
   });
 
   it("fails an index that grew by more than 25 %", () => {
@@ -95,34 +131,35 @@ describe("the core gate's environments", () => {
     ms: {}, dbBytes: 1, fixtureDigest: "d",
   });
   const environments = {
-    "github-ubuntu-latest-amd-epyc-9v45-96-core-processor": entry("AMD EPYC 9V45 96-Core Processor"),
-    "github-ubuntu-latest-amd-epyc-9v74-80-core-processor": entry("AMD EPYC 9V74 80-Core Processor"),
+    "github-ubuntu-latest": entry("AMD EPYC 7763 64-Core Processor, AMD EPYC 9V45 96-Core Processor"),
+    "win32-x64-amd-ryzen-ai-9-hx-370-w-radeon-890m": entry("AMD Ryzen AI 9 HX 370 w/ Radeon 890M"),
   };
 
-  it("names a runner by its label and its CPU model", () => {
+  it("names a runner by its label alone, whatever CPU model it hands out, and a machine without one by its CPU", () => {
     const before = process.env.PERF_ENV;
     process.env.PERF_ENV = "github-ubuntu-latest";
     try {
-      expect(environmentName()).toMatch(/^github-ubuntu-latest-[a-z0-9-]+$/);
-      expect(environmentName()).not.toBe("github-ubuntu-latest");
+      expect(environmentName()).toBe("github-ubuntu-latest");
+      delete process.env.PERF_ENV;
+      expect(environmentName()).toMatch(/^[a-z0-9]+-[a-z0-9]+-[a-z0-9-]+$/);
     } finally {
       if (before === undefined) delete process.env.PERF_ENV;
       else process.env.PERF_ENV = before;
     }
   });
 
-  it("compares a run only with the baseline of its own CPU model", () => {
-    const found = lookupBaseline(environments, "github-ubuntu-latest-amd-epyc-9v74-80-core-processor");
-    expect("baseline" in found && found.baseline.cpu).toBe("AMD EPYC 9V74 80-Core Processor");
+  it("compares a run only with the baseline of its own environment", () => {
+    const found = lookupBaseline(environments, "github-ubuntu-latest");
+    expect("baseline" in found && found.baseline.cpu).toContain("AMD EPYC 7763");
   });
 
-  it("gives a CPU model without a baseline a warning naming the models that have one, and no verdict", () => {
-    const found = lookupBaseline(environments, "github-ubuntu-latest-intel-xeon-platinum-8370c");
+  it("gives an environment without a baseline a warning naming those that have one, and no verdict", () => {
+    const found = lookupBaseline(environments, "github-windows-latest");
     expect("baseline" in found).toBe(false);
     const warning = "warning" in found ? found.warning : "";
-    expect(warning).toContain('"github-ubuntu-latest-intel-xeon-platinum-8370c"');
+    expect(warning).toContain('"github-windows-latest"');
     expect(warning).toContain("no verdict (exit 0)");
-    expect(warning).toContain("github-ubuntu-latest-amd-epyc-9v45-96-core-processor, github-ubuntu-latest-amd-epyc-9v74-80-core-processor");
+    expect(warning).toContain("github-ubuntu-latest, win32-x64-amd-ryzen-ai-9-hx-370-w-radeon-890m");
     expect(lookupBaseline({}, "x")).toEqual({ warning: expect.stringContaining("Environments with a baseline: none.") });
   });
 });

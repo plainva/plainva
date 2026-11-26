@@ -27,83 +27,58 @@
       "dbBytes": 105361408,
       "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94"
     },
-    "github-ubuntu-latest-amd-epyc-9v45-96-core-processor": {
-      "recorded": "2026-11-11",
-      "node": "v22.23.4",
-      "cpu": "AMD EPYC 9V45 96-Core Processor",
-      "calibrationMs": 753.68,
-      "fsWalkMs": 230.59,
-      "ratios": {
-        "coldIndexMs": 43.1501,
-        "warmIndexMs": 1.22941,
-        "saveP50Ms": 0.00401,
-        "saveP95Ms": 0.00872,
-        "searchMs": 0.04372,
-        "listTasksMs": 0.60485
-      },
-      "ms": {
-        "coldIndexMs": 32521.37,
-        "warmIndexMs": 283.49,
-        "saveP50Ms": 3.02,
-        "saveP95Ms": 6.57,
-        "searchMs": 32.95,
-        "listTasksMs": 455.86
-      },
-      "dbBytes": 105488384,
-      "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94",
-      "commit": "6b3e348fc1bab6931a716d9c333fb0d2b108755d"
-    },
-    "github-ubuntu-latest-amd-epyc-9v74-80-core-processor": {
-      "recorded": "2026-11-11",
-      "node": "v22.23.4",
-      "cpu": "AMD EPYC 9V74 80-Core Processor",
-      "calibrationMs": 993.15,
-      "fsWalkMs": 339.54,
-      "ratios": {
-        "coldIndexMs": 41.39759,
-        "warmIndexMs": 1.22642,
-        "saveP50Ms": 0.00435,
-        "saveP95Ms": 0.0077,
-        "searchMs": 0.055,
-        "listTasksMs": 0.77895
-      },
-      "ms": {
-        "coldIndexMs": 41114.02,
-        "warmIndexMs": 416.42,
-        "saveP50Ms": 4.32,
-        "saveP95Ms": 7.65,
-        "searchMs": 54.62,
-        "listTasksMs": 773.61
-      },
-      "dbBytes": 105488384,
-      "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94",
-      "commit": "7483afe3f1832ef93db0b6b02f1a316deccf8889"
-    },
-    "github-ubuntu-latest-intel-r-xeon-r-platinum-8573c": {
-      "recorded": "2026-11-21",
+    "github-ubuntu-latest": {
+      "recorded": "2026-11-26",
+      "commit": "b8a8f00e2",
       "node": "v22.23.5",
-      "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
-      "calibrationMs": 918.71,
-      "fsWalkMs": 365.42,
+      "cpu": "AMD EPYC 7763 64-Core Processor, AMD EPYC 9V45 96-Core Processor, AMD EPYC 9V74 80-Core Processor, Intel(R) Xeon(R) 6975P-C",
+      "calibrationMs": 875.34,
+      "fsWalkMs": 256.15,
       "ratios": {
-        "coldIndexMs": 42.01785,
-        "warmIndexMs": 1.27467,
-        "saveP50Ms": 0.00504,
-        "saveP95Ms": 0.00768,
-        "searchMs": 0.0478,
-        "listTasksMs": 0.73513
+        "coldIndexMs": 35.86376,
+        "warmIndexMs": 1.33219,
+        "saveP50Ms": 0.0041,
+        "saveP95Ms": 0.00692,
+        "searchMs": 0.04565,
+        "listTasksMs": 0.09839
       },
       "ms": {
-        "coldIndexMs": 38602.22,
-        "warmIndexMs": 465.79,
-        "saveP50Ms": 4.63,
-        "saveP95Ms": 7.06,
-        "searchMs": 43.91,
-        "listTasksMs": 675.37
+        "coldIndexMs": 35696.59,
+        "warmIndexMs": 349.2,
+        "saveP50Ms": 3.28,
+        "saveP95Ms": 6.62,
+        "searchMs": 42.63,
+        "listTasksMs": 90.53
       },
-      "dbBytes": 105971712,
+      "dbBytes": 113233920,
       "fixtureDigest": "d341d5dd01c5f50a6b9b93dda31f07166d17f179f08bab51c94ed8b0f904af94",
-      "commit": "5481284dcba6251eb49256c5401ad2fba0f27d0c"
+      "runs": 10,
+      "spread": {
+        "coldIndexMs": [
+          0.898,
+          1.137
+        ],
+        "warmIndexMs": [
+          0.92,
+          1.174
+        ],
+        "saveP50Ms": [
+          0.922,
+          1.066
+        ],
+        "saveP95Ms": [
+          0.916,
+          1.377
+        ],
+        "searchMs": [
+          0.87,
+          1.075
+        ],
+        "listTasksMs": [
+          0.867,
+          1.055
+        ]
+      }
     }
   }
 }
