@@ -71,7 +71,14 @@ export const UNREADABLE_BODY = "[Plainva could not display this message safely a
 export async function readableBodyInEngine(input: { html?: string | null; text?: string | null }, max: number, widths?: readonly number[]): Promise<ReadableBody> {
   const view = mailBodyView({ html: input.html ?? null, text: input.text ?? null });
   if (!view || view.unreadable) return readableBody(input, max);
-  const shown = await view.engineDocument(widths);
+  let shown: Awaited<ReturnType<typeof view.engineDocument>>;
+  try {
+    shown = await view.engineDocument(widths);
+  } catch {
+    // The engine could not say what the reader shows (B7, review): nothing of it is read, as for a body the reader
+    // could not make safe. Never the walk's reading in its stead.
+    return { text: UNREADABLE_BODY, links: [], truncated: false };
+  }
   const body = cut(shown.text.trim(), max);
   return { text: body.text, links: checkedLinks(shown.links), truncated: body.truncated };
 }

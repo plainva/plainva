@@ -12,8 +12,13 @@ import { applyFrameFit } from "./frameFit";
  * (about half of it), or that has no place a person can reach, at either width, is hidden: in doubt, it is not read.
  *
  * Nothing of the sanitizer changes: the reader shows every mail as before, and the assistant reads the walk's text
- * without the words the engine hides. Where there is no engine — no DOM, or one that lays nothing out (a test runner)
- * — the answer is `null`, and the walk's reading stands.
+ * without the words the engine hides.
+ *
+ * It fails closed (plan Umsetzung 0.9.x, B7, review): where the engine is there but the pass cannot finish — a frame
+ * that does not load or lays nothing out, anything that throws —, `engineHiddenWords` throws, and the assistant reads
+ * nothing of the message (`readableBodyInEngine`). Only where there is no layout engine at all (`hasLayoutEngine`:
+ * no DOM, or a DOM without hit testing — a test runner's; no runtime of the app reads mail so) the answer is `null`,
+ * and the walk's reading stands.
  */
 
 /** A text's place in the tree, the same in the reader's tree and in the frame's: the path of its parent element and where in that parent's own text it starts. */
@@ -34,6 +39,8 @@ export const ENGINE_WIDTHS = [343, 760] as const;
 
 /** A cover fainter than this lets the words below it through (`MIN_OPACITY` of the walk and of the gate). */
 const COVER_OPACITY = 0.1;
+/** How long the invisible frame may take to load before the pass gives up (and nothing is read). */
+const LOAD_WAIT_MS = 5000;
 /** Words asked of the engine between two turns of the interface. */
 const WORDS_PER_STEP = 400;
 /** How long the frame waits for its pictures (data: only; the assistant's view loads nothing from outside). */
@@ -57,7 +64,8 @@ export function elementPath(element: Element, body: Element): string | null {
 }
 
 /** Whether the engine can answer at all: a DOM that lays out (a test runner's has no layout and no hit test). */
-function engineHere(): boolean {
+/** Whether this runtime has a layout engine to ask: a DOM with hit testing. The app's web views all have one. */
+export function hasLayoutEngine(): boolean {
   return typeof document !== "undefined" && typeof document.createElement === "function" && typeof (document as Document & { elementsFromPoint?: unknown }).elementsFromPoint === "function";
 }
 
@@ -210,13 +218,18 @@ async function openFrame(frameDoc: string, width: number): Promise<HTMLIFrameEle
   frame.setAttribute("aria-hidden", "true");
   frame.tabIndex = -1;
   frame.style.cssText = `position:fixed;left:-20000px;top:0;width:${width}px;height:600px;border:0;opacity:0;pointer-events:none`;
-  const loaded = new Promise<void>((resolve) => frame.addEventListener("load", () => resolve(), { once: true }));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const loaded = Promise.race([
+    new Promise<boolean>((resolve) => frame.addEventListener("load", () => resolve(true), { once: true })),
+    new Promise<boolean>((resolve) => (timer = setTimeout(() => resolve(false), LOAD_WAIT_MS))),
+  ]);
   // Every box answers the hit test: a mail cannot take a cover out of it.
   frame.srcdoc = frameDoc.replace("</head>", "<style>*{pointer-events:auto!important}</style></head>");
   document.body.append(frame);
-  await loaded;
+  const came = await loaded;
+  clearTimeout(timer);
   const doc = frame.contentDocument;
-  if (!doc?.body) {
+  if (!came || !doc?.body) {
     frame.remove();
     return null;
   }
@@ -233,16 +246,16 @@ async function openFrame(frameDoc: string, width: number): Promise<HTMLIFrameEle
   return frame;
 }
 
-/** The hidden ranges of one width, added to `out`. False where the frame could not be laid out. */
-async function hiddenAt(frameDoc: string, width: number, out: EngineHidden): Promise<boolean> {
+/** The hidden ranges of one width, added to `out`. Throws where the frame could not be laid out.  */
+async function hiddenAt(frameDoc: string, width: number, out: EngineHidden): Promise<void> {
   const frame = await openFrame(frameDoc, width);
-  if (!frame) return false;
+  if (!frame) throw new Error("the mail's frame did not load");
   try {
     const doc = frame.contentDocument!;
     const win = frame.contentWindow!;
     const body = doc.body;
-    // A frame that lays nothing out is no engine to ask (a test runner's DOM).
-    if (body.getBoundingClientRect().width <= 0) return false;
+    // A frame that lays nothing out cannot say what shows: nothing is read (fail closed).
+    if (body.getBoundingClientRect().width <= 0) throw new Error("the mail's frame laid nothing out");
     const walker = doc.createTreeWalker(body, NodeFilter.SHOW_TEXT);
     /** The offset of a text in its parent's own text, kept per parent while the walk is in it. */
     const offsets = new Map<Element, number>();
@@ -296,7 +309,6 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden): Pro
       entry.text = Array.from(element.childNodes).filter((child) => child.nodeType === 3).map((child) => (child as Text).data).join("");
       if (entry.text.length !== length) entry.text = "";
     }
-    return true;
   } finally {
     frame.remove();
   }
@@ -307,10 +319,12 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden): Pro
  * there is no engine to ask. Between steps the interface gets its turn.
  */
 export async function engineHiddenWords(frameDoc: string, widths: readonly number[] = ENGINE_WIDTHS): Promise<EngineHidden | null> {
-  if (!engineHere() || !document.body) return null;
+  // No layout engine at all — the one place the walk's reading stands (a test runner; no runtime of the app).
+  if (!hasLayoutEngine()) return null;
+  if (!document.body) throw new Error("no document to lay the mail out in");
   const out: EngineHidden = { parents: new Map() };
   for (const width of widths) {
-    if (!(await hiddenAt(frameDoc, width, out))) return null;
+    await hiddenAt(frameDoc, width, out);
     await turn();
   }
   for (const entry of out.parents.values()) entry.hidden.sort((a, b) => a[0] - b[0]);

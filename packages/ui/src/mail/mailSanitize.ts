@@ -334,7 +334,9 @@ function makePass(raw: string): Pass {
           reading = (async () => {
             const walked = (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false });
             if (!body || !walked.shows) return walked;
-            const hidden = await engineHiddenWords(buildMailFrameDoc(markup(false), { canvas: null }), widths).catch(() => null);
+            // Throws where the engine cannot finish: the caller reads nothing then (fail closed). `null` only where
+            // there is no layout engine at all (a test runner), and the walk's reading stands.
+            const hidden = await engineHiddenWords(buildMailFrameDoc(markup(false), { canvas: null }), widths);
             if (!hidden || hidden.parents.size === 0) return walked;
             return visibleDocumentOf(body, withoutHiddenWords(read, reader, body, hidden), { canvas: canvas() });
           })();
