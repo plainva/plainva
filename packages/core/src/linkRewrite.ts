@@ -753,7 +753,7 @@ export function linkShapedTargets(content: string, ranges: readonly BoundedRange
     const stretch = content.slice(range.from, range.to);
     // A wiki link may run across a line end, the next line's markers before its rest (`[[\n> Name]]`): the parser
     // reads it without them.
-    for (const match of stretch.matchAll(/\[\[((?:[^[\]\n]|\r?\n[ \t>]*)+)\]\]/g)) {
+    for (const match of stretch.matchAll(/\[\[((?:[^[\]\r\n]|\r?\n)+)\]\]/g)) {
       const target = wikiLinkParts(match[1].replace(/\r?\n[ \t>]*/g, "\n")).target;
       if (target) found.push({ at: range.from + match.index, target, type: "wikilink" });
     }
