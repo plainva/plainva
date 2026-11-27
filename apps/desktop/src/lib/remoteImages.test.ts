@@ -121,4 +121,30 @@ describe("a very large message text", () => {
     expect(out).toContain("  ![chart](https://e.example.org/in-code.png)\n");
     expect(out).toContain("- picture [x](https://e.example.org/out.png)\n");
   });
+
+  it("leaves no picture from the web in a part it cannot read, on the device that files it or any other", () => {
+    expect.hasAssertions();
+    // A forwarded thread filed on the phone kept its tracking picture where the phone's budget left the part unread;
+    // the desktop reads that part and loaded the picture on opening, and so did the phone once the thread was
+    // shortened (review of L14, round four).
+    const picture = "![logo](https://tracker.example.com/open.png?id=42)";
+    const reference = "![logo][track]";
+    const line = (i: number, depth: number, at: number) => `${"> ".repeat(depth)}On a day someone wrote line ${i} about the plan and more words${i === at ? ` ${picture} ${reference}` : ""}`;
+    const forms: Record<string, (n: number) => string> = {
+      thread: (n) => Array.from({ length: n }, (_, i) => line(i, 1 + Math.floor((i % 400) / 50), n - 5)).join("\n"),
+      quote: (n) => Array.from({ length: n }, (_, i) => line(i, 1, n - 5)).join("\n"),
+      paragraph: (n) => Array.from({ length: n }, (_, i) => line(i, 0, n - 5)).join("\n"),
+    };
+    for (const [name, make] of Object.entries(forms)) {
+      const text = `Hello,\n\nsee below.\n\n${make(12_000)}\n\n[track]: https://tracker.example.com/ref.png\n`;
+      const at = text.indexOf(picture);
+      expect(readAsTextParts(text).unread.some((range) => range.from <= at && at < range.to), `${name}: unread on the phone`).toBe(true);
+      const out = defuseRemoteImages(text);
+      expect(out, name).not.toContain(picture);
+      expect(out, name).not.toContain(reference);
+      expect(out, name).toContain("[logo](https://tracker.example.com/open.png?id=42)");
+      // Read whole — as another device or a shorter note reads it — nothing of it is a picture from the web.
+      expect(findMediaEmbeds(out).filter((embed) => /^https?:/.test(embed.target)), name).toEqual([]);
+    }
+  });
 });

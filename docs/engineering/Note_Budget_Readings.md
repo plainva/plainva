@@ -26,11 +26,22 @@ one character for each of its own, which keep every place where it is.)
 the note is read never stands in a stretch read as text: the line of a `---`
 nothing closes, which sets the whole note's reading, is never read as text, as
 a properties block is not, and a fence, an HTML block or a comment stays one
-block with all it holds open. Outside the stretches read as text (and the
-places of the next rule) the note's tree is the tree of the note read whole,
-node for node, by kind and place; `note-budget-trees.test.ts` holds that for
-notes of every building block in every wrapping, with a heavy first and last
-block.
+block with all it holds open. The budget's blocks are the parser's: a fence
+ends where the parser ends it — one in no list item at its closing line,
+whatever stands between, one behind an item's marker also where a line leaves
+the item —, and where the scan cannot know which (a fence or HTML that runs on,
+indented where a list item may be open, or behind a quote's or an item's
+marker), it cuts nothing from there to the note's end: no blank line ends a
+block there, no heading is one of its own. Outside the stretches read as text
+(and the places of the next rule) the note's tree is the tree of the note read
+whole, node for node, by kind, both ends and depth;
+`note-budget-trees.test.ts` holds that for notes of every building block
+(among them fences indented by one to three blanks with their code from the
+margin, fences in items and quotes, HTML of all seven kinds over blank lines)
+in every wrapping, with a heavy block first, in the middle or last, at budgets
+of 5 to 95 percent; it excuses three things, each for the case it needs (open
+places, the edges of text in a container that asks for a label, a list or a
+quote cut in two).
 
 **Writing needs proof.** In a note over its budget a place is taken for a link
 — by the index, a rename, the conversion of wiki links, any update of links —
@@ -78,8 +89,8 @@ places whether a definition could change them (`definitionReach.ts`):
    pairs otherwise across it (`#a_b_`).
 
 What is open is not read for links (`NoteLinks.unread`): the index lists no
-link and no tag there, a rename writes nothing there and counts each such
-stretch that names the renamed note where a link can name it (`unreadNaming`),
+link and no tag there, a rename writes nothing there and counts each
+link-shaped target there that its resolver leads to the renamed note (`unreadLinksTo`),
 and the conversion of wiki links converts nothing there. A note without a `]:` is read
 exactly; so is every reading of a note whose definitions all stand in its
 formatted text, for its tree. `definitionReach.test.ts` checks the rule
@@ -98,10 +109,12 @@ of the note.
 | Whether the note begins with a `---` nothing closes | the note's first line | the parser reads no blocks within blocks anywhere; the `---` line is never read as text (`noteBudgetRanges`), so the tree keeps that reading | read behind a `---` of its own, with the properties block's reading (`pieceLead`): the same mode; the note has no line that would close it | the same | the reading view reads no properties block, and opens blocks within blocks there | — |
 | Whether a block continues the one before | the line before it: an indented block, or one behind a line indented by four blanks or more | — | the block is cut only where the note itself begins a block; such a block stays with the one before it, in the budget's choice (`noteBudgetRanges`) as in its pieces | — | — | — |
 
-A heading whose text holds a reference whose definition stands in a part read
-as text reads the reference as it is written: the outline, a search hit and the
-heading's anchor show `[[[A]]][bar] heading` where the note read whole shows
-`[[A]]bar heading`. Nothing is written from it.
+A heading whose text holds a reference reads it as written where the heading
+or the definition stands in a part read as text: the outline, a search hit and
+the heading's anchor show `[[[A]]][bar] heading` where the note read whole
+shows `[[A]]bar heading`, and a heading in a block read as text, its piece read
+without the definition outside it, shows `[Use][bar] inner heading` for `Use
+inner heading`. Nothing is written from it.
 
 ## Table B — a part not read, by why
 
@@ -114,29 +127,32 @@ read in pieces, the whole note.
 
 | Why | From what size | Index (links) | Tags | Tasks | Headings, block ids | Rename | What the user sees | What helps |
 |---|---|---|---|---|---|---|---|---|
-| A paragraph over the inline budget, as on `main` | 5 478 characters at the least (`SMALLEST_UNREAD_CHARS`: a paragraph of `]`); prose from about 0.9 MB | none of it | outside a block read as text from the note's tree, inside one from its piece's tree, each once; the tag rule over raw characters is not used | found: the line scan (`taskScan.ts`) reads no tree | none of it | leaves its links; counts each stretch that names the renamed note where a link can name it, with the links it could not rewrite (`unreadNaming`) | the strip "Part of this note is shown as text, and its links are not read." (warning) and its ⓘ; after a rename the warning "Renamed — but links could not be checked and updated" | blank lines in it, or the note split into smaller notes |
+| A paragraph over the inline budget, as on `main` | 5 478 characters at the least (`SMALLEST_UNREAD_CHARS`: a paragraph of `]`); prose from about 0.9 MB | none of it | outside a block read as text from the note's tree, inside one from its piece's tree, each once; the tag rule over raw characters is not used | found: the line scan (`taskScan.ts`) reads no tree | none of it | leaves its links; counts each link-shaped target that its resolver leads to the renamed note, with the links it could not rewrite (`unreadLinksTo`) | the strip "Part of this note is shown as text, and its links are not read." (warning) and its ⓘ; after a rename the warning "Renamed — but links could not be checked and updated" | blank lines in it, or the note split into smaller notes |
 | A unit of a block read as text heavier than a piece may weigh (`PIECE_SHARE`, half the note's budget) that cannot be cut: no list at its outermost level, or one item only (a quote of one paragraph, a list under one item, one paragraph) | over the note's budget, so on the phone from 41 KB (dense tables) to 2.4 MB, on the desktop four times that | none of it | none: no tag rather than a wrong one (the tag rule over raw characters read `#include` in code as a tag) | found: the line scan | none of it | as above | as above | blank lines in it (outside the quote: a line `>` keeps one quote one paragraph), or the note split into smaller notes |
 | Behind an unclosed `---` in the first line | as either above: in this mode a list is no list, so a unit is not cut at its items | — | — | — | — | — | — | the same; or the `---` closed |
+| A table over the table budget whose rows hold more links than its reading can keep | rows read alone hold what each finds to the note's end: each Markdown link, address or mail address of a row weighs 250 beyond the row read as text, a wiki link 30 (`NOTE_ROW_FACT_WEIGHT`, `NOTE_ROW_WIKI_WEIGHT`); on the phone a table of rows with three Markdown links from about 21 000 rows | none of it | none | found: the line scan | none of it | as above | as above | the table split into smaller notes |
 | Where a definition the reading does not see may change the brackets (the rule above) | a note over its budget with a `]:` outside the part — a definition, a footnote, or the characters `]:` anywhere, in code too | none from the first bracket that asks for a label, to the end of its paragraph (or of the bracket alone, rule 4) | only those that read alike (rule 6) | found: the line scan | as its reading gives them: a heading's text with a reference reads it as written (outline, search, anchor) | as above | the ⓘ of the strip names `]:` and what it costs | the note split into smaller notes, or no `]:` outside the part |
 
 A rename plans from the backlinks, which hold no link of a part not read. So
-it also asks the full-text index once for the notes whose text holds the old
-name, as written and as a Markdown link encodes it (`%20`, `%C3%B6`)
-(`notesThatMayNameUnread`, the phrase the search reads), keeps those of at
-least `SMALLEST_UNREAD_CHARS` characters (a file's size in bytes is never
-less), reads each and counts what its parts not read name where a link can
-name it; it writes nothing there. Where the search cannot find for sure — a
-name without a letter or a digit, a name beyond ASCII (it may stand partly
-encoded, `Gr%C3%B6ße`), a note without its row in the full-text index — it
-reads every note of that size. Every count, in the notes the rename rewrites as
-in those it only reads, uses one list of names (`linkNamesOf`: name, path
-without and with extension, each as written, with `%20` and encoded), compares
-them as the link rule does (case and composition aside) and reads the part
-with its percent signs decoded, across the markers of a quote at a line's
-start. `renameUnreadParts.test.ts` holds it against the resolver: every form
-the index takes for a link to the renamed note, in a part read, not read and
-open, is rewritten or named. No new index format: the cost is a query a name
-and the reading of the large notes that hold it.
+it also reads every note of at least `SMALLEST_UNREAD_CHARS` characters (a
+file's size in bytes is never less) that the backlinks do not name
+(`notesThatMayNameUnread`); no search narrows them, since a link may write its
+target in ways no phrase of the name finds (`Note%20\(1\).md`, an entity,
+`%4eame`). A note under its budget has no such part, and one in which no
+link-shaped target anywhere leads to the renamed note has none that does: for
+these the scan is all (no parse). In the others, and in the notes the rename
+rewrites, it counts every link-shaped target in a part not read
+(`linkShapedTargets`: a wiki link or an embed, a destination behind `](` or a
+definition's `[label]:`, across the markers of a line's start), each read as
+the index reads a link's target — the destination as the parser reads it, its
+escapes, entities and angle brackets, by a parse of the destination alone,
+then `markdownLinkTarget` — and asked of the rename's own resolver, the one
+that chose the links it rewrites (`unreadLinksTo`); it writes nothing there.
+The name in prose counts nothing. `renameOracle.test.ts` draws link forms at
+random from the name, keeps those the index of a small note resolves to the
+old note, and writes each into a part read, not read, across two quote lines
+and open, with and without a link read beside it: each is rewritten or
+reported. No new index format: the cost is the reading of the large notes.
 
 Both shells read alike but by their own budget (the desktop four times the
 phone's): a unit heavy enough to be not read on the phone may be read on the

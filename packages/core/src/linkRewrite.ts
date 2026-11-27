@@ -1,5 +1,5 @@
 import { decodeMarkdownLinkTarget, encodeMarkdownLinkPath, markdownLinkTarget } from "./linkEncoding.js";
-import { inBoundedRanges, readAsTextParts, type BoundedRange } from "./inlineParseBudget.js";
+import { inBoundedRanges, NOTE_READING, readAsTextParts, type BoundedRange } from "./inlineParseBudget.js";
 import { definitionReachOf, forEachReadPiece, parseMarkdownAst } from "./markdown-parser.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 
@@ -712,7 +712,7 @@ function editsNotReadBack(text: string, edits: readonly Edit[], retargeted: Read
 export function renameNoteLinks(content: string, renames: ReadonlyMap<string, string>): { content: string; renamed: number; unplaced: number } {
   const wanted = (target: string) => target !== "" && renames.has(target);
   const result = rewriteNoteLinks(content, (link) => (wanted(link.target) ? { target: renames.get(link.target)! } : null));
-  return { content: result.content, renamed: result.rewritten, unplaced: result.unplaced.filter((link) => wanted(link.target)).length + unreadNaming(content, result.unread, renames.keys()) };
+  return { content: result.content, renamed: result.rewritten, unplaced: result.unplaced.filter((link) => wanted(link.target)).length + unreadLinksTo(content, result.unread, wanted) };
 }
 
 /**
@@ -727,93 +727,108 @@ export function notReadForLinks(content: string): BoundedRange[] {
   return content.includes("]:") ? readNoteLinks(content).unread : parts.unread;
 }
 
-/**
- * The names a link to the note at `path` may be written with, as a part not
- * read for links is searched for them (`unreadNaming`, `notesThatMayNameUnread`):
- * its name, its path without and with the extension, each as written, with its
- * blanks as `%20`, and as a Markdown link encodes it (`%C3%B6`). One list for
- * every way a rename counts (review of L14, round three: the notes it rewrote
- * were searched with the targets of their read links alone, and `[[Name X]]`
- * read beside `[t](Name%20X.md)` not read left the second without a word).
- */
-export function linkNamesOf(path: string): string[] {
-  const stem = path.replace(/\.md$/i, "");
-  const base = stem.split(/[/\\]/).pop() ?? stem;
-  return [...new Set([base, stem, path].flatMap((name) => [name, name.replace(/ /g, "%20"), encodeMarkdownLinkPath(name)]))];
+/** What a link the index reads names: its target as the index lists it, and its kind (`ExtractedLink.type`). */
+export interface LinkShapedTarget {
+  /** Where the link's shape begins in the text. */
+  at: number;
+  target: string;
+  type: "wikilink" | "markdown-link";
 }
 
 /**
- * How many of the stretches `unread` that are not read for links
- * (`NoteLinks.unread`) hold one of `names` where a link can name it: inside
- * a wiki link's brackets (`[[…name`), or in a Markdown link's destination
- * (`(…name`, `<…name`), across the markers of a quote or a list at a line's
- * start — a link to it may stand there, which no reading of the note's links
- * reaches. Names compare as the link rule compares them, case and composition
- * aside, and the stretch is read with its percent signs decoded as well, so
- * that a name written partly encoded (`Gr%C3%B6ße`) is found. A rename counts each
- * with the links it could not rewrite, so that it says some still name the old
- * file. A count, never a rewrite: nothing in such a stretch is taken for a
- * link. The name as a word of the text alone is no link (review of L14,
- * 2026-11-26: renaming `a.md` said links had been left in every large note
- * that held the word "a").
+ * Every place in `ranges` of `content` that has the shape of a link's target
+ * — a wiki link or an embed (`[[…]]`), a Markdown destination behind `](`, a
+ * definition's behind `[label]:` — read as the index reads a link it parses:
+ * the destination as the parser reads it (its backslash escapes, entities and
+ * angle brackets, by a parse of the destination alone), then
+ * `markdownLinkTarget` and `wikiLinkParts`. A shape, not a reading: in code,
+ * or where a definition makes another thing of the brackets, it is taken as
+ * well, so that what it may name is never missed. Across the quote and list
+ * markers of a line's start, as a link's text runs across lines.
  */
-export function unreadNaming(content: string, unread: readonly BoundedRange[], names: Iterable<string>): number {
+export function linkShapedTargets(content: string, ranges: readonly BoundedRange[]): LinkShapedTarget[] {
+  const found: LinkShapedTarget[] = [];
+  const destinations: Array<{ at: number; raw: string }> = [];
+  for (const range of ranges) {
+    const stretch = content.slice(range.from, range.to);
+    // A wiki link may run across a line end, the next line's markers before its rest (`[[\n> Name]]`): the parser
+    // reads it without them.
+    for (const match of stretch.matchAll(/\[\[((?:[^[\]\n]|\r?\n[ \t>]*)+)\]\]/g)) {
+      const target = wikiLinkParts(match[1].replace(/\r?\n[ \t>]*/g, "\n")).target;
+      if (target) found.push({ at: range.from + match.index, target, type: "wikilink" });
+    }
+    for (const match of stretch.matchAll(/\]\(|^[ \t>]*(?:[-*+][ \t]+|\d{1,9}[.)][ \t]+)?\[(?:[^\]\\\n]|\\.)+\]:/gm)) {
+      const raw = rawDestinationAt(stretch, match.index + match[0].length);
+      if (raw) destinations.push({ at: range.from + match.index, raw });
+    }
+  }
+  if (destinations.length === 0) return found;
+  // One parse for all of them, each as a link of its own on a line of its own: the parser's reading of a destination.
+  const lines = destinations.map(({ raw }) => `[x](${raw})`).join("\n\n");
+  const links: Array<{ line: number; url: string }> = [];
+  const visit = (node: { type?: string; url?: string; position?: { start?: { line?: number } }; children?: unknown[] }) => {
+    if (node.type === "link" && typeof node.url === "string" && node.position?.start?.line) links.push({ line: node.position.start.line, url: node.url });
+    for (const child of (node.children ?? []) as (typeof node)[]) visit(child);
+  };
+  visit(parseMarkdownAst(lines, { reading: { ...NOTE_READING, notes: false } }) as unknown as Parameters<typeof visit>[0]);
+  for (const { line, url } of links) {
+    const at = destinations[(line - 1) / 2]?.at;
+    const { target } = markdownLinkTarget(url);
+    if (at !== undefined && target) found.push({ at, target, type: "markdown-link" });
+  }
+  return found.sort((a, b) => a.at - b.at);
+}
+
+/**
+ * The destination as written behind `at` (behind `](` or `[label]:`): blanks,
+ * at most one line end with the markers of the next line's start, then either
+ * `<…>` or a run without blanks whose parentheses balance (a backslash escapes
+ * one); `null` where none stands.
+ */
+function rawDestinationAt(text: string, at: number): string | null {
+  let i = at;
+  while (text[i] === " " || text[i] === "\t") i++;
+  if (text[i] === "\r") i++;
+  if (text[i] === "\n") {
+    i++;
+    while (i < text.length && /[ \t>]/.test(text[i])) i++;
+  }
+  const start = i;
+  if (text[i] === "<") {
+    for (i++; i < text.length && text[i] !== "\n" && text[i] !== "<"; i++) {
+      if (text[i] === "\\") i++;
+      else if (text[i] === ">") return text.slice(start, i + 1);
+    }
+    return null;
+  }
+  let depth = 0;
+  for (; i < text.length; i++) {
+    const ch = text[i];
+    if (ch === "\\" && i + 1 < text.length && !/\s/.test(text[i + 1])) {
+      i++;
+      continue;
+    }
+    if (/\s/.test(ch) || ch.charCodeAt(0) < 0x20) break;
+    if (ch === "(") depth++;
+    else if (ch === ")") {
+      if (depth === 0) break;
+      depth--;
+    }
+  }
+  return i > start && depth === 0 ? text.slice(start, i) : null;
+}
+
+/**
+ * How many link-shaped targets (`linkShapedTargets`) in the stretches
+ * `unread`, not read for links (`NoteLinks.unread`), lead to the renamed note
+ * by `leads` — the rename's own resolver, the one that decided which links it
+ * rewrites. A count, never a rewrite: nothing in such a stretch is taken for a
+ * link. Counted by the resolver, not by a list of the name's spellings, which
+ * is never complete (review of L14, round four: `[t](Note%20\(1\).md)`, an
+ * entity in a destination and a name partly encoded in ASCII were left without
+ * a word), and the name in prose is no link (`(Größe x)` counts nothing).
+ */
+export function unreadLinksTo(content: string, unread: readonly BoundedRange[], leads: (target: string, type: LinkShapedTarget["type"]) => boolean): number {
   if (unread.length === 0) return 0;
-  // As the link rule compares names: case and composition aside (`ö` and `o` with its diaeresis are one letter).
-  const folded = (text: string) => text.normalize("NFC").toLowerCase();
-  const wanted = [...new Set([...names].filter((name) => name !== "").flatMap((name) => [folded(name), folded(decodedPercents(name))]))];
-  let count = 0;
-  for (const range of unread) {
-    const stretch = folded(content.slice(range.from, range.to));
-    const decoded = stretch.includes("%") ? folded(decodedPercents(stretch)) : stretch;
-    if (wanted.some((name) => namedAsLink(stretch, name) || (decoded !== stretch && namedAsLink(decoded, name)))) count++;
-  }
-  return count;
-}
-
-/** `text` with each run of percent-encoded UTF-8 bytes decoded where it decodes; the rest as it is. */
-function decodedPercents(text: string): string {
-  return text.replace(/(?:%[0-9a-f]{2})+/gi, (run) => {
-    try {
-      return decodeURIComponent(run);
-    } catch {
-      return run;
-    }
-  });
-}
-
-/** How far back from a name the opening of a link that may hold it is looked for: a path, an anchor, a label. */
-const LINK_OPENING_REACH = 1_000;
-
-/**
- * Whether `stretch` holds `name` behind the opening of a link that may hold it (`unreadNaming`): walking back line by
- * line, past the quote and list markers at each line's start, up to `[[`, `(` or `<`; what closes a link, or a line
- * with nothing but markers on it (a blank line, also in a quote), ends the look.
- */
-function namedAsLink(stretch: string, name: string): boolean {
-  for (let at = stretch.indexOf(name); at >= 0; at = stretch.indexOf(name, at + 1)) {
-    let end = at;
-    let first = true;
-    while (at - end <= LINK_OPENING_REACH) {
-      const start = stretch.lastIndexOf("\n", end - 1) + 1;
-      // Where the line's own text begins: behind the blanks and markers (`>`, `-`, `*`, `+`) of its start.
-      let content = start;
-      while (content < end && /[ \t>\-*+\r]/.test(stretch[content])) content++;
-      if (!first && content >= end) break;
-      let found: boolean | null = null;
-      for (let i = end - 1; i >= content && found === null; i--) {
-        const code = stretch.charCodeAt(i);
-        if (code === 0x28 || code === 0x3c || (code === 0x5b && stretch.charCodeAt(i - 1) === 0x5b)) found = true;
-        else if (code === 0x29 || code === 0x3e || (code === 0x5d && stretch.charCodeAt(i - 1) === 0x5d)) found = false;
-      }
-      if (found !== null) {
-        if (found) return true;
-        break;
-      }
-      if (start === 0) break;
-      end = start - 1;
-      first = false;
-    }
-  }
-  return false;
+  return linkShapedTargets(content, unread).filter((link) => leads(link.target, link.type)).length;
 }

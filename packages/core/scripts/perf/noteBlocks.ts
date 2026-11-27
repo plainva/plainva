@@ -46,7 +46,24 @@ export const BLOCKS: readonly string[] = [
   Array.from({ length: 30 }, (_, i) => `Paragraph ${i} with a [link](https://example.org/${i}), an ![image](img${i}.png) and [[Note ${i}]].`).join("\n\n"),
   Array.from({ length: 30 }, (_, i) => `- [t][l${i}](x.md) **b** _c_ \`d\` [[A]] ~~s~~`).join("\n"),
   Array.from({ length: 30 }, (_, i) => `p${i} [a][b c] [d [e]] ![f](g) [^1] [[A]] [h](i)`).join("\n\n"),
-  Array.from({ length: 60 }, (_, i) => `- item ${i} **b** _c_ \`d\` [[Other${i}]] <e> &amp; ~~s~~ words`).join("\n"),
+  Array.from({ length: 60 }, (_, i) => `- item ${i} **b** _c_ \`d\` [[Other${i}]] <e> &amp; ~~s~~ words`).join("\n"),  // The fourth review's: blocks that hang together over blank lines, and fences and HTML the parser may hold open
+  // longer than a scan of lines would (`NotA` is never a link where the note is read whole).
+  "- a [[A]]\n\n- b [x](x.md)\n\n- c #t", "1. one [[A]]\n\n2. two [x](x.md)\n\n3. three", "3. three [[A]]\n\n4. four",
+  "- a\n\n  para [[A]] [x](x.md)\n\n      code [[NotA]]", "[^f]: a [[A]]\n\n    second [x](x.md)\n\n    third",
+  "> a [[A]]\nlazy [x](x.md)", "para [[A]]\n---", "para [x](x.md)\n===", "> # H\n> [x\n> # H2\n> y](u.md)",
+  "<div>\n\n[[A]] [x](x.md)\n\n</div>", "<custom-tag>\n[[NotA]]\n</custom-tag>\n\n[[A]]", "<!--\n\n[[NotA]]\n\n-->\n\n[[A]]",
+  "<pre>\n\n[[NotA]]\n\n</pre>", "<script>\n\nvar a = '[[NotA]]';\n\n</script>", "<?php\n\n[[NotA]]\n\n?>",
+  "<![CDATA[\n\n[[NotA]]\n\n]]>", "<!DOCTYPE x\n\n[[NotA]]\n>", "~~~\n\n[[NotA]]\n\n~~~", "- ```\n\n  [[NotA]]\n\n  ```",
+  "> ```\n>\n> [[NotA]]\n>\n> ```", "    code a\n\n    code [[NotA]]", "$$\n\n[[A]]\n\n$$", "> [!note]\n>\n> callout [[A]]",
+  "# H\npara right under [[A]]", "# H\n| a | b |\n|---|---|\n| [[A]] | c |", "| a | b |\n|---|---|\n| [[A]] | c |\nlazy row [x](x.md)",
+  "text\n| a | b |\n|---|---|\n| [[A]] | c |", "[d]:\n<x.md>\n\n[t][d] [[A]]", "- item\n\n      indented code [[NotA]]\n\n- next [[A]]",
+  "1) a\n\n2) b [[A]]", "- [ ] t\n\n  - [x] sub [[A]]", "> q\n>\n> - item [[A]]\n>\n>   more", "\t- tab item [[A]]\n\n\t  cont",
+  "```\nunclosed fence [[NotA]]", "<!-- unclosed comment [[NotA]]", "para ending in two spaces  \n[[A]]", "Term\n: def [[A]]",
+  "***\n[[A]]", "- - -\n[[A]]", "  # indented heading [[A]]", "#nospace [[A]]", "## H ##\n[[A]]",
+  "  ```\ncode\n\n[[NotA]] more\n  ```", " ```\nx\n\ny [[NotA]]\n ```", "   ~~~\na\n\nb [[NotA]]\n   ~~~", "  ```\nunclosed\n\n[[NotA]]",
+  "  <!--\nx\n\n[[NotA]]\n-->", "  <div>\nx\n\n[[A]]", "> ```\n> a\n\n[[A]]", "  ````\n```\n\n[[NotA]]\n  ````", "```\n  ```\n\n[[NotA]]\n```",
+  "  ```js\n  a\nb\n\nc [[NotA]]\n  ```", "- item\n  ```\ncode\n\n[[A]]\n  ```", "1. one\n   ```\n   a\n\n  b [[NotA]]\n   ```", "  <pre>\na\n\n[[NotA]]\n</pre>",
+  "  <script>\nx\n\n[[NotA]]\n</script>", "\t```\nnot a fence\n\n[[A]]", "- ```bash\n  a\n\n  b [[NotA]]\n  ```\n\n  ```\n\nafter [[A]]",
 ];
 
 /** A heavy block, read as text at most budgets: a list of sixty linked items with inline syntax. */

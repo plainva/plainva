@@ -233,6 +233,12 @@ interface Fence {
   marker: "`" | "~";
   length: number;
   indent: number;
+  /**
+   * Whether the fence may stand in a list item, and so ends at a line less
+   * indented than `indent` (the item's content, or the fence's own blanks where
+   * the scan does not know the item): set only where an item may be open.
+   */
+  item?: boolean;
 }
 
 /** The fence a line opens: at most three blanks, three or more backticks or tildes; a backtick fence's info has no backtick. */
@@ -1209,6 +1215,8 @@ export interface NoteScan {
   weights: Float64Array;
   /** Whether the note has blocks within blocks (`opensNoContainers`). */
   containers: boolean;
+  /** The first line from which the scan is not sure of the parser's blocks, or -1: nothing is cut from there on. */
+  held: number;
   /** The paragraphs over the inline budget, read as written by their own budget. */
   inline: BoundedRange[];
 }
@@ -1313,6 +1321,8 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     let cost = partsCost(headerParts, 0) + tableMarkerCost(header.text.slice(0, head.at));
     // What the table weighs to the note's budget: what stays of each row once the table is resolved (`noteTableRowCost`).
     let noteCost = noteTableRowCost(headerParts, 0, header.text.slice(0, head.at));
+    // Read row by row (over the table budget), what each row's reading finds is held to the note's end: its links.
+    let held = heldOfRow(text, content[0].from, content[0].to, headerParts);
     const costly: BoundedRange[] = [];
     if (exceedsInlineParseBudget(text, content[0].from, content[0].to)) costly.push(content[0]);
     let last = index + 1;
@@ -1328,6 +1338,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       const parts = rememberedRowParts(text, range.from, range.to);
       cost += partsCost(parts, delimiterCells ?? 0) + tableMarkerCost(line.text.slice(0, start.at));
       noteCost += noteTableRowCost(parts, delimiterCells ?? 0, line.text.slice(0, start.at));
+      held += heldOfRow(text, range.from, range.to, parts);
       if (exceedsInlineParseBudget(text, range.from, range.to)) costly.push(range);
       last = at;
     }
@@ -1335,7 +1346,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     // The note's budget weighs a table the scan reads exactly by its own weight; read as written, by what text costs.
     // At most a share of its own weight (`NOTE_TABLE_SHARE`): a note of one table the table budget reads as a table
     // is never read as text for the note's budget, whatever stands around it in a few lines.
-    if (exact) tablesRead.set(index, { last, cost: cost > TABLE_READ_BUDGET ? -1 : Math.min(noteCost, cost * NOTE_TABLE_SHARE), peak: cost });
+    if (exact) tablesRead.set(index, { last, cost: cost > TABLE_READ_BUDGET ? -1 : Math.min(noteCost, cost * NOTE_TABLE_SHARE), peak: cost, held });
     if (cost > TABLE_READ_BUDGET) {
       // One range where only blanks, line ends and markers that are no markup lie between two lines.
       // Read as written, the table is a paragraph, and the lines behind it
@@ -1363,9 +1374,17 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     return last;
   };
   let fence: Fence | null = null;
+  // Whether a list item may be open at the current line (`itemMaybeOpen`), whether the line before was blank, and
+  // the first line from which the scan is not sure of the parser's blocks (`heldFrom`, below).
+  let itemMaybeOpen = false;
+  // The content column of the list item opened last in the note itself (no quote), while it is surely open: -1 where
+  // none is known. Behind a blank line, a line less indented than its content leaves it.
+  let lastItem = -1;
+  let afterBlank = true;
+  let heldFrom = -1;
   // What the note's budget needs of the scan (`noteBudgetRanges`): the tables read exactly, by their header line;
   // the lines of fenced code; the blank lines that end a block; the lines of headings.
-  const tablesRead = new Map<number, { last: number; cost: number; peak: number }>();
+  const tablesRead = new Map<number, { last: number; cost: number; peak: number; held: number }>();
   const lineKinds = new Uint8Array(lines.length);
   // The list the current run stands in: where the content of its last item
   // begins, and where its ordered items stand. `null` outside a list.
@@ -1445,12 +1464,16 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
     if (line.to <= propertiesEnd) continue;
+    const wasBlank = afterBlank;
+    afterBlank = isBlank(line.text);
     if (fence) {
       lineKinds[index] = LINE_CODE;
-      // A line less indented than an indented fence may have left the list item the fence stood in.
-      if (fence.indent > 0 && !isBlank(line.text) && indentOf(line.text) < fence.indent) {
+      // A line less indented than a fence in a list item leaves the item, and the fence with it. A fence in no item
+      // ends at its closing line alone, whatever stands between (review of L14, round four: a fence indented by two,
+      // its code written from the margin, a blank line in it — the scan ended it at the code, the parser held it).
+      if (fence.item && !afterBlank && indentOf(line.text) < fence.indent) {
         fence = null;
-      } else if (closesFence(line.text, fence)) {
+      } else if (closesFence(fence.item ? line.text.slice(Math.min(textStart(line.text), fence.indent)) : line.text, fence)) {
         flush();
         fence = null;
         chain = -1;
@@ -1474,7 +1497,18 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
         lineKinds[index] = LINE_CODE;
         flush();
         list = null;
-        fence = opening;
+        // From the margin a fence ends every list item; indented where an item may be open, it may stand in the
+        // item, close a fence of the item the scan did not see, or open one of its own — the scan is not sure of the
+        // parser's blocks from here on, and the note's budget cuts nothing after it (`heldFrom`).
+        // Indented as deep as the content of the item surely open, it stands in that item: it ends where the item does.
+        const inLast = containers && opening.indent > 0 && lastItem >= 0 && opening.indent >= lastItem;
+        const unsure: boolean = containers && opening.indent > 0 && itemMaybeOpen && !inLast;
+        if (unsure && heldFrom < 0) heldFrom = index;
+        if (opening.indent === 0) {
+          itemMaybeOpen = false;
+          lastItem = -1;
+        }
+        fence = inLast ? { ...opening, indent: lastItem, item: true } : { ...opening, item: unsure };
         chain = -1;
         continue;
       }
@@ -1483,9 +1517,17 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     // there is weighed generously (one the parser reads as code costs it
     // nothing, and one read as written inside code is given back as it stood).
     // Lines in HTML are measured as paragraph text as well; fenced code is not.
-    if (!fence && !html) html = line.text.includes("<") ? htmlBlockOpening(line.text.slice(tableLineStart(line.text, true, containers).at)) : null;
-    else if (html && html !== HTML_ENDS_AT_BLANK && html.test(line.text)) html = HTML_ENDED;
-    const plain = fence || html ? -1 : plainDepth(line.text);
+    if (!fence && !html) {
+      const markers = line.text.includes("<") ? tableLineStart(line.text, true, containers).at : 0;
+      html = line.text.includes("<") ? htmlBlockOpening(line.text.slice(markers)) : null;
+      // HTML that runs on to its end, behind a quote's or an item's marker or indented where an item may be open,
+      // ends with its container in the parser and at its end marker in the scan: not sure from here on.
+      if (containers && html && html !== HTML_ENDS_AT_BLANK && (markers > 0 || (itemMaybeOpen && indentOf(line.text) > 0)) && heldFrom < 0) heldFrom = index;
+    } else if (html && html !== HTML_ENDS_AT_BLANK && html.test(line.text)) html = HTML_ENDED;
+    const plain: number = fence || html ? -1 : plainDepth(line.text);
+    // Behind a blank line a line from the margin ends every list item, unless it opens one (or is no plain line at all).
+    if (containers && wasBlank && !fence && indentOf(line.text) === 0) itemMaybeOpen = !html && plain < 0;
+    if (containers && wasBlank && !fence && lastItem >= 0 && indentOf(line.text) < lastItem) lastItem = -1;
     // A table needs a delimiter row under its header: every other line is asked nothing more (the scan's cost for an ordinary note).
     const candidate = reading.tables && index > tableUntil && index + 1 < lines.length && mayDelimit(lines[index + 1].text);
     const opensItemHere = !candidate || fence || html || plain >= 0 ? -1 : itemDepth(line.text);
@@ -1538,9 +1580,19 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
       continue;
     }
     const item = containers ? itemStart(content) : null;
+    if (item) itemMaybeOpen = true;
     if (item && opensItem(item, depth)) {
       flush();
       list = { depth, content: item.content, orderedIndent: item.ordered ? item.indent : list?.depth === depth ? list.orderedIndent : null };
+      lastItem = depth === 0 && !content.slice(0, item.content).includes("\t") ? item.content : -1;
+      // A fence behind the item's marker is code to its closing line in the item, or until a line leaves the item.
+      const inItem = depth === 0 && !html && !content.slice(0, item.content).includes("\t") ? fenceOpening(content.slice(item.content)) : null;
+      if (inItem) {
+        lineKinds[index] = LINE_CODE;
+        fence = { ...inItem, indent: item.content, item: true };
+        chain = -1;
+        continue;
+      }
     }
     if (run) {
       run.to = line.to;
@@ -1550,13 +1602,22 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     }
   }
   flush();
+  // Where the scan is not sure of the parser's blocks, the note's budget cuts nothing to the note's end: no blank line
+  // ends a block there, no heading is one of its own (the rule of `Note_Budget_Readings.md`, "A stand-in changes
+  // nothing outside itself": the budget's blocks are the parser's, and where the scan cannot know them, a block runs on).
+  if (heldFrom >= 0) {
+    for (let index = heldFrom; index < lines.length; index++) {
+      if (lineKinds[index] === LINE_BREAK) lineKinds[index] = LINE_CODE;
+      else if (lineKinds[index] === LINE_HEADING) lineKinds[index] = LINE_HELD_HEADING;
+    }
+  }
   // A table weighed generously overlaps the runs measured over the same lines: one range where they meet.
   ranges.sort((x, y) => x.from - y.from);
   // Then the note's budget, over the blocks the stretches above leave: the heaviest are read as text until the note is in it.
   if (reading.notes !== false && text.length > NOTE_SCAN_FROM) {
     const weights = new Float64Array(lines.length);
     const blocks = noteBudgetRanges(text, lines, lineKinds, tablesRead, ranges, reading, weights, observe, previous);
-    observe?.blocks?.({ blocks, lines, kinds: lineKinds, weights, containers, inline: ranges.filter((range) => !range.table) });
+    observe?.blocks?.({ blocks, lines, kinds: lineKinds, weights, containers, held: heldFrom, inline: ranges.filter((range) => !range.table) });
     if (blocks.length > 0) {
       ranges.push(...blocks);
       ranges.sort((x, y) => x.from - y.from);
@@ -1580,6 +1641,8 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
 const LINE_CODE = 1;
 const LINE_BREAK = 2;
 const LINE_HEADING = 3;
+/** A heading where the scan is not sure of the blocks around it: it weighs as a heading, and is no block of its own. */
+const LINE_HELD_HEADING = 4;
 
 /**
  * The most a whole note may weigh and still be read as it is written, in the
@@ -1691,6 +1754,29 @@ export const NOTE_ESCAPE_WEIGHT = 0;
  * paragraphs, which a weight of 700 still read formatted up to 14 465.
  */
 export const NOTE_LINK_WEIGHT = 1400;
+/**
+ * What a link or a literal (an address, a mail address) in a row of a table over the table
+ * budget weighs beyond the row read as text: each row is read alone
+ * (`readRowLinks`), and what it finds is held to the note's end. A table of
+ * rows with three Markdown links ran the phone's index out of 128 MB between
+ * 25 000 and 30 000 rows, where the budget read it as written up to 56 000
+ * (review of L14, round four).
+ */
+export const NOTE_ROW_FACT_WEIGHT = 250;
+/** What a wiki link in such a row weighs: its node is a few fields (`main` reads 62 728 rows of three under 128 MB). */
+export const NOTE_ROW_WIKI_WEIGHT = 30;
+
+/** What reading the row `text[from, to)` alone holds to the note's end: its Markdown links, its addresses and its wiki links. */
+function heldOfRow(text: string, from: number, to: number, parts: TableRowParts): number {
+  // Within the row alone: a search that ran on into the note behind a row without a link made the scan quadratic.
+  const row = text.slice(from, to);
+  let links = 0;
+  let wiki = 0;
+  for (let at = row.indexOf("]("); at >= 0; at = row.indexOf("](", at + 2)) links++;
+  for (let at = row.indexOf("[["); at >= 0; at = row.indexOf("[[", at + 2)) wiki++;
+  // The row's parts count a wiki link among its literals (what the parser reads as a whole): here it weighs its own.
+  return W.rowFact * (links + Math.max(0, parts.literals - wiki)) + W.rowWiki * wiki;
+}
 /** What each line of fenced code weighs beyond its characters (80 000 short lines of code fill 128 MB). */
 export const NOTE_CODE_LINE_WEIGHT = 377;
 /** What a thematic break weighs beyond its line and its characters (`isThematicBreak`). */
@@ -1730,8 +1816,11 @@ export const NOTE_TABLE_SHARE = (0.9 * NOTE_BUDGET) / TABLE_READ_BUDGET;
  * each (`defs`, `refsdefs`).
  */
 export const NOTE_LITERAL_WEIGHT = 324;
-/** Raised from 888 with the link's weight (review of L14, round three: paragraphs full of brackets, `bracketparas`). */
-export const NOTE_REFERENCE_WEIGHT = 1300;
+/**
+ * Raised to 1 300 with the link's weight in the third review of L14, and set back: the edge does not need it — 24
+ * forms of references read under 128 MB at the larger edge 888 gives (fourth review), and `bracketparas` keeps 1.27.
+ */
+export const NOTE_REFERENCE_WEIGHT = 888;
 /**
  * What a line that begins with a definition weighs beyond its characters — a
  * link reference definition `[label]: …` or a footnote's `[^label]: …`, behind
@@ -1767,6 +1856,8 @@ const W = {
   entity: NOTE_ENTITY_WEIGHT,
   escape: NOTE_ESCAPE_WEIGHT,
   link: NOTE_LINK_WEIGHT,
+  rowFact: NOTE_ROW_FACT_WEIGHT,
+  rowWiki: NOTE_ROW_WIKI_WEIGHT,
   codeLine: NOTE_CODE_LINE_WEIGHT,
   rule: NOTE_RULE_WEIGHT,
   textLine: NOTE_TEXT_LINE_WEIGHT,
@@ -2025,7 +2116,7 @@ function noteLineCost(text: string, from: number, to: number): number {
  * already reads as written, its stretches, by what text costs. The choice
  * depends on the text alone, so every device makes the same.
  */
-function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number }>, ranges: BoundedRange[], reading: MarkdownReading, weights: Float64Array, observe?: InlineScanObserver, previous?: readonly BoundedRange[]): BoundedRange[] {
+function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number; held: number }>, ranges: BoundedRange[], reading: MarkdownReading, weights: Float64Array, observe?: InlineScanObserver, previous?: readonly BoundedRange[]): BoundedRange[] {
   const properties = reading.properties ? frontmatterSpan(text) : null;
   // A `---` in the first line that nothing closes sets how the parser reads the whole note (no blocks within blocks):
   // its line is never read as text, as a properties block is not. Stood in with the block behind it, it was gone from
@@ -2098,7 +2189,7 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
     const table = tables.get(index);
     if (table) {
       const end = lines[table.last].to;
-      const written = end - line.from + W.textLine * (table.last - index + 1);
+      const written = end - line.from + W.textLine * (table.last - index + 1) + table.held;
       if (table.cost >= 0) heaviestTable = Math.max(heaviestTable, table.peak);
       add(index, line.from, end, table.cost < 0 ? written : table.cost, end - line.from + 1, false, table.last);
       index = table.last;
@@ -2112,7 +2203,7 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
       add(index, line.from, line.to, line.to - line.from + W.textLine + markerCost(text, line.from, line.to), asText);
       continue;
     }
-    add(index, line.from, line.to, kind === LINE_CODE ? line.to - line.from + W.codeLine : noteLineCost(text, line.from, line.to), asText);
+    add(index, line.from, line.to, kind === LINE_CODE ? line.to - line.from + W.codeLine : noteLineCost(text, line.from, line.to) + (kind === LINE_HELD_HEADING ? W.heading : 0), asText);
   }
   close();
   // The peak of the heaviest table while it is resolved, on top of what stays: it is there whichever blocks are read as text.
@@ -2402,7 +2493,9 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
     else unread.push({ from, to });
   };
   // Behind an unclosed `---` the parser reads no blocks within blocks: a list is no list there, and a unit is not cut.
-  const cutsOf = (from: number, to: number) => (found.containers ? listCuts(lines, from, to) : null);
+  // Where the scan is not sure of the parser's blocks (`heldFrom`), a unit is not cut at its items either: the items the
+  // cuts follow may stand in the parser's code (review of L14, round four).
+  const cutsOf = (from: number, to: number) => (found.containers && (found.held < 0 || to < found.held) ? listCuts(lines, from, to) : null);
   for (const block of found.blocks) {
     const first = lineAt(lines, block.from);
     let last = first;

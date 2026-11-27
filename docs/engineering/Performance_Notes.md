@@ -991,7 +991,7 @@ own heap (`perf:notes -- --calibrate --shell <name>`, `noteBudgetShells.json`): 
 with the index (the parse, and the reading of its links and tags) and the note source (the parse, its
 headings and block ids) under 128 MB — its read mode is its editor —, the desktop with those and the
 reading view under 512 MB (a named assumption for a computer of 8 GB with several windows; no
-platform limit). For each of 52 forms `main`'s limit is the most units its readers read with the
+platform limit). For each of 56 forms `main`'s limit is the most units its readers read with the
 note's budget off under the heap — or, where `main`'s own paragraph budget reads the form as text
 before that, the most it reads formatted (one paragraph of sentences) —, against the most the note's
 budget reads with no block as text, its threshold. The safe side is the hard condition: every
@@ -1033,14 +1033,16 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | tables of 50 rows of sixteen cells | 26 | 22 | 1.18 |
 | lines of links run together | 69 787 | 58 472 | 1.19 |
 | one line of `x x …` (words) | 161 408 | 135 286 | 1.19 |
+| references `[x][d]` with their link definitions | 5 742 | 4 829 | 1.19 |
+| footnote definitions | 5 953 | 5 014 | 1.19 |
 | lines of fenced code | 78 694 | 65 103 | 1.21 |
 | lines of embeds run together | 68 916 | 57 046 | 1.21 |
+| one table of rows with three Markdown links | 26 254 | 21 270 | 1.23 |
 | paragraphs of `&amp;` × 16 | 3 596 | 2 893 | 1.24 |
-| references `[x][d]` with their link definitions | 5 742 | 4 482 | 1.28 |
-| footnote definitions | 5 953 | 4 641 | 1.28 |
+| paragraphs full of brackets beside a footnote | 2 968 | 2 336 | 1.27 |
+| one table of rows with three wiki links | 62 101 | 47 887 | 1.30 |
 | tables of two rows between blank lines | 3 216 | 2 450 | 1.31 |
 | ordered items | 8 431 | 6 364 | 1.32 |
-| paragraphs full of brackets beside a footnote | 2 968 | 2 173 | 1.37 |
 | paragraphs of `` `a `` × 40 | 2 115 | 1 516 | 1.40 |
 | headings | 19 398 | 13 506 | 1.44 |
 | list items `- item n` | 8 876 | 6 080 | 1.46 |
@@ -1049,9 +1051,11 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | short paragraphs with a link, a picture and a wiki link | 4 121 | 2 791 | 1.48 |
 | tasks `- [ ] task n due` | 7 784 | 5 263 | 1.48 |
 | lines of inline HTML | 16 705 | 11 075 | 1.51 |
+| references `[d]` with their link definitions | 7 432 | 4 905 | 1.52 |
+| one table of rows with three mail addresses | 33 146 | 21 429 | 1.55 |
+| one table of rows with three `www.` addresses | 32 901 | 21 270 | 1.55 |
 | lines of a Markdown link and a URL | 9 181 | 5 870 | 1.56 |
-| references `[d]` with their link definitions | 7 432 | 4 548 | 1.63 |
-| footnote references and definitions | 3 653 | 2 135 | 1.71 |
+| footnote references and definitions | 3 653 | 2 292 | 1.59 |
 | paragraphs of `*a` × 40 | 1 652 | 957 | 1.73 |
 | nested items | 7 939 | 4 499 | 1.76 |
 | callouts of two lines with a link | 5 143 | 2 792 | 1.84 |
@@ -1062,9 +1066,9 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | tables of 1 200 rows | 4 | 2 | 2.00 |
 | tasks with a wiki link and emphasis | 6 287 | 3 145 | 2.00 |
 | done items with a link and a date | 7 194 | 3 484 | 2.06 |
+| references `[t][l](x.md)` with their definitions | 3 427 | 1 665 | 2.06 |
 | journal lines `- 10:00 …` with a link and a tag | 6 554 | 3 171 | 2.07 |
 | thematic breaks between blank lines | 39 466 | 18 860 | 2.09 |
-| references `[t][l](x.md)` with their definitions | 3 427 | 1 621 | 2.11 |
 | a list under one item (an outline) | 8 356 | 3 830 | 2.18 |
 | paragraphs of `\*` × 40 | 2 009 | 910 | 2.21 |
 | paragraphs of eighty `*` (thematic breaks) | 39 423 | 17 852 | 2.21 |
@@ -1091,7 +1095,7 @@ times the budget keeps every one at 1.14 or more:
 | Form | `main` on the desktop up to | Formatted up to | Ratio |
 |---|---:|---:|---:|
 | short paragraphs with a link, a picture and a wiki link | 12 775 | 11 167 | 1.14 |
-| paragraphs full of brackets beside a footnote | 10 758 | 8 697 | 1.24 |
+| paragraphs full of brackets beside a footnote | 10 758 | 9 349 | 1.15 |
 | paragraphs of `` `a `` × 40 | 9 461 | 6 064 | 1.56 |
 | lines of inline HTML | 70 751 | 44 292 | 1.60 |
 | link definitions | 43 316 | 26 656 | 1.63 |
@@ -1102,7 +1106,7 @@ times the budget keeps every one at 1.14 or more:
 | journal lines `- 10:00 …` with a link and a tag | 30 972 | 12 688 | 2.44 |
 | a list under one item (an outline) | 37 742 | 15 324 | 2.46 |
 
-The other 41 forms are measured on their safe side alone: `main`'s readers read 1.13 times their
+The other 45 forms are measured on their safe side alone: `main`'s readers read 1.13 times their
 threshold at four times the budget under 512 MB, and `perf:notes -- --check --shell desktop` reads
 them there in three runs whenever the performance workflow runs for a change to what the note's
 budget reads, and on its schedule. A search for their exact limits under 512 MB is out of reach: one
@@ -1112,8 +1116,9 @@ paragraph of 100 000 lines takes micromark minutes a parse (below, *Named limits
 until the end of the parse (10 000 link definitions, 0.18 MB of note, held 99 MB), where a line of
 prose of the same length holds a handful: a line that begins with a definition weighs 2 330 beyond
 its characters (`NOTE_DEFINITION_WEIGHT`, from the forms `defs` and `footdefs`). A reference —
-`[text][label]`, `[label][]`, `[label]` by their brackets, and a footnote's `[^label]` — weighs 1 300
-(`NOTE_REFERENCE_WEIGHT`, 888 before the third review): resolved, it holds what a link holds (`main` reads 9 787 definitions
+`[text][label]`, `[label][]`, `[label]` by their brackets, and a footnote's `[^label]` — weighs 888
+(`NOTE_REFERENCE_WEIGHT`; 1 300 between the third and the fourth review of L14, which the edge did not
+need: 24 forms of references read under 128 MB at the larger edge 888 gives): resolved, it holds what a link holds (`main` reads 9 787 definitions
 alone under 128 MB, 5 742 beside a reference each). No reading is given a definition it does not
 see (2026-11-27): where a definition outside a part may change what its brackets are, those places
 of the part are not read (`definitionReach.ts`, `Note_Budget_Readings.md`, "What a definition
@@ -1132,7 +1137,7 @@ with a link, a picture and a wiki link (a blog export, minutes) held some 31 KB 
 paragraph 10 KB, and 4 400 of them (0.42 MB) ran the phone's index out of 128 MB, which the budget read
 formatted up to 4 549; paragraphs full of brackets beside a footnote likewise; and references with a
 destination, `[t][l](x.md)`, whose definitions are read as text, read as text and a link each. A link,
-a picture and a wiki link weigh 1 400 now (`NOTE_LINK_WEIGHT`, 214 before), a reference 1 300; the
+a picture and a wiki link weigh 1 400 now (`NOTE_LINK_WEIGHT`, 214 before); the
 desktop's reading view binds it, which reads 12 775 of the short paragraphs under 512 MB. So forms
 with links are read as text earlier: lines of a Markdown link and a URL from 5 870 lines on the phone
 (8 051 before), callouts from 2 792 (3 205). A list item weighs 2 200 now (`NOTE_ITEM_WEIGHT`, 3 402
@@ -1146,6 +1151,28 @@ daily in the performance workflow) draws notes of two to six building blocks of 
 (`scripts/perf/noteBlocks.ts` and the forms), takes the most units the budget reads as they are, and
 reads them with every reader of the shell and a rename under its heap: a note that runs out of memory
 there names a part the budget weighs lighter than its parse.
+
+**Tables read row by row (2026-11-27).** A table over the table budget is read row by row, each row
+alone under its header (`readRowLinks`), and what each row's reading finds is held to the note's end.
+Weighed as its text alone, a table of rows with three Markdown links was read so up to 56 000 rows on
+the phone, and its index ran out of 128 MB from about 27 000 (as on `main`, which ran out as well; the
+fourth review of L14). A Markdown link, an address or a mail address in such a row weighs 250 beyond
+the row (`NOTE_ROW_FACT_WEIGHT`), a wiki link 30 (`NOTE_ROW_WIKI_WEIGHT`, its node is a few fields).
+Calibrated with the forms `tablemd`, `tablewiki`, `tablewww` and `tablemail` (one table, three of each
+in a row): on the phone read so up to 21 270, 47 887, 21 270 and 21 429 rows, where `main` reads 26 254,
+62 101, 32 901 and 33 146 (1.23, 1.30, 1.55, 1.55); a larger table is a part not read (the warning
+strip), where `main` ran the index out of memory. The edge search draws them as well.
+
+**Time (2026-11-27).** What the budget reads formatted parses under the heap and in a time that is a
+small multiple of `main`'s for the same note, where `main` reads it at all: the bound is three times.
+A table read row by row asked, for every row, whether the note holds a definition outside it, and a
+remembered answer of one entry let every row search the whole note again: 30 000 rows of wiki links
+took 40 s where `main` took 4.4 s. Two entries (`definitionMarks`) read them in 4.7 s, 8.4 s under
+128 MB; `definition-marks-cost.test.ts` counts the searches of the whole note (one, not one a row or a
+piece). Over the bound, and named as a limit: a form whose parse takes minutes on `main` itself — 18 543
+short callouts (0.66 MB) at the desktop's edge take 57 s to index (`main` 59 s), the reading view up to
+three minutes. The budget bounds what a parse holds, not micromark's own time for such a form; it is
+read as on `main`.
 
 **Quotes whose depth changes (2026-11-27).** A paragraph over the inline budget is read as written,
 and keeps the quote and list markers of its lines: the parser opens their quotes and items on every
@@ -1245,10 +1272,10 @@ gives none: the tag rule over its characters read `#include` in a fence as a tag
 does not have — no tag rather than a wrong one.
 Its tasks come from the line scan (`taskScan.ts`), which reads no tree. The notice then says that its
 links are not read and goes there — by the index's decision, from the text alone, not by the blocks
-the editor holds while it is typed in. A rename counts each such stretch that names a renamed note
-with the links it could not rewrite (`unreadNaming`) and rewrites nothing in it; since the backlinks
-hold no link of it, a rename also asks the full-text index for the notes large enough to hold such a
-part whose text names the old file (`notesThatMayNameUnread`) and reads those. What the notices say
+the editor holds while it is typed in. A rename counts each link-shaped target in such a stretch that
+its resolver leads to a renamed note with the links it could not rewrite (`unreadLinksTo`) and
+rewrites nothing in it; since the backlinks hold no link of it, a rename also reads every note large
+enough to hold such a part (`notesThatMayNameUnread`, no search: `Note_Budget_Readings.md`). What the notices say
 of such a part is held claim by claim, through the index as the app builds it, with the budget of
 each shell (`note-budget-claims.test.ts`): search finds it, its tasks are found, its links are
 missing from the backlinks and the graph, a paragraph's tags are found and a block's are not, and a
@@ -1273,6 +1300,15 @@ On the phone (128 MB):
 | lines of links, of embeds run together | 6 720 | 6 720, paragraph budget | 1.00 |
 | a table in a list item | 59 392 (1.46 MB) | not measured | — |
 | every other form (lists, tasks, journal lines, callouts, tables, footnotes …) | never | from its limit, out of memory | — |
+
+On the fourth review's forms of L14 (2026-11-27, phone, desktop in brackets): a paragraph of lines with
+a wiki link is not read from 6 930 lines (247 KB; 10 001, 358 KB), where `main`'s paragraph budget
+leaves it from 10 001 lines — in this band such a paragraph loses its links and tags against `main`,
+read as text by the note's budget before the paragraph budget, and a part not read gives no tag; a
+quote of such lines from 6 557 (202 KB; 10 001); a quote of prose with a Markdown link from 3 918
+(417 KB; 15 668, 1.69 MB); a single long callout of lines with a wiki link and a Markdown link from
+4 759 (132 KB; 6 667); lines of a Markdown link and a URL from 6 743 (462 KB; 20 001). With the link's
+weight of the third review these moved down on the phone by 15 to 30 percent.
 
 On the desktop (512 MB, four times the budget) a list under one item is not read from 15 360 items
 (431 KB), lines of a mail address from 41 472 against `main`'s 46 810 (1.13), a quote whose depth

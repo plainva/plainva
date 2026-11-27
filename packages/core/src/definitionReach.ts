@@ -83,14 +83,27 @@ export interface DefinitionReach {
   untagged: BoundedRange[];
 }
 
-let lastMarks: { text: string; marks: number[] } | null = null;
+/**
+ * The marks of the texts asked last, the latest first. Two: a reading asks of
+ * the note and of each row or piece it reads in turn, and one entry gave each
+ * row's question the note's place, so that every row searched the whole note
+ * again — 30 000 rows of a table with wiki links took 40 s where they took 4 s
+ * (review of L14, round four).
+ */
+const lastMarks: Array<{ text: string; marks: number[] }> = [];
 
 /** Every `]:` of `text`, by its place: where a definition may end its label. */
 export function definitionMarks(text: string): number[] {
-  if (lastMarks?.text === text) return lastMarks.marks;
+  for (let k = 0; k < lastMarks.length; k++) {
+    if (lastMarks[k].text !== text) continue;
+    const [hit] = lastMarks.splice(k, 1);
+    lastMarks.unshift(hit);
+    return hit.marks;
+  }
   const marks: number[] = [];
   for (let at = text.indexOf("]:"); at >= 0; at = text.indexOf("]:", at + 2)) marks.push(at);
-  lastMarks = { text, marks };
+  lastMarks.unshift({ text, marks });
+  if (lastMarks.length > 2) lastMarks.pop();
   return marks;
 }
 

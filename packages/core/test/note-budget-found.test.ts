@@ -72,7 +72,9 @@ describe("a quote whose depth changes from line to line", () => {
  * (`note-budget.ts --edge`).
  */
 describe("what the note's budget reads formatted parses under the heap", () => {
-  for (const form of ["shortlinks", "bracketparas", "refslinked"] as const) {
+  // And a table read row by row, whose rows' links are held to the note's end (round four: rows of three Markdown links
+  // ran the phone's index out of 128 MB from about 27 000 rows, which the budget read up to 56 000), at 30 000 rows.
+  for (const form of ["shortlinks", "bracketparas", "refslinked", "tablemd", "tablewww"] as const) {
     it(`${form}: at the most the budget reads formatted, and at three times that`, () => {
       expect.hasAssertions();
       setNoteBudget(NOTE_BUDGET);
@@ -82,6 +84,7 @@ describe("what the note's budget reads formatted parses under the heap", () => {
       underHeap(form, 3 * most);
       // The review's references: 20 000 of them in paragraphs of fifty, their definitions read as text (2 MB).
       if (form === "refslinked") underHeap(form, 20_000);
+      if (form === "tablemd" || form === "tablewww") underHeap(form, 30_000);
     }, 600_000);
   }
 });

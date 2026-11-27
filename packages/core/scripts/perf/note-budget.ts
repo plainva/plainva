@@ -176,14 +176,25 @@ export const NOTE_FORMS: Record<string, (n: number) => string> = {
   // of 128 MB formatted).
   shortlinks: (n) => Array.from({ length: n }, (_, i) => `Paragraph ${i} with a [link](https://example.org/${i}), an ![image](img${i % 50}.png) and [[Note ${i % 100}]].`).join("\n\n"),
   refslinked: (n) => `${Array.from({ length: Math.ceil(n / 50) }, (_, p) => Array.from({ length: Math.min(50, n - p * 50) }, (_, j) => `[t][l${p * 50 + j}](x.md)`).join(" ")).join("\n\n")}\n\n${Array.from({ length: n }, (_, i) => `- [l${i}]: T${i}.md "${"w ".repeat(30)}"`).join("\n")}`,
-  bracketparas: (n) => `[^1]: x\n\n${Array.from({ length: n }, (_, i) => `p${i} [a][b c] [d [e]] ![f](g) [^1] [[A]] [h](i)`).join("\n\n")}`,
+  bracketparas: (n) => `[^1]: x\n\n${Array.from({ length: n }, (_, i) => `p${i} [a][b c] [d [e]] ![f](g) [^1] [[A]] [h](i)`).join("\n\n")}`,  // One table whose rows carry links, addresses or mail addresses, read row by row over the table budget: what each
+  // row's reading finds is held to the note's end (review of L14, round four: rows of three Markdown links ran the
+  // phone's index out of 128 MB from about 27 000 rows, where the budget read the table as written up to 56 000).
+  tablemd: (n) => tableOfRows(n, "[x](x.md) [x](x.md) [x](x.md)"),
+  tablewiki: (n) => tableOfRows(n, "[[A]] [[A]] [[A]]"),
+  tablewww: (n) => tableOfRows(n, "www.x.com www.x.com www.x.com"),
+  tablemail: (n) => tableOfRows(n, "a@b.co a@b.co a@b.co"),
 };
+
+/** One table of `n` rows of two cells, the first with `cells` between a number and a word. */
+function tableOfRows(n: number, cells: string): string {
+  return `| a | b |\n|---|---|\n${Array.from({ length: n }, (_, i) => `| p${i} ${cells} end | z |`).join("\n")}`;
+}
 
 /**
  * The forms added after the hunt's notes `gen:<seed>:<k>` were first named: such a note is drawn from the forms before
  * them, so that a note the hunt once found stays the same note; the hunt draws from every form (`mix:<seed>:<k>`).
  */
-const LATER_FORMS = new Set(["quotedepth", "mailthread", "shortlinks", "refslinked", "bracketparas"]);
+const LATER_FORMS = new Set(["quotedepth", "mailthread", "shortlinks", "refslinked", "bracketparas", "tablemd", "tablewiki", "tablewww", "tablemail"]);
 
 const wrap = (body: string) => `---\ntitle: T\n---\n\n# Title\n\n${body}\n`;
 

@@ -26,12 +26,18 @@ import { findMediaEmbeds } from "./imageTarget";
  *
  * A very large text is read as the note's readers read it (`readAsTextParts`):
  * a block the note's budget reads as text is read in pieces, so that a picture
- * in its code stays as it is, as one in code anywhere else. A part that is not
- * read at all (a paragraph over its budget, a block too heavy for a piece) is
- * left as it is written: what stands there cannot be told from code, and no
- * reader shows a picture there — the editor and the reading view show such a
- * part as its source (review of L14, round three: a code block read as text
- * lost the `!` of a picture in it).
+ * in its code stays as it is, as one in code anywhere else (review of L14,
+ * round three: a code block read as text lost the `!` of a picture in it). A
+ * part that is not read at all (a paragraph over its budget, a block too heavy
+ * for a piece) cannot be told from code, and whether it is read depends on the
+ * device that files the mail: what one device leaves unread, another reads and
+ * shows, and the note may be shortened later (review of L14, round four: a mail
+ * thread filed on the phone kept its tracking picture, and the desktop loaded
+ * it on opening). So a picture from the web is never left there: every one the
+ * editor's finder finds is made a link, and so is every reference picture
+ * (`![x][label]`, `![x][]`, `![x]`) where the text holds a `]:` a definition
+ * may end with — in doubt, a `!` less in quoted code is the lesser harm. The
+ * text of a message is not yet a file of the user's.
  */
 export function defuseRemoteImages(markdown: string): string {
   let text = markdown;
@@ -92,16 +98,27 @@ function remoteImageEdits(text: string): Edit[] {
     if ((node.type === "code" || node.type === "inlineCode") && node.position) code.push([node.position.start.offset, node.position.end.offset]);
     for (const child of node.children ?? []) visit.push(child as PictureNode);
   }
+  // In what is not read, nothing is known to be code: only a backslash keeps a picture as it is written there.
   const literal = (at: number) => {
     let slashes = 0;
     while (text[at - 1 - slashes] === "\\") slashes++;
-    return slashes % 2 === 1 || code.some(([from, to]) => at >= from && at < to) || inBoundedRanges(parts.unread, at);
+    return slashes % 2 === 1 || code.some(([from, to]) => at >= from && at < to);
   };
   for (const embed of findMediaEmbeds(text)) {
     if (!isRemoteImageAddress(embed.target) || literal(embed.start)) continue;
     const link = embed.syntax === "wiki" ? linkTo(embed.target) : null;
     if (link) edits.push({ from: embed.start, to: embed.end, insert: link });
     else removeBang(embed.start);
+  }
+  // A reference picture in what is not read: its definition may stand anywhere, so wherever the text holds a `]:`.
+  if (parts.unread.length > 0 && text.includes("]:")) {
+    const reference = /!\[(?!\[)(?:[^\]\\\n]|\\[^])*\](?!\()/g;
+    for (const range of parts.unread) {
+      reference.lastIndex = range.from;
+      for (let found = reference.exec(text); found && found.index < range.to; found = reference.exec(text)) {
+        if (!literal(found.index)) removeBang(found.index);
+      }
+    }
   }
   // The reading view's parser, with the definitions a reference picture reads its address from.
   const definitions = new Map<string, string>();

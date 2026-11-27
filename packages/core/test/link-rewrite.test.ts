@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { within } from "./helpers/timeBudget.js";
 import { extractLinksAndTags } from "../src/ast-scanner.js";
-import { readNoteLinks, renameNoteLinks, rewriteNoteLinks, ROUNDS_PER_CONTAINER, setRenameRounds, unreadNaming, wikiLinkCanName } from "../src/linkRewrite.js";
+import { readNoteLinks, renameNoteLinks, rewriteNoteLinks, ROUNDS_PER_CONTAINER, setRenameRounds, unreadLinksTo, wikiLinkCanName } from "../src/linkRewrite.js";
 import { parseMarkdownAst } from "../src/markdown-parser.js";
 import { serializeMarkdownAst } from "../src/markdown-serializer.js";
 
@@ -638,21 +638,29 @@ describe("the rounds of a rename in one paragraph", () => {
   }, 120_000);
 });
 
-describe("unreadNaming: what a part not read may name", () => {
-  // A link can name a note only inside a wiki link's brackets or in a Markdown link's destination; the name as a word
-  // of the text alone is no link (review of L14, 2026-11-26: renaming `a.md` said links had been left in every
-  // large note that held the word "a").
+describe("unreadLinksTo: what a part not read may name", () => {
+  // A link can name a note only inside a wiki link's brackets or in a Markdown link's destination, read as the index
+  // reads a target; the name as a word of the text alone is no link (review of L14, 2026-11-26: renaming `a.md` said
+  // links had been left in every large note that held the word "a"), and a spelling the resolver accepts is never
+  // missed (round four: escapes, entities and ASCII written partly encoded were).
   const whole = (text: string) => [{ from: 0, to: text.length }];
-  it("counts a stretch where the name stands where a link can name it", () => {
+  const named = (name: string) => (target: string) => (target.split("/").pop() ?? "").replace(/\.md$/i, "").normalize("NFC").toLowerCase() === name;
+  it("counts each link-shaped target that leads to the note, however it is written", () => {
     expect.hasAssertions();
-    for (const text of ["see [[a]] here", "see [[folder/a|alias]]", "see [t](a.md)", "see [t](<a b.md>)", "see ![[a]]", "[t](\n  a.md)"]) {
-      expect(unreadNaming(text, whole(text), ["a"]), text).toBe(1);
+    for (const text of ["see [[a]] here", "see [[folder/a|alias]]", "see [t](a.md)", "see [t](<a.md>)", "see ![[a]]", "[t](\n  a.md)", "> [t\n> x](a.md)", "> see [[\n> a#^blk]] here", "[t](%61.md)", "[t](&#97;.md)", "[r]: a.md", "> - [r]: <a.md>"]) {
+      expect(unreadLinksTo(text, whole(text), named("a")), text).toBe(1);
     }
+    for (const text of ["[t](Note%20\\(1\\).md)", "[t](<Note \\(1\\).md>)", "[t](NoTE%20%28%31%29.MD \"ti\")", "[t](./Note&#32;%28%31&#41;)", "[t](<%4eote (1)>)"]) {
+      expect(unreadLinksTo(text, whole(text), named("note (1)")), text).toBe(1);
+    }
+    expect(unreadLinksTo("[t](G%72&ouml;%C3%9Fe&#32;%78.md)", whole("x"), named("größe x"))).toBe(0);
+    const entity = "[t](G%72&ouml;%C3%9Fe&#32;%78.md)";
+    expect(unreadLinksTo(entity, whole(entity), named("größe x"))).toBe(1);
   });
   it("does not count the name as a word of the text", () => {
     expect.hasAssertions();
-    for (const text of ["a line with a word", "[a](x.md) and a", "(b) a", "[[x]] a", "<b> a", "(x\n\na"]) {
-      expect(unreadNaming(text, whole(text), ["a"]), text).toBe(0);
+    for (const text of ["a line with a word", "[a](x.md) and a", "(b) a", "[[x]] a", "<b> a", "(x\n\na", "(a) and <a>", "[[a b]]"]) {
+      expect(unreadLinksTo(text, whole(text), named("a")), text).toBe(0);
     }
   });
 });

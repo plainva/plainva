@@ -703,12 +703,17 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "desktop the same. A part shown as text is read for its facts in pieces " +
       "on both shells, the whole note; a part too heavy for a piece and not cut " +
       "(one paragraph, a list under one item) is not read for its links and " +
-      "tags - on the phone from a quarter of the size the desktop reads so, " +
-      "since a piece's share is of each shell's budget. Both say so over the " +
-      "note, and a rename on either says when such a part names the renamed " +
-      "note where a link can name it; where a definition a part does not see " +
-      "may change its brackets, both read nothing there, by one rule " +
-      "(docs/engineering/Note_Budget_Readings.md).",
+      "tags - on the phone at a smaller size than on the desktop, since a " +
+      "piece's share is of each shell's budget (a single long paragraph from " +
+      "about 250 KB on the phone, 360 KB on the desktop, where the paragraph " +
+      "budget, alike on both, comes first; a list or a quote of one paragraph " +
+      "at a quarter of the desktop's size). Both say so over the note, and a " +
+      "rename on either counts every link-shaped target in such a part that " +
+      "its resolver leads to the renamed note, and says so; where a " +
+      "definition a part does not see may change its brackets, both read " +
+      "nothing there, by one rule (docs/engineering/Note_Budget_Readings.md). " +
+      "What is filed from a mail makes every picture from the web a link on " +
+      "both, in a part not read as well.",
     verified: "2026-11-27",
   },
   {
