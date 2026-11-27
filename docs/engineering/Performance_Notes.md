@@ -1548,7 +1548,15 @@ worker (when a setup is activated or resumed).
 before and brings it along now, and the gate's vault has a calendar account (+85 KB of fast-xml-parser and its
 helpers, loaded after the first picture instead of before it). On the phone, building blocks the moved parts shared
 with screens that load ahead in the idle time (the tasks and today screens) moved into those screens' chunks (+40 KB).
-Both are bytes after the first picture rather than before it; the baseline of "shortly after" is not raised.
+Both are bytes after the first picture rather than before it, not copies: the gate finds no module in two chunks
+of either build. The maintainer decided (2026-11-27) that "shortly after" may grow by what leaves the start: its
+baseline is recorded anew, and the gate holds the sum of start and shortly after per shell instead (`growth` over the
+baselines' sum; desktop 6 151 841 → 6 105 641, phone 5 867 723 → 5 498 675 against `main` as measured).
+
+**Why three candidates stay.** zod checks the parsed note (`core/src/markdown-ast.ts`, `metadata.ts`) on every
+note the index reads, and the index reads at the vault's open. The right column's sections draw in the first picture
+whenever the column is open, which a restored layout is. The desktop's settings profile, with the account repair,
+runs at the vault's open (`repairDesktopAccounts` in `settingsProfile.ts`).
 
 **What is left** (source size before minifying, the file is about 0.55 of it): both shells React (~540 KB), the
 editor with its Markdown/HTML/CSS/JavaScript grammars (desktop 675 KB file; phone ~950 KB source, by decision), YAML

@@ -25,6 +25,9 @@
  *   baseline (a build is deterministic, so the slack only absorbs what a
  *   dependency's patch release adds). A smaller build passes and says so: lower
  *   the baseline with `--update`, so the next growth is measured from there.
+ * - "shortly after" may grow by what leaves the start: its own baseline is
+ *   not a limit, the sum of start and shortly after is (`growth` over the
+ *   baselines' sum, maintainer 2026-11-27).
  * - `mustNotStart`: module families that must not be in the start files (the AI
  *   harness of both packages, the import adapters) — nor among the files loaded
  *   shortly after the start, with the AI switched off. Armed since package L5:
@@ -222,7 +225,24 @@ for (const shell of Object.keys(SHELLS)) {
     for (const error of after.errors) failures.push(`${shell}: the page failed while it started: ${error}`);
     now.afterStartBytes = after.afterBytes;
   }
-  for (const key of ["startBytes", "entryBytes", ...(after && was.afterStartBytes ? ["afterStartBytes"] : [])]) {
+  // Start and "shortly after" together (maintainer, 2026-11-27, package B1b): what leaves the start may arrive a moment
+  // later, so "shortly after" may grow past its baseline while the two together do not; their sum may not grow by more
+  // than `growth` over the baselines' sum — a rebuild that loads a part twice, or new code, fails here.
+  const sumHolds = (() => {
+    if (!after || !was.afterStartBytes) return true;
+    const sum = now.startBytes + after.afterBytes;
+    const baseSum = was.startBytes + was.afterStartBytes;
+    if (sum > baseSum * growth) {
+      failures.push(`${shell}: start and shortly after together ${sum} are more than ${Math.round(baseline.growth * 100)} % over the baselines' sum ${baseSum}`);
+      return false;
+    }
+    console.log(`    ok: start and shortly after together ${mb(sum)} (baselines' sum ${mb(baseSum)})`);
+    return true;
+  })();
+  if (after && was.afterStartBytes && after.afterBytes > was.afterStartBytes * growth && sumHolds) {
+    notes.push(`${shell}: shortly after grew from ${was.afterStartBytes} to ${after.afterBytes} while start and shortly after together held — bytes moved out of the start; record the baseline with --update`);
+  }
+  for (const key of ["startBytes", "entryBytes"]) {
     if (now[key] > was[key] * growth) failures.push(`${shell}: ${key} ${now[key]} is more than ${Math.round(baseline.growth * 100)} % over the baseline ${was[key]}`);
     else if (now[key] < was[key] / growth) notes.push(`${shell}: ${key} shrank from ${was[key]} to ${now[key]} — lower the baseline with --update`);
     if (budget[key] && now[key] > budget[key]) notes.push(`${shell}: ${key} ${now[key]} is over the budget of ${budget[key]} (plan § 4; packages L5)`);
