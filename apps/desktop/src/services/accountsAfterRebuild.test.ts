@@ -3,6 +3,7 @@ import {
   accountFieldsHeldBack,
   emptyAccountMap,
   fillHeldAccountField,
+  pimAccountListWhole,
   reconcileCloudAccounts,
   rememberRemovedAccount,
   restoreAccountsAfterRebuild,
@@ -170,5 +171,19 @@ describe("the accounts of a rebuilt index database", () => {
     expect(await restoreAccountsAfterRebuild({ settingsSyncRuns: false, state: s.state, ports: s.ports, readProfileCopy: async () => profileCopy({ pimAccounts: [pim()] }) })).toBe("restored");
     expect(s.rows.map((r) => r.id)).toEqual(["remote-1"]);
     expect(s.rebuild).toBe("settled");
+  });
+});
+
+describe("whether a list of calendar accounts says everything (the secrets sync and the cards, both shells)", () => {
+  it("no runtime: not whole; held back after a rebuild: not whole; settled: whole", async () => {
+    expect(await pimAccountListWhole(null)).toBe(false);
+    expect(await pimAccountListWhole({ accountsAfterRebuild: async () => "held" })).toBe(false);
+    expect(await pimAccountListWhole({ accountsAfterRebuild: async () => "settled" })).toBe(true);
+  });
+
+  it("an answer that cannot be read is no \"held\", as for the cards (sixth review round, H2): the list itself throws then, and the round writes nothing", async () => {
+    const unreadable = { accountsAfterRebuild: async (): Promise<"held"> => { throw new Error("database is locked"); } };
+    expect(await pimAccountListWhole(unreadable)).toBe(true);
+    expect(await accountFieldsHeldBack(unreadable)).toEqual([]);
   });
 });

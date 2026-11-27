@@ -270,6 +270,17 @@ for (const kind of ["calendar", "mail"] as const) {
           expect(entry?.entryRev, `above revision ${known}`).toBe(known + 1);
           expect(entry?.deviceId).toBe("D");
         });
+
+        it(`old name: ${old}; new name: ${fresh} — a password typed in the save that repairs stays here, as on main (rule R, sixth review round)`, async () => {
+          const { d, x } = await setUp(kind, old, fresh);
+          const b = { ...x, at: "b" as At };
+          d.slots.set("x", "NEW");
+          await round(d);
+          put(kind, b, { rev: 50, device: "N4", pass: "P9" });
+          await round(d);
+          await round(d);
+          expect(d.slots.get("x"), "typed here: not replaced from elsewhere").toBe("NEW");
+        });
       }
     }
 
@@ -403,6 +414,25 @@ for (const kind of ["calendar", "mail"] as const) {
       expect(whole.unknownAccounts, "an account in the document not set up here").toEqual([idOf(kind, x)]);
     });
 
+    if (kind === "calendar") it("an entry of 0.8.7 for one of two accounts that differ only in case waits while the list is not whole and leaves the other out (sixth review round, M4)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const upper: Row = { id: "u", user: "Alice@example.com", at: "a" };
+      const lower: Row = { id: "l", user: "alice@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...upper }, { ...lower }], slots: new Map([["l", "L1"]]), keyring: new Map(), meta: null };
+      put(kind, upper, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      await round(d);
+      expect(d.slots.get("u")).toBe("P1");
+      // A device on 0.8.7 writes under the name it gives both: the user lower-cased, the old type.
+      const old: SecretBinding = { ...bindingOf(kind, lower), secretType: "caldav-password" };
+      doc = { ...doc, bundleRev: doc.bundleRev + 1, entries: { ...doc.entries, [canonicalSecretId(old)]: { entryRev: 1, updatedAt: now(), deviceId: "O", binding: old, secret: { pass: "OLD" } } } };
+      d.unsure = true;
+      d.hidden = new Set(["l"]);
+      await createSecretsPort(host(d)).importBundle(doc);
+      expect(d.slots.get("u"), "which of the two it means is read from the whole list").toBe("P1");
+    });
+
     // A mailbox's user has one spelling only (`bindingUserKey`); a calendar's keeps its case.
     if (kind === "calendar") it("a record of 0.9.0 under another spelling of the same user (folded) is no removal in the first round after the update (fifth review round)", async () => {
       clock = 0;
@@ -421,6 +451,128 @@ for (const kind of ["calendar", "mail"] as const) {
       const out = await exportOnly(d);
       expect(out.entries[idOf(kind, spelled)], "the same credential is still listed").toBeUndefined();
       expect(d.meta?.notesRemovals).toBe(true);
+    });
+
+    it("a repair this version saw itself (its slot noted under the old name by an import before the kind was compared) is no removal in the first round after the update (rule U3)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      const meta = d.meta!;
+      delete meta.notesRemovals;
+      delete meta.comparedKinds;
+      delete meta.slotNames;
+      // The export of the round reads a list that is not whole; the import a whole one, which notes the slot under a.
+      d.unsure = true;
+      await exportOnly(d);
+      d.unsure = false;
+      // The document changed elsewhere meanwhile: the import reads it.
+      put(kind, x, { rev: 4, device: "N2", pass: "P2" });
+      await createSecretsPort(host(d)).importBundle(doc);
+      expect(d.meta?.slotNames?.x).toBe(idOf(kind, x));
+      d.rows = d.rows.map((row) => ({ ...row, at: "b" as At }));
+      const out = await exportOnly(d);
+      expect(out.entries[idOf(kind, x)]?.tombstone, "the note proves the repair").not.toBe(true);
+      expect(d.meta?.notesRemovals).toBe(true);
+    });
+
+    it("the key of the marks lost in the save that repairs, nothing typed: the received password still follows (rule R, the slot noted under the old name)", async () => {
+      const { d, x } = await setUp(kind, "received", "none");
+      const b = { ...x, at: "b" as At };
+      d.keyring.clear();
+      await round(d);
+      put(kind, b, { rev: 50, device: "N4", pass: "P9" });
+      await round(d);
+      await round(d);
+      expect(d.slots.get("x"), "received: it follows").toBe("P9");
+    });
+
+    it("a tombstone of the old name remembered by a build before rule R (no mark of its slot): nothing to compare, the device does as main did in that cell — typed here (sixth review round)", async () => {
+      const { d, x } = await setUp(kind, "foreign tombstone", "none");
+      const b = { ...x, at: "b" as At };
+      const record = d.meta!.entries[idOf(kind, x)]!;
+      expect(record.slotMark).toBeDefined();
+      delete record.slotMark;
+      await round(d);
+      put(kind, b, { rev: 50, device: "N4", pass: "P9" });
+      await round(d);
+      await round(d);
+      expect(d.slots.get("x")).toBe("P1");
+    });
+
+    it("an import on a whole list in which a repair is carried settles: nothing waits (rule L3)", async () => {
+      const { d } = await setUp(kind, "received", "none");
+      await createSecretsPort(host(d)).importBundle(doc);
+      expect((await createSecretsPort(host(d)).importBundle(doc)).settled, "the same document again is settled").toBe(true);
+    });
+
+    it("an import on a list that is not whole settles when nothing waits for it: an account listed with no note of its slot yet (rule L3)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null, unsure: true };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await createSecretsPort(host(d)).importBundle(doc);
+      expect(d.slots.get("x")).toBe("P1");
+      expect((await createSecretsPort(host(d)).importBundle(doc)).settled, "the same document again is settled").toBe(true);
+    });
+
+    it("the current entry of an account whose old name the document holds waits while the list is not whole: whether another account means that old name is read from the whole list (sixth review round, M4)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      put(kind, x, { rev: 4, device: "N2", pass: "P4" });
+      const old: SecretBinding = { ...bindingOf(kind, x), secretType: kind === "mail" ? "imap-password" : "caldav-password" };
+      doc = { ...doc, bundleRev: doc.bundleRev + 1, entries: { ...doc.entries, [canonicalSecretId(old)]: { entryRev: 1, updatedAt: now(), deviceId: "O", binding: old, secret: { pass: "OLD" } } } };
+      d.unsure = true;
+      await createSecretsPort(host(d)).importBundle(doc);
+      expect(d.slots.get("x"), "nothing decided from it yet").toBe("P1");
+      expect((await createSecretsPort(host(d)).importBundle(doc)).settled, "the import stays open").not.toBe(true);
+    });
+
+    if (kind === "calendar") it("a record of 0.8.7 under an old name two accounts that differ only in case share is carried to neither while the list is not whole and leaves one out (sixth review round, M4)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const upper: Row = { id: "u", user: "Alice@example.com", at: "a" };
+      const lower: Row = { id: "l", user: "alice@example.com", at: "a" };
+      const old: SecretBinding = { ...bindingOf(kind, lower), secretType: "caldav-password" };
+      const d: Device = {
+        kind,
+        rows: [{ ...upper }, { ...lower }],
+        slots: new Map([["u", "P1"], ["l", "L1"]]),
+        keyring: new Map(),
+        meta: { entries: { [canonicalSecretId(old)]: { hash: "as 0.8.7 kept it", entryRev: 7, updatedAt: now(), deviceId: "O", binding: old } }, imported: {}, quarantine: {} },
+        unsure: true,
+        hidden: new Set(["l"]),
+      };
+      const out = await exportOnly(d);
+      expect(out.entries[idOf(kind, upper)]?.entryRev, "what 0.8.7 knew under that name is no knowledge about Alice: a new value").toBe(1);
+    });
+
+    it("the tombstone of an absence in the first round after the update goes out one revision above the record, from this device, and closes the old name (sixth review round, M3)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const k: Row = { id: "k", user: "keep@example.com", at: "c" };
+      const d: Device = { kind, rows: [{ ...x }, { ...k }], slots: new Map([["k", "K"]]), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      // As 0.9.0 left it; the account removed there before its next round.
+      const meta = d.meta!;
+      delete meta.notesRemovals;
+      delete meta.comparedKinds;
+      delete meta.slotNames;
+      delete meta.closedOldNames;
+      d.rows = d.rows.filter((row) => row.id !== "x");
+      d.slots.delete("x");
+      const out = await exportOnly(d);
+      expect(out.entries[idOf(kind, x)], "as that version wrote it").toMatchObject({ tombstone: true, entryRev: 4, deviceId: "D" });
+      expect(Object.keys(d.meta?.closedOldNames ?? {}), "a value of 0.8.7 under the old name reaches no other account").toHaveLength(1);
     });
 
     it("a record of 0.9.0 whose endpoint is spelled another way than its name normalizes is no removal in the first round after the update, its slot empty here: the name says the account is listed (sixth review round)", async () => {

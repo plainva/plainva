@@ -124,6 +124,8 @@ interface World {
   n: number;
   /** Each removal on purpose by an updated device, by its act: the name the remover had, and whether it knew the old one. */
   removals: Record<string, { by: string; row: Row; knewOld: boolean }>;
+  /** Removals on purpose on 0.9.0, with their act: they count as removals of the device once it updates (rule U2). */
+  oldRemovals: Array<{ by: string; row: Row; act: ProfileAct }>;
   /** Accounts removed on purpose by any device and not added again. */
   removedAny: Record<string, true>;
   /** Accounts removed on purpose at any point. */
@@ -331,6 +333,7 @@ async function removeOnPurpose(d: Dev, row: Row): Promise<void> {
     await retireSecret(retiredHost(d), newBinding(row), take, time());
   } else {
     if (d.kind === "v090" && row.kind !== "mail") await v090.retireSecret(retiredHost(d) as never, newBinding(row) as never);
+    if (d.kind === "v090") w.oldRemovals.push({ by: d.name, row: { ...row }, act: removal });
     await take();
   }
   w.removedAny[row.id] = true;
@@ -338,7 +341,7 @@ async function removeOnPurpose(d: Dev, row: Row): Promise<void> {
 }
 
 /** Every step possible in this world. */
-function steps(accts: Row[], withRuntime: boolean): Step[] {
+function steps(accts: Row[], withRuntime: boolean, anew = false): Step[] {
   const out: Step[] = [];
   for (const [index, acct] of accts.entries()) {
     // The first account's steps carry no suffix; another account's carry its id.
@@ -346,6 +349,9 @@ function steps(accts: Row[], withRuntime: boolean): Step[] {
     for (const d of w.devs) {
       const name = d.name;
       const row = () => dev(name).rows.find((item) => item.id === acct.id);
+      // An address another account of that user holds is that account's name
+      // (two accounts, one name: a named limit, not searched).
+      const othersAt = (at: At) => w.devs.some((other) => other.rows.some((item) => item.id !== acct.id && item.user === acct.user && (item.kind ?? "") === (acct.kind ?? "") && (item.at ?? "a") === at));
       if (row()) {
         out.push({ label: `${name} types${of}`, run: async () => {
           const me = dev(name);
@@ -357,18 +363,36 @@ function steps(accts: Row[], withRuntime: boolean): Step[] {
         out.push({ label: `${name} removes${of}`, run: () => removeOnPurpose(dev(name), row()!) });
         // A repair to the other of two addresses (twice: back to the old one),
         // and to a third one.
-        out.push({ label: `${name} repairs${of}`, run: async () => {
+        if (!othersAt(row()!.at === "b" ? "a" : "b")) out.push({ label: `${name} repairs${of}`, run: async () => {
           const mine = row()!;
           mine.at = mine.at === "b" ? "a" : "b";
           moved(dev(name), acct.id);
           edit(dev(name), mine);
         } });
-        if (row()!.at !== "c") {
+        if (row()!.at !== "c" && !othersAt("c")) {
           out.push({ label: `${name} repairs to c${of}`, run: async () => {
             const mine = row()!;
             mine.at = "c";
             moved(dev(name), acct.id);
             edit(dev(name), mine);
+          } });
+        }
+        // Removed, and another account of that user connected at another
+        // server in its place (the way 0.9.0 on the desktop changes a
+        // mailbox's servers; review 2026-11-27, sixth round, S1).
+        const freeAt = (mine: Row) => (["a", "b", "c"] as At[]).find((at) => at !== (mine.at ?? "a") && !w.devs.some((other) => other.rows.some((item) => item.user === mine.user && (item.at ?? "a") === at)));
+        if (anew && freeAt(row()!) && !w.devs.some((other) => other.rows.some((item) => item.id === `${acct.id}n`))) {
+          out.push({ label: `${name} connects anew${of}`, run: async () => {
+            const me = dev(name);
+            const mine = row()!;
+            const target = freeAt(mine)!;
+            await removeOnPurpose(me, mine);
+            const fresh: Row = { id: `${acct.id}n`, user: acct.user, kind: acct.kind, at: target };
+            me.rows.push(fresh);
+            me.slots[fresh.id] = password(fresh);
+            me.typedSince[fresh.id] = true;
+            act(me, true, fresh);
+            edit(me, fresh);
           } });
         }
         if (d.kind === "new" && typeof d.slots[acct.id] === "string") {
@@ -378,7 +402,7 @@ function steps(accts: Row[], withRuntime: boolean): Step[] {
             me.signedOut.push(acct.id);
           } });
         }
-      } else {
+      } else if (!othersAt(acct.at ?? "a")) {
         out.push({ label: `${name} adds it again${of}`, run: async () => {
           const me = dev(name);
           const back = { ...acct, at: acct.at ?? ("a" as At) };
@@ -398,6 +422,20 @@ function steps(accts: Row[], withRuntime: boolean): Step[] {
     for (const outcome of ["full", "profileOnly", "pullOnly", "nothing", "late"] as Outcome[]) {
       if (outcome === "nothing") continue; // a cycle that does nothing changes nothing
       out.push({ label: `${name} cycle:${outcome}`, run: () => cycle(dev(name), outcome) });
+    }
+    // The app on 0.9.0 updated, before or after its next round.
+    if (anew && d.kind === "v090") {
+      out.push({ label: `${name} updates`, run: async () => {
+        const me = dev(name);
+        me.kind = "new";
+        // A removal there is the device's from now on; as the last account of
+        // the device it stays as 0.9.0 left it (named limit), so only one
+        // beside another account counts.
+        for (const old of w.oldRemovals.filter((item) => item.by === name)) {
+          if (me.rows.length > 0) w.removals[removalKey(old.act)] = { by: name, row: old.row, knewOld: false };
+        }
+        w.oldRemovals = w.oldRemovals.filter((item) => item.by !== name);
+      } });
     }
     if (withRuntime && d.kind === "new" && accts.some((acct) => acct.kind !== "mail")) {
       out.push({ label: `${name} runtime ${d.calendarDown ? "up" : "down"}`, run: async () => void (dev(name).calendarDown = !dev(name).calendarDown) });
@@ -449,9 +487,11 @@ async function checkRest(accts: Row[]): Promise<void> {
       const onlyAccountOfOld = (entry: { deviceId: string } | undefined) => !!entry && dev(entry.deviceId)?.kind !== "new" && dev(entry.deviceId).rows.length === 0;
       // Every address of the account, not only the remover's: an address
       // repaired on another device meanwhile, and the one before a repair.
+      // The address of another account of that user, connected anew there, is that account's name.
+      const otherAccountAt = (at: At) => w.devs.some((d) => d.rows.some((row) => row.id !== acct.id && row.user === acct.user && (row.kind ?? "") === (acct.kind ?? "") && (row.at ?? "a") === at));
       for (const at of ["a", "b", "c"] as At[]) {
         const current = w.remote?.entries[newId({ ...last.row, at })];
-        if (!current || current.tombstone || onlyAccountOfOld(current)) continue;
+        if (!current || current.tombstone || onlyAccountOfOld(current) || otherAccountAt(at)) continue;
         w.problems.push(`(2) removed ${acct.id}@${at}: a password under its name [holders ${holders.map((h) => h.name).join(",") || "none"}] ${where}`);
       }
       const old = w.remote?.entries[oldId(last.row)];
@@ -511,10 +551,12 @@ interface Frame {
   runtime?: boolean;
   /** Devices that got the account through the profile and have run no secrets round yet. */
   fresh?: number[];
+  /** The steps "connects anew" and, for a device on 0.9.0, "updates". */
+  anew?: boolean;
 }
 
 async function setup(frame: Frame): Promise<void> {
-  w = { devs: frame.kinds.map((kind, i) => ({ name: `D${i}`, kind, rows: [{ ...frame.acct }, ...(frame.others ?? []).filter((other) => other.on.includes(i)).map((other) => ({ ...other.row }))], slots: {}, keyring: {}, meta: null, retired: null, pending: {}, known: {}, pendingAt: {}, knownAt: {}, signedOut: [], taken: {}, renamed: {}, selfRemoved: {}, typedSince: {}, movedSince: {} })), remote: null, profile: {}, profileAt: {}, edits: 0, clock: 0, n: 0, removals: {}, removedAny: {}, everRemoved: {}, pushes: 0, fullImports: 0, gone: [], profileOff: [], problems: [], trace: [] };
+  w = { devs: frame.kinds.map((kind, i) => ({ name: `D${i}`, kind, rows: [{ ...frame.acct }, ...(frame.others ?? []).filter((other) => other.on.includes(i)).map((other) => ({ ...other.row }))], slots: {}, keyring: {}, meta: null, retired: null, pending: {}, known: {}, pendingAt: {}, knownAt: {}, signedOut: [], taken: {}, renamed: {}, selfRemoved: {}, typedSince: {}, movedSince: {} })), remote: null, profile: {}, profileAt: {}, edits: 0, clock: 0, n: 0, removals: {}, oldRemovals: [], removedAny: {}, everRemoved: {}, pushes: 0, fullImports: 0, gone: [], profileOff: [], problems: [], trace: [] };
   w.devs[frame.typer].slots[frame.acct.id] = password(frame.acct);
   for (let i = 0; i < 3; i++) for (const [index, d] of w.devs.entries()) if (!frame.fresh?.includes(index)) await cycle(d, "full");
   w.clock += 10;
@@ -527,7 +569,7 @@ async function search(frame: Frame): Promise<{ nodes: number; problems: string[]
   const problems = new Set<string>();
   const walk = async (at: World, depth: number) => {
     w = structuredClone(at);
-    for (const step of steps(accountsOf(frame), !!frame.runtime)) {
+    for (const step of steps(accountsOf(frame), !!frame.runtime, !!frame.anew)) {
       w = structuredClone(at);
       const before = state();
       w.trace.push(step.label);
@@ -555,6 +597,8 @@ const FRAMES: Frame[] = [
   { name: "an updated device and one on 0.9.0, a mailbox", kinds: ["new", "v090"], acct: MAIL, depth: 4, typer: 0 },
   { name: "an updated device and one on 0.8.7, a mailbox", kinds: ["new", "v087"], acct: MAIL, depth: 4, typer: 1 },
   { name: "three devices (two updated, one on 0.9.0), a calendar", kinds: ["new", "new", "v090"], acct: CAL, depth: 3, typer: 2 },
+  { name: "a device on 0.9.0 that updates and an updated one, a mailbox connected anew (sixth round)", kinds: ["v090", "new"], acct: MAIL, depth: 3, typer: 0, anew: true },
+  { name: "a device on 0.9.0 that updates and an updated one, a calendar connected anew (sixth round)", kinds: ["v090", "new"], acct: CAL, depth: 3, typer: 0, anew: true },
 ];
 
 describe("every sequence of steps up to a depth, with the real port (review 2026-11-25, second round)", () => {

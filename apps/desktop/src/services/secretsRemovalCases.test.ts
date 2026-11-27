@@ -611,18 +611,22 @@ describe("the probes of the fourth review round, with the outcome the rules give
       });
     }
 
-    it(`R4upd counterpart ${kind ?? "calendar"}: an address repaired on 0.9.0, the app updated before its next round; no tombstone for the old address (review 2026-11-25)`, async () => {
-      remote = null; clock = 0;
-      const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
-      const v = device("V", "v090", [X, K(kind)], 0, "on");
-      const n = device("N", "new", [X, K(kind)], 0, "on");
-      typeInto(v, "x", "P1"); typeInto(v, "k", "K");
-      await rr([v, n], 3);
-      repairAll([v, n], "x", "b");
-      v.kind = "new";
-      await rr([v, n], 6);
-      expect(docAt(X, "a"), "the old address keeps its entry: a repair is no removal").toContain("val(P1)");
-      expect([slotOf(v, "x"), slotOf(n, "x")]).toEqual(["P1", "P1"]);
+    it(`R4upd counterpart ${kind ?? "calendar"}: an address repaired on 0.9.0, the app updated before its next round; the old address gets the tombstone 0.9.0 wrote, the password stays (rule U3, sixth review round)`, async () => {
+      const outcome = async (update: boolean) => {
+        remote = null; clock = 0;
+        const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+        const v = device("V", "v090", [X, K(kind)], 0, "on");
+        const n = device("N", "new", [X, K(kind)], 0, "on");
+        typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+        await rr([v, n], 3);
+        repairAll([v, n], "x", "b");
+        if (update) v.kind = "new";
+        await rr([v, n], 6);
+        return [docAt(X, "a"), docAt(X, "b"), slotOf(v, "x"), slotOf(n, "x")];
+      };
+      const stayed = await outcome(false);
+      expect(stayed[0]).toMatch(/^TOMB r2 V/);
+      expect(await outcome(true), "lists cannot tell a repair from a removal: as 0.9.0 in its next round").toEqual(stayed);
     });
 
     it(`R4upd counterpart ${kind ?? "calendar"}: a device updated with no record of a removal infers nothing more after its first round`, async () => {
@@ -658,7 +662,7 @@ describe("the probes of the fourth review round, with the outcome the rules give
     });
   }
 
-  it("R4upd counterpart while the calendar list is not whole: an address repaired on 0.9.0 is no removal once the list is whole", async () => {
+  it("R4upd counterpart while the calendar list is not whole: an address repaired on 0.9.0 gets the tombstone 0.9.0 wrote once the list is whole, the password stays", async () => {
     remote = null; clock = 0;
     const X: Row = { id: "x", user: "cora@example.test", at: "a" };
     const v = device("V", "v090", [X, K("mail")], 0, "on");
@@ -669,9 +673,10 @@ describe("the probes of the fourth review round, with the outcome the rules give
     v.kind = "new";
     v.calendarHidden = true;
     await rr([v], 1);
+    expect(docAt(X, "a"), "nothing concluded while the list is not whole").toBe("val(P1) r1 V");
     v.calendarHidden = false;
     await rr([v, n], 6);
-    expect(docAt(X, "a"), "the old address keeps its entry").toContain("val(P1)");
+    expect(docAt(X, "a")).toMatch(/^TOMB r2 V/);
     expect([slotOf(v, "x"), slotOf(n, "x")]).toEqual(["P1", "P1"]);
   });
 
@@ -1128,5 +1133,193 @@ describe("one case for each rule a mutation of the port survived (fourth review 
     await removeOnPurpose(n1, "x");
     await secretsRound(n1);
     expect(docAt(X, "b"), "above revision 5, known under a").toMatch(/^TOMB r6 N1/);
+  });
+});
+
+describe("the probes of the sixth review round, with the outcome the rules give", () => {
+  const addRow = (d: Device, row: Row) => {
+    if (!d.rows.some((item) => item.id === row.id)) d.rows.push({ ...row });
+  };
+
+  for (const kind of [undefined, "mail" as const]) {
+    for (const publisher of ["V", "T"] as const) {
+      for (const yPass of ["typedOnV", "none", "typedOnT"] as const) {
+        it(`S1b ${kind ?? "calendar"} typed on ${publisher}, the new account ${yPass}: removed on 0.9.0 and connected anew at another server, the app updated before its next round; as 0.9.0 in its next round (rule U3)`, async () => {
+          const outcome = async (update: boolean) => {
+            remote = null; clock = 0;
+            const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+            const Y: Row = { id: "y", user: "cora@example.test", kind, at: "b" };
+            const v = device("V", "v090", [X, K(kind)], 0, "on");
+            const n = device("N", "new", [X, K(kind)], 0, "on");
+            const t = device("T", "new", [X, K(kind)], 0, "on");
+            typeInto(publisher === "V" ? v : t, "x", "P1"); typeInto(v, "k", "K");
+            await rr([v, n, t], 3);
+            await removeOnPurpose(v, "x");
+            addRow(v, Y);
+            if (yPass === "typedOnV") typeInto(v, "y", "Q1");
+            await leftByProfile(n, "x"); await leftByProfile(t, "x");
+            addRow(n, Y); addRow(t, Y);
+            if (yPass === "typedOnT") typeInto(t, "y", "Q1");
+            if (update) v.kind = "new";
+            await rr([v, n, t], 8);
+            return [docAt(X, "a"), docAt(Y, "b"), ...[v, n, t].map((d) => slotOf(d, "y"))];
+          };
+          const stayed = await outcome(false);
+          expect(stayed[0]).toMatch(/^TOMB r2/);
+          expect(await outcome(true)).toEqual(stayed);
+        });
+      }
+    }
+
+    for (const window of ["tombstone read", "a round more"] as const) {
+      it(`Rtomb ${kind ?? "calendar"}, ${window}: a device on 0.9.0 repaired the address first, the tombstone of the old name read here; the repair and NEW in one save here keep NEW, as on main (rule R)`, async () => {
+        remote = null; clock = 0;
+        const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+        const n1 = device("N1", "v090", [X, K(kind)], 0, "off");
+        const d2 = device("D2", "new", [X, K(kind)], 0, "off");
+        typeInto(n1, "x", "P1"); typeInto(n1, "k", "K");
+        await rr([n1, d2], 3);
+        repairAll([n1], "x", "b");
+        await rr([n1], 1);
+        for (const pass of ["P2", "P3", "P4"]) {
+          typeInto(n1, "x", pass);
+          await rr([n1], 1);
+        }
+        await rr([d2], window === "a round more" ? 2 : 1);
+        const recA = d2.meta?.entries[idOf(X)];
+        if (window === "tombstone read") expect(recA?.tombstone).toBe(true);
+        repairAll([d2], "x", "b");
+        typeInto(d2, "x", "NEW");
+        await rr([n1, d2], 6);
+        expect(slotOf(d2, "x"), "typed here, as main keeps it").toBe("NEW");
+      });
+    }
+
+    for (const typed of [true, false]) {
+      it(`Rloss ${kind ?? "calendar"}, ${typed ? "NEW typed" : "nothing typed"} in the save that repairs: the key of the marks lost, the device offline; ${typed ? "it keeps NEW, as on main" : "the received password follows"} (rule R)`, async () => {
+        remote = null; clock = 0;
+        const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+        const n1 = device("N1", "new", [X, K(kind)], 0, "off");
+        const d2 = device("D2", "new", [X, K(kind)], 0, "off");
+        const n3 = device("N3", "new", [X, K(kind)], 0, "off");
+        typeInto(n1, "x", "P1"); typeInto(n1, "k", "K");
+        await rr([n1, d2, n3], 3);
+        d2.keyring.delete(SECRETS_MARK_KEY_SLOT);
+        await portOf(d2).exportBundle();
+        typeInto(n1, "x", "P2");
+        await rr([n1, n3], 2);
+        typeInto(n1, "x", "P3");
+        await rr([n1, n3], 2);
+        repairAll([d2], "x", "b");
+        if (typed) typeInto(d2, "x", "NEW");
+        await portOf(d2).exportBundle();
+        repairAll([n1, n3], "x", "b");
+        await rr([n1, n3, d2], 6);
+        expect(slotOf(d2, "x")).toBe(typed ? "NEW" : "P3");
+      });
+    }
+  }
+
+  for (const notWholeRounds of [0, 1, 3]) {
+    for (const typedAtRepair of [false, true]) {
+      it(`FlakyRepair ${notWholeRounds} round(s) listed but not whole, ${typedAtRepair ? "A2 typed" : "nothing typed"} in the repair the profile brings: the device follows the last password (rule L3)`, async () => {
+        remote = null; clock = 0;
+        const A: Row = { id: "a", user: "anna", at: "a" };
+        const n = device("N", "new", [A, K("mail")], 0, "off");
+        const d = device("D", "new", [A, K("mail")], 0, "off");
+        typeInto(n, "a", "A1"); typeInto(n, "k", "K");
+        await rr([n, d], 3);
+        repairAll([n, d], "a", "b");
+        if (typedAtRepair) typeInto(n, "a", "A2");
+        await rr([n], 1);
+        d.calendarUnsure = notWholeRounds > 0;
+        for (let i = 0; i < notWholeRounds; i++) await rr([d, n], 1);
+        d.calendarUnsure = false;
+        await rr([n, d], 4);
+        expect(slotOf(d, "a"), "received: it follows").toBe(typedAtRepair ? "A2" : "A1");
+        typeInto(n, "a", "A3");
+        await rr([n, d], 4);
+        expect(slotOf(d, "a")).toBe("A3");
+      });
+    }
+  }
+
+  it("U2flaky: an address repaired on the updated device while its calendar list is listed but not whole in the first round after the update; as on 0.9.0", async () => {
+    const outcome = async (mode: "notWhole" | "whole" | "v090") => {
+      remote = null; clock = 0;
+      const C: Row = { id: "c", user: "cora", at: "a" };
+      const v = device("V", "v090", [C, K("mail")], 0, "off");
+      const n = device("N", "new", [C, K("mail")], 0, "off");
+      typeInto(n, "c", "C1"); typeInto(v, "k", "K");
+      await rr([n, v], 3);
+      if (mode !== "v090") v.kind = "new";
+      repairAll([v], "c", "b");
+      v.calendarUnsure = mode === "notWhole";
+      await rr([v], 1);
+      v.calendarUnsure = false;
+      await rr([n, v], 8);
+      return [docAt(C, "a"), docAt(C, "b"), slotOf(n, "c"), slotOf(v, "c")];
+    };
+    const stayed = await outcome("v090");
+    expect(await outcome("notWhole")).toEqual(stayed);
+    expect(await outcome("whole")).toEqual(stayed);
+  });
+});
+
+describe("the first round after an update against the next round of 0.9.0, over random pending states (sixth review round, rule U3)", () => {
+  it("the document after the first round of this version is the one 0.9.0 writes in its next round: removed, repaired, connected anew, one to three accounts of one user, typed anywhere", async () => {
+    const servers: At[] = ["a", "b", "c"];
+    const differ: string[] = [];
+    let states = 0;
+    for (let seed = 1; seed <= 160; seed++) {
+      let r = (seed * 2654435761) % 2 ** 31;
+      const pick = (n: number) => {
+        r = (r * 1103515245 + 12345) % 2 ** 31;
+        return Math.floor((r / 2 ** 31) * n);
+      };
+      remote = null; clock = 0;
+      const kind = pick(2) ? ("mail" as const) : undefined;
+      const count = 1 + pick(3);
+      const rows: Row[] = servers.slice(0, count).map((at, i) => ({ id: `x${i}`, user: "cora@example.test", kind, at }));
+      const v = device("V", "v090", [...rows, K(kind)], 0, "off");
+      const n = device("N", "new", [...rows, K(kind)], 0, "off");
+      typeInto(v, "k", "K");
+      for (const row of rows) {
+        const who = pick(3);
+        if (who === 0) typeInto(v, row.id, `P${row.id}`);
+        else if (who === 1) typeInto(n, row.id, `P${row.id}`);
+      }
+      await rr([v, n], 3);
+      // Pending on V, no round between: each account kept, removed, repaired, or removed and connected anew at a free server.
+      const free = servers.slice(count);
+      const acts: string[] = [];
+      for (const row of rows) {
+        const act = pick(free.length > 0 ? 4 : 2);
+        if (act === 1) await removeOnPurpose(v, row.id);
+        if (act === 2) v.rows.find((item) => item.id === row.id)!.at = free.shift();
+        if (act === 3) {
+          await removeOnPurpose(v, row.id);
+          const fresh: Row = { id: `y${row.id}`, user: row.user, kind, at: free.shift() };
+          v.rows.push(fresh);
+          if (pick(2)) typeInto(v, fresh.id, `Q${row.id}`);
+        }
+        acts.push(["keep", "remove", "repair", "anew"][act]!);
+      }
+      const at = { remote: structuredClone(remote), clock, v: structuredClone(v) };
+      const documentAfter = async (update: boolean) => {
+        remote = structuredClone(at.remote); clock = at.clock;
+        const d: Device = structuredClone(at.v);
+        if (update) d.kind = "new";
+        await round(d);
+        return Object.fromEntries(Object.entries(docEntries()).map(([id, entry]) => [id, show(entry)]));
+      };
+      const stayed = await documentAfter(false);
+      const updated = await documentAfter(true);
+      states++;
+      const rowsApart = [...new Set([...Object.keys(stayed), ...Object.keys(updated)])].filter((id) => stayed[id] !== updated[id]);
+      if (rowsApart.length > 0) differ.push(`seed ${seed} ${kind ?? "calendar"} ${acts.join(",")}: ${rowsApart.map((id) => `${id.split("@")[1]}: ${stayed[id] ?? "none"} / ${updated[id] ?? "none"}`).join("; ")}`);
+    }
+    expect(states).toBe(160);
+    expect(differ, "no slot note of this version can prove a repair on a record of 0.9.0: no row departs").toEqual([]);
   });
 });

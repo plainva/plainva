@@ -75,7 +75,7 @@ device never keeps that device's password back (statement 4).
 | A password is typed (or changes) | holds the password | a value, at its next round |
 | "Remove account" | row and slot go, in the same line as the secrets rounds (`retireSecret`), and only once the removal is written for the secrets sync (`removeAfterSecretsNote`): a removal whose note cannot be written — the code that writes it did not load, the store refused — does not happen, and the dialog says so | a removal tombstone under the current name, and under the old name a device up to 0.8.7 holds it by when this device knows that name for this account and no other account here can mean it; if it knows nothing of the name, nothing yet (the removal is noted, see below); and taking-back tombstones for what it published under an earlier address |
 | "Sign out on this device", or removing the stored password in Settings › Stored access for a vault still in use | the slot keeps the sign-out mark | nothing |
-| An address repaired (same row, another server; here or by the profile) | unchanged | the password under the new name, with what the slot knew under the old one (see "A repair changes the name"); nothing under the old one |
+| An address repaired (same row, another server; here or by the profile) | unchanged | the password under the new name, with what the slot knew under the old one (see "A repair changes the name"); nothing under the old one — a repair made on 0.9.0 before the update gets that version's tombstone under the old one (see "Across an update") |
 | Two rows merged or folded | the kept row keeps its slot | nothing |
 | The settings profile takes the account away (removed elsewhere) | row and slot go (calendar and mailbox alike); the profile import says so to the secrets sync (`noteSecretLeftWithProfile`) — it is never read from a missing row | taking-back tombstones for what this device wrote for the account itself or carried by a repair; nothing for a password it only took from the sync (its publisher takes it back) |
 | The account arrives through the profile (new, or added again) | empty, or as it was | nothing; an open removal of that name on this device ends |
@@ -89,10 +89,20 @@ record of the secrets sync). Three things go along, each by its own rule:
 
 - **Received or typed** belongs to the slot: whether its password came in
   through the sync is what it was under the old name, whatever this device
-  knows of the new one — unless the slot holds another password than the
-  settled one the device knew under the old name: that one was typed in the
-  save that repaired it, and is typed here, as on 0.9.0 with no record under
-  the new name (rule R, fifth review round; "R4edit").
+  knows of the new one — unless the slot holds another password than the one
+  the sync last left in it: that one was typed in the save that repaired it,
+  and is typed here, as on `main`, which carried nothing (rule R, fifth and
+  sixth review round; "R4edit", "Rtomb", "Rloss"). What the sync last left
+  in the slot is read in every state of the record under the old name: the
+  password it confirmed, sent or took in; the slot it holds back (`held`);
+  the slot as it was at a lost key (`sinceLoss`, `unconfirmed`, rebuilt from
+  the slot noted under that name when the address was repaired in the same
+  save); the slot a tombstone of another device found (`slotMark`, kept when
+  the tombstone is remembered for an account still listed). Where the device
+  has nothing to compare with — a tombstone remembered by a build before
+  this rule, or while no listed slot held the name — it does what `main`
+  does in that cell: typed here. A mark of a lost key not rebuilt yet
+  matches nothing, so it says the same.
 - **The floor**: every revision the slot knew under the old name (its entry,
   the revisions it saw there and did not take). A password typed after the
   repair, or a removal, goes out above it and above all the device knows of
@@ -124,7 +134,8 @@ another device under the new name, and a password typed after the repair.
 The row of the records after a lost key is a test for each of the three (a
 lost key, held, waiting to be confirmed), the row of a typed password once
 more with a newer password seen there and not taken; the chain of repairs
-is a test of its own.
+is a test of its own. Every cell is also a test with a password typed in the
+save that repairs: it stays on the device in every cell, as on `main`.
 
 Nothing at all is carried from a name another account on the device had
 already before this round (two rows, one name), from an alias, or without a
@@ -150,8 +161,9 @@ A device coming from 0.9.0 (or from a build of 0.9.x before this rule) has no
 note of its slots. It reads its record as before; its first round writes the
 note for every account listed then. A repair made before that first round
 carries nothing: the device behaves as those versions did for that one repair
-— it loses nothing, and its password goes out under the new name as a new
-value (revision 1 there).
+— it loses nothing, its password goes out under the new name as a new value
+(revision 1 there), and the old address gets the tombstone of an absence
+those versions wrote (rule U3, "Across an update").
 
 ## Across an update
 
@@ -168,11 +180,24 @@ not have had: the tombstone of an absence (one revision above the record,
 this device, this round), the record kept "received", no removal of this
 device's (`removedIds`, it answers nothing), nothing taken back elsewhere. A
 conclusion from lists is no act of the person: listed again, the account
-follows a change made elsewhere as before. The one wanted difference is the
-decision of 25.11.: a repaired address is no removal, and the device tells
-it from one — an account of the same user and kind listed at another
-address is that account's new name only when it had no record of its own
-when the round began (the record as read).
+follows a change made elsewhere as before.
+
+The conclusion departs from that version only where the device can prove it
+(rule U3, sixth review round): lists and records alone cannot tell an
+address repaired from an account removed and another one of that user
+connected at another server — on the desktop of 0.9.0 the way a mailbox's
+servers change. A wrong "repaired" would leave a password in the document
+nobody takes back; a wrong "removed" is exactly the tombstone of 0.9.0, and
+the slot keeps its password. So a record of 0.9.0 gets no exception for a
+repair: the decision of 25.11. holds for repairs this version sees itself,
+and its one proof here is the note of a slot (`slotNames` as the round
+began) that names the listed account's slot under the old name — written by
+an import of this version on a whole list before the kind was compared. The
+same credential under another spelling (folded) stays no removal, as on
+0.9.0. Compared over random pending states (removed, repaired, connected
+anew, one to three accounts of one user, typed anywhere), the document after
+the first round of this version is the one 0.9.0 writes in its next round,
+row for row.
 
 The record says which it is, never a clock: every export of this version
 marks it (`notesRemovals`) once every kind was compared; a kind compared
@@ -189,18 +214,24 @@ between. A device whose record is empty (new) has nothing to infer.
 | A calendar account removed on purpose | a removal tombstone (its note, `retireSecret`) | the same note: a removal tombstone |
 | An account the profile took away (removed elsewhere), mailbox or calendar | an absence tombstone | the same tombstone; the remover's own one is there as well |
 | An account signed out (listed, no password) | none (listed) | none |
-| The server of an account changed (same user), mailbox or calendar | an absence tombstone under the old address | none: the account at the other address has no record of its own yet, it is the repair (25.11.); the old address keeps its entry |
+| The server of an account changed (same user), mailbox or calendar | an absence tombstone under the old address | the same tombstone (rule U3); the slot keeps its password under the new address ("R4upd counterpart") |
+| A mailbox removed and another one of that user connected at another server (the desktop of 0.9.0 changes a mailbox's servers so) | an absence tombstone under the old address | the same tombstone ("S1b") |
+| A repair this version saw itself: the slot noted under the old name by an import on a whole list, before the kind was compared | — | none: the note proves the repair |
+| An address repaired on this device while the list of its kind is listed but not called whole | an absence tombstone under the old address | the same tombstone once the list is whole ("U2flaky") |
 | The user of an account changed | an absence tombstone under the old name | the same tombstone ("U2"): another user is another name, not a repair |
 | Two rows folded into one | none (the same credential still listed) | none |
-| A list of a kind not whole (`accountsReady`), for one round or many | none (their guard) | that kind waits; the other kinds are compared, once ("U3", "U3c") |
+| A list of a kind not whole (`accountsReady`), for one round or many — empty, or listed in full but not called whole | none (their guard) | that kind waits; the other kinds are compared, once ("U3", "U3c") |
 | A calendar list read empty while the host calls it whole (an index rebuilt, a runtime starting during the read) | absence tombstones for every calendar account, every round | none where the host can tell (`pimAccountListWhole`, the read between two questions, "U4b order"); where it cannot, the same tombstones once, and the device still follows a change made elsewhere ("U4b") |
 | Every list empty though accounts were known | none (their guard) | waits |
 | A build of `main` before these rules, an account removed there | an absence tombstone | the same |
 | Two devices updated at once | their tombstones | the same, settled |
 | Back to 0.9.0, a mailbox removed there before any round, forward again | an absence tombstone | none: the record still carries this version's mark (named limit) |
 
-Fixed cases: "R4upd", "U1"–"U5", "U3c", "U4b" in
-`apps/desktop/src/services/secretsRemovalCases.test.ts`.
+Fixed cases: "R4upd", "U1"–"U5", "U3c", "U4b", "S1b", "U2flaky" and the
+comparison over random pending states in
+`apps/desktop/src/services/secretsRemovalCases.test.ts`; the search
+(`secretsRemovalSearch.test.ts`) has the steps "connects anew" and
+"updates".
 
 ### Where the list of accounts decides
 
@@ -221,8 +252,12 @@ through a runtime that went during the read is not whole either.
 | `inferPendingRemovals` | the comparison after an update | per kind, once its list is whole |
 | the loop over `retired` (`tombstone`, `restore`) | a removal written | waits |
 | `importBundle`, an entry no listed account matches | remembered, or reported as an account unknown here | neither on a list not whole; the import is not settled |
+| `importBundle`, a listed account of a kind not whole whose slot is noted under another name | its carry waits | the import is not settled ("FlakyRepair", rule L3) |
+| `oldNameId` (in `carryOldKnowledge` and `importBundle`) | an old name meant by one account only, no twin listed | no old name on a list not whole: nothing carried from it |
+| `importBundle`, an entry of 0.8.7 or one whose old name the document holds (`foldMatches`, the twin rule) | which of two accounts that differ only in case an old name means | waits on a list not whole; the import is not settled |
+| `oldFree` in `tombstone()` | an old name no other account here goes by | runs only inside the loop over `retired`, which waits for a whole list |
 | `openRemovedIds`, `reopenOldNames`, the tombstones published again | only what is listed | decides from "listed", never from "missing" |
-| `settledKey` | the mark of a settled import | taken from the list as read; a list not whole leaves the import open |
+| `settledKey` | the mark of a settled import | taken from the list as read; whatever waits for a whole list (an entry, a carry, an old name) leaves the import open |
 
 ## What arrives
 
@@ -335,10 +370,11 @@ Each stands with its steps as a fixed case in
   ran a round, and comes forward again: its record still carries the mark of
   this version (0.9.0 never wrote it), so nothing tells that removal from a
   list. Telling it would need a comparison of lists in every round — the
-  very thing these rules ended. The mailbox's password stays in the document
-  until its publisher takes it back. The updater never goes back; with one
-  round on 0.9.0 in between, that round drops the mark and the next one here
-  writes the tombstone ("U5").
+  very thing these rules ended. The mailbox's password stays in the
+  document; typed on that device, for good. The updater never goes back; a
+  device goes back only by hand (an older installer on the desktop, an older
+  build in TestFlight). With one round on 0.9.0 in between, that round drops
+  the mark and the next one here writes the tombstone ("U5").
 
 ## Checks that decide nothing on their own
 
@@ -369,17 +405,16 @@ kept so the rule does not hang on the order of the code.
 - **A record of none** (`inferPendingRemovals`, `prior`). An empty record
   has nothing to compare; the mark is only set sooner.
 
-One choice no test can tell either: **the revision of an absence tombstone**
-(`inferPendingRemovals` at the export). It goes out at the record's revision
-plus one, as 0.9.0 wrote it, never above a revision seen and held
-(`heldRev`, H1 of the fifth review round). A held revision is only written by
-an import of this version for an account on the list (`signedOutHere`, a
-password typed here, a slot as it was at a lost key), and an account on the
-list that leaves it on this version leaves through the profile
-(`retireSecret`, `noteSecretLeftWithProfile`), whose record the inference
-skips. A record the inference tombstones carries a held revision only after a
-return to 0.9.0 — the named exception of the rollback above, which the
-updater never takes.
+One choice no test can tell either: **an absence tombstone never goes above
+a revision seen and held** (`heldRev`, H1 of the fifth review round); it goes
+out at the record's revision plus one, as 0.9.0 wrote it (that "plus one",
+its device and the closing of the old name are tested). A held revision is
+only written by an import of this version for an account on the list
+(`signedOutHere`, a password typed here, a slot as it was at a lost key). A
+record carrying one reaches the inference only when its account left the
+list without a note while its kind waited — an address repaired on a list
+listed but not whole — or after a return to 0.9.0; in both, 0.9.0 writes the
+same revision in the same state.
 
 ## Limits outside these rules
 

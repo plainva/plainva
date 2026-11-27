@@ -83,13 +83,14 @@ async function restoreFromCopy(input: { readProfileCopy: () => Promise<string | 
   }
 }
 
-/** What a rebuilt database's device does not speak for yet in the settings sync (`ProfileSettingsPort.heldBack`). */
 /**
  * Whether a list of calendar accounts read now says everything — the one
  * answer of both shells for the secrets sync (`SecretsPortHost.accountsReady`)
  * and the account cards: a runtime lists them, and no index database rebuilt
  * at the start holds them back until the settings sync applied the document
- * (review 2026-11-26, fifth round, L2). Unreadable is no "held".
+ * (review 2026-11-26, fifth round, L2). Unreadable is no "held", as for the
+ * cards: the list of accounts reads the same database and throws then, so the
+ * round writes nothing.
  */
 export async function pimAccountListWhole(state: Pick<RebuildState, "accountsAfterRebuild"> | null): Promise<boolean> {
   if (!state) return false;
@@ -100,6 +101,7 @@ export async function pimAccountListWhole(state: Pick<RebuildState, "accountsAft
   }
 }
 
+/** What a rebuilt database's device does not speak for yet in the settings sync (`ProfileSettingsPort.heldBack`). */
 export async function accountFieldsHeldBack(state: Pick<RebuildState, "accountsAfterRebuild"> | null): Promise<string[]> {
   if (!state) return [];
   return (await state.accountsAfterRebuild().catch(() => null)) === "held" ? [...ACCOUNT_FIELDS_HELD_AFTER_REBUILD] : [];
