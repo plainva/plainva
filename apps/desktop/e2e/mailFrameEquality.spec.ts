@@ -187,17 +187,30 @@ test("at the width this device's reader shows mails in, the assistant reads no w
  * earlier rounds left out.
  */
 const DIRECTION = {
+  // Measured against the reader (review B7-7): a word a person sees mirrored is not read, one drawn plainly is read.
   hidden: [
-    { name: "U+202E override", html: `<p>VISIBLEd1</p><p>&#x202E;SECRETd1 gnissim&#x202C; after</p>` },
-    { name: "bdo dir=rtl", html: `<p>VISIBLEd2</p><p><bdo dir="rtl">SECRETd2 words</bdo></p>` },
-    { name: "U+202D override", html: `<p>VISIBLEd3</p><p>&#x202D;SECRETd3&#x202C;</p>` },
-    // Across element boundaries (review B7-6, S-R6-1): the override holds as far as the bidirectional algorithm lets it.
+    { name: "d1 U+202E override", html: `<p>VISIBLEd1</p><p>&#x202E;SECRETd1 gnissim&#x202C; after</p>` },
+    { name: "v2 bdo dir=rtl", html: `<p>VISIBLEv2</p><p><bdo dir="rtl">SECRETv2 words</bdo></p>` },
+    { name: "v3 U+202D on Latin in a left-to-right paragraph", html: `<p>VISIBLEv3</p><p>&#x202D;SECRETv3&#x202C;</p>` },
     { name: "v4 U+202E before a <b>", html: `<p>VISIBLEv4</p><p>&#x202E;<b>SECRETv4</b>&#x202C; VISIBLEv4b</p>` },
     { name: "v5 U+202E unclosed before a link", html: `<p>VISIBLEv5</p><p>&#x202E;go <a href="https://x.example">SECRETv5</a></p>` },
     { name: "v6 U+202E across a span, second word", html: `<p>VISIBLEv6</p><p>&#x202E;SECRETv6a <span>SECRETv6b</span>&#x202C; VISIBLEv6b</p>` },
+    { name: "v7 CSS bidi-override on a parent", html: `<p>VISIBLEv7</p><div style="direction:rtl;unicode-bidi:bidi-override"><span>SECRETv7</span></div>` },
+    { name: "v8 isolate-override", html: `<p>VISIBLEv8</p><p><span style="direction:rtl;unicode-bidi:isolate-override">SECRETv8</span></p>` },
+    { name: "v9 bdo nested in span", html: `<p>VISIBLEv9</p><p><bdo dir="rtl"><span><i>SECRETv9</i></span></bdo></p>` },
     { name: "w1 U+202E across nested elements", html: `<p>VISIBLEw1 &#x202E;<span><i><a href="https://x.example">SECRETw1</a></i> SECRETw1b</span>&#x202C; VISIBLEw1b</p>` },
     { name: "w2 opened in a child, closed in the parent", html: `<p><span>VISIBLEw2 &#x202E;SECRETw2</span> SECRETw2b&#x202C; VISIBLEw2b</p>` },
     { name: "w3 opened in the parent, closed in a child", html: `<p>&#x202E;SECRETw3 <b>SECRETw3b&#x202C; VISIBLEw3</b> VISIBLEw3b</p>` },
+    { name: "z1 pop inside a span with dir", html: `<p>VISIBLEz1</p><p>&#x202E;<span dir="ltr">a&#x202C;</span> SECRETz1 more</p>` },
+    { name: "z2 pop inside bdi", html: `<p>VISIBLEz2</p><p>&#x202E;<bdi>a&#x202C;</bdi> SECRETz2 more</p>` },
+    { name: "z3 pop inside a css isolate", html: `<p>VISIBLEz3</p><p>&#x202E;<span style="unicode-bidi:isolate">a&#x202C;</span> SECRETz3 more</p>` },
+    { name: "z4 override opened inside a span with dir, word after it", html: `<p>VISIBLEz4</p><p><span dir="ltr">&#x202E;x</span> SECRETz4 more</p>` },
+    { name: "z5 override, then br", html: `<p>VISIBLEz5</p><p>&#x202E;abc<br>SECRETz5 more</p>` },
+    { name: "z6 override before an inline-block", html: `<p>VISIBLEz6</p><p>&#x202E;abc <span style="display:inline-block">SECRETz6 more</span></p>` },
+    { name: "z7 embedding char inside a span with dir closes nothing", html: `<p>VISIBLEz7</p><p>&#x202E;<span dir="rtl">&#x202A;a</span>&#x202C; SECRETz7 more</p>` },
+    { name: "z8 pop inside css embed", html: `<p>VISIBLEz8</p><p>&#x202E;<span style="unicode-bidi:embed;direction:ltr">a&#x202C;</span> SECRETz8 more</p>` },
+    { name: "h1 Hebrew under U+202D in a right-to-left paragraph", html: `<p>VISIBLEh1</p><p dir="rtl">&#x202D;שלום עולם&#x202C; VISIBLEh1b</p>` },
+    { name: "h2 a word that wraps in a block with an isolate", html: `<p style="width:120px;word-break:break-all">&#x2066;x&#x2069; VISIBLEh2wrapsoverthelineabcdefghij</p>` },
   ],
   order: [
     { name: "an isolate with a mark between two Latin words (o-cases)", html: `<p>VISIBLEt1a &#x2067;VISIBLEt1b &#x200F; VISIBLEt1c&#x2069; VISIBLEt1d</p>` },
@@ -223,10 +236,38 @@ test("text under a direction override is not read; right-to-left text, embedding
   const wrong: string[] = [];
   for (const entry of DIRECTION.hidden) for (const width of [343, 760]) {
     const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, width] as const);
-    for (const word of open.ai) if (word.startsWith("SECRET")) wrong.push(`${entry.name}: the assistant reads ${word}, drawn mirrored`);
-    if (!open.ai.some((word) => word.startsWith("VISIBLE"))) wrong.push(`${entry.name}: the assistant lost the words around it`);
-    // Where the override ends, the words after it are read again (review B7-6, S-R6-1).
-    if (/^[vw]\d/.test(entry.name)) for (const word of Array.from(entry.html.matchAll(/VISIBLE[a-z0-9]+/g), (m) => m[0])) if (!open.ai.includes(word)) wrong.push(`${entry.name}: the assistant does not read ${word}`);
+    // Mirrored, as a person sees it: of two neighbouring letters of one script direction on one line, the later stands
+    // before the earlier — measured in the reader's frame, letter by letter.
+    const mirrored = await page.evaluate(() => {
+      const doc = (document.getElementById("pv-marked-frame") as HTMLIFrameElement).contentDocument!;
+      const out: Record<string, boolean> = {};
+      const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        const data = n.textContent ?? "";
+        for (const m of data.matchAll(/(?:SECRET|VISIBLE)[A-Za-z0-9]+|[\u0590-\u05FF]+/g)) {
+          const at: Array<{ x: number; top: number; h: number }> = [];
+          for (let i = 0; i < m[0].length; i++) {
+            const range = doc.createRange();
+            range.setStart(n, m.index! + i);
+            range.setEnd(n, m.index! + i + 1);
+            const b = range.getBoundingClientRect();
+            if (b.width > 0) at.push({ x: (b.left + b.right) / 2, top: b.top, h: b.height });
+          }
+          const rtl = /[\u0590-\u05FF]/.test(m[0]);
+          let turned = false;
+          for (let k = 0; k + 1 < at.length; k++) {
+            if (Math.abs(at[k]!.top - at[k + 1]!.top) > 0.5 * Math.min(at[k]!.h, at[k + 1]!.h)) continue;
+            if (rtl ? at[k + 1]!.x > at[k]!.x + 0.5 : at[k + 1]!.x < at[k]!.x - 0.5) turned = true;
+          }
+          out[m[0]] = turned;
+        }
+      }
+      return out;
+    });
+    for (const [word, turned] of Object.entries(mirrored)) {
+      if (turned && open.ai.includes(word)) wrong.push(`${entry.name}: at ${width} px the assistant reads ${word}, drawn mirrored`);
+      if (!turned && open.frame.seen.includes(word) && !open.ai.includes(word)) wrong.push(`${entry.name}: at ${width} px the assistant leaves out ${word}, drawn plainly`);
+    }
   }
   for (const entry of DIRECTION.order) {
     const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
