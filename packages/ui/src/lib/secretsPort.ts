@@ -578,7 +578,14 @@ function oldNameId(candidate: LocalSecretCandidate, candidates: readonly LocalSe
  * (`accountsReady`) carries nothing: an account it leaves out may still hold
  * the old name.
  */
-async function carryRepairedKnowledge(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], mark: SecretsMarker, ready: ListsReady): Promise<void> {
+async function carryRepairedKnowledge(
+  meta: SecretsPortMeta,
+  candidates: readonly LocalSecretCandidate[],
+  mark: SecretsMarker,
+  ready: ListsReady,
+  doc: SecretsBundle | null,
+): Promise<Set<string>> {
+  const waits = new Set<string>();
   const before = { entries: { ...meta.entries }, imported: { ...meta.imported }, floors: { ...(meta.floors ?? {}) } };
   // A name another account here held already before this round — or one whose
   // slot this device has no note of — is that account's.
@@ -591,24 +598,64 @@ async function carryRepairedKnowledge(meta: SecretsPortMeta, candidates: readonl
     if (!former || former === id || heldBy(former, candidate)) continue;
     const known = before.entries[former];
     if (known && (known.alias || known.binding.secretType !== candidate.binding.secretType)) continue;
+    // Received needs a proof (review 2026-11-27, seventh round): a mark this
+    // device made with a key it still has, or the document itself. A record
+    // of a lost key not rebuilt (`baselineAfterLoss` leaves a name whose slot
+    // moved in the same gap) has neither on the device: the export waits for
+    // the document (`waits`, the note of the slot stays), and the import
+    // reads it — not typed only where the slot holds exactly the value the
+    // document carries under the old name at the record's revision.
+    const lost = !!known && !known.tombstone && isLostMark(mark, known.hash);
+    if (lost && !doc) {
+      waits.add(candidate.slot);
+      continue;
+    }
     // A password the slot holds other than the one the sync last left in it
     // was typed in the save that repaired it: typed here, as with no record
     // under the new name — whatever the state of the record under the old
-    // name (review 2026-11-26/27, fifth and sixth round, rule R). Where this
+    // name (review 2026-11-26/27, fifth to seventh round, rule R). Where this
     // device has nothing to compare with, it does as main did, which carried
     // nothing: typed here (`slotLeft`).
-    const left = slotLeft(known);
-    const typedHere = !!known && !!candidate.secret && (left === null || left !== (await pairMark(mark, known.binding, candidate.secret)));
+    let typedHere: boolean;
+    if (lost) {
+      const there = doc!.entries[former];
+      // A tombstone carries no secret, so it proves nothing.
+      const proven = !!there && there.entryRev === known.entryRev && stableStringify(there.secret) === stableStringify(candidate.secret);
+      typedHere = !!candidate.secret && !proven;
+    } else {
+      const left = slotLeft(known);
+      typedHere = !!known && !!candidate.secret && (left === null || left !== (await pairMark(mark, known.binding, candidate.secret)));
+    }
     if (before.imported[former] && !typedHere) meta.imported[id] = true;
     else delete meta.imported[id];
     if (!known) continue;
     const floor = Math.max(known.entryRev, known.heldRev ?? 0, before.floors[former] ?? 0);
     if (floor > (meta.floors?.[id] ?? 0)) meta.floors = { ...(meta.floors ?? {}), [id]: floor };
-    if (known.tombstone || isLostMark(mark, known.hash) || known.sinceLoss || known.held || known.unconfirmed) continue;
     const here = before.entries[id];
-    if (here?.tombstone) continue;
-    if (here && candidate.secret && here.hash === (await pairMark(mark, candidate.binding, candidate.secret))) continue;
+    const slotMarkHere = candidate.secret ? await pairMark(mark, candidate.binding, candidate.secret) : null;
     const seen = Math.max(known.heldRev ?? 0, here?.entryRev ?? 0, here?.heldRev ?? 0);
+    if (known.tombstone || lost || known.sinceLoss || known.held || known.unconfirmed) {
+      // No version to carry: a password only received never goes out as a
+      // new value above a newer one (seventh round, M1). It waits for the
+      // document like a slot after a lost key (`sinceLoss`, at revision 0,
+      // so any entry under the new name is newer): the import takes what the
+      // document holds there, or — with nothing there — it goes out below
+      // every entry (`unconfirmed`). Typed here, it goes out above the floor.
+      if (meta.imported[id] && slotMarkHere && !here?.tombstone && here?.hash !== slotMarkHere) {
+        meta.entries[id] = {
+          hash: slotMarkHere,
+          entryRev: 0,
+          updatedAt: justBefore(here?.updatedAt ?? known.updatedAt),
+          deviceId: here?.deviceId ?? known.deviceId,
+          binding: candidate.binding,
+          ...(seen > 0 ? { heldRev: seen } : {}),
+          sinceLoss: true,
+        };
+      }
+      continue;
+    }
+    if (here?.tombstone) continue;
+    if (here && slotMarkHere && here.hash === slotMarkHere) continue;
     meta.entries[id] = {
       hash: await movedHash(mark, known, candidate),
       entryRev: known.entryRev,
@@ -624,6 +671,7 @@ async function carryRepairedKnowledge(meta: SecretsPortMeta, candidates: readonl
       moved: true,
     };
   }
+  return waits;
 }
 
 /**
@@ -648,6 +696,19 @@ function slotLeft(known: SecretsPortMeta["entries"][string] | undefined): string
 function carryWaits(meta: SecretsPortMeta, candidate: LocalSecretCandidate): boolean {
   const former = meta.slotNames?.[candidate.slot];
   return isShareableSecretType(candidate.binding.secretType) && !!former && former !== candidate.logicalId;
+}
+
+/**
+ * What a carry that waits leaves when an import writes the slot under its new
+ * name first (`carryWaits`): the floor of the old name, and the note of the
+ * slot under the name it holds the document's password of now.
+ */
+function noteCarriedFloor(meta: SecretsPortMeta, candidate: LocalSecretCandidate): void {
+  const former = meta.slotNames![candidate.slot]!;
+  const known = meta.entries[former];
+  const floor = known ? Math.max(known.entryRev, known.heldRev ?? 0, meta.floors?.[former] ?? 0) : (meta.floors?.[former] ?? 0);
+  if (floor > (meta.floors?.[candidate.logicalId] ?? 0)) meta.floors = { ...(meta.floors ?? {}), [candidate.logicalId]: floor };
+  meta.slotNames = { ...meta.slotNames, [candidate.slot]: candidate.logicalId };
 }
 
 /** The floor under a name (`floors`): what this device writes under it goes above it. */
@@ -754,13 +815,14 @@ function inferPendingRemovals(
  * lists were all whole: a slot a list leaves out for a round is still here
  * (`ListsReady`).
  */
-function noteSlotNames(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], ready: ListsReady): void {
+function noteSlotNames(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], ready: ListsReady, waits: ReadonlySet<string> = new Set()): void {
   const slots = new Set<string>();
   for (const candidate of candidates) {
     if (!isShareableSecretType(candidate.binding.secretType)) continue;
     slots.add(candidate.slot);
-    // Not on a list that may not be whole: its carry waits (`carryRepairedKnowledge`), so the note does too.
-    if (!ready(candidate.binding.service)) continue;
+    // Not on a list that may not be whole, nor for a carry that waits for the
+    // document (`carryRepairedKnowledge`): the note waits with it.
+    if (!ready(candidate.binding.service) || waits.has(candidate.slot)) continue;
     if (meta.slotNames?.[candidate.slot] !== candidate.logicalId) meta.slotNames = { ...(meta.slotNames ?? {}), [candidate.slot]: candidate.logicalId };
   }
   for (const [slot, id] of Object.entries(meta.slotNames ?? {})) {
@@ -849,17 +911,17 @@ async function baselineAfterLoss(meta: SecretsPortMeta, candidates: readonly Loc
     const hashLost = isLostMark(mark, record.hash);
     const heldLost = !!record.held && isLostMark(mark, record.held);
     if (!hashLost && !heldLost) continue;
-    // The account listed under the name, or the slot noted under it whose
-    // address was repaired since: the mark is of what that slot holds, under
-    // the name of the record (rule R, `slotLeft`; sixth round).
-    const candidate =
-      candidates.find((item) => item.logicalId === id) ??
-      candidates.find((item) => meta.slotNames?.[item.slot] === id && item.binding.secretType === record.binding.secretType);
+    const candidate = candidates.find((item) => item.logicalId === id);
     // Not listed on a list that may not be whole: its slot is unknown, not
     // empty — the record waits for a whole list (review 2026-11-26, fifth
     // round, L1).
     if (!candidate && !ready(record.binding.service)) continue;
-    const slot = candidate ? await pairMark(mark, candidate.logicalId === id ? candidate.binding : record.binding, candidate.secret) : await pairMark(mark, record.binding, null);
+    // A slot noted under the name whose address was repaired since, in the
+    // same gap: what it holds now may be typed in that save, so it is no
+    // proof of what the sync left (seventh round, S1). The record stays as
+    // it is; the carry reads the document for it (`carryRepairedKnowledge`).
+    if (!candidate && candidates.some((item) => meta.slotNames?.[item.slot] === id)) continue;
+    const slot = candidate ? await pairMark(mark, candidate.binding, candidate.secret) : await pairMark(mark, record.binding, null);
     meta.entries[id] = { ...record, ...(hashLost ? { hash: slot } : {}), ...(heldLost ? { held: slot } : {}), sinceLoss: true };
     changed = true;
   }
@@ -1017,9 +1079,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       waiting = Object.values(meta.entries).some((entry) => entry.sinceLoss) || openRemoval(meta);
       const lostRecords = Object.values(meta.entries).filter((entry) => entry.sinceLoss && !entry.held).length;
       if (lostRecords > 0) logDiagnosticCounted("settings-sync", `secrets: ${lostRecords} record(s) made with a lost mark key, restored from the shared document`);
-      await carryRepairedKnowledge(meta, candidates, mark, ready);
+      const forDocument = await carryRepairedKnowledge(meta, candidates, mark, ready, null);
+      if (forDocument.size > 0) waiting = true;
       await carryOldKnowledge(meta, candidates, mark, ready);
-      noteSlotNames(meta, candidates, ready);
+      noteSlotNames(meta, candidates, ready, forDocument);
       reopenOldNames(meta, candidates);
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
       // Every account this device KNOWS, with or without a stored secret.
@@ -1186,7 +1249,17 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // A list that may not be whole yet cannot say the account is gone.
         if (!ready(removed.service)) continue;
         delete meta.retired![id];
-        if (knownIds.has(id)) continue;
+        if (knownIds.has(id)) {
+          // Removed and added again before a round — or another account of
+          // that user repaired onto the name: an account new here, its slot
+          // holds nothing the sync left. Empty, it stays empty, as on 0.9.0;
+          // a newer password from elsewhere still reaches it (seventh round,
+          // H2: no removed account gets its password back).
+          const here = candidates.find((candidate) => candidate.logicalId === id);
+          const record = meta.entries[id];
+          if (here && !here.secret && record && !record.tombstone) meta.entries[id] = { ...record, hash: await pairMark(mark, record.binding, null) };
+          continue;
+        }
         const { withProfile: _w, removedAt: _r, ...left } = removed;
         if (!removed.withProfile) tombstone(id, removed);
         takenBack.push(left);
@@ -1210,7 +1283,8 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       }
 
       // A removal written in this round is open: the document is read for it.
-      waiting ||= openRemoval(meta);
+      // ...and so is a slot that waits for the document (`sinceLoss`, a carry without a version).
+      waiting ||= openRemoval(meta) || Object.values(meta.entries).some((entry) => entry.sinceLoss);
       if (stableStringify(meta) !== asRead) await host.writeMeta(meta);
       return {
         format: "plainva-secrets",
@@ -1249,7 +1323,7 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // 2026-11-27, sixth round, rule L3): a carry of a repaired slot, or an
       // old name of a kind whose list may not be whole.
       let notWhole = candidates.some((candidate) => !ready(candidate.binding.service) && carryWaits(meta, candidate));
-      await carryRepairedKnowledge(meta, candidates, mark, ready);
+      await carryRepairedKnowledge(meta, candidates, mark, ready, bundle);
       await carryOldKnowledge(meta, candidates, mark, ready);
       noteSlotNames(meta, candidates, ready);
       reopenOldNames(meta, candidates);
@@ -1626,6 +1700,11 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         try {
           // Only values come here: a tombstone never empties a slot (above).
           await host.writeSlot(candidate.slot, candidate.apply(entry.secret!));
+          // A carry that waits for a whole list takes nothing away the import
+          // found under the new name since (seventh round, S2): the slot holds
+          // the document's password of that name now. The floor of the old
+          // name still goes along; the note follows the slot.
+          if (!viaOldName && logicalId === candidate.logicalId && carryWaits(meta, candidate)) noteCarriedFloor(meta, candidate);
           meta.imported[logicalId] = true;
           // Read under its old name (`oldNameId`): the account's exact name was written with it.
           if (viaOldName) meta.imported[candidate.logicalId] = true;

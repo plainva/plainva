@@ -1323,3 +1323,101 @@ describe("the first round after an update against the next round of 0.9.0, over 
     expect(differ, "no slot note of this version can prove a repair on a record of 0.9.0: no row departs").toEqual([]);
   });
 });
+
+describe("the probes of the seventh review round, with the outcome the rules give", () => {
+  for (const kind of [undefined, "mail" as const]) {
+    for (const peer of ["new", "v090"] as const) {
+      for (const typed of [true, false]) {
+        for (const later of ["P2P3", "P2", "none"] as const) {
+          it(`RlossGap ${kind ?? "calendar"}, the repairer ${peer}, ${typed ? "NEW typed" : "nothing typed"}, later ${later}: the key of the marks lost and the address repaired before the next round (rule R: received needs proof)`, async () => {
+            remote = null; clock = 0;
+            const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+            const n1 = device("N1", peer, [X, K(kind)], 0, "off");
+            const d2 = device("D2", "new", [X, K(kind)], 0, "off");
+            const n3 = device("N3", "new", [X, K(kind)], 0, "off");
+            typeInto(n1, "x", "P1"); typeInto(n1, "k", "K");
+            await rr([n1, d2, n3], 3);
+            repairAll([n1, n3], "x", "b");
+            await rr([n1, n3], 1);
+            if (later !== "none") { typeInto(n1, "x", "P2"); await rr([n1, n3], 2); }
+            if (later === "P2P3") { typeInto(n1, "x", "P3"); await rr([n1, n3], 2); }
+            d2.keyring.delete(SECRETS_MARK_KEY_SLOT);
+            repairAll([d2], "x", "b");
+            if (typed) typeInto(d2, "x", "NEW");
+            await rr([n1, n3, d2], 8);
+            const last = later === "P2P3" ? "P3" : later === "P2" ? "P2" : "P1";
+            // A repairer on 0.9.0 left the tombstone of an absence under the old name: the document no longer
+            // carries the value there, so nothing proves it received — kept as typed, as main keeps it (named limit).
+            const proven = peer === "new";
+            expect(slotOf(d2, "x"), typed ? "typed here: kept, as on main" : proven ? "received, proven by the document: it follows" : "no proof left: as on main").toBe(typed ? "NEW" : proven ? last : "P1");
+            expect(d2.meta?.entries[idOf(X)]?.held, "the record under the old name is not held for good").toBeUndefined();
+          });
+        }
+      }
+    }
+
+    for (const peer of ["new", "v090"] as const) {
+      for (const window of ["the tombstone read first", "the repair first"] as const) {
+        for (const extra of [0, 1]) {
+          it(`StaleAbove ${kind ?? "calendar"}, the repairer ${peer}, ${window}, ${extra} more typed: a password only received never goes out above a newer one (M1)`, async () => {
+            remote = null; clock = 0;
+            const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+            const n1 = device("N1", peer, [X, K(kind)], 0, "off");
+            const d2 = device("D2", "new", [X, K(kind)], 0, "off");
+            const n3 = device("N3", "new", [X, K(kind)], 0, "off");
+            typeInto(n1, "x", "P1"); typeInto(n1, "k", "K");
+            await rr([n1, d2, n3], 3);
+            repairAll([n1], "x", "b");
+            typeInto(n1, "x", "P2");
+            await rr([n1], 1);
+            let last = "P2";
+            for (let i = 0; i < extra; i++) { last = `P2x${i}`; typeInto(n1, "x", last); await rr([n1], 1); }
+            if (window === "the tombstone read first") await rr([d2, n3], 1);
+            repairAll([d2, n3], "x", "b");
+            await rr([n1, d2, n3], 8);
+            expect([slotOf(n1, "x"), slotOf(d2, "x"), slotOf(n3, "x"), docAt(X, "b").split(" ")[0]]).toEqual([last, last, last, `val(${last})`]);
+          });
+        }
+      }
+    }
+  }
+
+  for (const notWholeRounds of [1, 3]) {
+    it(`LateCarry, ${notWholeRounds} round(s) listed but not whole: a carry that waits takes nothing the import found under the new name meanwhile (S2)`, async () => {
+      remote = null; clock = 0;
+      const C: Row = { id: "c", user: "cora@example.test", at: "a" };
+      const n = device("N", "new", [C, K("mail")], 0, "off");
+      const d = device("D", "new", [C, K("mail")], 0, "off");
+      typeInto(n, "k", "K");
+      await rr([n, d], 3);
+      d.calendarUnsure = true;
+      repairAll([n, d], "c", "b");
+      typeInto(n, "c", "B1");
+      await rr([n], 1);
+      for (let i = 0; i < notWholeRounds; i++) await rr([d, n], 1);
+      expect(slotOf(d, "c")).toBe("B1");
+      d.calendarUnsure = false;
+      await rr([n, d], 4);
+      typeInto(n, "c", "LAST");
+      await rr([n, d], 4);
+      expect(slotOf(d, "c"), "received under the new name: it follows").toBe("LAST");
+    });
+  }
+
+  it("H2: removed and added again with the same address before a round, the slot empty: it stays empty, as on 0.9.0; a newer password from elsewhere reaches it", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", kind: "mail", at: "a" };
+    const d = device("D", "new", [X, K("mail")], 0, "off");
+    const n = device("N", "new", [X, K("mail")], 0, "off");
+    typeInto(n, "x", "P1"); typeInto(n, "k", "K");
+    await rr([n, d], 3);
+    expect(slotOf(d, "x")).toBe("P1");
+    await removeOnPurpose(d, "x");
+    d.rows.push({ ...X });
+    await rr([d, n], 4);
+    expect(slotOf(d, "x"), "no removed account gets its password back").toBe("empty");
+    typeInto(n, "x", "P2");
+    await rr([n, d], 4);
+    expect(slotOf(d, "x")).toBe("P2");
+  });
+});
