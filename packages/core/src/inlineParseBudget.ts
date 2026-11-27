@@ -1467,11 +1467,15 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
     const wasBlank = afterBlank;
     afterBlank = isBlank(line.text);
     if (fence) {
+      // A line of the fence is code; one that leaves the item the fence stands in is not (it is read, and weighed, as
+      // what it is: a note of list items with fences, each left by a line with a link, weighed those lines as code and
+      // ran the index out of 128 MB at the edge — the edge search of the performance workflow, round four of L14).
       lineKinds[index] = LINE_CODE;
       // A line less indented than a fence in a list item leaves the item, and the fence with it. A fence in no item
       // ends at its closing line alone, whatever stands between (review of L14, round four: a fence indented by two,
       // its code written from the margin, a blank line in it — the scan ended it at the code, the parser held it).
       if (fence.item && !afterBlank && indentOf(line.text) < fence.indent) {
+        lineKinds[index] = 0;
         fence = null;
       } else if (closesFence(fence.item ? line.text.slice(Math.min(textStart(line.text), fence.indent)) : line.text, fence)) {
         flush();
@@ -1607,7 +1611,7 @@ export function overBudgetInlineRanges(text: string, observe?: InlineScanObserve
   // nothing outside itself": the budget's blocks are the parser's, and where the scan cannot know them, a block runs on).
   if (heldFrom >= 0) {
     for (let index = heldFrom; index < lines.length; index++) {
-      if (lineKinds[index] === LINE_BREAK) lineKinds[index] = LINE_CODE;
+      if (lineKinds[index] === LINE_BREAK) lineKinds[index] = LINE_HELD_BREAK;
       else if (lineKinds[index] === LINE_HEADING) lineKinds[index] = LINE_HELD_HEADING;
     }
   }
@@ -1643,6 +1647,13 @@ const LINE_BREAK = 2;
 const LINE_HEADING = 3;
 /** A heading where the scan is not sure of the blocks around it: it weighs as a heading, and is no block of its own. */
 const LINE_HELD_HEADING = 4;
+/**
+ * A blank line where the scan is not sure of the blocks around it: it ends no block of the note's budget, and weighs
+ * what a block the parser may begin behind it weighs (`W.block`). Weighed as a line of code, a note of 3 264 list items
+ * with fences between paragraphs, held as one block, weighed a block less a blank line, and its index ran out of
+ * 128 MB at the edge (the edge search of the performance workflow, round four of L14).
+ */
+const LINE_HELD_BREAK = 5;
 
 /**
  * The most a whole note may weigh and still be read as it is written, in the
@@ -2203,6 +2214,10 @@ function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, ta
       add(index, line.from, line.to, line.to - line.from + W.textLine + markerCost(text, line.from, line.to), asText);
       continue;
     }
+    if (kind === LINE_HELD_BREAK) {
+      add(index, line.from, line.to, line.to - line.from + W.block, asText);
+      continue;
+    }
     add(index, line.from, line.to, kind === LINE_CODE ? line.to - line.from + W.codeLine : noteLineCost(text, line.from, line.to) + (kind === LINE_HELD_HEADING ? W.heading : 0), asText);
   }
   close();
@@ -2507,7 +2522,7 @@ function scannedParts(text: string, reading: MarkdownReading, previous?: readonl
     // As `noteBudgetRanges` reads it: behind a line that may be indented code, the next block is part of the one before.
     let deep = false;
     for (let at = first; at <= last; at++) {
-      if (isBlank(lines[at].text) && kinds[at] !== LINE_CODE) continue;
+      if (isBlank(lines[at].text) && kinds[at] !== LINE_CODE && kinds[at] !== LINE_HELD_BREAK) continue;
       const starts = units.length === 0 || (kinds[at - 1] === LINE_BREAK && !indented(at) && !deep) || heading(at - 1) || heading(at);
       deep = indentOf(lines[at].text) >= 4;
       if (starts) units.push([at, at, weights[at]]);

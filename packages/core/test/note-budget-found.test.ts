@@ -33,6 +33,22 @@ describe("notes the performance workflow's hunt found", () => {
   }
 });
 
+describe("notes the edge search found", () => {
+  // 2026-11-27, the performance workflow at the head of round four of L14: list items with a fence each, left by a line
+  // with a link, between paragraphs. The line that left the item was weighed as code, and the phone's index ran out of
+  // 128 MB at the edge (3 264 units, 0.25 MB). At its edge now, and at the size the search found.
+  for (const note of ["edge:353572:59"]) {
+    it(`${note} is read by the phone's index and note source under 128 MB`, () => {
+      expect.hasAssertions();
+      setNoteBudget(NOTE_BUDGET);
+      const most = readAsItIs(note);
+      expect(most).toBeGreaterThan(0);
+      underHeap(note, most);
+      underHeap(note, 3_264);
+    }, 600_000);
+  }
+});
+
 /**
  * A quote of one paragraph whose depth changes from line to line (review of
  * L14, 2026-11-26): over the inline budget it was weighed by its characters
