@@ -134,6 +134,13 @@ export interface SecretsPortMeta {
        */
       slotMark?: string;
       /**
+       * A password typed here over one this device had received: under the
+       * same name it still follows a change made elsewhere, as in every
+       * version since 0.8.7; a repair carries it as typed here (review
+       * 2026-11-27, eighth round, H2).
+       */
+      typedOver?: true;
+      /**
        * Carried to this name by a repair (`carryRepairedKnowledge`): this
        * device puts the entry here, though its version (and so its device)
        * is the one it had under the name before. Taken back like its own when
@@ -584,6 +591,7 @@ async function carryRepairedKnowledge(
   mark: SecretsMarker,
   ready: ListsReady,
   doc: SecretsBundle | null,
+  deviceId: string,
 ): Promise<Set<string>> {
   const waits = new Set<string>();
   const before = { entries: { ...meta.entries }, imported: { ...meta.imported }, floors: { ...(meta.floors ?? {}) } };
@@ -598,33 +606,48 @@ async function carryRepairedKnowledge(
     if (!former || former === id || heldBy(former, candidate)) continue;
     const known = before.entries[former];
     if (known && (known.alias || known.binding.secretType !== candidate.binding.secretType)) continue;
-    // Received needs a proof (review 2026-11-27, seventh round): a mark this
-    // device made with a key it still has, or the document itself. A record
-    // of a lost key not rebuilt (`baselineAfterLoss` leaves a name whose slot
-    // moved in the same gap) has neither on the device: the export waits for
-    // the document (`waits`, the note of the slot stays), and the import
-    // reads it — not typed only where the slot holds exactly the value the
-    // document carries under the old name at the record's revision.
-    const lost = !!known && !known.tombstone && isLostMark(mark, known.hash);
-    if (lost && !doc) {
+    // A name with a removal open in this round (`retired`: removed here, or
+    // taken away by the profile) begins anew under the account repaired onto
+    // it (review 2026-11-27, eighth round, S2): the slot is the identity, not
+    // the name. It inherits nothing — no "received", no version; its own
+    // password goes out above all this device knew under either name, and
+    // an empty slot stays empty (`markNewEmptySlots`) until a newer one comes.
+    if (meta.retired?.[id]) {
+      delete meta.imported[id];
+      const there = before.entries[id];
+      const floor = Math.max(known?.entryRev ?? 0, known?.heldRev ?? 0, before.floors[former] ?? 0, there?.entryRev ?? 0, there?.heldRev ?? 0);
+      if (floor > (meta.floors?.[id] ?? 0)) meta.floors = { ...(meta.floors ?? {}), [id]: floor };
+      continue;
+    }
+    // Received needs a proof (review 2026-11-27, seventh and eighth round): a
+    // mark of what the sync itself put into the slot or sent from it, made
+    // with a key this device still has, or the document. A record after a
+    // lost key is neither — the slot as it was when the loss was found
+    // (`sinceLoss`, `unconfirmed`), a conflict held because the document had
+    // another password at that version (`held`), a mark of the lost key, a
+    // tombstone whose mark of the slot is of the lost key — so the export
+    // waits for the document (`waits`, the note of the slot stays) and the
+    // import reads it (`provenByDocument`).
+    const afterLoss = !!known && (known.tombstone ? !!known.slotMark && isLostMark(mark, known.slotMark) : isLostMark(mark, known.hash) || !!known.sinceLoss || !!known.unconfirmed || !!known.held);
+    if (afterLoss && !doc) {
       waits.add(candidate.slot);
       continue;
     }
     // A password the slot holds other than the one the sync last left in it
     // was typed in the save that repaired it: typed here, as with no record
     // under the new name — whatever the state of the record under the old
-    // name (review 2026-11-26/27, fifth to seventh round, rule R). Where this
+    // name (review 2026-11-26/27, fifth to eighth round, rule R). Where this
     // device has nothing to compare with, it does as main did, which carried
     // nothing: typed here (`slotLeft`).
+    const lost = afterLoss;
     let typedHere: boolean;
-    if (lost) {
-      const there = doc!.entries[former];
-      // A tombstone carries no secret, so it proves nothing.
-      const proven = !!there && there.entryRev === known.entryRev && stableStringify(there.secret) === stableStringify(candidate.secret);
-      typedHere = !!candidate.secret && !proven;
+    if (afterLoss) {
+      typedHere = !!candidate.secret && !provenByDocument(doc!, former, id, known!, candidate, deviceId);
     } else {
       const left = slotLeft(known);
-      typedHere = !!known && !!candidate.secret && (left === null || left !== (await pairMark(mark, known.binding, candidate.secret)));
+      // A password typed here over one received (`typedOver`; "received" stays by name, as in
+      // every version since 0.8.7) proves nothing about having received it (eighth round, H2).
+      typedHere = !!known && !!candidate.secret && (!!known.typedOver || left === null || left !== (await pairMark(mark, known.binding, candidate.secret)));
     }
     if (before.imported[former] && !typedHere) meta.imported[id] = true;
     else delete meta.imported[id];
@@ -683,6 +706,27 @@ async function carryRepairedKnowledge(
  * typed here, as with none. Null where the device has none: a tombstone
  * remembered by a build before this rule, or for no listed slot.
  */
+/**
+ * The document as the proof a slot holds what the sync left in it, after a
+ * lost key (seventh and eighth round): another device's entry under the old
+ * name at the revision the record knew, or under the new name, with exactly
+ * the slot's password. A value this device sent itself proves nothing about
+ * having received it; a tombstone carries no secret.
+ */
+function provenByDocument(
+  doc: SecretsBundle,
+  former: string,
+  id: string,
+  known: SecretsPortMeta["entries"][string],
+  candidate: LocalSecretCandidate,
+  deviceId: string,
+): boolean {
+  const holds = (entry: SecretEntry | undefined) =>
+    !!entry && !entry.tombstone && entry.deviceId !== deviceId && stableStringify(entry.secret) === stableStringify(candidate.secret);
+  const there = doc.entries[former];
+  return (holds(there) && there!.entryRev === known.entryRev) || holds(doc.entries[id]);
+}
+
 function slotLeft(known: SecretsPortMeta["entries"][string] | undefined): string | null {
   if (!known) return null;
   return known.tombstone ? (known.slotMark ?? null) : known.hash;
@@ -806,6 +850,37 @@ function inferPendingRemovals(
     meta.comparedKinds = SECRET_SERVICES.filter((kind) => compared.has(kind));
   }
   return absent;
+}
+
+/**
+ * A slot new to its name — no note of it under that name before this round:
+ * an account added again, connected anew, repaired onto the name, or any
+ * account of a record a version without notes wrote — is no slot the sync
+ * left a password in under that name. Empty, the record of the name says so
+ * (the mark of no password), so the import does not fill it from the
+ * document: no removed account gets its password back, and a slot without
+ * proof is not refilled, as on 0.9.0 (review 2026-11-27, eighth round, S3).
+ * A newer password from elsewhere still reaches it. Only on a whole list, as
+ * the note itself.
+ */
+async function markNewEmptySlots(meta: SecretsPortMeta, candidates: readonly LocalSecretCandidate[], ready: ListsReady, mark: SecretsMarker, waits: ReadonlySet<string> = new Set()): Promise<void> {
+  // A record this version wrote before knows its slots; one of a version
+  // without notes does not, and the device behaves as that version did (a
+  // lost key: an empty slot takes the password of the version it knew).
+  const knowsSlots = !!meta.notesRemovals || !!meta.slotNames;
+  for (const candidate of candidates) {
+    if (!isShareableSecretType(candidate.binding.secretType) || !ready(candidate.binding.service) || waits.has(candidate.slot)) continue;
+    // New to every name: a repaired slot (noted under another name) is the carry's.
+    if (meta.slotNames?.[candidate.slot] !== undefined) continue;
+    const id = candidate.logicalId;
+    const record = meta.entries[id];
+    if (!record || record.tombstone || isBridgeSecretType(record.binding.secretType)) continue;
+    // Under a name with a removal open, the new account begins anew: nothing received there is its.
+    if (meta.retired?.[id]) delete meta.imported[id];
+    if (candidate.secret || candidate.signedOutHere) continue;
+    const { sinceLoss: _s, unconfirmed: _u, held: _h, moved: _m, ...rest } = record;
+    meta.entries[id] = { ...(knowsSlots ? rest : record), hash: await pairMark(mark, record.binding, null) };
+  }
 }
 
 /**
@@ -1079,9 +1154,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       waiting = Object.values(meta.entries).some((entry) => entry.sinceLoss) || openRemoval(meta);
       const lostRecords = Object.values(meta.entries).filter((entry) => entry.sinceLoss && !entry.held).length;
       if (lostRecords > 0) logDiagnosticCounted("settings-sync", `secrets: ${lostRecords} record(s) made with a lost mark key, restored from the shared document`);
-      const forDocument = await carryRepairedKnowledge(meta, candidates, mark, ready, null);
+      const forDocument = await carryRepairedKnowledge(meta, candidates, mark, ready, null, deviceId);
       if (forDocument.size > 0) waiting = true;
       await carryOldKnowledge(meta, candidates, mark, ready);
+      await markNewEmptySlots(meta, candidates, ready, mark, forDocument);
       noteSlotNames(meta, candidates, ready, forDocument);
       reopenOldNames(meta, candidates);
       const currentIds = new Set(candidates.filter((c) => c.secret).map((c) => c.logicalId));
@@ -1095,7 +1171,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       };
 
       for (const candidate of candidates) {
-        if (!candidate.secret) continue;
+        // A slot whose carry waits for the document goes out after the import
+        // read it: received with a proof, or typed above the floor (eighth
+        // round, M1).
+        if (!candidate.secret || forDocument.has(candidate.slot)) continue;
         const hash = await pairMark(mark, candidate.binding, candidate.secret);
         const previous: SecretsPortMeta["entries"][string] | undefined = meta.entries[candidate.logicalId];
         const live = !!previous && !previous.tombstone;
@@ -1121,11 +1200,14 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
           binding: candidate.binding,
           secret: candidate.secret,
         };
+        // Typed here over a value of a received slot (not above a tombstone, not a held conflict).
+        const typedOver = !!previous && !previous.tombstone && !previous.held && previous.hash !== hash && !!meta.imported[candidate.logicalId];
         // Above a tombstone this device found for an account still here, the
         // password goes out — as this device's entry, so its to take back.
         meta.entries[candidate.logicalId] = {
           // Unchanged, the record keeps what it knew besides (the revision seen).
           ...(changed || !previous ? {} : previous),
+          ...(typedOver || (!changed && previous?.typedOver) ? { typedOver: true as const } : {}),
           hash,
           entryRev,
           updatedAt,
@@ -1249,17 +1331,15 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
         // A list that may not be whole yet cannot say the account is gone.
         if (!ready(removed.service)) continue;
         delete meta.retired![id];
-        if (knownIds.has(id)) {
-          // Removed and added again before a round — or another account of
-          // that user repaired onto the name: an account new here, its slot
-          // holds nothing the sync left. Empty, it stays empty, as on 0.9.0;
-          // a newer password from elsewhere still reaches it (seventh round,
-          // H2: no removed account gets its password back).
-          const here = candidates.find((candidate) => candidate.logicalId === id);
-          const record = meta.entries[id];
-          if (here && !here.secret && record && !record.tombstone) meta.entries[id] = { ...record, hash: await pairMark(mark, record.binding, null) };
-          continue;
-        }
+        // Listed again with a password of its own — added again, or another
+        // account of that user repaired onto the name — the removal ends: that
+        // password goes out above all known under the name. Listed again with
+        // an empty slot, the removed account's password still goes, as on
+        // main: the slot stays empty (`markNewEmptySlots`) and a newer one from
+        // elsewhere reaches it (seventh and eighth round, H2, S3: no removed
+        // account gets its password back). The tombstone is the act's, and the
+        // slot listed here holds nothing it could take.
+        if (knownIds.has(id) && currentIds.has(id)) continue;
         const { withProfile: _w, removedAt: _r, ...left } = removed;
         if (!removed.withProfile) tombstone(id, removed);
         takenBack.push(left);
@@ -1323,8 +1403,9 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
       // 2026-11-27, sixth round, rule L3): a carry of a repaired slot, or an
       // old name of a kind whose list may not be whole.
       let notWhole = candidates.some((candidate) => !ready(candidate.binding.service) && carryWaits(meta, candidate));
-      await carryRepairedKnowledge(meta, candidates, mark, ready, bundle);
+      await carryRepairedKnowledge(meta, candidates, mark, ready, bundle, await host.deviceId());
       await carryOldKnowledge(meta, candidates, mark, ready);
+      await markNewEmptySlots(meta, candidates, ready, mark);
       noteSlotNames(meta, candidates, ready);
       reopenOldNames(meta, candidates);
       openRemovedIds(meta, candidates);
@@ -1459,7 +1540,11 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
             const same =
               previous.hash === hash ||
               (!previous.tombstone && !entry.tombstone && previous.hash === (await pairMark(mark, previous.binding, null)));
-            const emptyAtLoss = atLoss && !entry.tombstone && previous.hash === (await pairMark(mark, (byId.get(logicalId) ?? previous).binding, null));
+            // Only a slot the sync knew under that name, on a whole list — on a record this version
+            // wrote before (its notes); on one of a version without notes, as that version did (eighth round, S3).
+            const lossSlot = byId.get(logicalId);
+            const knownSlot = !(meta.notesRemovals || originalMeta?.slotNames) || (!!lossSlot && ready(lossSlot.binding.service) && originalMeta?.slotNames?.[lossSlot.slot] === logicalId);
+            const emptyAtLoss = atLoss && knownSlot && !entry.tombstone && previous.hash === (await pairMark(mark, (lossSlot ?? previous).binding, null));
             if (emptyAtLoss) {
               // An empty slot after a lost key (a device moved without its
               // keychain) takes the password of the version it knew.
@@ -1476,7 +1561,10 @@ export function createSecretsPort(host: SecretsPortHost): SecretsPort {
               // device that has the account (review 2026-11-26, fourth round,
               // H1). It is read in below like any other.
               const here = byId.get(logicalId);
-              const emptied = !entry.tombstone && !!here && !here.secret && !here.signedOutHere && previous.hash !== (await pairMark(mark, here.binding, null));
+              // Only a slot the sync knew under that name (its note), on a whole list (eighth round, S3).
+              const emptied =
+                !entry.tombstone && !!here && !here.secret && !here.signedOutHere && ready(here.binding.service) && meta.slotNames?.[here.slot] === logicalId &&
+                previous.hash !== (await pairMark(mark, here.binding, null));
               if (!emptied) {
                 recordImportResult(result, logicalId, "unchanged", "already-current");
                 continue;

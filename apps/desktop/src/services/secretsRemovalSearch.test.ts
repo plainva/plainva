@@ -109,6 +109,8 @@ interface Dev {
    */
   typedSince: Record<string, true>;
   movedSince: Record<string, true>;
+  /** Typed here over a password received, and sent: a repair later carries it as typed (eighth round, `typedOver`). */
+  typedOver: Record<string, true>;
   /** The calendar runtime is not up: calendar rows are missing from the list, and the list is not whole. */
   calendarDown?: boolean;
 }
@@ -191,6 +193,7 @@ function portOf(d: Dev) {
       else {
         d.slots[slot] = value as string;
         if (d.rows.some((row) => row.id === slot)) d.taken[slot] = true;
+        delete d.typedOver[slot];
         delete d.renamed[slot];
         delete d.selfRemoved[slot];
       }
@@ -233,7 +236,8 @@ async function secretsRound(d: Dev): Promise<void> {
   // Rule R: the repair carries "received" only for the password the device knew under the old name.
   for (const row of d.rows) {
     if (row.kind !== "mail" && d.calendarDown) continue;
-    if (d.movedSince[row.id] && d.typedSince[row.id]) delete d.taken[row.id];
+    if (d.typedSince[row.id] && d.taken[row.id] && !d.movedSince[row.id]) d.typedOver[row.id] = true;
+    if (d.movedSince[row.id] && (d.typedSince[row.id] || d.typedOver[row.id])) delete d.taken[row.id];
     delete d.movedSince[row.id];
     delete d.typedSince[row.id];
   }
@@ -556,7 +560,7 @@ interface Frame {
 }
 
 async function setup(frame: Frame): Promise<void> {
-  w = { devs: frame.kinds.map((kind, i) => ({ name: `D${i}`, kind, rows: [{ ...frame.acct }, ...(frame.others ?? []).filter((other) => other.on.includes(i)).map((other) => ({ ...other.row }))], slots: {}, keyring: {}, meta: null, retired: null, pending: {}, known: {}, pendingAt: {}, knownAt: {}, signedOut: [], taken: {}, renamed: {}, selfRemoved: {}, typedSince: {}, movedSince: {} })), remote: null, profile: {}, profileAt: {}, edits: 0, clock: 0, n: 0, removals: {}, oldRemovals: [], removedAny: {}, everRemoved: {}, pushes: 0, fullImports: 0, gone: [], profileOff: [], problems: [], trace: [] };
+  w = { devs: frame.kinds.map((kind, i) => ({ name: `D${i}`, kind, rows: [{ ...frame.acct }, ...(frame.others ?? []).filter((other) => other.on.includes(i)).map((other) => ({ ...other.row }))], slots: {}, keyring: {}, meta: null, retired: null, pending: {}, known: {}, pendingAt: {}, knownAt: {}, signedOut: [], taken: {}, renamed: {}, selfRemoved: {}, typedSince: {}, movedSince: {}, typedOver: {} })), remote: null, profile: {}, profileAt: {}, edits: 0, clock: 0, n: 0, removals: {}, oldRemovals: [], removedAny: {}, everRemoved: {}, pushes: 0, fullImports: 0, gone: [], profileOff: [], problems: [], trace: [] };
   w.devs[frame.typer].slots[frame.acct.id] = password(frame.acct);
   for (let i = 0; i < 3; i++) for (const [index, d] of w.devs.entries()) if (!frame.fresh?.includes(index)) await cycle(d, "full");
   w.clock += 10;

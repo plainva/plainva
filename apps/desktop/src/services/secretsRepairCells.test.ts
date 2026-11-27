@@ -269,8 +269,26 @@ const waitsForDocument = (old: Old, fresh: New) =>
  * version), nor is the mark a tombstone of another device found with a key
  * lost since.
  */
-const expectedToFollow = (old: Old, _fresh: New, gap: "key kept" | "key lost, export first" | "key lost, a round") =>
-  receivedIn(old) && (gap === "key kept" || (old !== "held" && old !== "foreign tombstone"));
+const expectedToFollow = (old: Old, fresh: New, gap: "key kept" | "key lost, export first" | "key lost, a round") => {
+  // The document under the new name carries the slot's very password, from another device (eighth round, H1).
+  const newNameHoldsIt = fresh === "same password" || fresh === "own removal, open";
+  if (old === "held") return newNameHoldsIt;
+  if (old === "foreign tombstone") return gap === "key kept" || newNameHoldsIt;
+  return receivedIn(old);
+};
+/**
+ * The decided cells (coordination, 27.11., kept by the eighth round): nothing
+ * typed, and the record under the old name after a lost key proves nothing —
+ * a held conflict (the document had another password at that version), or a
+ * tombstone of another device whose mark of the slot is of the lost key —
+ * while the document under the new name does not carry the slot's password.
+ * The slot counts as typed here; main follows there, as it does with a
+ * password typed (it overwrites that one too).
+ */
+const namedNoProof = (old: Old, fresh: New, gap: "key kept" | "key lost, export first" | "key lost, a round") =>
+  !expectedToFollow(old, fresh, gap) && (old === "held" || (old === "foreign tombstone" && gap !== "key kept"));
+/** A record after a lost key under the old name: the export waits for the document before the slot goes out. */
+const afterLossOld = (old: Old) => old === "lost key" || old === "held" || old === "unconfirmed";
 const receivedIn = (old: Old) => old === "received" || old === "lost key" || old === "held" || old === "unconfirmed" || old === "foreign tombstone";
 
 for (const kind of ["calendar", "mail"] as const) {
@@ -282,7 +300,9 @@ for (const kind of ["calendar", "mail"] as const) {
           const b = { ...x, at: "b" as At };
           const first = await round(d);
           const published = first.entries[idOf(kind, b)];
-          if (waitsForDocument(old, fresh)) {
+          if (afterLossOld(old)) {
+            expect(published, "after a lost key: nothing goes out before the document was read").toBeUndefined();
+          } else if (waitsForDocument(old, fresh)) {
             expect(published, "only received, its version unknown: it waits for the document").toBeUndefined();
             // The import of that round read it: what the document holds under b, or with nothing there, the slot as it is.
             expect(d.slots.get("x")).toBe(fresh === "other password" ? "Q" : "P1");
@@ -295,13 +315,19 @@ for (const kind of ["calendar", "mail"] as const) {
           // Received or typed: a newer password from another device under b.
           put(kind, b, { rev: 50, device: "N4", pass: "P9" });
           await round(d);
-          expect(d.slots.get("x"), receivedIn(old) ? "received: it follows a change made elsewhere" : "typed here: not replaced from elsewhere").toBe(receivedIn(old) ? "P9" : "P1");
+          const follows = expectedToFollow(old, fresh, "key kept");
+          expect(d.slots.get("x"), follows ? "received: it follows a change made elsewhere" : "typed here, or no proof of having received it: not replaced from elsewhere").toBe(follows ? "P9" : "P1");
         });
 
         it(`old name: ${old}; new name: ${fresh} — a password typed after the repair goes out above all it knew`, async () => {
           const { d, x, known } = await setUp(kind, old, fresh);
           const b = { ...x, at: "b" as At };
           d.slots.set("x", "P8");
+          // After a lost key, the export waits for the document first; typed, it goes out once the import read it.
+          if (afterLossOld(old)) {
+            expect((await exportOnly(d)).entries[idOf(kind, b)], "nothing goes out before the document was read").toBeUndefined();
+            await round(d);
+          }
           const out = await exportOnly(d);
           const entry = out.entries[idOf(kind, b)];
           expect(entry?.secret).toEqual({ pass: "P8" });
@@ -338,10 +364,11 @@ for (const kind of ["calendar", "mail"] as const) {
               const here = await outcome(false);
               const follows = !typed && expectedToFollow(old, fresh, gap);
               expect(here, typed ? "typed here: not replaced from elsewhere" : follows ? "received: it follows" : "not provably received: kept as typed").toBe(typed ? "NEW" : follows ? "P9" : "P1");
-              // Where the rule keeps what is typed or lets what is received follow, main ends no better.
-              // Elsewhere main may follow: it overwrites a password typed earlier, or — with no proof left
-              // after a lost key — has applied the tombstone or taken the held version (named limit).
-              if (typed || follows) expect(here, `main ends with ${onMainEnds}`).toBe(typed || onMainEnds === "P9" ? (typed ? "NEW" : "P9") : here);
+              // Worse than main: main keeps what was typed and the branch does not, or main lets a password
+              // received follow and the branch keeps it. Red, except the cells named and decided (a record
+              // after a lost key that proves nothing, the coordination's decision of 27.11.).
+              const worse = typed ? onMainEnds === "NEW" && here !== "NEW" : receivedIn(old) && onMainEnds === "P9" && here !== "P9";
+              if (worse) expect(namedNoProof(old, fresh, gap), `worse than main, which ends with ${onMainEnds}`).toBe(true);
             });
           }
         }
@@ -664,6 +691,71 @@ for (const kind of ["calendar", "mail"] as const) {
       d.slots.set("x", "P8");
       const out = await exportOnly(d);
       expect(out.entries[idOf(kind, b)], "above revision 3, known under a").toMatchObject({ secret: { pass: "P8" }, entryRev: 4 });
+    });
+
+    it("received with no version to carry, offline after the repair, then typed: the password goes out above the revision seen under the new name (eighth review round, M3)", async () => {
+      const { d, x, known } = await setUp(kind, "foreign tombstone", "other password");
+      const b = { ...x, at: "b" as At };
+      expect((await exportOnly(d)).entries[idOf(kind, b)], "only received: it waits for the document").toBeUndefined();
+      d.slots.set("x", "P8");
+      const out = await exportOnly(d);
+      expect(out.entries[idOf(kind, b)], `above revision ${known}, seen under b`).toMatchObject({ secret: { pass: "P8" }, entryRev: known + 1 });
+      await round(d);
+      expect(d.slots.get("x")).toBe("P8");
+    });
+
+    it("a password this device published itself is no proof of having received it: the key lost in the gap, the repair, nothing typed (eighth review round, H2)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      // Typed over the received one here, and sent: the document under a carries this device's P2.
+      d.slots.set("x", "P2");
+      await round(d);
+      expect(doc.entries[idOf(kind, x)]).toMatchObject({ deviceId: "D", secret: { pass: "P2" } });
+      d.rows = d.rows.map((row) => ({ ...row, at: "b" as At }));
+      d.keyring.clear();
+      await round(d);
+      put(kind, { ...x, at: "b" }, { rev: 50, device: "N4", pass: "P9" });
+      await round(d);
+      await round(d);
+      expect(d.slots.get("x"), "typed here: kept").toBe("P2");
+    });
+
+    it("typed here over a received password, then repaired, the key kept: the repair carries it as typed (eighth review round, H2, typedOver)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      d.slots.set("x", "P2");
+      await round(d);
+      d.rows = d.rows.map((row) => ({ ...row, at: "b" as At }));
+      await round(d);
+      put(kind, { ...x, at: "b" }, { rev: 50, device: "N4", pass: "P9" });
+      await round(d);
+      await round(d);
+      expect(d.slots.get("x"), "typed here: kept").toBe("P2");
+    });
+
+    it("a slot new to a name, empty, the key lost while the list of its kind is not whole: it does not take the password of the version the name's record knew (eighth review round, S3)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      await round(d);
+      // The account removed and added again (a new slot), the key lost, the list not whole in that round.
+      d.rows = [{ id: "x2", user: x.user, at: "a" }];
+      d.slots.delete("x");
+      d.keyring.clear();
+      d.unsure = true;
+      await round(d);
+      expect(d.slots.get("x2"), "no removed account gets its password back").toBeUndefined();
     });
 
     it("the tombstone of an absence in the first round after the update goes out one revision above the record, from this device, and closes the old name (sixth review round, M3)", async () => {

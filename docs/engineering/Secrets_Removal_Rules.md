@@ -79,7 +79,7 @@ device never keeps that device's password back (statement 4).
 | Two rows merged or folded | the kept row keeps its slot | nothing |
 | The settings profile takes the account away (removed elsewhere) | row and slot go (calendar and mailbox alike); the profile import says so to the secrets sync (`noteSecretLeftWithProfile`) — it is never read from a missing row | taking-back tombstones for what this device wrote for the account itself or carried by a repair; nothing for a password it only took from the sync (its publisher takes it back) |
 | The account arrives through the profile (new, or added again) | empty, or as it was | nothing; an open removal of that name on this device ends |
-| Removed and added again here before a round (or another account of the same user repaired onto the name) | the new account's slot, empty: it stays empty, as on 0.9.0 — no removed account gets its password back; a newer password from elsewhere reaches it (seventh round, H2) | nothing; the removal ends |
+| Removed and added again here before a round (or another account of the same user repaired onto the name) | the new account's slot: empty, it stays empty, as on 0.9.0, and a newer password from elsewhere reaches it; with a password, it goes out above all known under the name — no removed account's password reaches any slot (seventh and eighth round, H2, S2, S3) | with a password of its own, nothing (the removal ends); with an empty slot, the removal tombstone, as on `main`: the act's, and the slot listed here holds nothing it could take |
 | A list of a kind of account that may not be whole (`accountsReady`: the calendar runtime starting, or missing) | unchanged | nothing is decided from what it leaves out: a removal waits and no tombstone is written; no floor and no note of a slot goes; no repair is carried, and the note of the slot waits with it; an entry of the document for no account on the list is neither remembered nor reported as waiting; the first round after an update waits (see "Across an update") |
 
 ## A repair changes the name, not the history
@@ -94,23 +94,25 @@ record of the secrets sync). Three things go along, each by its own rule:
   the sync last left in it: that one was typed in the save that repaired it,
   and is typed here, as on `main`, which carried nothing (rule R, fifth and
   sixth review round; "R4edit", "Rtomb", "Rloss"). Received needs a proof
-  (seventh round): a mark this device made with a key it still has — the
-  password it confirmed, sent or took in; the slot it holds back (`held`);
-  the slot as it was when a round found a lost key (`sinceLoss`,
-  `unconfirmed`); the slot a tombstone of another device found (`slotMark`,
-  kept when the tombstone is remembered for an account still listed) — or
-  the document itself. The slot as it is now is no proof. When the key of
-  the marks is lost in the same gap as the repair, the record under the old
-  name is left as it is (`baselineAfterLoss` does not rebuild it from the
-  slot), the export carries nothing for that slot and waits, and the import
-  reads the document: not typed only where the slot holds exactly the value
-  the document carries under the old name at the record's revision
-  ("RlossGap"). Where there is no proof — a tombstone remembered by a build
-  before this rule, or while no listed slot held the name; a mark of a lost
-  key on a tombstone or a held conflict; a document that changed under the
-  old name in the gap (a device on 0.9.0 that repaired first wrote its
-  tombstone of an absence there) — it does what `main` does by its rule,
-  which carried nothing: typed here (named limit below).
+  (seventh and eighth round): a mark of what the sync itself put into the
+  slot or sent from it, made with a key this device still has — the
+  password it confirmed, sent or took in (`hash` of a settled record), the
+  slot a tombstone of another device found (`slotMark`) — or the document.
+  No record after a lost key is such a mark: the slot as it was when the
+  loss was found (`sinceLoss`, `unconfirmed`) may hold what was typed since,
+  and a conflict held (`held`) says the document had another password at
+  that version ("HeldThenRepair"). For those, and for a mark of the lost key
+  (a record not rebuilt, `baselineAfterLoss` leaves a name whose slot moved
+  in the same gap; a tombstone whose mark of the slot is of the lost key),
+  the export carries nothing for that slot, sends nothing for it and waits,
+  and the import reads the document (`provenByDocument`): not typed only
+  where another device's entry carries exactly the slot's password — under
+  the old name at the record's revision ("RlossGap"), or under the new name
+  (the cells "the slot's password"). A value this device sent itself proves
+  nothing about having received it. Where there is no proof it does what
+  `main` does by its rule, which carried nothing: typed here (named limit
+  below). A tombstone remembered by a build before this rule, or while no
+  listed slot held the name, has no mark either: typed here.
 - **The floor**: every revision the slot knew under the old name (its entry,
   the revisions it saw there and did not take). A password typed after the
   repair, or a removal, goes out above it and above all the device knows of
@@ -124,10 +126,34 @@ record of the secrets sync). Three things go along, each by its own rule:
   changed since, it goes out above the floor. A password only received with
   no version to carry never goes out as a new value (seventh round, M1,
   "StaleAbove"): it waits for the document like a slot after a lost key
-  (`sinceLoss` at revision 0). The import takes what the document holds
-  under the new name; with nothing there it goes out below every entry
-  (`unconfirmed`, revision 0, a moment before its time). Only what is typed
-  here goes out as a new value.
+  (`sinceLoss` at revision 0, keeping every revision the new name had seen
+  as `heldRev`). The import takes what the document holds under the new
+  name; with nothing there it goes out below every entry (`unconfirmed`,
+  revision 0, a moment before its time). Typed meanwhile, it goes out above
+  every revision seen there. What is typed here goes out as a new value
+  above the floor, after the import decided it ("M1loss").
+
+A name with a removal open in the round (`retired`: "Remove account" here,
+or the profile took the account away) begins anew under an account repaired
+onto it (eighth round, S2, "H2onto"): the slot is the identity, not the
+name. It inherits nothing there — no "received", no version, no password of
+the document; its own password goes out above all this device knew under
+either name. An empty slot new to a name — an account added again or
+connected anew, an account repaired onto the name, and every slot on a
+record a version without notes wrote — stays empty (`markNewEmptySlots`, S3):
+the record of the name says the slot holds nothing, so the import does not
+fill it from the document, and a newer password from elsewhere still reaches
+it; under a name with a removal open, nothing received there is its. Only a
+slot the sync knew under that name (its note), on a whole list, is filled
+again when it was emptied outside the port — and only such a slot takes the
+password of the version it knew after a lost key (round twelve), on a record
+this version wrote; on one of a version without notes, as that version did.
+A password typed here over one received keeps following a change made
+elsewhere under the same name, as in every version since 0.8.7; a repair
+carries it as typed (`typedOver`). Fixed cases: "a name
+with a removal open begins anew" in
+`apps/desktop/src/services/secretsRemovalCases.test.ts`, every device
+against the port of `main`.
 
 A carry waits for a whole list of its kind; it adds to what the device
 learnt under the new name meanwhile and takes nothing away (seventh round,
@@ -162,19 +188,35 @@ is a test of its own.
 
 Every cell is also a test with a password typed in the save that repairs and
 with nothing typed, each with the key of the marks kept and lost in the gap
-(the export alone first, or a whole round). The measure is the rule, not
-`main`: what is typed stays on the device that typed it, and only what is
-provably received follows the password typed last. Beside each cell the
-same steps run on the port of `main` (89abe6ced carries the port of v0.9.0
-unchanged, `secretsV090.ts`), and where the rule keeps what is typed or lets
-what is received follow, no cell ends worse on the branch. Measured so:
-typed in the save that repairs, `main` loses it in 90 of the 108 cells of
-each variant, the branch in none. Nothing typed, the branch follows in 20
-cells where `main` does not; `main` follows where the branch keeps the
-password in 40 cells with the key kept and in 62 of each variant with the
-key lost — 40 a password typed here earlier, which `main` overwrites, and
-with the key lost 22 more: a held conflict or a tombstone of another device,
-where nothing proves the password received (named limit).
+(the export alone first, or a whole round). The measure is the rule: what is
+typed stays on the device that typed it, and only what is provably received
+follows the password typed last. Beside each cell the same steps run on the
+port of `main` (89abe6ced carries the port of v0.9.0 unchanged,
+`secretsV090.ts`), and a cell is red where the branch ends worse than
+`main` — `main` keeps what was typed and the branch does not, or `main` lets
+a received password follow and the branch keeps it — but for the decided
+cells below. Measured so, per variant (108 cells each, the key kept, lost
+with the export first, lost with a round): typed in the save that repairs,
+`main` loses it in 90, the branch in none. Nothing typed, the branch follows
+in 6 cells where `main` does not; `main` follows where the branch keeps the
+password in 40 cells of a password typed here earlier, which `main`
+overwrites, and in the decided cells: 6 with the key kept, 14 with it lost.
+
+The decided cells (coordination, 27.11., kept by the eighth review round):
+nothing typed, and the record under the old name proves nothing — a held
+conflict with the key kept, in the cells whose new name holds a tombstone of
+another device, another password, or this device's confirmed removal (3
+cells for each kind, 6 in all); with the key lost in the gap, the same three
+for a held conflict and, for a tombstone of another device, the cells whose
+new name holds nothing, another password, a tombstone of another device or
+the confirmed removal (7 for each kind and variant, 28 in all). 34 cells in
+all. The slot counts as typed there; `main` follows, and in the same cells
+with a password typed it loses that password in all but the cells whose new
+name holds nothing — `main` does not tell the two apart. It follows because
+it applies a tombstone of another device to a listed slot and empties it, or
+reads "received" by name from the record of the account that had the new
+name before. The cells whose new name carries the slot's very password, from
+another device, are proven by the document and follow.
 
 Nothing at all is carried from a name another account on the device had
 already before this round (two rows, one name), from an alias, or without a
@@ -409,17 +451,21 @@ Each stands with its steps as a fixed case in
   on those devices and types the password there again. Calendar accounts,
   and fleets without a device on 0.9.0, end on the new password.
 
-- The key of the marks lost in the gap before a round that repairs an
-  address, nothing typed, and nothing left to prove the password received:
-  the document no longer carries the value under the old name (a device on
-  0.9.0 or `main` that repaired first wrote its tombstone of an absence
-  there) or carries it at another revision than the record knew, or the
-  record under the old name is a held conflict or a
-  tombstone of another device whose mark of the slot is of the lost key.
-  The password counts as typed here, as on `main` by its rule: it does not
-  follow a newer one from elsewhere until the person types it again or the
-  device receives one under the new name into an empty slot ("RlossGap",
-  the cells "key lost").
+- A repair after a lost key, nothing typed, and nothing to prove the
+  password received: the document no longer carries the value under the
+  old name (a device on 0.9.0 or `main` that repaired first wrote its
+  tombstone of an absence there), carries it at another revision than the
+  record knew, or only as this device's own; the record under the old name
+  is a held conflict, or a tombstone of another device whose mark of the
+  slot is of the lost key; and the document under the new name does not
+  carry the slot's password from another device. The password counts as
+  typed here, as on `main` by its rule. It goes out as this device's own
+  value above all it knew there once the import decided — so a newer one
+  typed on 0.9.0 or `main` at the repair, at a lower revision, yields to it,
+  and the devices that only received hold the older password, as on `main`
+  ("M1loss") — and it does not follow a newer one from elsewhere until the
+  person types it again. The decided cells (34) are listed under "A repair
+  changes the name" ("RlossGap", "Rloss", the cells "key lost" and "held").
 - A device that goes back to 0.9.0, removes a mailbox there before 0.9.0
   ran a round, and comes forward again: its record still carries the mark of
   this version (0.9.0 never wrote it), so nothing tells that removal from a
