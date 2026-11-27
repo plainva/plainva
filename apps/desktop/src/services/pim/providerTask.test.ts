@@ -57,10 +57,12 @@ describe("createProviderTask", () => {
 
     expect(res).toEqual({ ok: true, uid: "task-42", accountId: "g1", listId: "@default", anchored: true });
     // A task is created open — nobody creates one in order to have it done.
+    // Under the uid of this create, the same for every try of it (issue 119).
     expect(createTask).toHaveBeenCalledWith("@default", {
       title: "Buy milk",
       due: "2026-08-20",
       completed: false,
+      createAs: expect.stringMatching(/^plainva-/),
     });
 
     const written = adapter.files["T/buy-milk.md"];
@@ -131,7 +133,7 @@ describe("createProviderTask", () => {
       draft: { title: "Bare" },
       createTask,
     });
-    expect(createTask).toHaveBeenCalledWith("l", { title: "Bare", completed: false });
+    expect(createTask).toHaveBeenCalledWith("l", { title: "Bare", completed: false, createAs: expect.stringMatching(/^plainva-/) });
   });
 });
 

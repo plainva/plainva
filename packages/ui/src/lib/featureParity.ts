@@ -770,6 +770,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-11-16",
   },
   {
+    id: "created-event-unconfirmed",
+    title: "A new event the provider has not listed yet stays on screen until a sync lists it or the provider, asked three times, says it does not have it (issue 119)",
+    area: "pim",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Same shared watch (`watchCreatedEvents`) on both shells. The phone's own " +
+      "calendars (the device account, which the desktop does not have) are not " +
+      "asked: the device store takes a create at once and the next run lists it, " +
+      "so asking is not needed - such an event stays until that run and is never " +
+      "reported as missing (decided 2026-11-25).",
+    verified: "2026-11-25",
+  },
+  {
     id: "device-pim-accounts",
     title: "The device's own calendars and reminder lists as a calendar account",
     area: "pim",

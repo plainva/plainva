@@ -41,7 +41,7 @@ vi.mock("./services/conflictState", () => ({ bindConflictStore: vi.fn() }));
 vi.mock("./services/syncService", () => ({ startSyncIfConfigured: vi.fn(async () => {}) }));
 vi.mock("./services/pim/pimService", () => ({ startPim: vi.fn(async () => {}), stopPim: vi.fn(), restartPimAfterImport: vi.fn(async () => {}) }));
 // The boot asks the light runtime what a running calendar is; the service itself loads after the first picture (performance plan L5).
-vi.mock("./services/pim/pimRuntime", () => ({ stopPim: vi.fn(), isPimRuntimeReady: () => false }));
+vi.mock("./services/pim/pimRuntime", () => ({ stopPim: vi.fn(), leavePimVault: vi.fn(), isPimRuntimeReady: () => false }));
 vi.mock("./services/pim/pimOAuth", () => ({ resumePimOAuthResult: vi.fn(async () => {}) }));
 vi.mock("./services/mail/mailRuntime", () => ({ startMobileMail: vi.fn(), stopMobileMail: vi.fn() }));
 vi.mock("./services/endpointConfirmationSettle", () => ({ settleVaultEndpointConfirmations: vi.fn(async () => {}) }));

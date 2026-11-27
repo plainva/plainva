@@ -1,3 +1,4 @@
+import { announceStoreChanges, onPimChanged } from "./pimChanged";
 import { confirmedAccessOf, sameStoredValue, withOwnConfirmedAccess, CONFIRMED_ACCESS_KEY } from "@plainva/core";
 import i18n from "@plainva/ui/i18n";
 import type { TaskListRuntime } from "@plainva/ui";
@@ -10,6 +11,7 @@ import {
   type PimEventRow,
   type PimCalendar,
   type PimTaskList,
+  type PimEventCreate,
   type PimEventDraft,
 } from "@plainva/core";
 import { webdavFetch, allowHttpOrigin } from "../../adapters/webdavHttp";
@@ -32,7 +34,9 @@ import {
   adoptAccountInto,
   calendarPickerOptions,
   createCalendarEvent,
-  applyPendingEventWrites,
+  createChange,
+  listShownEvents,
+  watchCreatedEvents,
   deleteEventWithBlockers,
   detachBlockerAndUpdate,
   linkCalendarBlocks,
@@ -84,6 +88,7 @@ export {
   resetPimForegroundThrottle,
   restartPimAccountAfterLogin,
   stopPim,
+  leavePimVault,
   subscribePimStatus,
 } from "./pimRuntime";
 
@@ -139,6 +144,9 @@ export async function startPim(vault: MobileVault): Promise<void> {
   await startPimRuntime(vault, {
     buildTarget: buildTargetFor,
     syncTarget: syncTargetFor,
+    watchCreatedEvents: (cache, targetFor) =>
+      watchCreatedEvents(pendingEventWrites, { cache, targetFor, expand: () => pimTargets().then((m) => m.expandEventDraft) }),
+    clearCreatedEvents: () => pendingEventWrites.clear(),
     accountAuthRevision: async (vaultId, account) =>
       account.provider === "device" ? undefined : (await getPimCredentials(vaultId, account.id))?.loginRevision,
     parkedMessage: i18n.t("pim.signInRequired"),
@@ -286,14 +294,14 @@ export async function listPimEvents(rangeStartTs: number, rangeEndTs: number): P
  * {@link listPimEvents} — they act on what the provider confirmed.
  */
 export async function listShownPimEvents(rangeStartTs: number, rangeEndTs: number): Promise<ShownEventRow[]> {
-  const cached = await listPimEvents(rangeStartTs, rangeEndTs);
-  const shown = applyPendingEventWrites(cached, pendingEventWrites.snapshot());
+  const cache = runtime?.cache;
+  // The shared reading of every surface (issue 119): the cache, the overlay,
+  // only the calendars that are shown, a new series by its occurrences.
+  const shown = cache ? await listShownEvents(cache, rangeStartTs, rangeEndTs) : [];
   // The chain mark of a blocker and of an event that has blockers is drawn
   // from the linkage (K3) — derived here, once, for every screen that lists
   // events. Until then the phone had the action and no sign of its result.
-  if (shown === cached) return linkCalendarBlocks(shown);
-  // A created event comes from the overlay, not from the range query.
-  return linkCalendarBlocks(shown.filter((row) => cached.includes(row) || (row.start.ts < rangeEndTs && row.end.ts >= rangeStartTs)));
+  return linkCalendarBlocks(shown);
 }
 
 /**
@@ -337,8 +345,8 @@ let pendingWritesWired = false;
 function wirePendingEventWrites(): void {
   if (pendingWritesWired || typeof window === "undefined") return;
   pendingWritesWired = true;
-  pendingEventWrites.subscribe(() => window.dispatchEvent(new CustomEvent("m-pim-changed")));
-  window.addEventListener("m-pim-changed", () => void reconcilePendingEventWrites());
+  announceStoreChanges(pendingEventWrites, window);
+  onPimChanged(window, () => void reconcilePendingEventWrites());
 }
 
 /**
@@ -782,16 +790,21 @@ const eventTargets: EventTargets = {
  * then for a whole cycle over every account before the new event appeared —
  * the row the shared writer hands back was thrown away.
  */
-export async function createPimEvent(calendarKey: string, draft: PimEventDraft) {
+export async function createPimEvent(calendarKey: string, draft: PimEventCreate) {
   const key = splitCalendarKey(calendarKey);
   if (!key) throw new Error("no writable calendar selected");
   const id = pendingEventWrites.reserve();
   const { uid: _uid, ...shown } = draftToRow(key.accountId, key.calendarId, "", draft);
+  // Drawing a series by its occurrences needs the expansion, which loads with
+  // the calendar targets; without it the series is drawn by its first
+  // occurrence - what is written is the same either way.
+  const expandEventDraft = await pimTargets().then((m) => m.expandEventDraft).catch(() => undefined);
   const out = await writeEventOptimistically(
     pendingEventWrites,
-    { kind: "create", row: pendingEventRow(id, shown) },
+    // A series shows its occurrences from the first moment (issue 119).
+    createChange(pendingEventRow(id, shown), draft, expandEventDraft),
     () => createCalendarEvent(eventTargets, key.accountId, key.calendarId, draft),
-    (written) => written.rows.map((row) => ({ kind: "create" as const, row })),
+    (written) => written.rows.map((row) => createChange(row, draft, expandEventDraft)),
     id,
   );
   pimSyncNow({ afterWrite: true });

@@ -527,6 +527,9 @@ export async function installOwnerBus(deps: OwnerBusDeps): Promise<() => void> {
         }
         // Both may leave the event with a new etag (R2), which the window
         // that asked lays over its rows.
+        if (op.kind === "eventExists") {
+          return target.eventExists ? { ok: true as const, exists: await target.eventExists(op.ref) } : { ok: true as const };
+        }
         if (op.kind === "deleteEvent") {
           const res = await target.deleteEvent(op.ref);
           return { ok: true as const, etag: res ? res.etag : undefined };

@@ -1,3 +1,4 @@
+import { usePimTick } from "../hooks/usePimTick";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { AreaBoundary, consumePendingNew, consumeEventSeed, getPlatformServices } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
@@ -345,6 +346,10 @@ export function TodayScreen({
     };
   }, [vault, selectedIso, dailyPath, bump]);
 
+  // A sync or a write on its way changes the day's appointments, as on the
+  // desktop (issue 119): the phone's runtime sends `m-pim-changed` for both.
+  const pimTick = usePimTick();
+
   // The day's appointments. Best-effort: a vault without a calendar account
   // simply contributes nothing, and it may not keep the daily note from
   // rendering.
@@ -374,7 +379,7 @@ export function TodayScreen({
     return () => {
       stale = true;
     };
-  }, [selectedIso, bump, i18nInstance.language]);
+  }, [selectedIso, bump, pimTick, i18nInstance.language]);
 
   // What is due: both sources — the task database and the checkboxes in notes
   // — the way the planner's Today list reads them (TestFlight, build 136: a

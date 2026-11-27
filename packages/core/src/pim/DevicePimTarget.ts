@@ -1,6 +1,6 @@
 import { PimConflictError } from "./types.js";
 import type {
-  IPimTarget, PimCalendar, PimEvent, PimEventDraft, PimEventRef, PimTask, PimTaskDraft, PimTaskList, PimTaskRef,
+  IPimTarget, PimCalendar, PimEvent, PimEventCreate, PimEventDraft, PimEventRef, PimTask, PimTaskCreate, PimTaskDraft, PimTaskList, PimTaskRef,
   PimTaskUpdateResult, PimWriteResult, PullEventsResult, PullTasksResult,
 } from "./types.js";
 import { recurrenceToRRule } from "./recurrence.js";
@@ -352,7 +352,7 @@ export class DevicePimTarget implements IPimTarget {
     return { tasks: records.map(toPimTask) };
   }
 
-  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
+  async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
     const r = await this.port.createEvent(calendarId, toDeviceDraft(draft, this.allDayAt));
     return { uid: r.rrule ? `${r.id}${OCCURRENCE_SEP}${r.startTs}` : r.id, etag: r.version };
   }
@@ -376,7 +376,7 @@ export class DevicePimTarget implements IPimTarget {
     await this.port.deleteEvent(deviceHandleOf(ref.uid));
   }
 
-  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
+  async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
     this.needReminders();
     const r = await this.port.createReminder(listId, toReminderDraft(draft));
     return { uid: r.id, etag: r.version };

@@ -18,6 +18,7 @@ import {
   useWeekStartDay,
   weekdayShortNames,
   type CalendarCursor,
+  pendingEventWrites,
 } from "@plainva/ui";
 import React from "react";
 import { useTranslation } from "react-i18next";
@@ -83,6 +84,9 @@ export function BaseCalendarView({
   // the view's configuration, and it must never be mistaken for its rows.
   const [showEvents, setShowEvents] = React.useState(false);
   const [backdrop, setBackdrop] = React.useState<Map<string, BackdropDay>>(new Map());
+  // A write on its way changes the backdrop too (issue 119).
+  const [writesTick, setWritesTick] = React.useState(0);
+  React.useEffect(() => pendingEventWrites.subscribe(() => setWritesTick((v) => v + 1)), []);
   React.useEffect(() => {
     let alive = true;
     if (!showEvents || !pimRuntime) {
@@ -97,7 +101,7 @@ export function BaseCalendarView({
     return () => {
       alive = false;
     };
-  }, [showEvents, pimRuntime, anchorDate]);
+  }, [showEvents, pimRuntime, anchorDate, writesTick]);
 
   // The entry title and the day cell already communicate name and date — the
   // extra lines show the remaining enabled properties, skipping empty values

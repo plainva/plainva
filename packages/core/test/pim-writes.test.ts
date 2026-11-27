@@ -1,9 +1,13 @@
+import { newPimCreateUid } from "../src/pim/createUid.ts";
 import { describe, expect, it, vi } from "vitest";
 import { GooglePimTarget } from "../src/pim/GooglePimTarget.ts";
 import { GraphPimTarget } from "../src/pim/GraphPimTarget.ts";
 import { CalDavPimTarget } from "../src/pim/CalDavPimTarget.ts";
 import { PimConflictError, type PimAuthProvider, type PimEventDraft } from "../src/pim/types.ts";
 import type { FetchFn } from "../src/sync/WebDavSyncTarget.ts";
+
+/** Every create names its uid (issue 119): a fresh one per call here. */
+const withUid = <T extends object>(draft: T): T & { createAs: string } => ({ ...draft, createAs: newPimCreateUid() });
 
 /**
  * Write side of the three PIM adapters (stage 3): request shapes, etag guards
@@ -48,7 +52,7 @@ describe("GooglePimTarget writes", () => {
       return jsonRes({ id: "new1", etag: '"e1"' });
     });
     const t = new GooglePimTarget(auth(), fetchFn);
-    const res = await t.createEvent("cal1", timedDraft);
+    const res = await t.createEvent("cal1", withUid(timedDraft));
     expect(res).toEqual({ uid: "new1", etag: '"e1"' });
     expect(sent.summary).toBe("Planning");
     // The zone rides along since 2026-09-04 (a recurring copy needs it).
@@ -62,7 +66,7 @@ describe("GooglePimTarget writes", () => {
       sent = JSON.parse(String(init?.body));
       return jsonRes({ id: "block", etag: '"e"' });
     });
-    await new GooglePimTarget(auth(), fetchFn).createEvent("cal1", { ...timedDraft, blockOf: "source-uid" });
+    await new GooglePimTarget(auth(), fetchFn).createEvent("cal1", withUid({ ...timedDraft, blockOf: "source-uid" }));
     expect(sent.extendedProperties.private["plainva-block-of"]).toBe("source-uid");
   });
 
@@ -73,9 +77,9 @@ describe("GooglePimTarget writes", () => {
       return init?.method === "POST" ? jsonRes({ id: "n", etag: '"e"' }) : jsonRes({ etag: '"e"' });
     });
     const t = new GooglePimTarget(auth(), fetchFn);
-    await t.createEvent("cal1", { ...timedDraft, attendees: ["a@x.org"], notifyAttendees: true });
+    await t.createEvent("cal1", withUid({ ...timedDraft, attendees: ["a@x.org"], notifyAttendees: true }));
     await t.updateEvent({ calendarId: "cal1", uid: "e1" }, { ...timedDraft, notifyAttendees: true });
-    await t.createEvent("cal1", { ...timedDraft }); // no flag
+    await t.createEvent("cal1", withUid({ ...timedDraft })); // no flag
     expect(urls[0]).toContain("sendUpdates=all");
     expect(urls[1]).toContain("sendUpdates=all");
     expect(urls[2]).not.toContain("sendUpdates");
@@ -87,7 +91,7 @@ describe("GooglePimTarget writes", () => {
       sent = JSON.parse(String(init?.body));
       return jsonRes({ id: "n", etag: '"e"' });
     });
-    await new GooglePimTarget(auth(), fetchFn).createEvent("cal1", allDayDraft);
+    await new GooglePimTarget(auth(), fetchFn).createEvent("cal1", withUid(allDayDraft));
     expect(sent.start).toEqual({ date: "2026-08-10", dateTime: null });
     expect(sent.end).toEqual({ date: "2026-08-12", dateTime: null });
   });
@@ -128,7 +132,7 @@ describe("GooglePimTarget writes", () => {
       return jsonRes({ id: "x", etag: '"e"' });
     });
     const t = new GooglePimTarget(auth(), fetchFn);
-    await t.createEvent("cal1", { ...timedDraft, recurrence: { freq: "monthly" } });
+    await t.createEvent("cal1", withUid({ ...timedDraft, recurrence: { freq: "monthly" } }));
     expect(bodies[0].recurrence).toEqual(["RRULE:FREQ=MONTHLY"]);
     // Update now WRITES the rule (the field dialog can edit an existing series);
     // a drag reschedule leaves `recurrence` undefined so the rule is preserved.
@@ -146,7 +150,7 @@ describe("GooglePimTarget writes", () => {
       sent = JSON.parse(String(init?.body));
       return jsonRes({ id: "t9" });
     });
-    await new GooglePimTarget(auth(), fetchFn).createTask("l1", { title: "Do it", due: "2026-08-05", completed: false });
+    await new GooglePimTarget(auth(), fetchFn).createTask("l1", withUid({ title: "Do it", due: "2026-08-05", completed: false }));
     expect(sent.due).toBe("2026-08-05T00:00:00.000Z");
     expect(sent.status).toBe("needsAction");
   });
@@ -160,7 +164,7 @@ describe("GraphPimTarget writes", () => {
       sent = JSON.parse(String(init?.body));
       return jsonRes({ id: "g1", "@odata.etag": 'W/"1"' });
     });
-    const res = await new GraphPimTarget(auth(), fetchFn).createEvent("calX", allDayDraft);
+    const res = await new GraphPimTarget(auth(), fetchFn).createEvent("calX", withUid(allDayDraft));
     expect(res).toEqual({ uid: "g1", etag: 'W/"1"' });
     expect(sent.isAllDay).toBe(true);
     expect(sent.start).toEqual({ dateTime: "2026-08-10T00:00:00", timeZone: "UTC" });
@@ -173,7 +177,7 @@ describe("GraphPimTarget writes", () => {
       sent = JSON.parse(String(init?.body));
       return jsonRes({ id: "g1" });
     });
-    await new GraphPimTarget(auth(), fetchFn).createEvent("calX", { ...timedDraft, blockOf: "source-uid" });
+    await new GraphPimTarget(auth(), fetchFn).createEvent("calX", withUid({ ...timedDraft, blockOf: "source-uid" }));
     expect(sent.singleValueExtendedProperties).toEqual([
       { id: "String {4F21D2AE-7A5A-4B66-9E47-7F2B96AB0C31} Name plainva-block-of", value: "source-uid" },
     ]);
@@ -198,7 +202,7 @@ describe("GraphPimTarget writes", () => {
     });
     const t = new GraphPimTarget(auth(), fetchFn);
     // 2026-08-10 is a Monday (all-day anchors via the civil date).
-    await t.createEvent("calX", { ...allDayDraft, recurrence: { freq: "weekly" } });
+    await t.createEvent("calX", withUid({ ...allDayDraft, recurrence: { freq: "weekly" } }));
     expect(bodies[0].recurrence).toEqual({
       pattern: { type: "weekly", interval: 1, daysOfWeek: ["monday"] },
       range: { type: "noEnd", startDate: "2026-08-10" },
@@ -242,7 +246,7 @@ describe("CalDavPimTarget writes", () => {
       return new Response("", { status: 201, headers: { ETag: '"fresh"' } });
     });
     const t = new CalDavPimTarget(creds, fetchFn);
-    const res = await t.createEvent("https://dav.example.org/cal/home/personal/", timedDraft);
+    const res = await t.createEvent("https://dav.example.org/cal/home/personal/", withUid(timedDraft));
     expect(res.etag).toBe('"fresh"');
     expect(res.href).toBe(putUrl);
     expect(putUrl).toMatch(/^https:\/\/dav\.example\.org\/cal\/home\/personal\/plainva-[^/]+\.ics$/);
@@ -261,7 +265,7 @@ describe("CalDavPimTarget writes", () => {
       if (init?.method === "PUT") putBody = String(init.body);
       return new Response("", { status: 201 });
     });
-    await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", { ...timedDraft, blockOf: "source-uid" });
+    await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", withUid({ ...timedDraft, blockOf: "source-uid" }));
     expect(putBody).toContain("X-PLAINVA-BLOCK-OF:source-uid");
   });
 
@@ -272,7 +276,7 @@ describe("CalDavPimTarget writes", () => {
       if (init?.method === "PUT") putBody = String(init.body);
       return new Response("", { status: 201 });
     });
-    await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", allDayDraft);
+    await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", withUid(allDayDraft));
     expect(putBody).toContain("DTSTART;VALUE=DATE:20260810");
     expect(putBody).toContain("DTEND;VALUE=DATE:20260812");
   });
@@ -506,10 +510,10 @@ describe("CalDavPimTarget writes", () => {
       if (init?.method === "PUT") putBody = String(init.body);
       return new Response("", { status: 201 });
     });
-    await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", {
+    await new CalDavPimTarget(creds, fetchFn).createEvent("https://dav.example.org/cal/home/personal/", withUid({
       ...timedDraft,
       recurrence: { freq: "weekly", interval: 2, byWeekday: ["MO", "WE"] },
-    });
+    }));
     // ical.js may reorder the RRULE parts — assert the components, not the order.
     expect(putBody).toContain("RRULE:");
     expect(putBody).toContain("FREQ=WEEKLY");
