@@ -55,10 +55,14 @@ setPlatformServices({
     removeSecret: async (key: string) => void state.current!.slots.delete(key),
   },
 } as never);
-vi.mock("./pim/pimService", () => ({
-  listPimAccounts: vi.fn(async () => state.current!.accounts.filter((a) => a.kind === "calendar").map((a) => ({ id: a.id, provider: "caldav", config: { url: "https://cloud.example.com/remote.php/dav", user: a.user } }))),
-  isPimRuntimeReady: vi.fn(() => true),
-}));
+vi.mock("./pim/pimService", () => {
+  const cache = { accountsAfterRebuild: async () => "settled" };
+  return {
+    listPimAccounts: vi.fn(async () => state.current!.accounts.filter((a) => a.kind === "calendar").map((a) => ({ id: a.id, provider: "caldav", config: { url: "https://cloud.example.com/remote.php/dav", user: a.user } }))),
+    isPimRuntimeReady: vi.fn(() => true),
+    getPimCache: vi.fn(() => cache),
+  };
+});
 vi.mock("@plainva/ui/mail", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@plainva/ui/mail")>();
   return {

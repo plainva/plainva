@@ -402,5 +402,46 @@ for (const kind of ["calendar", "mail"] as const) {
       const whole = await createSecretsPort(host(d)).importBundle(doc);
       expect(whole.unknownAccounts, "an account in the document not set up here").toEqual([idOf(kind, x)]);
     });
+
+    // A mailbox's user has one spelling only (`bindingUserKey`); a calendar's keeps its case.
+    if (kind === "calendar") it("a record of 0.9.0 under another spelling of the same user (folded) is no removal in the first round after the update (fifth review round)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      // As 0.9.0 left it: no marks of this version, and the same credential under the other spelling.
+      const spelled = { ...x, user: "Cora@example.com" };
+      const meta = d.meta!;
+      delete meta.notesRemovals;
+      delete meta.comparedKinds;
+      delete meta.slotNames;
+      meta.entries[idOf(kind, spelled)] = { ...meta.entries[idOf(kind, x)]!, binding: bindingOf(kind, spelled) };
+      const out = await exportOnly(d);
+      expect(out.entries[idOf(kind, spelled)], "the same credential is still listed").toBeUndefined();
+      expect(d.meta?.notesRemovals).toBe(true);
+    });
+
+    it("a record of 0.9.0 whose endpoint is spelled another way than its name normalizes is no removal in the first round after the update, its slot empty here: the name says the account is listed (sixth review round)", async () => {
+      clock = 0;
+      doc = { format: "plainva-secrets", version: 1, bundleRev: 0, updatedAt: now(), entries: {} };
+      const x: Row = { id: "x", user: "cora@example.com", at: "a" };
+      const d: Device = { kind, rows: [{ ...x }], slots: new Map(), keyring: new Map(), meta: null };
+      put(kind, x, { rev: 3, device: "N2", pass: "P1" });
+      await round(d);
+      // As 0.9.0 left it, with the endpoint as a document of another writer may carry it.
+      const meta = d.meta!;
+      delete meta.notesRemovals;
+      delete meta.comparedKinds;
+      delete meta.slotNames;
+      const record = meta.entries[idOf(kind, x)]!;
+      meta.entries[idOf(kind, x)] = { ...record, binding: { ...record.binding, endpoint: `${record.binding.endpoint}/` } };
+      // With a password in the slot, the round writes the record anew from the account; empty, it does not.
+      d.slots.delete("x");
+      const out = await exportOnly(d);
+      expect(out.entries[idOf(kind, x)]?.tombstone, "the account is still on the list").not.toBe(true);
+      expect(d.meta?.notesRemovals).toBe(true);
+    });
   });
 }

@@ -57,6 +57,13 @@ interface Device {
   listsEmpty?: boolean;
   /** The calendar list is whole, but the host cannot say so yet (`accountsReady` false). */
   calendarUnsure?: boolean;
+  /** The calendar list comes back empty while the host calls it whole (an index rebuilt, its accounts not back yet). */
+  calendarGoneReady?: boolean;
+  /** The calendar runtime comes up while the list is read: read empty, called whole right after. */
+  calendarUpDuringRead?: boolean;
+  /** The calendar runtime stops while the list is read: called whole before, read empty, not whole right after (until cleared). */
+  calendarDownDuringRead?: boolean;
+  calendarStopped?: boolean;
   name: string;
   kind: Kind;
   rows: Row[];
@@ -107,7 +114,13 @@ const retiredHost = (d: Device) => ({
 
 function candidates(d: Device): LocalSecretCandidate[] {
   if (d.listsEmpty) return [];
-  return d.rows.filter((row) => !(d.calendarHidden && row.kind !== "mail")).map((row) => {
+  if (d.calendarDownDuringRead) {
+    d.calendarDownDuringRead = false;
+    d.calendarStopped = true;
+  }
+  const calendarsOut = d.calendarHidden || d.calendarGoneReady || d.calendarUpDuringRead || d.calendarStopped;
+  d.calendarUpDuringRead = false;
+  return d.rows.filter((row) => !(calendarsOut && row.kind !== "mail")).map((row) => {
     const binding = d.kind === "v087" ? oldBinding(row) : newBinding(row);
     const slot = d.slots.get(row.id);
     const pass = typeof slot === "string" ? slot : undefined;
@@ -133,7 +146,7 @@ function portOf(d: Device) {
       d.slots.set(slot, value as string);
       d.typed.delete(slot);
     },
-    accountsReady: async (service: string) => service === "mail" || !(d.calendarHidden || d.calendarUnsure),
+    accountsReady: async (service: string) => service === "mail" || !(d.calendarHidden || d.calendarUnsure || d.calendarUpDuringRead || d.calendarStopped),
     removeSlot: async (slot: string) => {
       if (d.rows.some((row) => row.id === slot) && typeof d.slots.get(slot) === "string") d.emptiedAny.push(`${d.name}:${slot}`);
       if (d.kind === "new" && d.rows.some((row) => row.id === slot) && typeof d.slots.get(slot) === "string") d.emptiedByPort.push(slot);
@@ -774,27 +787,275 @@ describe("the probes of the fourth review round, with the outcome the rules give
 
   for (const kind of [undefined, "mail" as const]) {
     for (const repaired of [true, false]) {
-      it(`R4edit${repaired ? "" : "Ctl"} ${kind ?? "calendar"} (M3, open decision; today's rule): a device that lagged types NEW${repaired ? " with a new address" : ""}; the higher revision P3 wins everywhere`, async () => {
-        remote = null; clock = 0;
-        const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
-        const n1 = device("N1", "new", [X, K(kind)], 0, "on");
-        const d2 = device("D2", "new", [X, K(kind)], 0, "on");
-        const n3 = device("N3", "new", [X, K(kind)], 0, "on");
-        typeInto(n1, "x", "P1"); typeInto(n1, "k", "K");
-        await rr([n1, d2, n3], 3);
-        typeInto(n1, "x", "P2");
-        await rr([n1, n3], 2);
-        typeInto(n1, "x", "P3");
-        await rr([n1, n3], 2);
-        if (repaired) repairAll([d2], "x", "b");
-        typeInto(d2, "x", "NEW");
-        await rr([d2], 1);
-        if (repaired) repairAll([n1, n3], "x", "b");
-        await rr([n1, n3, d2], 6);
-        expect([slotOf(n1, "x"), slotOf(d2, "x"), slotOf(n3, "x")], "a value goes out one revision above all this device knew: NEW at r2 yields to P3 at r3").toEqual(["P3", "P3", "P3"]);
+      it(`R4edit${repaired ? "" : "Ctl"} ${kind ?? "calendar"}: a device that lagged types NEW${repaired ? " in the save that repairs the address; it keeps NEW there, as on 0.9.0 (rule R)" : "; the higher revision P3 wins everywhere, as on 0.9.0 (M3, open decision)"}`, async () => {
+        const outcome = async (fleetKind: "new" | "v090") => {
+          remote = null; clock = 0;
+          const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+          const n1 = device("N1", fleetKind, [X, K(kind)], 0, "on");
+          const d2 = device("D2", fleetKind, [X, K(kind)], 0, "on");
+          const n3 = device("N3", fleetKind, [X, K(kind)], 0, "on");
+          typeInto(n1, "x", "P1"); typeInto(n1, "k", "K");
+          await rr([n1, d2, n3], 3);
+          typeInto(n1, "x", "P2");
+          await rr([n1, n3], 2);
+          typeInto(n1, "x", "P3");
+          await rr([n1, n3], 2);
+          if (repaired) repairAll([d2], "x", "b");
+          typeInto(d2, "x", "NEW");
+          await rr([d2], 1);
+          if (repaired) repairAll([n1, n3], "x", "b");
+          await rr([n1, n3, d2], 6);
+          return [slotOf(n1, "x"), slotOf(d2, "x"), slotOf(n3, "x")];
+        };
+        const here = await outcome("new");
+        expect(here, repaired ? "typed in the save that repaired it: typed here" : "a value goes out one revision above all this device knew: NEW at r2 yields to P3 at r3").toEqual(repaired ? ["P3", "NEW", "P3"] : ["P3", "P3", "P3"]);
+        expect(here, "the outcome of 0.9.0").toEqual(await outcome("v090"));
       });
     }
   }
+});
+
+describe("the probes of the fifth review round, with the outcome the rules give", () => {
+  // The first round after an update writes what 0.9.0 would have written in its next round, and nothing else (rule U2).
+  for (const kind of [undefined, "mail" as const]) {
+    for (const publisher of ["V", "T"] as const) {
+      for (const after of ["v090", "new"] as const) {
+        it(`U1 ${kind ?? "calendar"} typed on ${publisher}, V -> ${after}: two accounts of one user at two servers, one removed on 0.9.0; its password leaves the document`, async () => {
+          remote = null; clock = 0;
+          const X: Row = { id: "x", user: "cora@example.test", kind, at: "a" };
+          const Y: Row = { id: "y", user: "cora@example.test", kind, at: "b" };
+          const v = device("V", "v090", [X, Y, K(kind)], 0, "on");
+          const n = device("N", "new", [X, Y, K(kind)], 0, "on");
+          const t = device("T", "new", [X, Y, K(kind)], 0, "on");
+          typeInto(publisher === "V" ? v : t, "x", "P1"); typeInto(publisher === "V" ? v : t, "y", "Q1"); typeInto(v, "k", "K");
+          await rr([v, n, t], 3);
+          await removeOnPurpose(v, "x");
+          await leftByProfile(n, "x");
+          await leftByProfile(t, "x");
+          v.kind = after;
+          await rr([v, n, t], 6);
+          expect(docAt(X, "a"), "statement 2").toMatch(/^TOMB/);
+          expect([slotOf(v, "y"), slotOf(n, "y"), slotOf(t, "y")], "the other account of that user keeps its password").toEqual(["Q1", "Q1", "Q1"]);
+        });
+      }
+    }
+
+    it(`U2 ${kind ?? "calendar"}: the user of an account changed on 0.9.0, the app updated before its next round; the old name gets the tombstone 0.9.0 wrote, the password stays`, async () => {
+      remote = null; clock = 0;
+      const X: Row = { id: "x", user: "cora", kind, at: "a" };
+      const v = device("V", "v090", [X, K(kind)], 0, "on");
+      const n = device("N", "new", [X, K(kind)], 0, "on");
+      typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+      await rr([v, n], 3);
+      for (const d of [v, n]) d.rows.find((row) => row.id === "x")!.user = "cora@example.test";
+      v.kind = "new";
+      await rr([v, n], 6);
+      expect(show(docEntries()[idOf({ ...X, user: "cora" })])).toMatch(/^TOMB/);
+      expect(show(docEntries()[idOf({ ...X, user: "cora@example.test" })])).toContain("val(P1)");
+      expect([slotOf(v, "x"), slotOf(n, "x")]).toEqual(["P1", "P1"]);
+      expect(v.meta?.removedIds, "a conclusion from lists is no removal of this device's").toBeUndefined();
+    });
+  }
+
+  for (const start of ["v090", "new"] as const) {
+    it(`U3 from ${start}: the calendar list not whole for rounds after the update; the mailboxes are compared once, a user changed meanwhile is a repair`, async () => {
+      remote = null; clock = 0;
+      const C: Row = { id: "c", user: "cora", at: "a" };
+      const X: Row = { id: "x", user: "carl", kind: "mail", at: "a" };
+      const v = device("V", start, [C, X, K("mail")], 0, "on");
+      const n = device("N", "new", [C, X, K("mail")], 0, "on");
+      typeInto(v, "c", "C1"); typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+      await rr([v, n], 3);
+      v.kind = "new";
+      v.calendarHidden = true;
+      await rr([v, n], 2);
+      for (const d of [v, n]) d.rows.find((row) => row.id === "x")!.user = "carl@example.test";
+      await rr([v, n], 3);
+      v.calendarHidden = false;
+      await rr([v, n], 4);
+      expect(show(docEntries()[idOf({ ...X, user: "carl" })]), "no comparison of lists after the first one of its kind").toContain("val(P1)");
+      expect(show(docEntries()[idOf({ ...X, user: "carl@example.test" })])).toContain("val(P1)");
+      expect(v.meta?.notesRemovals).toBe(true);
+    });
+  }
+
+  it("U3c: a calendar list that is never whole after the update: the device settles, the calendar is never compared, nothing grows", async () => {
+    remote = null; clock = 0;
+    const C: Row = { id: "c", user: "cora", at: "a" };
+    const X: Row = { id: "x", user: "carl", kind: "mail", at: "a" };
+    const v = device("V", "v090", [C, X, K("mail")], 0, "on");
+    const n = device("N", "new", [C, X, K("mail")], 0, "on");
+    typeInto(v, "c", "C1"); typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+    await rr([v, n], 3);
+    v.kind = "new";
+    v.calendarHidden = true;
+    await rr([v, n], 10);
+    const pushes = [v.pushes, n.pushes];
+    await rr([v, n], 10);
+    expect([v.pushes, n.pushes], "settled").toEqual(pushes);
+    expect([docAt(C, "a"), v.meta?.notesRemovals, v.meta?.comparedKinds]).toEqual(["val(C1) r1 V", undefined, ["mail"]]);
+  });
+
+  for (const start of ["v090", "new", "v090stay"] as const) {
+    it(`U4b from ${start}: a calendar list read empty while the host calls it whole, in the first round after the update; the device still follows a password changed elsewhere`, async () => {
+      remote = null; clock = 0;
+      const C: Row = { id: "c", user: "cora", at: "a" };
+      const v = device("V", start === "v090stay" ? "v090" : start, [C, K("mail")], 0, "on");
+      const n = device("N", "new", [C, K("mail")], 0, "on");
+      typeInto(n, "c", "C1"); typeInto(v, "k", "K");
+      await rr([n, v], 3);
+      if (start === "v090") v.kind = "new";
+      v.calendarGoneReady = true;
+      await rr([v], 1);
+      v.calendarGoneReady = false;
+      await rr([n, v], 4);
+      expect(slotOf(v, "c")).toBe("C1");
+      typeInto(n, "c", "C2");
+      await rr([n, v], 4);
+      expect([slotOf(n, "c"), slotOf(v, "c")], "received: it follows, as on 0.9.0").toEqual(["C2", "C2"]);
+    });
+  }
+
+  it("U4b order: the calendar runtime comes up while the first round after the update reads the list; nothing is concluded from the empty read", async () => {
+    remote = null; clock = 0;
+    const C: Row = { id: "c", user: "cora", at: "a" };
+    const v = device("V", "v090", [C, K("mail")], 0, "on");
+    const n = device("N", "new", [C, K("mail")], 0, "on");
+    typeInto(n, "c", "C1"); typeInto(v, "k", "K");
+    await rr([n, v], 3);
+    v.kind = "new";
+    v.calendarUpDuringRead = true;
+    await rr([v], 1);
+    expect(docAt(C, "a"), "the list was read before the host could call it whole").toBe("val(C1) r1 N");
+    await rr([n, v], 3);
+    typeInto(n, "c", "C2");
+    await rr([n, v], 4);
+    expect([docAt(C, "a"), slotOf(v, "c")]).toEqual(["val(C2) r2 N", "C2"]);
+  });
+
+  it("U4b order, the other way: the calendar runtime stops while the first round after the update reads the list; nothing is concluded from the empty read", async () => {
+    remote = null; clock = 0;
+    const C: Row = { id: "c", user: "cora", at: "a" };
+    const v = device("V", "v090", [C, K("mail")], 0, "on");
+    const n = device("N", "new", [C, K("mail")], 0, "on");
+    typeInto(n, "c", "C1"); typeInto(v, "k", "K");
+    await rr([n, v], 3);
+    v.kind = "new";
+    v.calendarDownDuringRead = true;
+    await rr([v], 1);
+    expect(docAt(C, "a"), "the host called the list whole before the read only").toBe("val(C1) r1 N");
+    v.calendarStopped = false;
+    await rr([n, v], 3);
+    typeInto(n, "c", "C2");
+    await rr([n, v], 4);
+    expect([docAt(C, "a"), slotOf(v, "c")]).toEqual(["val(C2) r2 N", "C2"]);
+  });
+
+  for (const between of [false, true]) {
+    it(`U5 back to 0.9.0 and forward again${between ? ", a round on 0.9.0 between" : " with no round between (named limit)"}: a mailbox removed on 0.9.0`, async () => {
+      remote = null; clock = 0;
+      const X: Row = { id: "x", user: "cora@example.test", kind: "mail", at: "a" };
+      const v = device("V", "new", [X, K("mail")], 0, "on");
+      const n = device("N", "new", [X, K("mail")], 0, "on");
+      typeInto(v, "x", "P1"); typeInto(v, "k", "K");
+      await rr([v, n], 3);
+      v.kind = "v090";
+      await removeOnPurpose(v, "x");
+      await leftByProfile(n, "x");
+      if (between) await rr([v], 1);
+      v.kind = "new";
+      await rr([v, n], 6);
+      // With no round on 0.9.0 the record keeps the mark of this version: nothing tells the removal there from a list (limit, Secrets_Removal_Rules.md).
+      expect(docAt(X, "a").startsWith("TOMB")).toBe(between);
+    });
+  }
+
+  for (const hidden of [false, true]) {
+    it(`L1: the key of the marks lost${hidden ? " while the calendar list is not whole" : ""}; a password changed elsewhere afterwards reaches every device`, async () => {
+      remote = null; clock = 0;
+      const X: Row = { id: "x", user: "cora", at: "a" };
+      const n1 = device("N1", "new", [X, K("mail")], 0, "on");
+      const n2 = device("N2", "new", [X, K("mail")], 0, "on");
+      typeInto(n2, "x", "P1"); typeInto(n2, "k", "K");
+      await rr([n2, n1], 3);
+      n1.keyring.delete(SECRETS_MARK_KEY_SLOT);
+      n1.calendarHidden = hidden;
+      await rr([n1], 1);
+      n1.calendarHidden = false;
+      typeInto(n2, "x", "P2");
+      await rr([n2], 1);
+      await rr([n1], 1);
+      await rr([n2, n1], 4);
+      expect([docAt(X, "a"), slotOf(n1, "x"), slotOf(n2, "x")]).toEqual(["val(P2) r2 N2", "P2", "P2"]);
+    });
+  }
+});
+
+describe("one case for each rule of the first round after an update a mutation survived (fifth review round)", () => {
+  it("a calendar account the profile took away on 0.9.0 while the list is not whole at the update: compared once it is whole", async () => {
+    remote = null; clock = 0;
+    const C: Row = { id: "c", user: "cora", at: "a" };
+    const t = device("T", "new", [C, K("mail")], 0, "on");
+    const v = device("V", "v090", [C, K("mail")], 0, "on");
+    const n = device("N", "new", [C, K("mail")], 0, "on");
+    typeInto(t, "c", "C1"); typeInto(t, "k", "K");
+    await rr([t, v, n], 3);
+    // T removes it and is not seen again; the profile takes it from V (on 0.9.0) and N.
+    await removeOnPurpose(t, "c");
+    await leftByProfile(v, "c");
+    await leftByProfile(n, "c");
+    v.kind = "new";
+    v.calendarHidden = true;
+    await rr([v, n], 2);
+    expect(docAt(C, "a"), "the calendar list may not be whole: nothing yet").toContain("val(C1)");
+    v.calendarHidden = false;
+    await rr([v, n], 3);
+    expect(docAt(C, "a"), "what 0.9.0 would have written").toMatch(/^TOMB .* V$/);
+  });
+
+  it("an account listed with no password (signed out on 0.9.0) is no removal", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", kind: "mail", at: "a" };
+    const v = device("V", "v090", [X, K("mail")], 0, "on");
+    const n = device("N", "new", [X, K("mail")], 0, "on");
+    typeInto(n, "x", "P1"); typeInto(n, "k", "K");
+    await rr([n, v], 3);
+    v.slots.set("x", { signedOut: true });
+    await rr([v], 1);
+    v.kind = "new";
+    await rr([v, n], 4);
+    expect([docAt(X, "a"), slotOf(n, "x"), slotOf(v, "x")]).toEqual(["val(P1) r1 N", "P1", "SIGNED-OUT"]);
+  });
+
+  it("an account the profile takes away in the first round after the update is the profile's, not a conclusion from lists: no tombstone by this device", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", kind: "mail", at: "a" };
+    const t = device("T", "new", [X, K("mail")], 0, "on");
+    const v = device("V", "v090", [X, K("mail")], 0, "on");
+    typeInto(t, "x", "P1"); typeInto(t, "k", "K");
+    await rr([t, v], 3);
+    v.kind = "new";
+    await leftByProfile(v, "x");
+    await rr([v], 3);
+    expect(docAt(X, "a"), "the remover writes it; the profile here writes none").toBe("val(P1) r1 T");
+  });
+
+  it("a tombstone known on 0.9.0 goes out again as it is: the first round after the update writes none above it", async () => {
+    remote = null; clock = 0;
+    const X: Row = { id: "x", user: "cora@example.test", kind: "mail", at: "a" };
+    const t = device("T", "new", [X, K("mail")], 0, "on");
+    const v = device("V", "v090", [X, K("mail")], 0, "on");
+    typeInto(t, "x", "P1"); typeInto(t, "k", "K");
+    await rr([t, v], 3);
+    await removeOnPurpose(t, "x");
+    await rr([t], 1);
+    expect(docAt(X, "a")).toBe("TOMB r2 T");
+    await leftByProfile(v, "x");
+    await rr([v], 2);
+    v.kind = "new";
+    await rr([v, t], 3);
+    expect(docAt(X, "a")).toMatch(/^TOMB r2 /);
+  });
 });
 
 describe("one case for each rule a mutation of the port survived (fourth review round)", () => {

@@ -18,11 +18,24 @@ const state = vi.hoisted(() => ({
   slots: new Map<string, unknown>(),
   calendars: [] as Array<{ id: string; user: string }>,
   ready: true,
+  /** An index database rebuilt at the start holds the calendar accounts back (`accountsAfterRebuild`). */
+  held: false,
+  /** The runtime starts again while the list is read (`restartPimAfterImport`): another cache afterwards. */
+  restartOnRead: false,
+  cache: null as unknown,
 }));
-vi.mock("./pim/pimService", () => ({
-  listPimAccounts: vi.fn(async () => state.calendars.map((row) => ({ id: row.id, provider: "caldav", label: row.user, config: { url: "https://cloud.example.com/remote.php/dav", user: row.user }, enabled: true }))),
-  isPimRuntimeReady: vi.fn(() => state.ready),
-}));
+vi.mock("./pim/pimService", () => {
+  const cacheOfRuntime = () => ({ accountsAfterRebuild: async () => (state.held ? "held" : "settled") });
+  state.cache = cacheOfRuntime();
+  return {
+    listPimAccounts: vi.fn(async () => {
+      if (state.restartOnRead) state.cache = cacheOfRuntime();
+      return state.ready ? state.calendars.map((row) => ({ id: row.id, provider: "caldav", label: row.user, config: { url: "https://cloud.example.com/remote.php/dav", user: row.user }, enabled: true })) : [];
+    }),
+    isPimRuntimeReady: vi.fn(() => state.ready),
+    getPimCache: vi.fn(() => (state.ready ? state.cache : null)),
+  };
+});
 
 import { createMobileSecretsPort, retireCalDavSecret, retireImapSecret } from "./mobileSecretsPort";
 import { pimSecretKey } from "./pim/pimCredentials";
@@ -35,6 +48,8 @@ beforeEach(() => {
   state.slots.clear();
   state.calendars = [];
   state.ready = true;
+  state.held = false;
+  state.restartOnRead = false;
   setPlatformServices({
     loadSettings: async () => ({
       get: async <T,>(key: string) => (structuredClone(state.store.get(key)) as T | undefined) ?? null,
@@ -89,6 +104,31 @@ describe("phone: what takes an account away, and what writes a tombstone", () =>
     });
     expect((await port().exportBundle()).entries[calId("anna")]?.tombstone).toBeUndefined();
     state.ready = true;
+    expect((await port().exportBundle()).entries[calId("anna")]?.tombstone).toBe(true);
+  });
+
+  it("a calendar removal waits while an index rebuilt at the start holds the accounts back (review 2026-11-26, fifth round)", async () => {
+    calendars("anna", "bert");
+    await port().exportBundle();
+    state.held = true;
+    await retireCalDavSecret(VAULT, CAL, "anna", async () => {
+      state.calendars = [];
+    });
+    expect((await port().exportBundle()).entries[calId("anna")]?.tombstone, "the list is empty, the accounts are only not back yet").toBeUndefined();
+    state.held = false;
+    state.calendars = [{ id: "c2", user: "bert" }];
+    expect((await port().exportBundle()).entries[calId("anna")]?.tombstone).toBe(true);
+  });
+
+  it("a calendar removal waits while the runtime starts again during the read of the list (review 2026-11-26, fifth round)", async () => {
+    calendars("anna", "bert");
+    await port().exportBundle();
+    await retireCalDavSecret(VAULT, CAL, "anna", async () => {
+      state.calendars = state.calendars.filter((row) => row.id !== "c1");
+    });
+    state.restartOnRead = true;
+    expect((await port().exportBundle()).entries[calId("anna")]?.tombstone, "a list read through a runtime that went says nothing").toBeUndefined();
+    state.restartOnRead = false;
     expect((await port().exportBundle()).entries[calId("anna")]?.tombstone).toBe(true);
   });
 

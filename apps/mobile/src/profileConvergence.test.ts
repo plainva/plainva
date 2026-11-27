@@ -21,10 +21,14 @@ const pimMock = vi.hoisted(() => ({
   credentials: new Map<string, unknown>(),
 }));
 
-vi.mock("./services/pim/pimService", () => ({
-  isPimRuntimeReady: () => true,
-  listPimAccounts: async () => pimMock.rows,
-}));
+vi.mock("./services/pim/pimService", () => {
+  const cache = { accountsAfterRebuild: async () => "settled" };
+  return {
+    isPimRuntimeReady: () => true,
+    getPimCache: () => cache,
+    listPimAccounts: async () => pimMock.rows,
+  };
+});
 
 const journalFiles = new Map<string, string>();
 vi.mock("@capacitor/filesystem", () => ({

@@ -77,9 +77,10 @@ beforeEach(() => {
   });
 });
 
-function calendar(rows: PimAccountRow[], onDelete?: () => Promise<void>) {
+function calendar(rows: PimAccountRow[], onDelete?: () => Promise<void>, rebuild?: { held: boolean }) {
   const runtime = {
     cache: {
+      accountsAfterRebuild: async () => (rebuild?.held ? "held" : "settled"),
       listAccounts: async () => rows.map((row) => ({ ...row })),
       deleteAccount: async (id: string) => {
         await onDelete?.();
@@ -116,6 +117,22 @@ describe("desktop: what takes an account away, and what writes a tombstone", () 
     expect(raced.entries[calId("anna")]?.tombstone).toBe(true);
     expect(raced.entries[calId("bert")]?.secret).toEqual({ pass: "B1" });
     expect(state.slots.has(pimSecretKey(VAULT, "c1"))).toBe(false);
+  });
+
+  it("a calendar removal waits while an index rebuilt at the start holds the accounts back (review 2026-11-26, fifth round)", async () => {
+    const rows = [calRow("c1", "anna"), calRow("c2", "bert")];
+    state.slots.set(pimSecretKey(VAULT, "c1"), { kind: "caldav", url: CAL, user: "anna", pass: "A1" });
+    state.slots.set(pimSecretKey(VAULT, "c2"), { kind: "caldav", url: CAL, user: "bert", pass: "B1" });
+    const rebuild = { held: false };
+    const runtime = calendar(rows, undefined, rebuild);
+    await portFor(runtime).exportBundle();
+    await removePimAccount(runtime, VAULT, "c1");
+    rebuild.held = true;
+    const hidden = rows.splice(0, rows.length);
+    expect((await portFor(runtime).exportBundle()).entries[calId("anna")]?.tombstone, "the list is empty, the accounts are only not back yet").toBeUndefined();
+    rebuild.held = false;
+    rows.push(...hidden);
+    expect((await portFor(runtime).exportBundle()).entries[calId("anna")]?.tombstone).toBe(true);
   });
 
   it("a calendar account the profile takes away, or folds into another, writes no tombstone", async () => {

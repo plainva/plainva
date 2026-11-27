@@ -15,7 +15,7 @@ import {
 import { credentialManager } from "./CredentialManager";
 import { loadCloudAccounts } from "./cloudAccounts";
 import { getSettingsStore } from "./settingsStore";
-import { SECRETS_MARK_KEY_SLOT, isSignedOutSlot, mergeLegacySecretsMeta, secretImportedFor, secretsMarker, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
+import { SECRETS_MARK_KEY_SLOT, isSignedOutSlot, mergeLegacySecretsMeta, pimAccountListWhole, secretImportedFor, secretsMarker, sealSecretsMetaInStore, storeHoldsSecretsMarks } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 import type { PimRuntime } from "./pim/pimRuntime";
@@ -242,11 +242,12 @@ export function createDesktopSecretsPort(vaultPath: string, pimRuntime: PimRunti
     ...metaStore(vaultPath),
     candidates: () => localCandidates(vaultPath, pimRuntime),
     // Without the PIM runtime this device does NOT know its calendar
-    // accounts; the mail candidates are always complete. A removal of a
-    // calendar account waits for the runtime (`retireSecret`); everything else
-    // (publishing and receiving secrets) keeps working. This is the same
-    // answer the phone gives while its runtime boots.
-    accountsReady: async (service) => service === "mail" || pimRuntime !== null,
+    // accounts, nor while an index database rebuilt at the start holds them
+    // back (`pimAccountListWhole`, the answer of the account cards); the mail
+    // candidates are always complete. A removal of a calendar account waits
+    // for that (`retireSecret`); everything else (publishing and receiving
+    // secrets) keeps working. This is the same answer the phone gives.
+    accountsReady: async (service) => service === "mail" || (await pimAccountListWhole(pimRuntime?.cache ?? null)),
     readSlot: (slot) => credentialManager.readSecret(slot),
     writeSlot: (slot, value) => credentialManager.writeSecret(slot, value),
     ownedKey: markKeySlots.ownedKey,

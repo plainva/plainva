@@ -42,10 +42,14 @@ import { CountingSyncTarget, MemoryProfileVault, runProfileCycle, type ProfileHa
  * puts it together. Only the native edge is replaced.
  */
 
-vi.mock("./pim/pimService", () => ({
-  isPimRuntimeReady: () => true,
-  listPimAccounts: async () => [],
-}));
+vi.mock("./pim/pimService", () => {
+  const cache = { accountsAfterRebuild: async () => "settled" };
+  return {
+    isPimRuntimeReady: () => true,
+    getPimCache: () => cache,
+    listPimAccounts: async () => [],
+  };
+});
 const journalFiles = new Map<string, string>();
 vi.mock("@capacitor/filesystem", () => ({
   Directory: { Data: "DATA" },

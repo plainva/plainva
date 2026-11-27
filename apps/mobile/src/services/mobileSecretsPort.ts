@@ -1,4 +1,4 @@
-import { canonicalSecretId, type SecretsPort } from "@plainva/core";
+import { canonicalSecretId, type PimCacheRepository, type SecretsPort } from "@plainva/core";
 import {
   calDavSecretBinding,
   createSecretsPort,
@@ -9,6 +9,7 @@ import {
   isSignedOutSlot,
   migrateSecretsMetaToCanonicalIds,
   noteSecretLeftWithProfile,
+  pimAccountListWhole,
   retireSecret,
   mergeLegacySecretsMeta,
   sealSecretsMetaInStore,
@@ -18,7 +19,7 @@ import {
   type SecretsPortMeta,
 } from "@plainva/ui";
 import { listMailAccounts, mailAccountKind, mailSecretKey } from "@plainva/ui/mail";
-import { isPimRuntimeReady, listPimAccounts } from "./pim/pimService";
+import { getPimCache, listPimAccounts } from "./pim/pimService";
 import { getPimCredentials, pimSecretKey, type PimStoredCredentials } from "./pim/pimCredentials";
 
 /**
@@ -226,17 +227,33 @@ export async function retireImapSecret(vaultId: string, mailbox: { host: string;
 
 /** Mobile keychain bridge for the secrets sideband. */
 export function createMobileSecretsPort(vaultId: string): SecretsPort {
+  // The runtime the last read of the calendar accounts went through — null
+  // where there was none, or it was replaced during the read.
+  let listedBy: PimCacheRepository | null | undefined;
   return createSecretsPort({
     deviceId,
     // The PIM runtime boots in PARALLEL with the sync worker (App.tsx starts
-    // both without ordering), so a cycle can catch `listPimAccounts()` empty.
-    // A removal of a calendar account waits until the runtime that owns those
-    // accounts is up (`retireSecret`); the mailboxes are always complete.
-    accountsReady: async (service) => service === "mail" || isPimRuntimeReady(),
+    // both without ordering) and starts again after a profile import
+    // (`restartPimAfterImport`), so a cycle can catch `listPimAccounts()`
+    // empty. A calendar list is whole only when the runtime that read it is
+    // the one that is up now and no rebuilt index holds its accounts back
+    // (`pimAccountListWhole`, the answer of the account cards; review
+    // 2026-11-26, fifth round, L2). A removal of a calendar account waits for
+    // that (`retireSecret`); the mailboxes are always complete.
+    accountsReady: async (service) => {
+      if (service === "mail") return true;
+      const cache = getPimCache();
+      return (listedBy === undefined || listedBy === cache) && (await pimAccountListWhole(cache));
+    },
     // See the desktop port: pre-P4c metadata is keyed by the old per-device
     // names, the candidates above by the canonical one.
     ...metaStore(vaultId),
-    candidates: () => mobileCandidates(vaultId),
+    candidates: async () => {
+      const at = getPimCache();
+      const listed = await mobileCandidates(vaultId);
+      listedBy = at !== null && at === getPimCache() ? at : null;
+      return listed;
+    },
     readSlot: (slot) => getPlatformServices().credentials.readSecret(slot),
     writeSlot: (slot, value) => getPlatformServices().credentials.writeSecret(slot, value),
     removeSlot: (slot) => getPlatformServices().credentials.removeSecret(slot),

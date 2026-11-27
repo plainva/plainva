@@ -101,6 +101,14 @@ interface Dev {
   renamed: Record<string, true>;
   /** On 0.9.0 and 0.8.7: an account this device removed itself, its slot empty since. */
   selfRemoved: Record<string, true>;
+  /**
+   * On an updated device, since its last secrets round: a password typed, an
+   * address repaired. Both together are a password typed in the save that
+   * repaired the account: typed here from that round on (rule R, review
+   * 2026-11-26, fifth round).
+   */
+  typedSince: Record<string, true>;
+  movedSince: Record<string, true>;
   /** The calendar runtime is not up: calendar rows are missing from the list, and the list is not whole. */
   calendarDown?: boolean;
 }
@@ -220,6 +228,13 @@ async function secretsRound(d: Dev): Promise<void> {
     return;
   }
   const current = port as ReturnType<typeof createSecretsPort>;
+  // Rule R: the repair carries "received" only for the password the device knew under the old name.
+  for (const row of d.rows) {
+    if (row.kind !== "mail" && d.calendarDown) continue;
+    if (d.movedSince[row.id] && d.typedSince[row.id]) delete d.taken[row.id];
+    delete d.movedSince[row.id];
+    delete d.typedSince[row.id];
+  }
   const local = await current.exportBundle();
   const merged = mergeSecretsBundles(local, w.remote, t);
   if (stableStringify(merged.entries) !== stableStringify(local.entries) || current.awaitsDocument?.()) {
@@ -242,6 +257,7 @@ function pushProfile(d: Dev): void {
 /** An address repaired on a device of an older version: "received" was by name there. */
 function moved(d: Dev, id: string): void {
   if (d.kind !== "new" && d.taken[id]) d.renamed[id] = true;
+  if (d.kind === "new") d.movedSince[id] = true;
 }
 
 /** The profile import of a device: the account as the latest act left it. */
@@ -334,6 +350,7 @@ function steps(accts: Row[], withRuntime: boolean): Step[] {
         out.push({ label: `${name} types${of}`, run: async () => {
           const me = dev(name);
           me.slots[acct.id] = password(acct);
+          me.typedSince[acct.id] = true;
           delete me.selfRemoved[acct.id];
           me.signedOut = me.signedOut.filter((id) => id !== acct.id);
         } });
@@ -367,6 +384,7 @@ function steps(accts: Row[], withRuntime: boolean): Step[] {
           const back = { ...acct, at: acct.at ?? ("a" as At) };
           me.rows.push(back);
           me.slots[acct.id] = password(acct);
+          me.typedSince[acct.id] = true;
           delete me.selfRemoved[acct.id];
           delete w.removedAny[acct.id];
           act(me, true, back);
@@ -496,7 +514,7 @@ interface Frame {
 }
 
 async function setup(frame: Frame): Promise<void> {
-  w = { devs: frame.kinds.map((kind, i) => ({ name: `D${i}`, kind, rows: [{ ...frame.acct }, ...(frame.others ?? []).filter((other) => other.on.includes(i)).map((other) => ({ ...other.row }))], slots: {}, keyring: {}, meta: null, retired: null, pending: {}, known: {}, pendingAt: {}, knownAt: {}, signedOut: [], taken: {}, renamed: {}, selfRemoved: {} })), remote: null, profile: {}, profileAt: {}, edits: 0, clock: 0, n: 0, removals: {}, removedAny: {}, everRemoved: {}, pushes: 0, fullImports: 0, gone: [], profileOff: [], problems: [], trace: [] };
+  w = { devs: frame.kinds.map((kind, i) => ({ name: `D${i}`, kind, rows: [{ ...frame.acct }, ...(frame.others ?? []).filter((other) => other.on.includes(i)).map((other) => ({ ...other.row }))], slots: {}, keyring: {}, meta: null, retired: null, pending: {}, known: {}, pendingAt: {}, knownAt: {}, signedOut: [], taken: {}, renamed: {}, selfRemoved: {}, typedSince: {}, movedSince: {} })), remote: null, profile: {}, profileAt: {}, edits: 0, clock: 0, n: 0, removals: {}, removedAny: {}, everRemoved: {}, pushes: 0, fullImports: 0, gone: [], profileOff: [], problems: [], trace: [] };
   w.devs[frame.typer].slots[frame.acct.id] = password(frame.acct);
   for (let i = 0; i < 3; i++) for (const [index, d] of w.devs.entries()) if (!frame.fresh?.includes(index)) await cycle(d, "full");
   w.clock += 10;
