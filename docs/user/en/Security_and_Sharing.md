@@ -1,6 +1,6 @@
 # Security & Sharing
 
-Last reviewed: 2026-11-26
+Last reviewed: 2026-11-27
 
 > **Experimental — not yet independently reviewed.** Encrypted workspaces ship as a preview. The cryptographic design has not been audited by an independent reviewer, and two-device evidence on real Android and iOS hardware is still being collected. Try it, but keep a backup of anything you cannot lose, and do not rely on it for material you must protect.
 
@@ -79,6 +79,8 @@ When you no longer need an encrypted vault, decommission it in Plainva **before*
 On the phone the same step sits in the same place, with one difference: you confirm it by typing the vault's name. Everything else is identical — the local keys and workspace data go, the vault reopens as a normal vault, and the encrypted objects in the cloud stay until you delete them yourself. It works without a connection, because nothing about it is remote.
 
 To instead **end encryption entirely and keep the vault in the cloud as ordinary files**, choose **Lift encryption** in the same **Dangerous actions** group: Plainva reopens the vault as a normal cloud vault and re-uploads all of your notes to the same cloud as plain files, then stops encrypting. Local files are never changed and nothing is deleted; the old encrypted `.pvws/` folder stays until you delete it at your provider (Plainva cannot remove those immutable objects for you). Confirm the danger prompt first — the notes leave the encrypted store as plain text. On the phone the same action sits in the Security overview next to **Decommission workspace**; the plain-text upload continues through the normal sync queue there — even after switching apps, under the mobile-data rules — and a card counts how many files are still waiting. Lifting is only possible on the workspace's only device: while other devices still use it, Plainva refuses, because plain text would sit next to their encrypted notes. Removing the connection on a device that is not the only one leaves the cloud folder to the others, and this vault then needs another folder. A folder that no longer holds the workspace counts as a normal folder again after several checks. Where the server does not let Plainva look into the hidden `.pvws` folder, or where Plainva cannot tell whether other devices still use the workspace, **Sync as a normal folder** leaves the decision to you. A workspace ended on its last device leaves its `.pvws` folder behind; another device cannot join it, so remove that folder or choose another one.
+
+If decommissioning or lifting the encryption on the phone is interrupted after it has begun taking the workspace apart, Plainva opens the vault again without its workspace, at the latest the next time you open it. If the decommission had not finished, the Security overview shows the row **Decommission workspace**, saying that it did not finish; until you choose it, the vault syncs nothing, and an interrupted lift too can then only be finished as a decommission. Afterwards the sync status says what can happen with the cloud folder: if Plainva cannot tell whether other devices still use it, choose **Sync as a normal folder** in the Security overview, or another folder.
 
 If you already deleted the cloud copy and sync now fails with a "workspace is missing" or "manifest is missing" error, the fix is the same reset, offered where the error appears:
 
