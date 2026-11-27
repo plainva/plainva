@@ -1517,12 +1517,24 @@ apart from the workspace's runtime on the phone.
 
 From the bundle gate against `main` at `e008c1467` (start bytes; "shortly after" with the AI off, as above):
 
-| Shell | | Start | gzip | Shortly after | Together |
-|---|---|---|---|---|---|
-| Desktop | before | 4 017 827 | 1 218 654 | 2 134 014 | 6 151 841 |
-| Desktop | after | 3 879 893 | 1 178 658 | 2 225 748 | 6 105 641 |
-| Phone | before | 4 483 526 | 1 340 538 | 1 384 197 | 5 867 723 |
-| Phone | after | 4 074 531 | 1 231 456 | 1 424 144 | 5 498 675 |
+| Shell | | Start | Shortly after | Together |
+|---|---|---|---|---|
+| Desktop | before | 4 017 810 | 1 660 740 | 5 678 550 |
+| Desktop | after | 3 879 896 | 1 752 289 | 5 632 185 |
+| Phone | before | 4 483 509 | 910 923 | 5 394 432 |
+| Phone | after | 4 074 534 | 950 685 | 5 025 219 |
+
+The numbers are CI's (`perf-bundle.json` of the Performance runs `46036946654` and `46067248094`); a run on a
+machine measures the same since the browser's language is fixed (below; the start differs by 3 bytes, the paths of the
+build folder).
+
+**What the gate measured before.** `afterStart.mjs` opened the bundle in a browser with the machine's language. On a
+German machine the app loaded its German locale file (465 942 bytes) and date-fns' German locale (7 517) beside the
+English ones; CI runs in English and never loads them. The baselines of "shortly after" were recorded on such a
+machine (since L5, 2026-11-25), so they stood 0.47 MB above what CI measured, and CI's check of "shortly after" let
+that much growth through without failing — a branch that was red on the machine was green in CI. The two lists of
+files were otherwise the same by name. The page's language is now `en-US` on every machine, and the baselines are
+recorded anew; CI's and a machine's run agree to the byte for "shortly after".
 
 **How it was measured.** A build with a plugin that dumps each chunk's modules and the static module graph, then the
 dominator tree of the start's modules from `main.tsx`: a module's "retained" size is what would leave the start if
@@ -1545,13 +1557,13 @@ view (with the first block), the settings search's highlight (with a search hit)
 worker (when a setup is activated or resumed).
 
 **Why "shortly after" grew.** The desktop's CalDAV calendar target reads XML too; it found the parser in the start
-before and brings it along now, and the gate's vault has a calendar account (+85 KB of fast-xml-parser and its
-helpers, loaded after the first picture instead of before it). On the phone, building blocks the moved parts shared
+before and brings it along now, and the gate's vault has a calendar account (+92 KB with fast-xml-parser and
+its helpers, loaded after the first picture instead of before it). On the phone, building blocks the moved parts shared
 with screens that load ahead in the idle time (the tasks and today screens) moved into those screens' chunks (+40 KB).
 Both are bytes after the first picture rather than before it, not copies: the gate finds no module in two chunks
 of either build. The maintainer decided (2026-11-27) that "shortly after" may grow by what leaves the start: its
 baseline is recorded anew, and the gate holds the sum of start and shortly after per shell instead (`growth` over the
-baselines' sum; desktop 6 151 841 → 6 105 641, phone 5 867 723 → 5 498 675 against `main` as measured).
+baselines' sum; in CI desktop 5 678 550 → 5 632 185, phone 5 394 432 → 5 025 219 against `main`).
 
 **Why three candidates stay.** zod checks the parsed note (`core/src/markdown-ast.ts`, `metadata.ts`) on every
 note the index reads, and the index reads at the vault's open. The right column's sections draw in the first picture

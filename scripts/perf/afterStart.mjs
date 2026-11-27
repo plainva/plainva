@@ -67,7 +67,11 @@ export async function filesLoadedUntilQuiet({ root, shell, dir }) {
   const { server, origin } = await serve(dir);
   const browser = await chromium.launch();
   try {
-    const context = await browser.newContext(shell === "mobile" ? { ...devices["Pixel 7"] } : { viewport: { width: 1600, height: 1000 } });
+    // One language on every machine (package B1b, 2026-11-27): the browser takes the machine's language, and a
+    // German machine loaded the German locale file beside the English one (466 KB) that CI never loads — the
+    // baseline recorded here was 0.47 MB above what CI measures, and CI's check let that much growth through.
+    const language = { locale: "en-US" };
+    const context = await browser.newContext(shell === "mobile" ? { ...devices["Pixel 7"], ...language } : { viewport: { width: 1600, height: 1000 }, ...language });
     // Nothing of another host: the start must not need it.
     await context.route((url) => url.origin !== origin, (route) => route.abort("internetdisconnected"));
     let close = async () => {};

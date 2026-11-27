@@ -37,15 +37,15 @@
       "startBytes": 3879893,
       "startGzipBytes": 1178658,
       "entryBytes": 6099,
-      "afterStartBytes": 2225748,
-      "afterStartGzipBytes": 711886
+      "afterStartBytes": 1752289,
+      "afterStartGzipBytes": 562060
     },
     "mobile": {
       "startBytes": 4074531,
       "startGzipBytes": 1231456,
       "entryBytes": 4472,
-      "afterStartBytes": 1424144,
-      "afterStartGzipBytes": 468055
+      "afterStartBytes": 950685,
+      "afterStartGzipBytes": 318229
     }
   },
   "recorded": "2026-11-27",
