@@ -239,7 +239,7 @@ export function MobileSemanticSection({ session, onChooseModel, also }: { sessio
       )}
       {state?.measureError && <Banner kind="warning">{t("ai.semantic.measureFailed", { reason: state.measureError })}</Banner>}
       {engine?.kind === "ready" && progress?.state === "failed" && (
-        <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
+        <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "", state?.runDeparted === true)}</Banner>
       )}
       {hasUnused && unused && (
         <GroupCard>

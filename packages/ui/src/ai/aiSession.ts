@@ -1068,6 +1068,11 @@ export interface AiState {
      * search at a cloud model (B7, review S1): the endpoints it went to. The notice then says no "nothing was sent".
      */
     departedTo?: string[];
+    /**
+     * The model the try went to (review B7-4, M-R4-1): the notice names its provider, whatever model the conversation
+     * shows by now — "Send again" goes to the one it shows.
+     */
+    choice?: ModelChoice;
   } | null;
   /**
    * A typed question that went back into the field (B7): the composer of the conversation it was for takes it once —
@@ -1170,7 +1175,19 @@ export type FillOutcome =
    * are gone — not read. `failed`: answers that were no value, requests that
    * failed, proposals a note did not take. `stopped`: the user ended it early.
    */
-  | { kind: "done"; proposed: number; silent: number; kept: number; failed: number; stopped: boolean; provider: string; model: string; failure?: ModelFailure }
+  | {
+      kind: "done";
+      proposed: number;
+      silent: number;
+      kept: number;
+      failed: number;
+      stopped: boolean;
+      provider: string;
+      model: string;
+      failure?: ModelFailure;
+      /** Rows before the one that failed went to a model off this device (review B7-4, M-R4-6): its words claim nothing about sending. */
+      departed?: true;
+    }
   | { kind: "refused"; reason: "off" | "no-model" | "busy" | "encrypted" | "unfit" | "nothing" | "kept" | "cancelled" };
 
 /** A sentence to turn into filter rules (plan KI-Harness P5-4): the database and its columns — nothing of its entries. */
@@ -1851,9 +1868,9 @@ export class AiSession {
    * explicitly; nothing else (the notes' own embedding, a connection test, another run) passes it. A request the
    * egress answered "never sent" before anything came back does not count, nor one to a model on this device.
    */
-  private runDepartures(already: readonly string[] = []): RunDepartures {
+  private runDepartures(already: readonly string[] = [], through: LocalOnlyEgress = this.out): RunDepartures {
     const to: string[] = [...already];
-    const egress = departingEgress(this.out, (endpointId) => {
+    const egress = departingEgress(through, (endpointId) => {
       // What went to this device's own model never left it.
       if (runsOnDevice(providerById(endpointId, this.state.settings.custom))) return;
       to.push(endpointId);
@@ -4975,9 +4992,13 @@ export class AiSession {
       const direct = await this.directFolders(vault);
       const entry = this.routineSkill(entries, draft.skill, direct);
       if (!entry) return refused("skill");
+      // Where this device asks before every request, the routine does not run (`routineNeed`): its confirmation asks
+      // nobody off this device either, the search model not (review B7-4, M-R4-5).
+      const asks = this.state.settings.confirmEveryRequest && !runsOnDevice(provider);
       const outcome = await this.runMessage(this.routineRequest(draft.request, entry), vault, choice, {
         skills: { entries, bind: draft.skill },
         routine: { title: "", limits: ROUTINE_RUN_LIMITS, scope: null, preview: true },
+        ...(asks ? { held: true as const } : {}),
       });
       const manifest = outcome?.manifest;
       if (!manifest || this.vault !== vault) return refused("failed");
@@ -5158,6 +5179,9 @@ export class AiSession {
     const provider = providerById(routine.choice.providerId, settings.custom);
     if (!provider || (provider.endpoint.needsKey && !this.state.keys[provider.id])) return needs("model");
     if (settings.localOnly && !runsOnDevice(provider)) return needs("local");
+    // Nobody is there to answer before a request (review B7-4, M-R4-5): the run rests before anything goes — the
+    // search model is not asked either. What `routineNeed` says.
+    if (settings.confirmEveryRequest && !choiceOnDevice(settings, routine.choice)) return needs("confirm");
     if (routine.log) return this.logRun(vault, routine, provider, since);
     const { entries } = await this.instructionEntries(vault);
     const entry = this.routineSkill(entries, routine.skill, await this.directFolders(vault));
@@ -5491,8 +5515,11 @@ export class AiSession {
     return result(own, more);
   }
 
-  /** How a run reaches the skills its conversation lists: read again at the moment, hash checked. */
-  private skillRuntime(vault: AiVaultHost, record: ConversationRecord) {
+  /**
+   * How a run reaches the skills its conversation lists: read again at the moment, hash checked. A server skill's files
+   * are read from its server: `note` adds that server to the run's list before the request goes (review B7-4, M-R4-4).
+   */
+  private skillRuntime(vault: AiVaultHost, record: ConversationRecord, note: (serverId: string) => void) {
     return {
       catalog: record.instructions?.catalog ?? [],
       entry: async (id: string, signal?: AbortSignal): Promise<InstructionEntry | null> => {
@@ -5501,6 +5528,7 @@ export class AiSession {
         if (readMcpSkillSourceId(id)) {
           const found = await this.serverSkill(vault, id);
           if (!found || !found.group.ready || found.entry.status !== "active") return null;
+          if (found.entry.source.server) note(found.entry.source.server.serverId);
           const read = await this.readServerSkill(found.entry, signal);
           if (!read.ok) return null;
           return { ...found.entry, source: { ...found.entry.source, text: read.text, skill: read.skill, ...(read.invisible ? { invisible: read.invisible } : {}) } };
@@ -5513,7 +5541,10 @@ export class AiSession {
         return resolveInstructions([source], approvals)[0] ?? null;
       },
       file: async (entry: InstructionEntry, rel: string, signal?: AbortSignal): Promise<string | null> => {
-        if (entry.source.origin === "server") return this.serverSkillFile(entry, rel, signal);
+        if (entry.source.origin === "server") {
+          if (entry.source.server) note(entry.source.server.serverId);
+          return this.serverSkillFile(entry, rel, signal);
+        }
         return entry.source.origin === "vault" && vault.instructions ? vault.instructions.readFile(entry.source, rel) : null;
       },
     };
@@ -6215,7 +6246,9 @@ export class AiSession {
           ...(failure ? { failure: failure.kind } : {}),
         });
       }
-      return { kind: "done", proposed, silent, kept, failed, stopped, provider: provider.label, model: choice.model, ...(failure ? { failure } : {}) };
+      // The rows asked before the one that failed went out, where the model is not on this device.
+      const departed = failure && steps > 1 && !runsOnDevice(provider) ? { departed: true as const } : {};
+      return { kind: "done", proposed, silent, kept, failed, stopped, provider: provider.label, model: choice.model, ...(failure ? { failure } : {}), ...departed };
     } finally {
       if (this.fillAbort === controller) {
         this.fillAbort = null;
@@ -7187,7 +7220,10 @@ export class AiSession {
     const message = turn.parts.filter((part): part is Extract<Part, { type: "text" }> => part.type === "text" && !part.context).map((part) => part.text).join("\n\n");
     this.sending = true;
     try {
-      const choice: ModelChoice = { providerId: last.run.providerId, model: last.run.model };
+      // To the model the conversation shows now (review B7-4, M-R4-1): what the screen names as the target is the target.
+      // Where that is another model than the try's, the send overview asks first where it brings along more than was
+      // confirmed (`scopeGrowth` against the new recipient).
+      const choice = this.choice() ?? { providerId: last.run.providerId, model: last.run.model };
       return (await this.runMessage(message, vault, choice, { retry: { userTurn: last.userTurn, withoutImages: how.withoutImages === true, of: last.run } }))?.stop ?? null;
     } catch (error) {
       this.abort = null;
@@ -7298,9 +7334,9 @@ export class AiSession {
     vault: AiVaultHost,
     choice: ModelChoice,
     // `since`: how many Delete alls of the vault were asked for when the action that sends this began (step 8).
-    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number; greeting?: true; retry?: RetryStart; server?: { id: string } } = {},
+    options: { skills?: { entries: readonly InstructionEntry[]; bind?: string }; door?: DoorStart; detached?: DetachedStart; routine?: RoutineStart; replay?: ReplayStart; since?: number; greeting?: true; retry?: RetryStart; server?: { id: string }; held?: true } = {},
   ): Promise<RunOutcome | null> {
-    const { skills, door, detached, routine, replay, greeting, retry, server } = options;
+    const { skills, door, detached, routine, replay, greeting, retry, server, held } = options;
     // Typed in the composer (B7): only such a question goes back into the field. A skill, an action at a selection, a
     // routine, learning, a replay, the setup's greeting, a "Send again" and a foreign server's prompt never withdraw
     // what they started — the prompt's text is the server's, not the user's words.
@@ -7310,7 +7346,9 @@ export class AiSession {
     // "Send again" is the same turn (review B7-3, S6): it starts with whom the earlier tries of that turn reached — kept
     // with the conversation, so also after a restart.
     const earlier = retry ? retry.of.departedTo ?? [] : [];
-    const run = this.runDepartures([...(server ? [`mcp:${server.id}`] : []), ...earlier]);
+    // `held`: a routine's confirmation where the device asks before every request (review B7-4, M-R4-5) — it may send
+    // nothing off this device, its search not either.
+    const run = this.runDepartures([...(server ? [`mcp:${server.id}`] : []), ...earlier], held ? this.deviceOnlyEgress().egress : undefined);
     // Started apart from the composer: a conversation of its own, with none of the composer's drafts.
     const apart = door ?? detached ?? routine ?? replay ?? null;
     // A message of the composer goes nowhere once the user left what it is put together for, and a message of any kind
@@ -7324,7 +7362,7 @@ export class AiSession {
       const stop: RunStop = { kind: "failed", failure: { kind: "unknown_endpoint", message: choice.providerId } };
       // A routine runs beside the conversation on screen and puts no notice into it: its own row says how it ended.
       // The turn's earlier tries may have reached someone (review B7-3, S6): the notice names them, and says no "nothing was sent".
-      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop, ...(typed ? { returned: true as const } : {}), ...(run.to.length ? { departedTo: [...new Set(run.to)] } : {}) } });
+      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop, ...(typed ? { returned: true as const } : {}), ...(run.to.length ? { departedTo: [...new Set(run.to)] } : {}), choice } });
       // Nothing was put together, nothing left (B7): a typed question goes back into the field.
       if (typed) this.returnToField(vault, this.state.active?.id ?? "", message, null);
       return { stop };
@@ -7334,7 +7372,7 @@ export class AiSession {
     if (this.state.settings.localOnly && !runsOnDevice(provider)) {
       const stop: RunStop = { kind: "failed", failure: { kind: "local_only" } };
       // The turn's earlier tries may have reached someone (review B7-3, S6): the notice names them, and says no "nothing was sent".
-      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop, ...(typed ? { returned: true as const } : {}), ...(run.to.length ? { departedTo: [...new Set(run.to)] } : {}) } });
+      if (!routine) this.set({ notice: { conversationId: this.state.active?.id ?? "", stop, ...(typed ? { returned: true as const } : {}), ...(run.to.length ? { departedTo: [...new Set(run.to)] } : {}), choice } });
       if (typed) this.returnToField(vault, this.state.active?.id ?? "", message, null);
       return { stop };
     }
@@ -7342,7 +7380,7 @@ export class AiSession {
     // A conversation that ran on this device stays here (ADR 0018): before anything is built, asked or sent.
     if (this.state.active && !apart && this.keptOnDevice(this.state.active, recipient)) {
       const stop: RunStop = { kind: "failed", failure: { kind: "kept_on_device" } };
-      this.set({ notice: { conversationId: this.state.active.id, stop, ...(typed ? { returned: true as const } : {}) } });
+      this.set({ notice: { conversationId: this.state.active.id, stop, ...(typed ? { returned: true as const } : {}), choice } });
       if (typed) this.returnToField(vault, this.state.active.id, message, null);
       return { stop };
     }
@@ -7646,7 +7684,7 @@ export class AiSession {
     // record of what was read as a call the model made itself.
     const sandbox = this.scripts.sandbox;
     const scripted = outer && guarded && scriptLog && sandbox ? createScriptExecutor(outer, guarded, { script: (id) => this.activeScript(vault, id), sandbox }, scriptLog) : outer;
-    const tools = scripted ? { names: toolNames, executor: createSkillExecutor(scripted, this.skillRuntime(vault, record), toolNames, skillState, moreNames) } : null;
+    const tools = scripted ? { names: toolNames, executor: createSkillExecutor(scripted, this.skillRuntime(vault, record, (serverId) => run.note(`mcp:${serverId}`)), toolNames, skillState, moreNames) } : null;
     // A skill's own budget narrows whatever limits the start brings; it never widens them.
     const own = bound?.maxOutputTokens;
     // A regression run and a routine bring their own, smaller bounds.
@@ -8532,6 +8570,7 @@ export class AiSession {
                 stop: result.stop,
                 ...(result.stop.kind === "failed" && input.related?.length ? { related: input.related } : {}),
                 ...(departedTo.length ? { departedTo } : {}),
+                choice: input.choice,
               },
         summaries: sortSummaries([conversationSummaryOf(latest), ...this.state.summaries.filter((s) => s.id !== record.id)]),
       });

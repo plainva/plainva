@@ -11,7 +11,8 @@ import {
   type HttpRequestSpec,
   type SemanticSource,
 } from "@plainva/core/ai";
-import { createAiVaultStores, createVaultPolicy, LocalEmbeddings, type AiFileStore, type LocalModelBridge, type ProviderEmbeddingHost } from "@plainva/ui/ai";
+import { createAiVaultStores, createVaultPolicy, LocalEmbeddings, semanticRunFailureText, type AiFileStore, type LocalModelBridge, type ProviderEmbeddingHost } from "@plainva/ui/ai";
+import i18n from "@plainva/ui/i18n";
 import { until, vaultWith } from "./embeddingTestVault";
 
 /** App data in memory: the approvals and the ledger of one vault. */
@@ -69,6 +70,16 @@ function fakeEgress(salt = 0) {
     texts: () => sent.flatMap((spec) => (spec.body as { input: string[] }).input),
     offline() {
       failure = { type: "failed", code: "network", message: "connection refused" };
+    },
+    /** From the request after `after` more on, every request is refused as too large before it leaves. */
+    tooLargeAfter(after: number) {
+      const own = egress.send;
+      let left = after;
+      egress.send = async (requestId, spec, onChunk) => {
+        if (left-- > 0) return own(requestId, spec, onChunk);
+        sent.push(spec);
+        onChunk({ type: "failed", code: "too_large", message: "request too large" });
+      };
     },
   };
 }
@@ -151,6 +162,27 @@ describe("search by meaning with an own provider", () => {
     expect(net.texts().join("\n")).not.toContain("diary");
     expect(controller.snapshot().progress).toMatchObject({ total: 3, current: 2, withheld: 1 });
     await controller.close();
+  });
+
+  it("claims nothing about sending where packages of the run went before it stopped (review B7-4, M-R4-6)", async () => {
+    const many = Object.fromEntries(Array.from({ length: 40 }, (_, n) => [`Note ${n}.md`, `Note number ${n} is about the budget of week ${n}.`]));
+    const t = i18n.getFixedT("en");
+    const source = sourceFor("openai", "text-embedding-3-small");
+    for (const [after, departed] of [[2, true], [1, false]] as const) {
+      const { controller, net } = await setup({ notes: many });
+      // The probe, then (for `after` 2) one package of 32 notes; the next request is refused before it leaves.
+      net.tooLargeAfter(after);
+      await controller.update({ source, mode: "both" });
+      await controller.approve();
+      expect(await until(() => controller.snapshot().progress.state === "failed")).toBe(true);
+      const state = controller.snapshot();
+      expect(state.runFailure?.kind).toBe("too_large");
+      expect(state.runDeparted).toBe(departed);
+      const words = semanticRunFailureText(t, source, state.runFailure, "", state.runDeparted);
+      if (departed) expect(words).not.toMatch(/Nothing was sent/);
+      else expect(words).toMatch(/Nothing was sent/);
+      await controller.close();
+    }
   });
 
   it("remembers the approval, and stops when it is withdrawn", async () => {

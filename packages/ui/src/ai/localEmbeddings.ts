@@ -19,6 +19,7 @@ import {
   embeddableNotes,
   embeddingEngineId,
   embeddingPackageBytes,
+  failureClassOf,
   fetchProviderJson,
   gateDecision,
   goldenAgreement,
@@ -139,6 +140,8 @@ export interface LocalEmbeddingsState {
   meaningFailure: ModelFailure | null;
   /** Why the last run stopped, when a provider said so (a key revoked, a quota used up). */
   runFailure: ModelFailure | null;
+  /** Packages of that run went to the provider before it stopped (review B7-4, M-R4-6): its words claim nothing about sending. */
+  runDeparted: boolean;
   /** The device check is running (plan P2a-6). */
   measuring: boolean;
   /** Its last result, for the engine open now. */
@@ -253,6 +256,7 @@ export class LocalEmbeddings {
     downloadError: null,
     meaningFailure: null,
     runFailure: null,
+    runDeparted: false,
     measuring: false,
     measurement: null,
     measureError: null,
@@ -272,6 +276,8 @@ export class LocalEmbeddings {
   private ledgerLane: Promise<void> = Promise.resolve();
   /** The provider's last word on a request: null after an answer, its failure otherwise. */
   private lastFailure: ModelFailure | null = null;
+  /** A package of the run under way may have reached the provider. */
+  private runSent = false;
   private openedAt = 0;
   /** The reader's word on related notes, as last loaded or given. */
   private feedback: RelatedFeedback = EMPTY_RELATED_FEEDBACK;
@@ -444,14 +450,20 @@ export class LocalEmbeddings {
   }
 
   private start(engine: EmbeddingEngine, source: SemanticSource, check: GoldenAgreement | null, admission?: EmbeddingAdmission): void {
+    // What the engine's probe sent before is no package of a run.
+    this.runSent = false;
     this.engine = engine;
     this.indexer = new EmbeddingIndexer({ db: this.host.db, engine, readText: this.host.readText, admission });
     this.scheduler = new EmbeddingScheduler({
       indexer: this.indexer,
       ready: this.host.ready,
       onProgress: (progress) => {
-        this.set({ progress, runFailure: progress.state === "failed" ? this.lastFailure : null });
-        if (progress.state !== "working") void this.record(progress.state === "failed" ? "failed" : "answered");
+        const failed = progress.state === "failed";
+        this.set({ progress, runFailure: failed ? this.lastFailure : null, runDeparted: failed && this.runSent });
+        if (progress.state !== "working") {
+          this.runSent = false;
+          void this.record(failed ? "failed" : "answered");
+        }
       },
     });
     this.set({ engine: { kind: "ready", source, check } });
@@ -472,9 +484,19 @@ export class LocalEmbeddings {
       const abort = () => void egress.cancel(requestId);
       signal?.addEventListener("abort", abort, { once: true });
       try {
-        const answer = await fetchProviderJson(egress, spec, requestId);
+        let answer: ProviderJsonAnswer;
+        try {
+          answer = await fetchProviderJson(egress, spec, requestId);
+        } catch (error) {
+          if (!via && cloud) this.runSent = true;
+          throw error;
+        }
         // What a run or a preview asked is theirs to report, not the index's state.
-        if (!via) this.lastFailure = answer.ok ? null : answer.failure;
+        if (!via) {
+          this.lastFailure = answer.ok ? null : answer.failure;
+          // A package that may have gone (review B7-4, M-R4-6): a refusal before it left does not count.
+          if (cloud && (answer.ok || failureClassOf(answer.failure) === "maybe_sent")) this.runSent = true;
+        }
         return answer;
       } finally {
         signal?.removeEventListener("abort", abort);
@@ -847,7 +869,7 @@ export class LocalEmbeddings {
     const recorded = this.record("answered");
     this.target = null;
     this.lastFailure = null;
-    this.set({ engine: { kind: "off" }, progress: IDLE_PROGRESS, meaningFailure: null, runFailure: null, measurement: null, measureError: null });
+    this.set({ engine: { kind: "off" }, progress: IDLE_PROGRESS, meaningFailure: null, runFailure: null, runDeparted: false, measurement: null, measureError: null });
     await Promise.all([engine?.dispose(), recorded]);
   }
 }

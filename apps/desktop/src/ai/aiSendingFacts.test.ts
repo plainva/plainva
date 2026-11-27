@@ -308,3 +308,66 @@ describe("the preview holds back only what a send would ask (review B7-3, S7)", 
     expect(preview?.searchHeldBack ?? false).toBe(false);
   });
 });
+
+describe("'Send again' after the model was switched (review B7-4, M-R4-1)", () => {
+  const broke: EgressChunk[] = [{ type: "failed", code: "network", message: "error sending request: connection closed before message completed" }];
+
+  it("goes to the model the conversation shows now; the notice names the provider of its try until then", async () => {
+    const { s, fake } = session([broke, broke]);
+    await s.load();
+    await s.attachVault(vaultHost().host);
+    await s.send("Where is the offer?");
+    expect(s.getState().notice!.choice).toEqual({ providerId: "anthropic", model: "m-1" });
+    await s.setChoice({ providerId: "openai", model: "gpt-4.1" });
+    // The screen shows the new model; the notice still speaks of the try that went to Anthropic.
+    expect(s.choice()).toEqual({ providerId: "openai", model: "gpt-4.1" });
+    expect(s.getState().notice?.choice?.providerId).toBe("anthropic");
+    await s.retryLast();
+    expect(fake.sent.map((spec) => spec.endpointId)).toEqual(["anthropic", "openai"]);
+    expect(s.getState().notice!.choice).toEqual({ providerId: "openai", model: "gpt-4.1" });
+  });
+
+  it("under 'Fully local' the refusal names the model the conversation shows, the one it was for", async () => {
+    const { s, fake } = session([broke]);
+    await s.load();
+    await s.attachVault(vaultHost().host);
+    await s.send("Where is the offer?");
+    await s.setChoice({ providerId: "openai", model: "gpt-4.1" });
+    await s.updateSettings((settings) => ({ ...settings, localOnly: true }));
+    await s.retryLast();
+    const notice = s.getState().notice!;
+    expect(notice.stop.kind === "failed" && notice.stop.failure.kind).toBe("local_only");
+    expect(notice.choice?.providerId).toBe("openai");
+    expect(notice.departedTo).toEqual(["anthropic"]);
+    expect(fake.sent).toHaveLength(1);
+  });
+});
+
+describe("a routine while this device asks before every request (review B7-4, M-R4-5)", () => {
+  const NOTES = { "Projects/Offer.md": "# Offer\n\nFor Northwind, due on Friday.", "Journal/2026-10-08.md": "# Thursday\n\nCalled the studio." };
+
+  it("rests before anything goes: its request reaches no search model", async () => {
+    const vault = routineVault(NOTES);
+    vault.touch("Projects/Offer.md", NOTES["Projects/Offer.md"], at(8, 18).getTime());
+    cloudSearchOf(vault);
+    const h = await routineSession([vector, vector], vault);
+    await h.setUp({ request: "Look at the tax audit" });
+    await h.s.updateSettings((settings) => ({ ...settings, confirmEveryRequest: true }));
+    const before = h.sent.length;
+    h.go(at(9, 7, 1));
+    await h.s.runDueRoutines();
+    expect(h.sent.length).toBe(before);
+    const last = h.s.getState().routines.list.find((routine) => routine.name === "Morning brief")!.last;
+    expect(last).toMatchObject({ outcome: "needs-you", need: "confirm" });
+  });
+
+  it("its confirmation asks no search model off this device either", async () => {
+    const vault = routineVault(NOTES);
+    const asked = cloudSearchOf(vault);
+    const h = await routineSession([vector, vector], vault, { settings: { confirmEveryRequest: true } });
+    const outcome = await h.s.routinePreview({ name: "Morning brief", skill: "plainva:daily-orientation", request: "Look at the tax audit", days: [1, 2, 3, 4, 5], time: "07:00", missed: "catch-up", onlyWhenChanged: false, choice: { providerId: "anthropic", model: "m-1" } });
+    expect(asked.length).toBeGreaterThan(0);
+    expect(h.sent).toEqual([]);
+    expect(outcome.kind === "preview" && outcome.preview.everyRequest).toBe(true);
+  });
+});

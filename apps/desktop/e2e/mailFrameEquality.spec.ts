@@ -199,6 +199,15 @@ const DIRECTION = {
     { name: "o3 dir=rtl with a mark across a link", html: `<p>VISIBLEo3</p><p dir="rtl"><a href="https://x.example">SECRETo3a</a> &#x200F; SECRETo3b</p>` },
     { name: "o4 dir=rtl paragraph, two spans", html: `<p>VISIBLEo4</p><p dir="rtl"><span>SECRETo4a</span> &#x200F; <span>SECRETo4b</span></p>` },
     { name: "o5 bdi beside bdi", html: `<p>VISIBLEo5</p><p dir="rtl"><bdi>SECRETo5a</bdi> <bdi>SECRETo5b</bdi></p>` },
+    // Within one paragraph (review B7-4, M-R4-2): ruby, a raised or tiny word between, a right-to-left letter nobody
+    // sees between, a box with a block inside between, a right-to-left span in a left-to-right paragraph.
+    { name: "c3 ruby around each word", html: `<p>VISIBLEc3 &#x2067;<ruby>SECRETc3a</ruby> &#x200F; <ruby>SECRETc3b</ruby>&#x2069; end</p>` },
+    { name: "c4 a raised word between", html: `<p>VISIBLEc4 &#x2067;SECRETc4a <sup>x</sup> &#x200F; SECRETc4b&#x2069; end</p>` },
+    { name: "c4b a tiny word between", html: `<p>VISIBLEc4b &#x2067;SECRETc4c <span style="font-size:5px">x</span> &#x200F; SECRETc4d&#x2069; end</p>` },
+    { name: "c5 a Hebrew letter of no size between", html: `<p>VISIBLEc5 &#x2067;SECRETc5a <span style="font-size:0">א</span> SECRETc5b&#x2069; end</p>` },
+    { name: "c5b a Hebrew letter in the background's colour between", html: `<p style="background:#fff">VISIBLEc5b &#x2067;SECRETc5c <span style="color:#fff">א</span> SECRETc5d&#x2069; end</p>` },
+    { name: "c11 a box holding a block between", html: `<p>VISIBLEc11 &#x2067;SECRETc11a <span style="display:inline-block"><span style="display:block" dir="ltr">x</span></span> &#x200F; SECRETc11b&#x2069; end</p>` },
+    { name: "c13 a right-to-left span with two bdi in a left-to-right paragraph", html: `<p>VISIBLEc13 <span dir="rtl"><bdi>SECRETc13a</bdi> <bdi>SECRETc13b</bdi></span> end</p>` },
   ],
   kept: [
     { name: "dir=rtl paragraph with Latin words", html: `<p dir="rtl">VISIBLEr1 שלום עולם VISIBLEr1b</p>` },
@@ -226,6 +235,61 @@ test("text under a direction override is not read; right-to-left text, embedding
     const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
     const all = Array.from(entry.html.matchAll(/VISIBLE[a-z0-9]+/g), (m) => m[0]);
     for (const word of all) if (!open.ai.includes(word)) wrong.push(`${entry.name}: the assistant does not read ${word}`);
+  }
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
+  expect(wrong).toEqual([]);
+});
+
+/**
+ * Right-to-left mail as it is written (review B7-4, M-R4-3): Hebrew and Arabic newsletters, receipts and letters with
+ * Latin buttons, columns, names, numbers, addresses and mixed lines. None of them turns a word around for a person, so
+ * every word the reader shows is read — a word left out that the reader shows is a fault. The finding of words turned
+ * around is measured here the other way: it may not cost these mails a word.
+ */
+const IB = "display:inline-block;padding:4px 10px;border:1px solid #888";
+const RTL_MAIL = [
+  { name: "k1 Hebrew line with two Latin buttons", html: `<div dir="rtl">שלום <a href="https://x.example/a" style="${IB}">VISIBLEk1a</a> <a href="https://x.example/b" style="${IB}">VISIBLEk1b</a> עולם</div>` },
+  { name: "k2 two Latin buttons alone in a right-to-left box", html: `<div dir="rtl"><a href="https://x.example/a" style="${IB}">VISIBLEk2a</a> <a href="https://x.example/b" style="${IB}">VISIBLEk2b</a></div>` },
+  { name: "k3 Arabic footer, links parted by a bar", html: `<p dir="rtl">تابعنا: <a href="https://x.example/f">VISIBLEk3a</a> | <a href="https://x.example/i">VISIBLEk3b</a></p>` },
+  { name: "k4 Hebrew price line with a brand and a year", html: `<p dir="rtl">מחיר <b>VISIBLEk4a</b> 2026 <b>VISIBLEk4b</b> שקל</p>` },
+  { name: "k5 two columns as inline blocks, Latin at the seam", html: `<div dir="rtl"><div style="display:inline-block;width:45%">טקסט VISIBLEk5a</div><div style="display:inline-block;width:45%">VISIBLEk5b טקסט</div></div>` },
+  { name: "k6 a left-to-right wrapper round the whole mail", html: `<div dir="ltr"><div>VISIBLEk6a Hello <a href="https://x.example">VISIBLEk6b link</a> and <b>VISIBLEk6c</b>.</div><div style="display:inline-block;width:45%">VISIBLEk6d col</div><div style="display:inline-block;width:45%">VISIBLEk6e col</div></div>` },
+  { name: "k7 Hebrew with an address and a web address", html: `<p dir="rtl">כתבו לנו: <a href="mailto:a@b.example">VISIBLEk7a@b.example</a> או <a href="https://x.example">VISIBLEk7b.example</a></p>` },
+  { name: "k8 Hebrew, two Latin words in spans, a mark at the end", html: `<p dir="rtl">הזמינו <span>VISIBLEk8a</span> <span>VISIBLEk8b</span>&#x200F;</p>` },
+  { name: "h1 Arabic greeting with a Latin name of three words", html: `<p dir="rtl">مرحبا <b>VISIBLEh1a</b> <b>VISIBLEh1b</b> <b>VISIBLEh1c</b>، شكرا لك</p>` },
+  { name: "h2 Hebrew table row, Latin in two cells", html: `<table dir="rtl" width="100%"><tr><td>VISIBLEh2a</td><td>VISIBLEh2b</td><td>מוצר</td></tr></table>` },
+  { name: "h3 Hebrew line, Latin words parted by Hebrew", html: `<p dir="rtl">VISIBLEh3a שלום VISIBLEh3b עולם VISIBLEh3c</p>` },
+  { name: "h4 Arabic menu as a flex row of links", html: `<div dir="rtl" style="display:flex;gap:8px"><a href="https://x.example/1">VISIBLEh4a</a> <a href="https://x.example/2">VISIBLEh4b</a> <a href="https://x.example/3">الرئيسية</a></div>` },
+  { name: "h5 Arabic call to action, buttons as inline flex", html: `<p dir="rtl">اضغط <span style="${IB};display:inline-flex;gap:4px">VISIBLEh5a now</span> <span style="${IB};display:inline-flex">VISIBLEh5b</span> هنا</p>` },
+  { name: "h6 Hebrew receipt line, order code and phone number", html: `<p dir="rtl">הזמנה VISIBLEh6a-2026 טלפון 03-1234567 VISIBLEh6b</p>` },
+  { name: "h7 Arabic line with an English sentence set left to right", html: `<p dir="rtl">للمزيد: <span dir="ltr">VISIBLEh7a VISIBLEh7b VISIBLEh7c</span></p>` },
+  { name: "h8 Hebrew with an English quote in bdi", html: `<p dir="rtl">הוא אמר <bdi>VISIBLEh8a VISIBLEh8b</bdi> אתמול</p>` },
+  { name: "h9 Hebrew list with Latin items", html: `<ul dir="rtl"><li>VISIBLEh9a פריט</li><li>VISIBLEh9b VISIBLEh9c</li></ul>` },
+  { name: "h10 two inline tables side by side", html: `<div dir="rtl"><table style="display:inline-table"><tr><td>VISIBLEh10a</td></tr></table> <table style="display:inline-table"><tr><td>VISIBLEh10b</td></tr></table></div>` },
+  { name: "h11 Hebrew list of brands parted by commas and marks", html: `<p dir="rtl">אנחנו עובדים עם VISIBLEh11a,&#x200F; VISIBLEh11b&#x200F; ו-VISIBLEh11c.</p>` },
+  { name: "h12 Arabic sentence with marks round a Latin name", html: `<p dir="rtl">&#x200F;شركة&#x200F; VISIBLEh12a&#x200F; VISIBLEh12b&#x200F; ترحب بكم</p>` },
+  { name: "h13 Hebrew signature with name, role and company", html: `<div dir="rtl"><div>בברכה,</div><div><b>VISIBLEh13a VISIBLEh13b</b> | מנהלת מכירות | VISIBLEh13c Ltd.</div></div>` },
+  { name: "h14 Arabic inline grid of two buttons", html: `<div dir="rtl"><span style="${IB};display:inline-grid">VISIBLEh14a</span> <span style="${IB};display:inline-grid">VISIBLEh14b</span></div>` },
+  { name: "h15 Hebrew newsletter, centred buttons and a Latin footer line", html: `<div dir="rtl" style="text-align:center"><p>מבצע סוף השנה</p><p><a style="${IB}" href="https://x.example/s">VISIBLEh15a Shop</a> <a style="${IB}" href="https://x.example/u">VISIBLEh15b</a></p><p dir="ltr">VISIBLEh15c Inc., 1 Main St, Tel Aviv</p></div>` },
+  { name: "h16 Arabic paragraph that wraps, Latin words on several lines", html: `<p dir="rtl">${Array.from({ length: 12 }, (_, n) => `نص عربي VISIBLEh16w${n} كلمة`).join(" ")}</p>` },
+];
+
+test("right-to-left mail as it is written: every word the reader shows is read", async ({ page }) => {
+  test.setTimeout(300_000);
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await loadProbe(page);
+  const wrong: string[] = [];
+  for (const entry of RTL_MAIL) {
+    for (const width of [343, 760]) {
+      const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, width] as const);
+      const shares = await inkShares(page, open);
+      for (const word of Array.from(entry.html.matchAll(/VISIBLE[A-Za-z0-9]+/g), (m) => m[0])) {
+        const share = open.frame.seen.includes(word) ? (shares.get(word) ?? 0) : 0;
+        // The case means something: the reader shows every word of it.
+        if (share < MIN_INK_SHARE) wrong.push(`${entry.name}: at ${width} px the reader does not show ${word}`);
+        else if (!open.ai.includes(word)) wrong.push(`${entry.name}: at ${width} px the assistant leaves out ${word}, the reader shows it (${Math.round(share * 100)} %)`);
+      }
+    }
   }
   await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
   expect(wrong).toEqual([]);
@@ -446,10 +510,12 @@ test("the engine pass keeps its pace with many painting boxes and in a hidden wi
   await loadProbe(page);
   const painting = `<p>VISIBLEpaint</p>${Array.from({ length: 3000 }, (_, n) => `<span style="background-color:#eef;border:1px solid #ccd">c${n}</span>`).join(" ")}`;
   const ordinary = MAIL_CORPUS.find((entry) => entry.name === "dark theme newsletter")!.html;
-  // A mail of real work for the pass — 1 000 words that all run into the next box, each asked of the engine: well
-  // within the budget in either engine, and many turns of the interface.
-  const words = Array.from({ length: 1000 }, (_, n) => `w${n}`).join(" ");
-  const heavy = `<div style="height:0;white-space:nowrap">${words}</div><div style="height:0;white-space:nowrap">${words}</div><p>VISIBLEheavy</p>`;
+  // A mail of real work for the pass — twenty lines of 100 words that all run into the next box, each asked of the
+  // engine: within the budget in either engine (about 550 ms in both, measured 27.11.), and heavy enough in both that a
+  // pass that never gave the interface its turn would hold it far longer than the bound below (review B7-4, H-R4-10:
+  // the mail before was heavy in one engine only).
+  const words = Array.from({ length: 100 }, (_, n) => `w${n}`).join(" ");
+  const heavy = `${Array.from({ length: 20 }, () => `<div style="height:0;white-space:nowrap">${words}</div>`).join("")}<p>VISIBLEheavy</p>`;
   // Each measure a mail of its own: the reader keeps a mail's reading once made (`mailHtmlView`), a second one of the
   // same text would measure nothing.
   let made = 0;
@@ -472,6 +538,9 @@ test("the engine pass keeps its pace with many painting boxes and in a hidden wi
       const started = performance.now();
       const read = await (window as unknown as MailFrameProbeWindow).mailFrameProbe.read(h);
       const took = performance.now() - started;
+      // The gap still open counts too: a pass that never gives the interface its turn starves the meter itself — in
+      // WebKit not one of its messages comes through before the pass ends (review B7-4, H-R4-10).
+      longest.ms = Math.max(longest.ms, performance.now() - last);
       running = false;
       meter.port1.close();
       return { took, longest: longest.ms, ai: Array.from(read.text.matchAll(/\b(?:SECRET|VISIBLE)[A-Za-z0-9_]*/g), (m) => m[0]), tooLong: read.text.includes("too long for Plainva to check in time") };
@@ -496,6 +565,8 @@ test("the engine pass keeps its pace with many painting boxes and in a hidden wi
   const hidden = await measure(ordinary);
   const hiddenPainting = await measure(painting);
   const hiddenHeavy = await measure(heavy);
+  // The heavy mail is heavy: the pass over it takes several times the bound for one task.
+  expect(plainHeavy.took).toBeGreaterThan(300);
   for (const [name, m] of [["painting", shown], ["heavy", plainHeavy], ["throttled ordinary", hidden], ["throttled painting", hiddenPainting], ["throttled heavy", hiddenHeavy]] as const) {
     test.info().annotations.push({ type: `engine pass · ${name}`, description: `${Math.round(m.took)} ms, longest task ${Math.round(m.longest)} ms, too long ${m.tooLong}` });
   }

@@ -842,6 +842,9 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const quickStart = items.length === 0 && !live && !consent && state.hasVault && (skillsInMenu.length + serverPrompts.length > 0 || Boolean(onOpenSkills));
   const shownNotice = state.notice && state.notice.conversationId === (state.active?.id ?? state.notice.conversationId) ? state.notice : null;
   const notice = shownNotice?.stop ?? null;
+  // Who the try went to (review B7-4, M-R4-1): the notice names that provider, also after the model was switched.
+  const triedChoice = shownNotice?.choice ?? choice;
+  const tried = providerById(triedChoice.providerId, state.settings.custom) ?? provider;
   // The conversation's last turn, where it may go again in place (B7): the user's own, whose latest run failed.
   const retryable = notice?.kind === "failed" && !shownNotice?.returned ? session.retryable(active) : null;
   // No answer came back (plan §19.4): the notes that match the question best stand in for it.
@@ -853,13 +856,13 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
   const noticeText = notice
     ? notice.kind === "failed"
       ? providerWords
-        ? t(notice.failure.kind === "refused_by_provider" ? "ai.error.refusedShort" : "ai.error.providerErrorShort", { provider: provider.label })
-        : conversationFailureText(t, notice.failure, failureRecipient(provider), choice.model, { returned: shownNotice?.returned === true, images: retryable?.images ?? 0, departed: Boolean(shownNotice?.departedTo?.length) })
+        ? t(notice.failure.kind === "refused_by_provider" ? "ai.error.refusedShort" : "ai.error.providerErrorShort", { provider: tried.label })
+        : conversationFailureText(t, notice.failure, failureRecipient(tried), triedChoice.model, { returned: shownNotice?.returned === true, images: retryable?.images ?? 0, departed: Boolean(shownNotice?.departedTo?.length) })
       : STOP_KEYS[notice.kind]
         ? t(STOP_KEYS[notice.kind]!)
         : null
     : null;
-  const sender = notice?.kind === "failed" && !isRuleHeld(notice) ? failureSender(notice.failure, failureRecipient(provider)) : null;
+  const sender = notice?.kind === "failed" && !isRuleHeld(notice) ? failureSender(notice.failure, failureRecipient(tried)) : null;
   const noticeDetails = shownNotice !== null && noticeDetailsFor === shownNotice;
   /**
    * What a failure offers to do at once (B7): "Leave out the image" where the request was too large with pictures in the

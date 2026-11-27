@@ -48,7 +48,8 @@ export function reportFill(t: TFunction, outcome: FillOutcome, column: string): 
   ]
     .filter(Boolean)
     .join(" · ");
-  if (outcome.failure) toast.error(`${aiFailureText(t, outcome.failure, outcome.provider, outcome.model)} ${words}`);
+  // Rows before it went out (review B7-4, M-R4-6): the run's sentence about sending stays empty then.
+  if (outcome.failure) toast.error(`${aiFailureText(t, outcome.failure, outcome.provider, outcome.model, outcome.departed ? { sent: "" } : {})} ${words}`);
   else if (outcome.proposed > 0) toast.success(words);
   else toast.info(words);
 }

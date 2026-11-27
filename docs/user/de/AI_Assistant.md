@@ -1,6 +1,6 @@
 # KI-Assistent (Beta)
 
-Stand: 2026-11-25
+Stand: 2026-11-27
 
 Plainva kann Fragen zu Deinen Notizen mit einem KI-Modell Deiner Wahl beantworten. Es liest Deinen Vault, nennt die Notizen, auf die es sich stützt, öffnet Notizen und Ansichten für Dich und schlägt Änderungen vor — als Vorschläge an einer Notiz, als Entwürfe für Neues oder als Plan, den Du bestätigst. Eine Notiz ändert es nur selbst, wo Du es erlaubst (**Direkt übernehmen**). Der Assistent ist **experimentell** und aus, bis Du ihn einschaltest, auf jedem Gerät für sich.
 
@@ -70,7 +70,7 @@ Schlägt etwas fehl, nennt die Meldung, von wem sie kommt — von diesem Gerät,
 
 **Wenn eine Anfrage scheitert.** Hat Plainva die Anfrage selbst angehalten, bevor etwas von ihr das Gerät verlassen hat — keine Verbindung zum Anbieter kam zustande, die Anfrage war zu groß zum Senden, kein Schlüssel ist gespeichert, die Adresse des Modells ist nicht eingerichtet —, steht die getippte Frage wieder im Feld, und im Gespräch bleibt nichts von ihr. Die Meldung sagt, warum, und was zu ändern ist; fehlte die Verbindung, sagt sie, dass nichts gesendet wurde, und bietet **Erneut senden** an, das die Frage sofort schickt.
 
-Kann ein Teil der Anfrage jemanden erreicht haben — der Anbieter hat nicht geantwortet, die Verbindung ist abgebrochen, nachdem sie aufgebaut war, Deine Frage war schon beim **Modell für die Suche**, oder eine Textvorlage eines Servers hat Deine Angaben vorher bekommen —, bleiben die Frage und ihr Beleg im Gespräch, und die Meldung sagt nicht, dass nichts gesendet wurde. Lag es am Anbieter oder an der Verbindung, schickt **Erneut senden** dieselbe Frage sofort noch einmal an ihrer Stelle, ohne zweite Kopie; sonst sagt die Meldung, was zu ändern ist. War eine Anfrage mit einem Bild zu groß, schickt **Bild weglassen** sie ohne das Bild noch einmal; das Bild bleibt im Gespräch, mit dem Vermerk **nicht gesendet**.
+Kann ein Teil der Anfrage jemanden erreicht haben — der Anbieter hat nicht geantwortet, die Verbindung ist abgebrochen, nachdem sie aufgebaut war, Deine Frage war schon beim **Modell für die Suche**, oder eine Textvorlage eines Servers hat Deine Angaben vorher bekommen —, bleiben die Frage und ihr Beleg im Gespräch, und die Meldung sagt nicht, dass nichts gesendet wurde. Lag es am Anbieter oder an der Verbindung, schickt **Erneut senden** dieselbe Frage noch einmal an ihrer Stelle, ohne zweite Kopie, an das Modell, das das Gespräch jetzt zeigt — die Meldung nennt weiter den Anbieter, an den sie vorher ging; ginge dabei mehr mit, als Du freigegeben hast, etwa nach dem Wechsel zu einem anderen Modell, oder ist **Vor jeder Anfrage fragen** an, fragt erst die Sende-Übersicht. Sonst sagt die Meldung, was zu ändern ist. War eine Anfrage mit einem Bild zu groß, schickt **Bild weglassen** sie ohne das Bild noch einmal; das Bild bleibt im Gespräch, mit dem Vermerk **nicht gesendet**.
 
 Was Du ins Feld tippst, bleibt je Gespräch auf diesem Gerät erhalten, bis Du es sendest — höchstens 30 Tage lang, für die 50 zuletzt genutzten Gespräche, und nicht über das Löschen des Gesprächs hinaus.
 

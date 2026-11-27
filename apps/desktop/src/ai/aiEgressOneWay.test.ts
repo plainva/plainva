@@ -56,7 +56,9 @@ describe("the one way out of the device for a model request", () => {
     expect(session).toMatch(/this\.out = localOnlyEgress\(host\.egress,/);
     // Counted for a run only: the session's own egress counts for nobody.
     expect(session.match(/\bdepartingEgress\(/g)).toHaveLength(2);
-    expect(session).toMatch(/private runDepartures\(already: readonly string\[\] = \[\]\): RunDepartures \{\s*const to: string\[\] = \[\.\.\.already\];\s*const egress = departingEgress\(this\.out,/);
+    // A run's egress wraps the session's — or, for a routine's confirmation while the device asks before every request,
+    // the one that sends nothing off this device (review B7-4, M-R4-5).
+    expect(session).toMatch(/private runDepartures\(already: readonly string\[\] = \[\], through: LocalOnlyEgress = this\.out\): RunDepartures \{\s*const to: string\[\] = \[\.\.\.already\];\s*const egress = departingEgress\(through,/);
   });
 });
 
@@ -81,7 +83,7 @@ describe("every request of a run goes through that run's own egress", () => {
     }
     // A server's prompt starts with the server in the list (review B7-2, S4); every other run with an empty one.
     // and "Send again" with whom the turn's earlier tries reached (review B7-3, S6).
-    expect(run).toMatch(/const earlier = retry \? retry\.of\.departedTo \?\? \[\] : \[\];\s*const run = this\.runDepartures\(\[\.\.\.\(server \? \[`mcp:\$\{server\.id\}`\] : \[\]\), \.\.\.earlier\]\);/);
+    expect(run).toMatch(/const earlier = retry \? retry\.of\.departedTo \?\? \[\] : \[\];[^;]*?const run = this\.runDepartures\(\[\.\.\.\(server \? \[`mcp:\$\{server\.id\}`\] : \[\]\), \.\.\.earlier\], held \? this\.deviceOnlyEgress\(\)\.egress : undefined\);/);
     // The model call, the reader without tools, a page's processing, and the context (its search).
     expect(execute).toMatch(/runAgent\(\{[\s\S]*?egress: input\.departures\.egress,/);
     expect(run.match(/egress: run\.egress,/g)?.length).toBeGreaterThanOrEqual(3);
@@ -107,6 +109,65 @@ describe("every request of a run goes through that run's own egress", () => {
     // The shells hand the options on as they are, the egress with them.
     expect(text("apps/desktop/src/services/ai/desktopAi.ts")).toMatch(/semanticCandidates: async \(question, limit, options\) => \(await input\.semantic\?\.\(\)\?\.semanticCandidates\(question, limit, options\)\)/);
     expect(text("apps/mobile/src/services/ai/mobileAi.ts")).toMatch(/semanticCandidates: async \(question, limit, options\) => \(await embeddingsRef\.current\?\.semanticCandidates\(question, limit, options\)\)/);
+  });
+});
+
+/**
+ * The session's methods by name, and those a body calls on `this` (review B7-4, M-R4-4): what `runMessage` and
+ * `execute` reach, step by step — a way out in a helper they call counts as one in them.
+ */
+function methodsOf(source: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of source.matchAll(/\n {2}(?:(?:private|protected|public|static|async|readonly|get)\s+)*([a-zA-Z_]\w*)\s*(?:<[^>\n]*>)?\(/g)) {
+    if (out.has(m[1]!)) continue;
+    const start = m.index! + 1;
+    out.set(m[1]!, source.slice(start, source.indexOf("\n  }\n", start)));
+  }
+  return out;
+}
+function reached(source: string, from: readonly string[]): Map<string, string> {
+  const all = methodsOf(source);
+  const out = new Map<string, string>();
+  const todo = [...from];
+  while (todo.length) {
+    const name = todo.pop()!;
+    const body = all.get(name);
+    if (out.has(name) || body === undefined) continue;
+    out.set(name, body);
+    for (const call of body.matchAll(/this\.([a-zA-Z_]\w*)\(/g)) todo.push(call[1]!);
+  }
+  return out;
+}
+
+describe("what a run reaches: every method runMessage and execute call, and those they call (review B7-4, M-R4-4)", () => {
+  const session = text("packages/ui/src/ai/aiSession.ts");
+  const bodies = reached(session, ["runMessage", "execute"]);
+  /** The two that make a way out: the run's own egress, and the one that sends nothing off this device. */
+  const MAKERS = new Set(["runDepartures", "deviceOnlyEgress"]);
+
+  it("reaches the methods it is known to reach", () => {
+    for (const name of ["contextOf", "memoryStart", "styleStart", "furtherTools", "serverSkills", "skillRuntime", "readServerSkill", "offeredTools"]) expect(bodies.has(name), name).toBe(true);
+  });
+
+  it("none of them names the session's egress, the host's, or the session by another name", () => {
+    for (const [name, body] of bodies) {
+      if (MAKERS.has(name)) continue;
+      expect(body, name).not.toMatch(/this\.out\b|host\.egress|this\.egress\b/);
+      // A cast, a destructuring, an alias or a computed member would hide a way out from the lines below.
+      expect(body, name).not.toMatch(/this\[|=\s*this\s*[;,)]|this\.(?:host|mcp)\b(?!\.[a-zA-Z])/);
+    }
+  });
+
+  it("of the hosts: only the members table 1 names, the page fetcher never called but through its wrapper", () => {
+    const all = [...bodies.values()].join("\n");
+    expect([...new Set(Array.from(all.matchAll(/this\.host\.([a-zA-Z]+)/g), (m) => m[1]!))].sort()).toEqual(["label", "language", "newId", "now", "today", "web"]);
+    expect([...new Set(Array.from(all.matchAll(/this\.mcp\.([a-zA-Z]+)/g), (m) => m[1]!))].sort()).toEqual(["call", "check", "log", "manifests", "offeredNames", "openPage", "readSkillFile", "servers", "state"]);
+    expect(all).not.toMatch(/this\.host\.web\.|this\.host\.web\(/);
+    // A server skill's files are read from its server: noted in the run's list before the request (review B7-4).
+    const runtime = bodies.get("skillRuntime")!;
+    expect(runtime).toMatch(/note\(found\.entry\.source\.server\.serverId\);\s*const read = await this\.readServerSkill\(/);
+    expect(runtime).toMatch(/note\(entry\.source\.server\.serverId\);\s*return this\.serverSkillFile\(/);
+    expect(bodies.get("runMessage")!).toMatch(/this\.skillRuntime\(vault, record, \(serverId\) => run\.note\(`mcp:\$\{serverId\}`\)\)/);
   });
 });
 

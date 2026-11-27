@@ -44,9 +44,10 @@ export function semanticFailureText(t: T, engine: Extract<EngineState, { kind: "
 }
 
 /** Why the last run stopped: the provider's word where it gave one, the error otherwise. */
-export function semanticRunFailureText(t: T, source: SemanticSource, failure: ModelFailure | null, detail: string): string {
+export function semanticRunFailureText(t: T, source: SemanticSource, failure: ModelFailure | null, detail: string, departed = false): string {
   const target = source.kind === "provider" ? source.target : null;
-  return failure ? aiFailureText(t, failure, target?.provider.label ?? "", target?.model) : t("ai.semantic.runFailed", { reason: detail });
+  // Packages of the run went before it stopped (review B7-4, M-R4-6): no "nothing was sent" then.
+  return failure ? aiFailureText(t, failure, target?.provider.label ?? "", target?.model, departed ? { sent: "" } : {}) : t("ai.semantic.runFailed", { reason: detail });
 }
 
 /** Who computes while search by meaning is on. */

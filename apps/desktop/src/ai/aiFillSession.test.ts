@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_AI_APP_SETTINGS,
   effectivePolicy,
@@ -12,7 +12,7 @@ import {
   type HttpRequestSpec,
   type LedgerEntry,
 } from "@plainva/core/ai";
-import { captureVocabularyOf } from "@plainva/ui";
+import { captureVocabularyOf, toastStore } from "@plainva/ui";
 import {
   AiSession,
   CHAT_TOOL_NAMES,
@@ -23,6 +23,7 @@ import {
   furtherToolNames,
   noteMovePlan,
   noteRenamePlan,
+  reportFill,
   type AiVaultHost,
   type FillColumn,
   type FilterSchemaColumn,
@@ -31,6 +32,9 @@ import {
   type VaultWriteDeps,
 } from "@plainva/ui/ai";
 import i18n from "@plainva/ui/i18n";
+
+/** The words of the toast shown last. */
+const lastToast = () => toastStore.get()[toastStore.get().length - 1]!.message;
 
 /**
  * A column filled with proposed values, and a filter from a sentence, in the
@@ -283,6 +287,26 @@ describe("a run that fills a column", () => {
     // The failure's kind — never the provider's own words, which may quote what was sent.
     expect(vault.ledger()[0]).toMatchObject({ stop: "failed", steps: 2, failure: "offline" });
     expect(s.getState().fill).toBeNull();
+  });
+
+  it("claims nothing about sending where rows before the one that failed went out (review B7-4, M-R4-6)", async () => {
+    const tooLarge: EgressChunk[] = [{ type: "failed", code: "too_large", message: "request too large" }];
+    const later = await session([value("Maschinenbau"), tooLarge], fillVault());
+    const outcome = await later.s.fillProperty({ base: BASE, column: branche, rows: [row("Acme"), row("Bolt"), row("Core")] });
+    expect(outcome).toMatchObject({ kind: "done", proposed: 1, failure: { kind: "too_large" }, departed: true });
+    const t = i18n.getFixedT("en");
+    // The toasts' timers want a window; this test runs without one.
+    vi.stubGlobal("window", { setTimeout: () => 0, clearTimeout: () => undefined });
+    reportFill(t, outcome, "Branche");
+    expect(lastToast()).not.toMatch(/Nothing was sent/);
+    // The first row failing: nothing of the run left, and the toast says so.
+    const first = await session([tooLarge], fillVault());
+    const none = await first.s.fillProperty({ base: BASE, column: branche, rows: [row("Acme"), row("Bolt")] });
+    expect(none).toMatchObject({ kind: "done", proposed: 0, failure: { kind: "too_large" } });
+    expect("departed" in none).toBe(false);
+    reportFill(t, none, "Branche");
+    expect(lastToast()).toMatch(/Nothing was sent/);
+    vi.unstubAllGlobals();
   });
 
   it("can be ended between two entries; what was laid down stays", async () => {

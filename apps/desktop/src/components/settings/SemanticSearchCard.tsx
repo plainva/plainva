@@ -286,7 +286,7 @@ export function SemanticSearchRows({ session, onChooseModel }: { session: AiSess
       )}
       {engine?.kind === "ready" && progress?.state === "failed" && (
         <SettingCardBlock>
-          <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "")}</Banner>
+          <Banner kind="warning">{semanticRunFailureText(t, engine.source, state?.runFailure ?? null, progress.error ?? "", state?.runDeparted === true)}</Banner>
         </SettingCardBlock>
       )}
       {hasUnused && unused && (
