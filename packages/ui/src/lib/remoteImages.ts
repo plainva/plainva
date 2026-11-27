@@ -1,4 +1,4 @@
-import { parseMarkdownTree, type MarkdownTreeNode } from "@plainva/core";
+import { forEachReadPiece, inBoundedRanges, parseMarkdownTree, readAsTextParts, type MarkdownTreeNode } from "@plainva/core";
 import { findMediaEmbeds } from "./imageTarget";
 
 /**
@@ -23,6 +23,15 @@ import { findMediaEmbeds } from "./imageTarget";
  * (`![x](…)`, `![x][label]` with its definition). Removing a `!` can make
  * another picture of the one behind it (`!![x](…)`), so the text is read
  * again until nothing is left to change.
+ *
+ * A very large text is read as the note's readers read it (`readAsTextParts`):
+ * a block the note's budget reads as text is read in pieces, so that a picture
+ * in its code stays as it is, as one in code anywhere else. A part that is not
+ * read at all (a paragraph over its budget, a block too heavy for a piece) is
+ * left as it is written: what stands there cannot be told from code, and no
+ * reader shows a picture there — the editor and the reading view show such a
+ * part as its source (review of L14, round three: a code block read as text
+ * lost the `!` of a picture in it).
  */
 export function defuseRemoteImages(markdown: string): string {
   let text = markdown;
@@ -72,10 +81,13 @@ function remoteImageEdits(text: string): Edit[] {
   const removeBang = (at: number) => {
     if (text[at] === "!") edits.push({ from: at, to: at + 1, insert: "" });
   };
-  const tree = parseMarkdownTree(text) as PictureNode;
+  // The note's tree, and the pieces of what its budget reads as text, as the index reads them.
+  const parts = readAsTextParts(text);
+  const trees = [parseMarkdownTree(text) as PictureNode];
+  forEachReadPiece(text, parts, { places: true }, (piece) => trees.push(piece as PictureNode));
   // The editor's finder. It draws nothing in code, nor behind a backslash.
   const code: Array<[number, number]> = [];
-  const visit: PictureNode[] = [tree];
+  const visit: PictureNode[] = [...trees];
   for (let node = visit.pop(); node; node = visit.pop()) {
     if ((node.type === "code" || node.type === "inlineCode") && node.position) code.push([node.position.start.offset, node.position.end.offset]);
     for (const child of node.children ?? []) visit.push(child as PictureNode);
@@ -83,7 +95,7 @@ function remoteImageEdits(text: string): Edit[] {
   const literal = (at: number) => {
     let slashes = 0;
     while (text[at - 1 - slashes] === "\\") slashes++;
-    return slashes % 2 === 1 || code.some(([from, to]) => at >= from && at < to);
+    return slashes % 2 === 1 || code.some(([from, to]) => at >= from && at < to) || inBoundedRanges(parts.unread, at);
   };
   for (const embed of findMediaEmbeds(text)) {
     if (!isRemoteImageAddress(embed.target) || literal(embed.start)) continue;
@@ -94,7 +106,7 @@ function remoteImageEdits(text: string): Edit[] {
   // The reading view's parser, with the definitions a reference picture reads its address from.
   const definitions = new Map<string, string>();
   const pictures: Array<{ node: PictureNode; address: string | undefined }> = [];
-  const open: PictureNode[] = [tree];
+  const open: PictureNode[] = [...trees];
   for (let node = open.pop(); node; node = open.pop()) {
     if (node.type === "definition" && node.identifier !== undefined && node.url !== undefined && !definitions.has(node.identifier)) {
       definitions.set(node.identifier, node.url);
@@ -107,7 +119,7 @@ function remoteImageEdits(text: string): Edit[] {
     const address = own ?? (node.identifier !== undefined ? definitions.get(node.identifier) : undefined);
     const from = node.position?.start.offset;
     const to = node.position?.end.offset;
-    if (address === undefined || from === undefined || to === undefined || !isRemoteImageAddress(address)) continue;
+    if (address === undefined || from === undefined || to === undefined || !isRemoteImageAddress(address) || inBoundedRanges(parts.unread, from)) continue;
     const link = node.alt ? null : linkTo(address);
     if (link) edits.push({ from, to, insert: link });
     else removeBang(from);

@@ -67,6 +67,8 @@ import { unified } from "unified";
 import { boundMarkdownInRanges, NOTE_BUDGET, NOTE_READING, overBudgetInlineRanges, READER_READING, noteWeights, restoreBoundedTree, setNoteBudget, unitedRanges, withNoteWeights, type MarkdownReading, type NoteWeights } from "../../src/inlineParseBudget.js";
 import { parseMarkdownAst } from "../../src/markdown-parser.js";
 import { extractLinksAndTags } from "../../src/ast-scanner.js";
+import { renameNoteLinks } from "../../src/linkRewrite.js";
+import { BLOCKS } from "./noteBlocks.js";
 import { analyzeNoteSource, prepareReaderSource } from "../../src/noteSource.js";
 import { tablesNote } from "./many-tables.js";
 
@@ -168,13 +170,20 @@ export const NOTE_FORMS: Record<string, (n: number) => string> = {
   // line. One that changes its depth on every line, and one of eight levels of fifty lines each.
   quotedepth: (n) => Array.from({ length: n }, (_, i) => `${"> ".repeat(1 + (i % 60))}line ${i} [[A]]`).join("\n"),
   mailthread: (n) => Array.from({ length: n }, (_, i) => `${"> ".repeat(1 + Math.floor((i % 400) / 50))}On a day someone wrote line ${i} about [[A]] and more words`).join("\n"),
+  // Short paragraphs, each with a link, a picture and a wiki link, as a blog export or minutes are written; references
+  // with a destination behind them (`[t][lN](x.md)`), whose definitions are read as text — read without them, each is
+  // text and a link —; and paragraphs full of brackets (review of L14, round three: all three ran the phone's index out
+  // of 128 MB formatted).
+  shortlinks: (n) => Array.from({ length: n }, (_, i) => `Paragraph ${i} with a [link](https://example.org/${i}), an ![image](img${i % 50}.png) and [[Note ${i % 100}]].`).join("\n\n"),
+  refslinked: (n) => `${Array.from({ length: Math.ceil(n / 50) }, (_, p) => Array.from({ length: Math.min(50, n - p * 50) }, (_, j) => `[t][l${p * 50 + j}](x.md)`).join(" ")).join("\n\n")}\n\n${Array.from({ length: n }, (_, i) => `- [l${i}]: T${i}.md "${"w ".repeat(30)}"`).join("\n")}`,
+  bracketparas: (n) => `[^1]: x\n\n${Array.from({ length: n }, (_, i) => `p${i} [a][b c] [d [e]] ![f](g) [^1] [[A]] [h](i)`).join("\n\n")}`,
 };
 
 /**
  * The forms added after the hunt's notes `gen:<seed>:<k>` were first named: such a note is drawn from the forms before
  * them, so that a note the hunt once found stays the same note; the hunt draws from every form (`mix:<seed>:<k>`).
  */
-const LATER_FORMS = new Set(["quotedepth", "mailthread"]);
+const LATER_FORMS = new Set(["quotedepth", "mailthread", "shortlinks", "refslinked", "bracketparas"]);
 
 const wrap = (body: string) => `---\ntitle: T\n---\n\n# Title\n\n${body}\n`;
 
@@ -218,8 +227,25 @@ function generatedNote(seed: number, k: number, scale = 1, every = false): strin
   return wrap(blocks.join(r() < 0.3 ? "\n" : "\n\n"));
 }
 
-/** A form's note, or a generated one as `gen:<seed>:<k>` (the forms before `LATER_FORMS`) or `mix:<seed>:<k>` (every form). */
+/**
+ * Edge note `k` of `seed` (`--edge`): two to six building blocks of the tests that read notes against the same notes
+ * read whole (`noteBlocks.ts`) and of the forms, drawn at random, as one unit, and that unit `n` times — the edge search
+ * reads it at the most units the note's budget reads as they are, just under the budget.
+ */
+function edgeUnit(seed: number, k: number): string {
+  const r = random(seed, k, 7);
+  const forms = Object.keys(NOTE_FORMS).filter((form) => !TABLE_FORMS.has(form));
+  const count = 2 + Math.floor(r() * 5);
+  return Array.from({ length: count }, () => (r() < 0.75 ? BLOCKS[Math.floor(r() * BLOCKS.length)] : NOTE_FORMS[forms[Math.floor(r() * forms.length)]](1 + Math.floor(r() * 20)))).join("\n\n");
+}
+
+/** A form's note, a generated one as `gen:<seed>:<k>` (the forms before `LATER_FORMS`) or `mix:<seed>:<k>` (every form), or an edge note `edge:<seed>:<k>` of `n` units. */
 export function noteOf(name: string, n: number, scale = 1): string {
+  if (name.startsWith("edge:")) {
+    const [, seed, k] = name.split(":");
+    const unit = edgeUnit(Number(seed), Number(k));
+    return wrap(Array.from({ length: n }, () => unit).join("\n\n"));
+  }
   if (name.startsWith("gen:") || name.startsWith("mix:")) {
     const [kind, seed, k] = name.split(":");
     return generatedNote(Number(seed), Number(k), scale, kind === "mix");
@@ -256,6 +282,8 @@ const asTheAppReads = {
   },
   tree: (text: string) => analyzeNoteSource(text),
   reader: (text: string) => boundedReader(text),
+  // A rename of a name that stands in the building blocks: every link read, rewritten and read back.
+  rename: (text: string) => renameNoteLinks(text, new Map([["Target", "Tbrget"], ["A", "B"]])),
 };
 
 /** The same readers with the note's budget off (`--calibrate`, the margin of `--check`): as `main` reads before L14. */
@@ -269,6 +297,10 @@ const withoutNoteBudget = {
     analyzeNoteSource(text);
   },
   reader: (text: string) => boundedReader(text, false),
+  rename: (text: string) => {
+    setNoteBudget(Number.MAX_SAFE_INTEGER);
+    renameNoteLinks(text, new Map([["Target", "Tbrget"], ["A", "B"]]));
+  },
 };
 
 /**
@@ -654,6 +686,42 @@ function hunt(args: string[]): boolean {
   return failed.length === 0;
 }
 
+/**
+ * The edge search: what the note's budget reads formatted parses under the shell's heap. For each edge note
+ * (`edge:<seed>:<k>`, building blocks of every kind drawn at random), the most units the budget reads as they are —
+ * just under the budget, no block read as text — read by every reader of the shell and a rename, each in a process of
+ * its own under the shell's heap. A note that runs out of memory there is one the budget weighs lighter than its
+ * parse is; the weight of what the budget reads formatted must be an upper bound of what its parse holds.
+ */
+function edge(args: string[]): boolean {
+  const at = (flag: string, fallback: number) => (args.includes(flag) ? Number(args[args.indexOf(flag) + 1]) : fallback);
+  const count = at("--edge", 40);
+  const minutes = at("--minutes", 20);
+  const seed = at("--seed", Date.now() % 1_000_000);
+  const { name: shell } = useShell(args);
+  const parses = [...shellParses, "rename"];
+  const started = performance.now();
+  const failed: string[] = [];
+  let tried = 0;
+  console.log(`edge     ${shell}: ${count} edge notes, seed ${seed}, at most ${minutes} min; note budget ${NOTE_BUDGET * budgetFactor}, ${heapMb} MB, ${parses.join(" ")}`);
+  for (let k = 0; k < count && performance.now() - started < minutes * 60_000; k++) {
+    const name = `edge:${seed}:${k}`;
+    const n = readAsItIs(name);
+    const chars = noteOf(name, n).length;
+    // A unit the budget never reads as text below the 10 MB it is measured for is no edge.
+    if (n === 0 || chars > FAR_CHARS) continue;
+    const readers = chars > (READER_HELD_CHARS * heapMb) / HEAP_MB ? parses.filter((parse) => parse !== "reader") : parses;
+    const run = passes(name, n, true, 1, readers);
+    tried++;
+    if (!run.ok) {
+      failed.push(`${name}:${n}`);
+      console.log(`FAIL     ${name} at ${n} units (${chars} chars): ${run.why}`);
+    }
+  }
+  console.log(`edge     ${tried} notes in ${Math.round((performance.now() - started) / 1000)} s: ${failed.length ? `${failed.length} FAILED (${failed.join(", ")})` : "every note passes"}`);
+  return failed.length === 0;
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const args = process.argv.slice(2);
   const flag = (name: string) => (args.includes(name) ? args[args.indexOf(name) + 1] : undefined);
@@ -662,6 +730,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (args[0] === "--child") await child(args[1], Number(args[2]), Number(args[3]), args[4], args[5] === "bounded");
   else if (args.includes("--calibrate")) await calibrate(args);
   else if (args.includes("--features")) features(args);
+  else if (args.includes("--edge")) process.exitCode = edge(args) ? 0 : 1;
   else if (args.includes("--hunt")) {
     if (!hunt(args)) process.exitCode = 1;
   } else if (!check(args)) process.exitCode = 1;

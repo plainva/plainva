@@ -17,7 +17,8 @@ import { ftsExactTerm } from "./ftsQuery.js";
  * them only those large enough to hold such a part (`SMALLEST_UNREAD_CHARS`;
  * the file's size in bytes is never less than its characters). Where the
  * search cannot find a name for sure, every note that large is read: a name
- * without a letter or a digit gives the search nothing to look for (`🚀`),
+ * without a letter or a digit gives the search nothing to look for (`🚀`), a
+ * name beyond ASCII may stand in a link partly encoded (`Gr%C3%B6ße`),
  * and a note without its row in the full-text index (not indexed yet, or its
  * indexing failed) is not found by any phrase. The caller reads each of them
  * and counts what such parts name (`unreadNaming`); nothing in them is
@@ -31,7 +32,9 @@ export async function notesThatMayNameUnread(db: IDatabaseAdapter, names: readon
     for (const row of rows) if (row.path) found.add(String(row.path));
   };
   const wanted = [...new Set(names)].filter((name) => name.trim() !== "");
-  if (wanted.some((name) => !/[\p{L}\p{N}]/u.test(name))) {
+  // A name without a letter or a digit gives the search no word; one beyond ASCII may stand partly encoded
+  // (`Gr%C3%B6ße`), which no phrase of it matches.
+  if (wanted.some((name) => !/[\p{L}\p{N}]/u.test(name) || /[^\p{ASCII}]/u.test(name))) {
     add(await db.query<{ path: string }>(`SELECT f.path AS path FROM files f WHERE ${large}`, [SMALLEST_UNREAD_CHARS]));
     return [...found];
   }

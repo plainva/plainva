@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { DESKTOP_NOTE_BUDGET, NOTE_BUDGET, readAsTextParts, setNoteBudget, VaultIndexer, VaultQueryService } from "@plainva/core";
+import { DESKTOP_NOTE_BUDGET, encodeMarkdownLinkPath, NOTE_BUDGET, readAsTextParts, readNoteLinks, setNoteBudget, VaultIndexer, VaultQueryService } from "@plainva/core";
 import { renameFileWithLinkUpdates } from "@plainva/ui";
 import { realSqlite } from "../../../packages/core/test/helpers/realSqlite";
 import { MemoryVaultAdapter } from "../../../packages/core/test/helpers/memoryVault";
@@ -116,5 +116,103 @@ describe("a rename and the notes the search may not find", () => {
     await new VaultIndexer(files, db).indexVaultFull();
     const result = await renameFileWithLinkUpdates({ adapter: files, queryService: new VaultQueryService(db), oldPath: "a.md", newPath: "b.md" });
     expect(result.linkUpdateFailed).toBe(false);
+  }, 300_000);
+});
+
+/**
+ * No link is left without a word (review of L14, round three). After a rename,
+ * every link the note read whole resolves to the old note is rewritten, or the
+ * rename says links were left — on every way, with the same names. The links
+ * are written in every form the index's resolver takes for the old note: drawn
+ * from candidates and kept where the index of a note holding nothing else
+ * lists it as a link to it. Each stands in a part read, a part not read (a
+ * quote too heavy for a piece) or a place a definition elsewhere may change
+ * (`definitionReach.ts`), with and without a link read beside it, so that the
+ * note is a source the rename plans and one it only reads.
+ */
+describe("a rename leaves no link to the renamed note without a word", () => {
+  const OLD = "Ordner/Größe x.md";
+  const BASE = "Größe x";
+  const encoded = encodeMarkdownLinkPath(OLD);
+  const candidates = [
+    `[[${BASE}]]`,
+    `[[Ordner/${BASE}]]`,
+    `[[${BASE.toUpperCase()}]]`,
+    `[[${BASE}#Head]]`,
+    `[[${BASE}|alias]]`,
+    `![[${BASE}]]`,
+    `[[${BASE.normalize("NFD")}]]`,
+    `[t](${encoded})`,
+    `[t](${encoded.toLowerCase().replace("ordner", "Ordner")})`,
+    `[t](<${OLD}>)`,
+    `[t](Ordner/Gr%C3%B6%C3%9Fe%20x.md#Head)`,
+    `[t](Ordner/Größe%20x.md)`,
+    `[t](Ordner/Gr%C3%B6ße%20x.md)`,
+    `[t](./Ordner/${encodeMarkdownLinkPath("Größe x.md")})`,
+  ];
+  const read = (lines: number, link: string) => Array.from({ length: lines }, (_, i) => `> quoted ${i} ${i === 7 ? link : ""} [[Other ${i % 7}]] words [d]: x.md`).join("\n");
+  const PLACES = ["read", "not read", "open"] as const;
+
+  it("rewrites or names every form the resolver takes, wherever it stands", async () => {
+    expect.hasAssertions();
+    setNoteBudget(NOTE_BUDGET);
+    // The forms the index takes for a link to the old note, each in a note of its own.
+    const forms: string[] = [];
+    for (const link of candidates) {
+      const files = new MemoryVaultAdapter(1_000);
+      await files.writeTextFile(OLD, "# Head\n");
+      await files.writeTextFile("Small.md", `${link}\n`);
+      const db = await realSqlite();
+      await new VaultIndexer(files, db).indexVaultFull();
+      if ((await new VaultQueryService(db).getBacklinks(OLD)).some((row) => row.source_path === "Small.md")) forms.push(link);
+    }
+    expect(forms.length, "forms the resolver takes").toBeGreaterThan(8);
+    let lines = 2_000;
+    while (readAsTextParts(`# Big\n\n${read(lines, "")}\n`).unread.length === 0) lines *= 2;
+    const left: string[] = [];
+    for (const link of forms) {
+      for (const place of PLACES) {
+        // A link read beside it by its name, or by its path: the rename counts with every name, not with the read one's.
+        for (const beside of [null, `[[${BASE}]]`, `[[Ordner/${BASE}]]`]) {
+          const parts = ["# Big", beside ? `read ${beside} here` : "intro", read(lines, place === "not read" ? link : "")];
+          if (place === "read") parts.push(`plain ${link} here`);
+          if (place === "open") parts.push(`see [x [b]] ${link} here`);
+          const big = `${parts.join("\n\n")}\n`;
+          if (place === "open") {
+            // The place is one a definition elsewhere may change: not read for links.
+            const at = big.lastIndexOf(link);
+            expect(readNoteLinks(big).unread.some((range) => range.from <= at && at < range.to), `${link}: open`).toBe(true);
+          }
+          const files = new MemoryVaultAdapter(1_000);
+          await files.writeTextFile("Big.md", big);
+          await files.writeTextFile(OLD, "# Head\n");
+          const db = await realSqlite();
+          await new VaultIndexer(files, db).indexVaultFull();
+          const result = await renameFileWithLinkUpdates({ adapter: files, queryService: new VaultQueryService(db), oldPath: OLD, newPath: "Ordner/Renamed.md" });
+          const after = await files.readTextFile("Big.md");
+          const remains = after.split(link).length - 1;
+          if (remains > 0 && !result.linkUpdateFailed) left.push(`${link} ${place}${beside ? `, ${beside} read beside it` : ""}`);
+          if (place === "read") expect(remains, `${link}: read and rewritten`).toBe(0);
+        }
+      }
+    }
+    expect(left, "links left without a word").toEqual([]);
+  }, 600_000);
+
+  it("names a link over two lines of a quote, in a part not read", async () => {
+    expect.hasAssertions();
+    setNoteBudget(NOTE_BUDGET);
+    const link = `[t](\n> ${encodeMarkdownLinkPath(OLD)})`;
+    let lines = 2_000;
+    while (readAsTextParts(`# Big\n\n${read(lines, "")}\n`).unread.length === 0) lines *= 2;
+    const big = `# Big\n\nintro\n\n${read(lines, link)}\n`;
+    const files = new MemoryVaultAdapter(1_000);
+    await files.writeTextFile("Big.md", big);
+    await files.writeTextFile(OLD, "# Head\n");
+    const db = await realSqlite();
+    await new VaultIndexer(files, db).indexVaultFull();
+    const result = await renameFileWithLinkUpdates({ adapter: files, queryService: new VaultQueryService(db), oldPath: OLD, newPath: "Ordner/Renamed.md" });
+    expect(result.linkUpdateFailed).toBe(true);
+    expect(await files.readTextFile("Big.md")).toBe(big);
   }, 300_000);
 });

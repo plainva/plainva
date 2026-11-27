@@ -44,8 +44,17 @@ import type { BoundedRange } from "./inlineParseBudget.ts";
  * 5. Any other such `]` — behind another bracket still open, or one that may
  *    take the brackets behind it for its label — may change all that follows:
  *    the container is open from its first bracket still open to its end.
- * 6. A container that asks the parser anything gives no tags: what the parser
- *    makes a reference of moves the edges of the text around it.
+ * 6. In a container that asks the parser anything, a tag is read only where
+ *    its reading is the same under every definition (`fixedTag`): in a text
+ *    whose characters are the note's own, behind a blank, outside what is
+ *    open, its name without `_` and ending where the note's name ends. What
+ *    the parser makes a reference of moves the edges of the text around it
+ *    (`[a]#tag` is a tag beside a reference, none beside text), and emphasis
+ *    pairs otherwise across it (`#a_b_`).
+ *
+ * The rule reads the parser's own tree, before any plugin works on it (a
+ * callout's `[!note]` is a reference then, not the HTML the Obsidian plugin
+ * makes of it afterwards): `parsedInText` asks it there.
  *
  * `definitionReach.test.ts` checks the rule itself: paragraphs full of
  * brackets, read whole under many sets of defined labels, every place the
@@ -70,7 +79,7 @@ const LABEL_MOST = 999;
 export interface DefinitionReach {
   /** In text order, apart: where a link, a wiki link or a rename is not taken. */
   open: BoundedRange[];
-  /** The containers (by their stretch) that ask the parser for a label: no tags from them. */
+  /** The containers (by their stretch) that ask the parser for a label: only fixed tags from them (`fixedTag`). */
   untagged: BoundedRange[];
 }
 
@@ -134,9 +143,7 @@ function readContainer(text: string, container: PlacedNode, from: number, to: nu
     const start = node.position?.start?.offset;
     const end = node.position?.end?.offset;
     if (typeof start === "number" && typeof end === "number") {
-      // HTML by its `<`: a node the tree holds as HTML that the tokenizer did not read so (a callout's `[!note]`, made
-      // by a plugin after the parse) is read by its characters.
-      if (WHOLE.has(node.type) && (node.type !== "html" || text.charCodeAt(start) === 0x3c)) {
+      if (WHOLE.has(node.type)) {
         whole.push([start, end]);
         return;
       }
@@ -213,4 +220,23 @@ function plainLabelEnd(text: string, from: number, to: number): number {
     if (code === 0x5b || code === 0x5c || code === 0x60 || code === 0x3c) return -1;
   }
   return -1;
+}
+
+/** What a tag's name is made of (`tagRule.ts`): letters, digits, `_`, `/`, `-`. */
+const TAG_NAME = /[\p{L}\p{N}_/-]/u;
+
+/**
+ * Whether the tag at `from`..`to` of a text node's `value`, the node starting at `start` in `text`, reads alike under
+ * every set of definitions (rule 6): the node holds the note's own characters up to the tag's end, a blank stands in front of the
+ * `#` in the note, nothing of the tag is open, its name holds no `_` and ends where the note's name ends.
+ */
+export function fixedTag(text: string, start: number | undefined, value: string, from: number, to: number, open: readonly BoundedRange[]): boolean {
+  // The node's characters up to the tag's end are the note's own: its places are the note's there.
+  if (typeof start !== "number" || text.slice(start, start + to) !== value.slice(0, to)) return false;
+  const at = start + from;
+  const end = start + to;
+  if (at === 0 || !/\s/.test(text[at - 1])) return false;
+  if (open.some((range) => range.from < end && range.to > at)) return false;
+  const name = value.slice(from + 1, to);
+  return !name.includes("_") && !(end < text.length && TAG_NAME.test(text[end]));
 }

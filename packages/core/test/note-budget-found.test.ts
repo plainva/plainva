@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { afterAll, describe, expect, it } from "vitest";
 import { NOTE_BUDGET, overBudgetInlineRanges, setNoteBudget } from "../src/inlineParseBudget.ts";
-import { NOTE_FORMS } from "../scripts/perf/note-budget.ts";
+import { NOTE_FORMS, readAsItIs } from "../scripts/perf/note-budget.ts";
 
 const CORE = new URL("..", import.meta.url).pathname;
 
@@ -56,5 +56,32 @@ describe("a quote whose depth changes from line to line", () => {
       expect(overBudgetInlineRanges(NOTE_FORMS[form](lines)).some((range) => range.block), "read as text").toBe(true);
       underHeap(form, lines);
     }, 300_000);
+  }
+});
+
+/**
+ * The weight is an upper bound (review of L14, round three): what the note's
+ * budget reads formatted parses under the heap. Short paragraphs each with a
+ * link, a picture and a wiki link, references with a destination whose
+ * definitions are read as text, and paragraphs full of brackets ran the
+ * phone's readers out of 128 MB — 4 400 short paragraphs (0.42 MB) at the most
+ * the budget read formatted, 20 000 references (2 MB) with their definitions
+ * read as text. Each at that most, and at three times it, read by the index and
+ * the note source under 128 MB, and the references at the review's size. The edge search of the
+ * performance workflow draws such notes from every building block
+ * (`note-budget.ts --edge`).
+ */
+describe("what the note's budget reads formatted parses under the heap", () => {
+  for (const form of ["shortlinks", "bracketparas", "refslinked"] as const) {
+    it(`${form}: at the most the budget reads formatted, and at three times that`, () => {
+      expect.hasAssertions();
+      setNoteBudget(NOTE_BUDGET);
+      const most = readAsItIs(form);
+      expect(most).toBeGreaterThan(0);
+      underHeap(form, most);
+      underHeap(form, 3 * most);
+      // The review's references: 20 000 of them in paragraphs of fifty, their definitions read as text (2 MB).
+      if (form === "refslinked") underHeap(form, 20_000);
+    }, 600_000);
   }
 });

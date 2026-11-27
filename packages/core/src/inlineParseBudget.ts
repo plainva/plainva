@@ -1650,7 +1650,13 @@ const NOTE_SCAN_FROM = 5_000;
  * 128 MB at 1.4 times the threshold. Those weights wait for forms of each part.
  */
 export const NOTE_LINE_WEIGHT = 1049;
-export const NOTE_ITEM_WEIGHT = 3402;
+/**
+ * What a list item weighs beyond its line: 2 200 since the link's weight rose to what a link holds (review of L14,
+ * round three). An item held less than its weight said (lists read formatted at half `main`'s limit), and with the
+ * link's 1 400 a list of 3 000 tasks with a link and emphasis each read as text on the phone; at 2 200 it reads
+ * formatted up to 3 145, and every list form keeps 1.3 times its threshold under `main`'s limit.
+ */
+export const NOTE_ITEM_WEIGHT = 2200;
 /** What each level of quote or list a line stands in weighs (`tableMarkerCount`): three quotes deep, 21 000 lines filled 128 MB. */
 export const NOTE_MARKER_WEIGHT = 592;
 export const NOTE_BLOCK_WEIGHT = 1360;
@@ -1676,7 +1682,15 @@ export const NOTE_ANGLE_WEIGHT = 36;
 export const NOTE_ENTITY_WEIGHT = 353;
 /** What a `\` weighs beyond `NOTE_SYNTAX_WEIGHT`: an escape is a construct of its own. */
 export const NOTE_ESCAPE_WEIGHT = 0;
-export const NOTE_LINK_WEIGHT = 214;
+/**
+ * What each link, picture and wiki link weighs (by its `](` or `[[`). A link in a paragraph of its own costs the
+ * parser far more than in a line among others: short paragraphs each with a link, a picture and a wiki link (a blog
+ * export, minutes) held some 31 KB each on `main`, where a plain one holds 10 KB, and 4 400 of them ran the phone's
+ * index out of 128 MB at a weight of 214 (review of L14, round three; the forms `shortlinks`, `bracketparas`). The
+ * desktop's reading view, which makes an element of each, binds it there: under 512 MB it reads 12 775 such
+ * paragraphs, which a weight of 700 still read formatted up to 14 465.
+ */
+export const NOTE_LINK_WEIGHT = 1400;
 /** What each line of fenced code weighs beyond its characters (80 000 short lines of code fill 128 MB). */
 export const NOTE_CODE_LINE_WEIGHT = 377;
 /** What a thematic break weighs beyond its line and its characters (`isThematicBreak`). */
@@ -1716,7 +1730,8 @@ export const NOTE_TABLE_SHARE = (0.9 * NOTE_BUDGET) / TABLE_READ_BUDGET;
  * each (`defs`, `refsdefs`).
  */
 export const NOTE_LITERAL_WEIGHT = 324;
-export const NOTE_REFERENCE_WEIGHT = 888;
+/** Raised from 888 with the link's weight (review of L14, round three: paragraphs full of brackets, `bracketparas`). */
+export const NOTE_REFERENCE_WEIGHT = 1300;
 /**
  * What a line that begins with a definition weighs beyond its characters — a
  * link reference definition `[label]: …` or a footnote's `[^label]: …`, behind
@@ -2012,7 +2027,11 @@ function noteLineCost(text: string, from: number, to: number): number {
  */
 function noteBudgetRanges(text: string, lines: ScanLine[], kinds: Uint8Array, tables: Map<number, { last: number; cost: number; peak: number }>, ranges: BoundedRange[], reading: MarkdownReading, weights: Float64Array, observe?: InlineScanObserver, previous?: readonly BoundedRange[]): BoundedRange[] {
   const properties = reading.properties ? frontmatterSpan(text) : null;
-  const propertiesEnd = properties ? properties.end : 0;
+  // A `---` in the first line that nothing closes sets how the parser reads the whole note (no blocks within blocks):
+  // its line is never read as text, as a properties block is not. Stood in with the block behind it, it was gone from
+  // the note's tree, which read the rest the other way — `- a` an item, `> b` a quote — and a rename wrote into a code
+  // span the note read whole has there (review of L14, round three).
+  const propertiesEnd = properties ? properties.end : reading.properties && lines.length > 0 && opensUnclosedProperties(text) ? lines[0].to : 0;
   type NoteBlock = { from: number; to: number; weight: number; asText: number; headings: boolean };
   const blocks: NoteBlock[] = [];
   let block: NoteBlock | null = null;

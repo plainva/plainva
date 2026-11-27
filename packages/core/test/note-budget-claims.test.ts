@@ -123,8 +123,10 @@ for (const [shell, budget] of SHELLS) {
         expect(renamed.unplaced, "a rename says it left links").toBeGreaterThan(0);
         expect(await vault.search("quokka")).toEqual(["Big.md"]);
         // A paragraph over the inline budget keeps its tags, as on `main`; a block not read gives none: no tag rather than a
-        // wrong one (the tag rule over unread characters read tags out of code).
-        if (form.tags) expect(await vault.tags()).toContain("onlyunread");
+        // wrong one (the tag rule over unread characters read tags out of code). Which of the two it is depends on its
+        // weights: the handbook says its tags are not found in every such part.
+        const inline = parts.ranges.some((range) => !range.block && !range.table && range.from <= hidden && hidden < range.to);
+        if (form.tags && inline) expect(await vault.tags()).toContain("onlyunread");
         else expect(await vault.tags()).not.toContain("onlyunread");
         if (form.tasks) expect(await vault.tasks("Big.md")).toContain("task in the unread part");
       }, 300 * SECONDS);

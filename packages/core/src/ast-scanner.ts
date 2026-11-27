@@ -6,7 +6,7 @@ import { findInlineTags } from "./tagRule.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 import { inBoundedRanges as inRanges, readAsTextParts, type BoundedRange } from "./inlineParseBudget.js";
 import { definitionReachOf, forEachReadPiece } from "./markdown-parser.js";
-import type { DefinitionReach } from "./definitionReach.js";
+import { fixedTag, type DefinitionReach } from "./definitionReach.js";
 
 export type TagOccurrence = {
   name: string;
@@ -62,19 +62,23 @@ export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedD
   let reach: DefinitionReach | null = definitionReachOf(ast);
   /** Where each link pushed from a piece stands, for the order of the text. */
   let placed: number[] | null = null;
-  // `untagged`: the walk is inside a paragraph, heading or cell that asks the parser for a label — no tag from any text
-  // below it, whether the text node has a place or not (one a plugin made, as the autolink literals split the text).
+  // `untagged`: the walk is inside a paragraph, heading or cell that asks the parser for a label — only fixed tags from
+  // the text below it (`fixedTag`); none from a text node without a place (one a plugin made, as the autolink literals
+  // split the text).
   const walk = (node: any, inPiece = false, untagged = false): void => {
     if (!inPiece && blocks.length > 0 && node.type !== "root" && inRanges(blocks, node.position?.start?.offset)) return;
     const at = node.position?.start?.offset;
     if (reach && (node.type === "wikiLink" || node.type === "link") && inRanges(reach.open, at)) return;
     if (reach && !untagged && (node.type === "paragraph" || node.type === "heading" || node.type === "tableCell") && inRanges(reach.untagged, at)) untagged = true;
-    if (untagged && node.type === "text") return;
     if (placed && (node.type === "wikiLink" || node.type === "link")) placed.push(at ?? 0);
     if (node.type === "text") {
       // Inline tags: the one rule in tagRule.ts (the task scan, the rename and
       // the editor's pill read the same one).
-      for (const tag of findInlineTags(node.value)) result.tags.push({ name: tag.name, source: "inline" });
+      // In a container that asks the parser for a label, only a tag that reads alike under every definition (`fixedTag`).
+      for (const tag of findInlineTags(node.value)) {
+        if (untagged && !(reach && text !== undefined && fixedTag(text, at, node.value, tag.from, tag.to, reach.open))) continue;
+        result.tags.push({ name: tag.name, source: "inline" });
+      }
     } else if (node.type === "wikiLink") {
       const parts = wikiLinkParts(wikiLinkInner(node));
       result.links.push({

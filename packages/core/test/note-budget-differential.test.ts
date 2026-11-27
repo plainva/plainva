@@ -3,6 +3,7 @@ import { NOTE_BUDGET, PIECE_SHARE, overBudgetInlineRanges, readAsTextParts, setN
 import { parseMarkdownAst } from "../src/markdown-parser.ts";
 import { extractLinksAndTags } from "../src/ast-scanner.ts";
 import { readNoteLinks, renameNoteLinks } from "../src/linkRewrite.ts";
+import { BLOCKS, noteOfBlocks } from "../scripts/perf/noteBlocks.ts";
 
 /**
  * Small notes of building blocks, each read with budgets that make part of it
@@ -42,46 +43,9 @@ const RENAMES = new Map([
   ["def.md", "deg.md"],
 ]);
 
-const BLOCKS = [
-  // References and labels that run into `(`, and their definitions.
-  "See [foo][bar](x.md) here.", "[a][b][c](x.md)", "[a][b] (x.md)", "[a][b]\n(x.md)", "[a][b]<x.md>", "[b](x.md) plain",
-  "![a][pic](x.md)", "[T][](x.md)", "[^fn](x.md)", "[[[A]]][bar](x.md)", "[#tag [[A]]][bar](x.md)", "[a][STRASSE](x.md)",
-  "[a][b\\]c](x.md)", "see [x [b]](x.md) here", "[x [t][b]](x.md)", "[x ![i][pic]](x.md)", "[a][ ^x](x.md)",
-  "> quoted [a][multi\n> line](x.md)", "- item [a][multi\n  line](x.md)", "[use [[A]]][bar]\n===", "## [[[A]]][bar] heading ^hid",
-  "see [use [[A]]][bar] here", "text[^fn] and [^n2]", "[bar] and [pic] and [Straße]", "[a b c] then [[Target]]",
-  // Definitions in every kind of block.
-  "[bar]: def.md", "[bar]: other.md \"t\"", "[pic]: x.md", "[Straße]: def.md", "[b\\]c]: def.md", "[ ^x]: def.md",
-  "[multi line]: def.md", "> [bar]: def.md", "- [bar]: def.md", "   [bar]: def.md", "[bar]:\n  def.md\n  \"title\"",
-  "[bar]: <def file.md>", "[multi\nline]: def.md", "[a\nb\nc]: def.md", `[lng]: def.md "${"t".repeat(4200)}"`, "[^fn]: footnote [[A]] text",
-  "[^n2]: note two [[Target]]\n    more [x](x.md)", "```\n[bar]: def.md\n```", "    [bar]: def.md", "<div>\n[bar]: def.md\n</div>",
-  "<!--\n[bar]: def.md\n-->", "$$\n[bar]: def.md\n$$", "para line\n[bar]: def.md", "%% [bar]: def.md %%",
-  // Heavy blocks, read as text, in pieces or not at all.
-  Array.from({ length: 30 }, (_, i) => `**b${i}** _c_ \`d\` [[Target]] <e> &amp; ~~s~~ words [x](x.md)`).join("\n"),
-  Array.from({ length: 40 }, (_, i) => `- item ${i} [[A]] #t${i % 3} [l](x.md)`).join("\n"),
-  `- top\n${Array.from({ length: 60 }, (_, i) => `  - sub ${i} [[Target]] [x](x.md)`).join("\n")}`,
-  Array.from({ length: 40 }, (_, i) => `line ${i} of one paragraph [[A]] mail a${i}@b.co www.x${i}.org`).join("\n"),
-  `| a | b |\n|---|---|\n${Array.from({ length: 30 }, (_, i) => `| [[Target]] ${i} | [x](x.md) |`).join("\n")}`,
-  `> [!note] callout\n${Array.from({ length: 30 }, (_, i) => `> line ${i} [[A]] [x](x.md)`).join("\n")}`,
-  // Blocks that read otherwise alone.
-  "    code first [[NotA]]\nlazy [[A]] after", "- [ ] task [[Target]]\n- [x] done [x](x.md)", "#tag and #other/tag and `#no`",
-  "Heading\n---", "***", "<span>[[A]]</span>", "😀 [[Target]] 𝔘 [x](x.md)", "a\tb [[A]]\t[x](x.md)",
-];
-
 function random(seed: number): () => number {
   let s = seed >>> 0;
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32);
-}
-
-const FILL = Array.from({ length: 300 }, (_, i) => `filler ${i} words`).join(" ");
-
-/** The blocks as a note in one of sixteen wrappings; past 5 000 characters, below which no note is weighed. */
-function noteOf(blocks: readonly string[], wrap: number): string {
-  let body = `${blocks.join("\n\n")}\n\n${FILL}\n\n${FILL}\n`;
-  if (wrap & 1) body = body.replace(/\n/g, "\r\n");
-  if (wrap & 2) body = `---\ntitle: T\n---\n${body}`;
-  if (wrap & 4) body = `\uFEFF${body}`;
-  if (wrap & 8) body = `---\n${body}`;
-  return body;
 }
 
 function weightOf(note: string): number {
@@ -150,7 +114,7 @@ describe("a note of building blocks read in parts against the note read whole", 
         const blocks = Array.from({ length: 2 + Math.floor(r() * 9) }, () => BLOCKS[Math.floor(r() * BLOCKS.length)]);
         const wrap = trial % 16;
         wrappings.add(wrap);
-        const note = noteOf(blocks, wrap);
+        const note = noteOfBlocks(blocks, wrap);
         for (const mode of ["apart", "0.15", "0.3", "0.5", "0.7", "0.9"]) {
           const { found, parts } = findings(note, mode);
           covered.readings++;

@@ -716,39 +716,103 @@ export function renameNoteLinks(content: string, renames: ReadonlyMap<string, st
 }
 
 /**
+ * What of `content` is not read for links (`NoteLinks.unread`), without the parse where none is needed: a note no
+ * budget reads anything of as text has nothing unread, and one without a `]:` no place a definition may change
+ * (`definitionReach.ts`) — the scan alone says what its budget leaves. A rename reads every large note that may name
+ * the renamed one this way (review of L14, round three: 344 notes of the test vaults took 2.1 s parsed, 56 ms scanned).
+ */
+export function notReadForLinks(content: string): BoundedRange[] {
+  const parts = readAsTextParts(content);
+  if (parts.ranges.length === 0) return [];
+  return content.includes("]:") ? readNoteLinks(content).unread : parts.unread;
+}
+
+/**
+ * The names a link to the note at `path` may be written with, as a part not
+ * read for links is searched for them (`unreadNaming`, `notesThatMayNameUnread`):
+ * its name, its path without and with the extension, each as written, with its
+ * blanks as `%20`, and as a Markdown link encodes it (`%C3%B6`). One list for
+ * every way a rename counts (review of L14, round three: the notes it rewrote
+ * were searched with the targets of their read links alone, and `[[Name X]]`
+ * read beside `[t](Name%20X.md)` not read left the second without a word).
+ */
+export function linkNamesOf(path: string): string[] {
+  const stem = path.replace(/\.md$/i, "");
+  const base = stem.split(/[/\\]/).pop() ?? stem;
+  return [...new Set([base, stem, path].flatMap((name) => [name, name.replace(/ /g, "%20"), encodeMarkdownLinkPath(name)]))];
+}
+
+/**
  * How many of the stretches `unread` that are not read for links
  * (`NoteLinks.unread`) hold one of `names` where a link can name it: inside
  * a wiki link's brackets (`[[…name`), or in a Markdown link's destination
- * (`(…name`, `<…name`) — a link to it may stand there, which no reading of the
- * note's links reaches. A rename counts it with the links it could not
- * rewrite, so that it says some still name the old file. A count, never a
- * rewrite: nothing in such a stretch is taken for a link. The name as a word
- * of the text alone is no link (review of L14, 2026-11-26: renaming `a.md`
- * said links had been left in every large note that held the word "a").
+ * (`(…name`, `<…name`), across the markers of a quote or a list at a line's
+ * start — a link to it may stand there, which no reading of the note's links
+ * reaches. Names compare as the link rule compares them, case and composition
+ * aside, and the stretch is read with its percent signs decoded as well, so
+ * that a name written partly encoded (`Gr%C3%B6ße`) is found. A rename counts each
+ * with the links it could not rewrite, so that it says some still name the old
+ * file. A count, never a rewrite: nothing in such a stretch is taken for a
+ * link. The name as a word of the text alone is no link (review of L14,
+ * 2026-11-26: renaming `a.md` said links had been left in every large note
+ * that held the word "a").
  */
 export function unreadNaming(content: string, unread: readonly BoundedRange[], names: Iterable<string>): number {
   if (unread.length === 0) return 0;
-  const wanted = [...names].filter((name) => name !== "").map((name) => name.toLowerCase());
+  // As the link rule compares names: case and composition aside (`ö` and `o` with its diaeresis are one letter).
+  const folded = (text: string) => text.normalize("NFC").toLowerCase();
+  const wanted = [...new Set([...names].filter((name) => name !== "").flatMap((name) => [folded(name), folded(decodedPercents(name))]))];
   let count = 0;
   for (const range of unread) {
-    const stretch = content.slice(range.from, range.to).toLowerCase();
-    if (wanted.some((name) => namedAsLink(stretch, name))) count++;
+    const stretch = folded(content.slice(range.from, range.to));
+    const decoded = stretch.includes("%") ? folded(decodedPercents(stretch)) : stretch;
+    if (wanted.some((name) => namedAsLink(stretch, name) || (decoded !== stretch && namedAsLink(decoded, name)))) count++;
   }
   return count;
+}
+
+/** `text` with each run of percent-encoded UTF-8 bytes decoded where it decodes; the rest as it is. */
+function decodedPercents(text: string): string {
+  return text.replace(/(?:%[0-9a-f]{2})+/gi, (run) => {
+    try {
+      return decodeURIComponent(run);
+    } catch {
+      return run;
+    }
+  });
 }
 
 /** How far back from a name the opening of a link that may hold it is looked for: a path, an anchor, a label. */
 const LINK_OPENING_REACH = 1_000;
 
-/** Whether `stretch` holds `name` behind the opening of a link that may hold it (`unreadNaming`). */
+/**
+ * Whether `stretch` holds `name` behind the opening of a link that may hold it (`unreadNaming`): walking back line by
+ * line, past the quote and list markers at each line's start, up to `[[`, `(` or `<`; what closes a link, or a line
+ * with nothing but markers on it (a blank line, also in a quote), ends the look.
+ */
 function namedAsLink(stretch: string, name: string): boolean {
   for (let at = stretch.indexOf(name); at >= 0; at = stretch.indexOf(name, at + 1)) {
-    for (let i = at - 1; i >= 0 && at - i <= LINK_OPENING_REACH; i--) {
-      const code = stretch.charCodeAt(i);
-      // `[[`, `(` or `<` opens what may hold the name; what closes a link, or a blank line, ends the look.
-      if (code === 0x28 || code === 0x3c || (code === 0x5b && stretch.charCodeAt(i - 1) === 0x5b)) return true;
-      if (code === 0x29 || code === 0x3e || (code === 0x5d && stretch.charCodeAt(i - 1) === 0x5d)) break;
-      if (code === 0x0a && (stretch.charCodeAt(i - 1) === 0x0a || (stretch.charCodeAt(i - 1) === 0x0d && stretch.charCodeAt(i - 2) === 0x0a))) break;
+    let end = at;
+    let first = true;
+    while (at - end <= LINK_OPENING_REACH) {
+      const start = stretch.lastIndexOf("\n", end - 1) + 1;
+      // Where the line's own text begins: behind the blanks and markers (`>`, `-`, `*`, `+`) of its start.
+      let content = start;
+      while (content < end && /[ \t>\-*+\r]/.test(stretch[content])) content++;
+      if (!first && content >= end) break;
+      let found: boolean | null = null;
+      for (let i = end - 1; i >= content && found === null; i--) {
+        const code = stretch.charCodeAt(i);
+        if (code === 0x28 || code === 0x3c || (code === 0x5b && stretch.charCodeAt(i - 1) === 0x5b)) found = true;
+        else if (code === 0x29 || code === 0x3e || (code === 0x5d && stretch.charCodeAt(i - 1) === 0x5d)) found = false;
+      }
+      if (found !== null) {
+        if (found) return true;
+        break;
+      }
+      if (start === 0) break;
+      end = start - 1;
+      first = false;
     }
   }
   return false;

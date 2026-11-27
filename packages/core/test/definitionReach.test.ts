@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { definitionReach, type DefinitionReach } from "../src/definitionReach.ts";
+import { definitionReach, fixedTag, type DefinitionReach } from "../src/definitionReach.ts";
 import { parseMarkdownAst } from "../src/markdown-parser.ts";
 import { readNoteLinks } from "../src/linkRewrite.ts";
 import { findInlineTags } from "../src/tagRule.ts";
@@ -37,7 +37,7 @@ const TOKENS = [
   "[[A]]", "![[A]]", "[[A|b]]", "[[x.md]]", "`", "``", "<", ">", "<span>", "</span>", "\\", "\\[", "\\]", "x.md", "(x.md)",
   "(x.md \"t\")", "(<x y.md>)", "<x.md>", "\"t\"", "www.x.com", "<http://a.b>", "*", "_", "**", "~~", "#tag", "#t2",
   "a@b.co", "[a]", "[b]", "[^a]", "[^b]", "[x](x.md)", "[x][a]", "[a][]", "[ ^a]", "[a\nb]", "[!note]", "$", "&#91;",
-  "[t](a b)", "[a](", "x.md)", "[[", "]]", "|",
+  "[t](a b)", "[a](", "x.md)", "[[", "]]", "|", " #tag ", "#a_b", " #x/y", "]#t", "_",
 ];
 
 function random(seed: number): () => number {
@@ -62,9 +62,11 @@ interface Read {
   /** Every link the reading makes in the paragraph, by its place, and what the rule calls fixed of them. */
   links: Map<number, string>;
   fixedLinks: Set<number>;
-  /** Every tag of the paragraph's containers, by container and name, and the containers the rule lets give tags. */
+  /** Every tag of the paragraph's containers, by container and name — what the index holds of a tag. */
   tags: string[];
+  /** The containers that ask nothing (all their tags are fixed), and the fixed tags of those that ask, by container and name. */
   tagged: Set<number>;
+  fixedTags: string[];
 }
 
 const inAny = (ranges: readonly { from: number; to: number }[], at: number) => ranges.some((range) => range.from <= at && at < range.to);
@@ -73,7 +75,8 @@ const inAny = (ranges: readonly { from: number; to: number }[], at: number) => r
 function readOf(paragraph: string, definitions: readonly string[], obsidian: boolean): Read {
   const note = definitions.length > 0 ? `${paragraph}\n\n${definitions.join("\n\n")}\n` : `${paragraph}\n`;
   const tree = parseMarkdownAst(note, { preserveObsidianSyntax: obsidian });
-  const reach = definitionReach(note, tree);
+  // The rule asks the parser's own tree, as the app does in the parse (`parsedInText`), before the Obsidian plugin.
+  const reach = definitionReach(note, parseMarkdownAst(note));
   const inParagraph = (at: number) => at < paragraph.length;
   reach.open = reach.open.filter((range) => inParagraph(range.from));
   reach.untagged = reach.untagged.filter((range) => inParagraph(range.from));
@@ -88,6 +91,7 @@ function readOf(paragraph: string, definitions: readonly string[], obsidian: boo
   // autolink literals split the text) has no place of its own.
   const tags: string[] = [];
   const tagged = new Set<number>();
+  const fixedTags: string[] = [];
   type Node = { type: string; value?: string; children?: unknown[]; position?: { start: { offset: number } } };
   const walk = (node: Node, container: number | null): void => {
     const at = node.position?.start.offset;
@@ -95,12 +99,18 @@ function readOf(paragraph: string, definitions: readonly string[], obsidian: boo
       container = at;
       if (!inAny(reach.untagged, at)) tagged.add(at);
     }
-    if (node.type === "text" && container !== null) for (const tag of findInlineTags(node.value ?? "")) tags.push(`${container} ${tag.name}`);
+    if (node.type === "text" && container !== null) {
+      const value = node.value ?? "";
+      for (const tag of findInlineTags(value)) {
+        tags.push(`${container} ${tag.name}`);
+        if (!tagged.has(container) && fixedTag(note, at, value, tag.from, tag.to, reach.open)) fixedTags.push(`${container} ${tag.name}`);
+      }
+    }
     for (const child of (node.children ?? []) as Node[]) walk(child, container);
   };
   walk(tree as never, null);
   tags.sort();
-  return { reach, links, fixedLinks, tags, tagged };
+  return { reach, links, fixedLinks, tags, tagged, fixedTags };
 }
 
 /**
@@ -117,6 +127,9 @@ function disagreements(a: Read, b: Read): string[] {
     const own = (read: Read) => read.tags.filter((tag) => tag.startsWith(`${container} `)).join(", ");
     if (own(a) !== own(b)) found.push(`the tags at ${container}: ${own(a)} against ${own(b)}`);
   }
+  // The tags fixed in a container that asks are tags of the other reading there, as many of each name at least.
+  const count = (list: readonly string[], tag: string) => list.filter((each) => each === tag).length;
+  for (const tag of new Set(a.fixedTags)) if (count(a.fixedTags, tag) > count(b.tags, tag)) found.push(`the fixed tag ${tag} is none of the other reading`);
   return found;
 }
 
@@ -167,6 +180,15 @@ describe("the places a definition elsewhere may change", () => {
       // An escaped `]` closes nothing: read as a closer, the reference behind it looked like the only bracket open, and
       // the wiki link behind that fixed — where `b` is defined it stands in no link, where not in the link to `u`.
       ["p [a \\] [b] [[W]]](u.md) z", ["[b]: d.md"]],
+      // A label with a backtick is no plain label: where the full reference fails, the backtick opens a code span that
+      // takes what follows — the wiki link is a link where `b `c` is defined, code where not.
+      ["p [a][b `c] [[A]] ` end", ["[b `c]: d.md"]],
+      // Emphasis inside a link's text pairs within it: where `b_` is defined, the `_` behind the `#` opens nothing and
+      // `#_a` is a tag; where not, it pairs with the `_` in the brackets and no tag is there. A name with `_` is not fixed.
+      ["p #_a [b_] end", ["[b_]: d.md"]],
+      // Where `y_` is defined, `_x … #ab_` pairs around the reference and the tag is `ab`; where not, `_x [y_` pairs and
+      // the tag is `ab_`. A name that ends where the note's does not is not fixed.
+      ["p _x [y_] #ab_ end", ["[y_]: d.md"]],
     ];
     for (const [paragraph, definitions] of cases) {
       for (const obsidian of [false, true]) {

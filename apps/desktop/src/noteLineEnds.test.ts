@@ -212,7 +212,7 @@ describe("a note that is written anew keeps the shape it has", () => {
   it("a note whose links were retargeted after a rename", async () => {
     const note = `${MARK}---\r\ntitle: A\r\n---\r\n# A\r\n\r\nSee [[Old]] here\r\nand more text.\r\n\r\n- one\r\n- two\r\n`;
     await files.writeTextFile("A.md", note);
-    const result = await applyLinkUpdates(files, { sources: [{ path: "A.md", body: [{ raw: "Old", target: "New" }], frontmatter: [] }] } as never);
+    const result = await applyLinkUpdates(files, { oldPath: "Old.md", newPath: "New.md", sources: [{ path: "A.md", body: [{ raw: "Old", target: "New" }], frontmatter: [] }] });
     expect(result).toMatchObject({ renamedLinks: 1, changedFiles: 1, failed: false });
     const after = await files.readTextFile("A.md");
     expect(after).toContain("See [[New]] here");
@@ -228,7 +228,7 @@ describe("a note that is written anew keeps the shape it has", () => {
     expect(await bytes("A.md")).toEqual(marked(note.slice(MARK.length).replace("[[Old]]", "[[New]]")));
     // A "\n" note comes back as a "\n" note.
     await files.writeTextFile("B.md", "# B\n\nSee [[Old]].\n");
-    await applyLinkUpdates(files, { sources: [{ path: "B.md", body: [{ raw: "Old", target: "New" }], frontmatter: [] }] } as never);
+    await applyLinkUpdates(files, { oldPath: "Old.md", newPath: "New.md", sources: [{ path: "B.md", body: [{ raw: "Old", target: "New" }], frontmatter: [] }] });
     expect(await files.readTextFile("B.md")).toBe("# B\n\nSee [[New]].\n");
   });
 

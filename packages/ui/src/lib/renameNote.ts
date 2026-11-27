@@ -3,8 +3,8 @@ import {
   explicitLinkPath,
   resolveLinkRow,
   notesThatMayNameUnread,
-  encodeMarkdownLinkPath,
-  readNoteLinks,
+  linkNamesOf,
+  notReadForLinks,
   rewriteNoteLinks,
   unreadNaming,
   renameFrontmatterWikiLinks,
@@ -103,6 +103,8 @@ export interface LinkUpdatePlan {
    * it could not rewrite, and writes nothing there.
    */
   unread?: Array<{ path: string; names: string[] }>;
+  /** The names a link to the old file may be written with (`linkNamesOf`): every count of a part not read uses them. */
+  unreadNames?: string[];
 }
 
 /** The way a link row of the index is written, as a plan names it. */
@@ -156,15 +158,15 @@ export async function planLinkUpdates(
     failed = true;
   }
   const plan: LinkUpdatePlan = { oldPath, newPath, sources: [] };
-  // The names a link to the old file is written with, as a part not read is searched for them: the bare name, the
-  // path without and with its extension, each also as a Markdown link encodes its blanks.
+  // The names a link to the old file is written with, as a part not read is searched for them (`linkNamesOf`): one list
+  // for the notes the plan rewrites and for those it only reads.
   const oldStem = oldPath.replace(/\.md$/i, "");
   const oldBase = oldStem.split(/[/\\]/).pop() ?? oldStem;
-  // Encoded as a Markdown link writes it: `%20` for a blank, `%C3%B6` for an `ö`.
-  const unreadNames = [...new Set([oldBase, oldStem, oldPath].flatMap((name) => [name, name.replace(/ /g, "%20"), encodeMarkdownLinkPath(name)]))];
+  const unreadNames = linkNamesOf(oldPath);
+  plan.unreadNames = unreadNames;
   let unreadPaths: string[] = [];
   try {
-    unreadPaths = await notesThatMayNameUnread(queryService.db, [...new Set([oldBase, oldBase.replace(/ /g, "%20"), encodeMarkdownLinkPath(oldBase)])]);
+    unreadPaths = await notesThatMayNameUnread(queryService.db, linkNamesOf(oldBase));
   } catch (e) {
     console.warn("[renameNote] looking for notes with unread parts failed", e);
     failed = true;
@@ -311,7 +313,7 @@ export async function planLinkUpdates(
  * entries. `unplaced` counts the links the plan names that could not be
  * rewritten — they still name the old file.
  */
-function renamePlannedLinks(text: string, body: LinkUpdatePlan["sources"][number]["body"]): { content: string; renamed: number; unplaced: number } {
+function renamePlannedLinks(text: string, body: LinkUpdatePlan["sources"][number]["body"], unreadNames: readonly string[]): { content: string; renamed: number; unplaced: number } {
   const planned = new Map<string, string>();
   for (const { raw, target, kind } of body) planned.set(`${kind ?? ""}\n${raw}`, target);
   const newTarget = (link: { type: string; target: string }): string | undefined =>
@@ -320,8 +322,9 @@ function renamePlannedLinks(text: string, body: LinkUpdatePlan["sources"][number
     const target = newTarget(link);
     return target === undefined ? null : { target };
   });
-  // A stretch the parse budget leaves unread may hold a link to the renamed note: counted, so that the rename says so.
-  const names = body.map(({ raw }) => raw);
+  // A stretch not read for links may hold a link to the renamed note, written as it is anywhere: counted with every name
+  // the rename searches for (`linkNamesOf`), not only those of the links read here, so that the rename says so.
+  const names = [...body.map(({ raw }) => raw), ...unreadNames];
   return { content: result.content, renamed: result.rewritten, unplaced: result.unplaced.filter((link) => newTarget(link) !== undefined).length + unreadNaming(text, result.unread, names) };
 }
 
@@ -348,7 +351,7 @@ export async function applyLinkUpdates(
 
       let bodyCount = 0;
       if (source.body.length > 0) {
-        const res = renamePlannedLinks(text, source.body);
+        const res = renamePlannedLinks(text, source.body, plan.unreadNames ?? linkNamesOf(plan.oldPath));
         text = res.content;
         bodyCount = res.renamed;
         left += res.unplaced;
@@ -394,7 +397,7 @@ export async function applyLinkUpdates(
     try {
       const text = await adapter.readTextFile(path);
       // What is not read for links: what the budget leaves, and where a definition a part does not see may change it.
-      const left = unreadNaming(text, readNoteLinks(text).unread, names);
+      const left = unreadNaming(text, notReadForLinks(text), names);
       if (left > 0) {
         console.warn(`[renameNote] ${left} part(s) of ${path} that are not read name the renamed note: left as they are`);
         failed = true;

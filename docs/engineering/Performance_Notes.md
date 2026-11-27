@@ -991,13 +991,13 @@ own heap (`perf:notes -- --calibrate --shell <name>`, `noteBudgetShells.json`): 
 with the index (the parse, and the reading of its links and tags) and the note source (the parse, its
 headings and block ids) under 128 MB — its read mode is its editor —, the desktop with those and the
 reading view under 512 MB (a named assumption for a computer of 8 GB with several windows; no
-platform limit). For each of 42 forms `main`'s limit is the most units its readers read with the
+platform limit). For each of 52 forms `main`'s limit is the most units its readers read with the
 note's budget off under the heap — or, where `main`'s own paragraph budget reads the form as text
 before that, the most it reads formatted (one paragraph of sentences) —, against the most the note's
 budget reads with no block as text, its threshold. The safe side is the hard condition: every
 form keeps `main`'s limit at 1.13 times its threshold or more (`main`'s limit is known to some 5 to
 8 %: V8 close to its heap's end varies). The weights are those of 2026-11-19 with the definitions' and the references' of 2026-11-26
-(below); on the phone's readers they keep 1.14 to 2.82. `perf:notes -- --check --shell <name>` reads each form at its threshold and
+and the links' and the items' of 2026-11-27 (below); on the phone's readers they keep 1.18 to 2.82. `perf:notes -- --check --shell <name>` reads each form at its threshold and
 three and ten times over it under the shell's heap and holds its ratio; the performance workflow
 runs it for both shells.
 
@@ -1012,7 +1012,7 @@ a note (L14b, "weight by nodes") is dropped for three reasons, each measured
 - *No weighting of the counted parts comes much lower.* A linear program over the parts the scan
   counts (`--lp`: lp_solve over `noteBudgetFit.lp`; every form at 1.13 budgets or more at `main`'s
   limit, the largest ratio made as small as weights can make it) finds 2.21; the weights in use give
-  1.14 to 2.82. The fitted weights are not taken: they hold the pure forms they are fitted on and
+  1.18 to 2.82. The fitted weights are not taken: they hold the pure forms they are fitted on and
   weigh the parts of a mixed note too light — the parse of the footnote form, its paragraphs read as
   text and its definitions left formatted, ran out of 128 MB at 1.4 times its threshold, where the
   weights of 2026-11-19 hold it at ten times.
@@ -1022,82 +1022,87 @@ a note (L14b, "weight by nodes") is dropped for three reasons, each measured
 
 So the spread stays as measured: on the phone the form read as text earliest against `main`'s limit,
 lines of two tags, is text from 17 903 lines (211 KB of note), where `main` reads 50 538 lines
-(2.82 times); the latest, lines of a Markdown link and a URL, from 8 051 lines (569 KB), where `main`
-reads 9 181 (1.14 times). Over all forms the phone's thresholds lie between 41 KB (tables of 50 rows
+(2.82 times); the latest, tables of 50 rows of sixteen cells, from 22 tables (41 KB), where `main`
+reads 26 (1.18 times). Over all forms the phone's thresholds lie between 41 KB (tables of 50 rows
 of sixteen cells) and 2.4 MB (paragraphs of eighty `*`).
 
 On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 
 | Form | `main` on the phone up to | Formatted up to | Ratio |
 |---|---:|---:|---:|
-| lines of a Markdown link and a URL | 9 181 | 8 051 | 1.14 |
 | tables of 50 rows of sixteen cells | 26 | 22 | 1.18 |
 | lines of links run together | 69 787 | 58 472 | 1.19 |
 | one line of `x x …` (words) | 161 408 | 135 286 | 1.19 |
-| references `[x][d]` with their link definitions | 5 742 | 4 829 | 1.19 |
-| footnote definitions | 5 953 | 5 014 | 1.19 |
 | lines of fenced code | 78 694 | 65 103 | 1.21 |
 | lines of embeds run together | 68 916 | 57 046 | 1.21 |
 | paragraphs of `&amp;` × 16 | 3 596 | 2 893 | 1.24 |
+| references `[x][d]` with their link definitions | 5 742 | 4 482 | 1.28 |
+| footnote definitions | 5 953 | 4 641 | 1.28 |
 | tables of two rows between blank lines | 3 216 | 2 450 | 1.31 |
+| ordered items | 8 431 | 6 364 | 1.32 |
+| paragraphs full of brackets beside a footnote | 2 968 | 2 173 | 1.37 |
 | paragraphs of `` `a `` × 40 | 2 115 | 1 516 | 1.40 |
 | headings | 19 398 | 13 506 | 1.44 |
+| list items `- item n` | 8 876 | 6 080 | 1.46 |
 | link definitions | 9 787 | 6 665 | 1.47 |
 | paragraphs of eighty `]` | 14 000 | 9 478 | 1.48 |
+| short paragraphs with a link, a picture and a wiki link | 4 121 | 2 791 | 1.48 |
+| tasks `- [ ] task n due` | 7 784 | 5 263 | 1.48 |
 | lines of inline HTML | 16 705 | 11 075 | 1.51 |
-| references `[d]` with their link definitions | 7 432 | 4 905 | 1.52 |
-| tables of 50 rows of three cells | 110 | 69 | 1.59 |
-| footnote references and definitions | 3 653 | 2 292 | 1.59 |
-| callouts of two lines with a link | 5 143 | 3 205 | 1.60 |
-| ordered items | 8 431 | 4 904 | 1.72 |
+| lines of a Markdown link and a URL | 9 181 | 5 870 | 1.56 |
+| references `[d]` with their link definitions | 7 432 | 4 548 | 1.63 |
+| footnote references and definitions | 3 653 | 2 135 | 1.71 |
 | paragraphs of `*a` × 40 | 1 652 | 957 | 1.73 |
-| the performance script's note of tables of 50 rows | 74 | 41 | 1.80 |
-| tasks `- [ ] task n due` | 7 784 | 4 223 | 1.84 |
-| list items `- item n` | 8 876 | 4 734 | 1.87 |
-| list items with a wiki link | 8 253 | 4 192 | 1.97 |
+| nested items | 7 939 | 4 499 | 1.76 |
+| callouts of two lines with a link | 5 143 | 2 792 | 1.84 |
+| tables of 50 rows of three cells | 110 | 59 | 1.86 |
+| items between blank lines | 8 758 | 4 600 | 1.90 |
+| list items with a wiki link | 8 253 | 4 203 | 1.96 |
+| the performance script's note of tables of 50 rows | 74 | 37 | 2.00 |
 | tables of 1 200 rows | 4 | 2 | 2.00 |
-| tasks with a wiki link and emphasis | 6 287 | 3 139 | 2.00 |
-| done items with a link and a date | 7 194 | 3 477 | 2.07 |
-| journal lines `- 10:00 …` with a link and a tag | 6 554 | 3 165 | 2.07 |
+| tasks with a wiki link and emphasis | 6 287 | 3 145 | 2.00 |
+| done items with a link and a date | 7 194 | 3 484 | 2.06 |
+| journal lines `- 10:00 …` with a link and a tag | 6 554 | 3 171 | 2.07 |
 | thematic breaks between blank lines | 39 466 | 18 860 | 2.09 |
-| paragraphs of eighty `[` | 2 638 | 1 239 | 2.13 |
-| nested items | 7 939 | 3 717 | 2.14 |
-| a quote of one paragraph whose depth changes every line | 2 789 | 1 294 | 2.16 |
-| a list under one item (an outline) | 8 356 | 3 821 | 2.19 |
+| references `[t][l](x.md)` with their definitions | 3 427 | 1 621 | 2.11 |
+| a list under one item (an outline) | 8 356 | 3 830 | 2.18 |
 | paragraphs of `\*` × 40 | 2 009 | 910 | 2.21 |
 | paragraphs of eighty `*` (thematic breaks) | 39 423 | 17 852 | 2.21 |
 | lines of emphasis, strike-through and code | 6 991 | 3 079 | 2.27 |
+| a quote of one paragraph whose depth changes every line | 2 789 | 1 221 | 2.28 |
 | lines of a mail address and a `www.` | 23 633 | 10 361 | 2.28 |
 | paragraphs of `![` × 40 | 4 406 | 1 922 | 2.29 |
-| items between blank lines | 8 758 | 3 786 | 2.31 |
 | lines of two formulas | 18 879 | 8 063 | 2.34 |
-| sentences run together in one paragraph | 10 000 | 4 228 | 2.37 |
 | short paragraphs between blank lines | 13 240 | 5 433 | 2.44 |
 | paragraphs of `<a` × 40 | 11 767 | 4 659 | 2.53 |
 | lines three quotes deep | 20 336 | 7 993 | 2.54 |
 | prose, lines of twelve words | 19 774 | 7 625 | 2.59 |
 | quote lines | 26 507 | 9 875 | 2.68 |
 | lines of two tags | 50 538 | 17 903 | 2.82 |
-| a mail thread as one quote, eight depths of fifty lines | 15 763 | 4 069 | 3.87 |
+| sentences run together in one paragraph | 10 000 | 3 538 | 2.83 |
+| a mail thread as one quote, eight depths of fifty lines | 15 763 | 3 441 | 4.58 |
+| paragraphs of eighty `[` | 2 638 | 224 | 11.78 |
 
 On the desktop (index, note source and reading view, 512 MB; `DESKTOP_NOTE_BUDGET`, four times
-`NOTE_BUDGET`): the seven forms the reading view could bind and two of definitions and outlines, measured exactly — under 512 MB
-`main` reads 6.2 (code spans) to 9.8 (journal lines) times the phone's threshold of them, so four
-times the budget keeps every one at 1.56 or more:
+`NOTE_BUDGET`): the nine forms the reading view could bind and two of definitions and outlines, measured exactly — under 512 MB
+`main` reads 4.6 (short paragraphs with links) to 9.8 (an outline) times the phone's threshold of them, so four
+times the budget keeps every one at 1.14 or more:
 
 | Form | `main` on the desktop up to | Formatted up to | Ratio |
 |---|---:|---:|---:|
+| short paragraphs with a link, a picture and a wiki link | 12 775 | 11 167 | 1.14 |
+| paragraphs full of brackets beside a footnote | 10 758 | 8 697 | 1.24 |
 | paragraphs of `` `a `` × 40 | 9 461 | 6 064 | 1.56 |
 | lines of inline HTML | 70 751 | 44 292 | 1.60 |
 | link definitions | 43 316 | 26 656 | 1.63 |
-| tables of 1 200 rows | 19 | 11 | 1.73 |
-| callouts of two lines with a link | 23 953 | 12 822 | 1.87 |
+| tables of 1 200 rows | 19 | 10 | 1.90 |
 | paragraphs of `*a` × 40 | 7 431 | 3 831 | 1.94 |
-| list items with a wiki link | 39 552 | 16 768 | 2.36 |
-| journal lines `- 10:00 …` with a link and a tag | 30 972 | 12 663 | 2.45 |
-| a list under one item (an outline) | 37 742 | 15 288 | 2.47 |
+| callouts of two lines with a link | 23 953 | 11 170 | 2.14 |
+| list items with a wiki link | 39 552 | 16 812 | 2.35 |
+| journal lines `- 10:00 …` with a link and a tag | 30 972 | 12 688 | 2.44 |
+| a list under one item (an outline) | 37 742 | 15 324 | 2.46 |
 
-The other 40 forms are measured on their safe side alone: `main`'s readers read 1.13 times their
+The other 41 forms are measured on their safe side alone: `main`'s readers read 1.13 times their
 threshold at four times the budget under 512 MB, and `perf:notes -- --check --shell desktop` reads
 them there in three runs whenever the performance workflow runs for a change to what the note's
 budget reads, and on its schedule. A search for their exact limits under 512 MB is out of reach: one
@@ -1107,8 +1112,8 @@ paragraph of 100 000 lines takes micromark minutes a parse (below, *Named limits
 until the end of the parse (10 000 link definitions, 0.18 MB of note, held 99 MB), where a line of
 prose of the same length holds a handful: a line that begins with a definition weighs 2 330 beyond
 its characters (`NOTE_DEFINITION_WEIGHT`, from the forms `defs` and `footdefs`). A reference —
-`[text][label]`, `[label][]`, `[label]` by their brackets, and a footnote's `[^label]` — weighs 888
-(`NOTE_REFERENCE_WEIGHT`): resolved, it holds what a link holds (`main` reads 9 787 definitions
+`[text][label]`, `[label][]`, `[label]` by their brackets, and a footnote's `[^label]` — weighs 1 300
+(`NOTE_REFERENCE_WEIGHT`, 888 before the third review): resolved, it holds what a link holds (`main` reads 9 787 definitions
 alone under 128 MB, 5 742 beside a reference each). No reading is given a definition it does not
 see (2026-11-27): where a definition outside a part may change what its brackets are, those places
 of the part are not read (`definitionReach.ts`, `Note_Budget_Readings.md`, "What a definition
@@ -1119,6 +1124,28 @@ the phone's index out of 128 MB on the lines given.) The forms of definitions an
 calibrated and checked with the rest (`refsdefs` with `[x][d]`, `sharedrefs` with `[d]`); on the
 desktop `main` reads 1.13 times the threshold of footnote definitions, of references and their
 definitions under 512 MB (their safe side).
+
+**The weight is an upper bound (2026-11-27).** What the note's budget reads formatted must parse under
+the heap: the weight of every part is at least what the parser holds for it, read without the
+definitions it does not see. Three forms broke it (the third review of L14): short paragraphs each
+with a link, a picture and a wiki link (a blog export, minutes) held some 31 KB each on `main`, a plain
+paragraph 10 KB, and 4 400 of them (0.42 MB) ran the phone's index out of 128 MB, which the budget read
+formatted up to 4 549; paragraphs full of brackets beside a footnote likewise; and references with a
+destination, `[t][l](x.md)`, whose definitions are read as text, read as text and a link each. A link,
+a picture and a wiki link weigh 1 400 now (`NOTE_LINK_WEIGHT`, 214 before), a reference 1 300; the
+desktop's reading view binds it, which reads 12 775 of the short paragraphs under 512 MB. So forms
+with links are read as text earlier: lines of a Markdown link and a URL from 5 870 lines on the phone
+(8 051 before), callouts from 2 792 (3 205). A list item weighs 2 200 now (`NOTE_ITEM_WEIGHT`, 3 402
+before): with the heavier link it held list items with a wiki link at 3 512 lines, where `main` reads
+8 253, and lists without links far earlier than their parse needs; list items with a wiki link are read
+formatted up to 4 203 lines (4 192 before), journal lines up to 3 171 (3 165), tasks up to 5 263 (4 223),
+list items up to 6 080 (4 734), each at 1.13 times or more under `main`'s limit; the tables above hold
+the rest. The forms `shortlinks`, `bracketparas` and
+`refslinked` are calibrated and checked with the rest, and the edge search (`perf:notes -- --edge`,
+daily in the performance workflow) draws notes of two to six building blocks of every kind
+(`scripts/perf/noteBlocks.ts` and the forms), takes the most units the budget reads as they are, and
+reads them with every reader of the shell and a rename under its heap: a note that runs out of memory
+there names a part the budget weighs lighter than its parse.
 
 **Quotes whose depth changes (2026-11-27).** A paragraph over the inline budget is read as written,
 and keeps the quote and list markers of its lines: the parser opens their quotes and items on every
@@ -1136,9 +1163,9 @@ hundred times the phone's threshold.
 
 | Form | The editor under 128 MB up to | The phone's threshold |
 |---|---:|---:|
-| tasks `- [ ] task n due` | 30 752 | 4 223 |
-| list items with a wiki link | 31 086 | 4 192 |
-| list items `- item n` | 37 926 | 4 734 |
+| tasks `- [ ] task n due` | 30 752 | 5 263 |
+| list items with a wiki link | 31 086 | 4 203 |
+| list items `- item n` | 37 926 | 6 080 |
 | short paragraphs between blank lines | 82 149 | 5 433 |
 | prose, lines of twelve words | 181 942 | 7 625 |
 | quote lines | 269 674 | 9 875 |
@@ -1241,15 +1268,15 @@ On the phone (128 MB):
 | a list under one item (an outline) | 3 840 (106 KB) | 8 356, out of memory | 2.18 |
 | lines of a Markdown link and a URL | 8 064 (570 KB) | 9 181 (650 KB), out of memory | 1.14 |
 | a quote of one paragraph | 9 472 (282 KB) | 10 112 (301 KB), paragraph budget | 1.07 |
-| a quote of one paragraph whose depth changes every line | 1 296 (0.10 MB) | 2 789, out of memory | 2.15 |
-| a mail thread as one quote, eight depths of fifty lines | 4 077 (0.28 MB) | 15 763, out of memory | 3.87 |
+| a quote of one paragraph whose depth changes every line | 1 234 (0.09 MB) | 2 789, out of memory | 2.26 |
+| a mail thread as one quote, eight depths of fifty lines | 3 452 (0.24 MB) | 15 763, out of memory | 4.57 |
 | lines of links, of embeds run together | 6 720 | 6 720, paragraph budget | 1.00 |
 | a table in a list item | 59 392 (1.46 MB) | not measured | — |
 | every other form (lists, tasks, journal lines, callouts, tables, footnotes …) | never | from its limit, out of memory | — |
 
 On the desktop (512 MB, four times the budget) a list under one item is not read from 15 360 items
 (431 KB), lines of a mail address from 41 472 against `main`'s 46 810 (1.13), a quote whose depth
-changes every line from 5 140 lines (0.39 MB), a mail thread as one quote where `main`'s paragraph
+changes every line from 4 859 lines (0.37 MB), a mail thread as one quote where `main`'s paragraph
 budget leaves it (10 031 lines, 0.69 MB); paragraphs of links,
 URLs, sentences and quotes lose their links where `main`'s paragraph budget does (1.00), and every
 other form keeps them. The three largest gaps, on the phone, and what would close them: one

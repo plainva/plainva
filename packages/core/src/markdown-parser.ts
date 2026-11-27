@@ -416,10 +416,8 @@ interface PieceNode {
  */
 export function forEachReadPiece(text: string, parts: ReadAsTextParts, options: { preserveObsidianSyntax?: boolean; places?: boolean; reading?: MarkdownReading }, visit: (tree: MarkdownTreeNode, piece: ReadPiece) => void): void {
   if (parts.pieces.length === 0) return;
-  const { lead: behind, reading } = pieceLead(parts);
-  // A piece that begins with the note's own unclosed `---` holds it: behind a `---` of its own, the two would close a
-  // properties block, and the rest would be read in the other mode (review of L14, 2026-11-26).
-  const leadOf = (from: number): string => (parts.behindUnclosedProperties && (from === 0 || (from === 1 && text.charCodeAt(0) === BYTE_ORDER_MARK)) ? "" : behind);
+  // No piece begins with the note's own unclosed `---`: its line is never read as text (`noteBudgetRanges`).
+  const { lead, reading } = pieceLead(parts);
   const read = (piece: string, elsewhere: boolean): MarkdownTreeNode =>
     (options.places
       ? parsedInText((source) => markdownParser.parse(source), piece, reading, false, elsewhere)
@@ -432,7 +430,6 @@ export function forEachReadPiece(text: string, parts: ReadAsTextParts, options: 
       const code = text.charCodeAt(counted);
       if (code === 0x0a || (code === 0x0d && text.charCodeAt(counted + 1) !== 0x0a)) line++;
     }
-    const lead = leadOf(piece.from);
     const leadLines = lead.split("\n").length - 1;
     const own = read(`${lead}${text.slice(piece.from, piece.to)}`, definitionsOutside(text, piece.from, piece.to)) as unknown as PieceNode;
     // What stands before the piece is its lead: none of it is the note's.

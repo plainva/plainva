@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseMarkdownTree, type MarkdownTreeNode } from "@plainva/core";
+import { parseMarkdownTree, readAsTextParts, type MarkdownTreeNode } from "@plainva/core";
 import { defuseRemoteImages, findMediaEmbeds, isRemoteImageAddress } from "@plainva/ui";
 import { buildEmailNoteContent, buildReplyNoteContent, type MailMessage } from "@plainva/ui/mail";
 
@@ -107,5 +107,18 @@ describe("the notes Plainva writes from a message", () => {
     expect(note).toContain("> [https://tracker.example.org/open.png?id=42](https://tracker.example.org/open.png?id=42)");
     expect(note).toContain("> - [logo](https://tracker.example.org/logo.png)");
     expect(remotePictures(note)).toEqual([]);
+  });
+});
+
+describe("a very large message text", () => {
+  it("reads a block the note's budget reads as text in pieces: a picture in its code stays, one outside becomes a link", () => {
+    expect.hasAssertions();
+    // A code block in a long list, read as text (review of L14, round three): it lost the `!` of the picture in it.
+    const items = Array.from({ length: 12_000 }, (_, i) => `- item ${i} **b** _c_ \`d\` [[Other${i}]] <e> &amp; ~~s~~ words`).join("\n");
+    const text = `# Mail\n\n${items}\n\n  \`\`\`\n  ![chart](https://e.example.org/in-code.png)\n  \`\`\`\n- picture ![x](https://e.example.org/out.png)\n`;
+    expect(readAsTextParts(text).ranges.some((range) => range.block), "read as text").toBe(true);
+    const out = defuseRemoteImages(text);
+    expect(out).toContain("  ![chart](https://e.example.org/in-code.png)\n");
+    expect(out).toContain("- picture [x](https://e.example.org/out.png)\n");
   });
 });
