@@ -182,7 +182,9 @@ describe("security centre: what the source still wires (source guard, not behavi
     // the immutable .pvws objects stay and are removed by the user.
     const ctx = readFileSync(new URL("../../contexts/VaultContext.tsx", import.meta.url), "utf8");
     expect(ctx).toContain("const liftWorkspaceEncryption");
-    expect(ctx).toContain("loadVault(path, true)");
+    // Opened anew as a new connection, once the step is through (`leaveWorkspace`, `reopenAfterStep`).
+    expect(ctx.slice(ctx.indexOf("const liftWorkspaceEncryption"))).toContain("reopen: () => reopenAfterStep(path, true)");
+    expect(ctx).toMatch(/const reopenAfterStep = async \(path: string, isNewConnection\?: boolean\)[\s\S]*?await loadVault\(path, isNewConnection\)/);
   });
 
   it("source: every workspace flow reloads the vault for real, not through openVault (finding 2026-09-03, K8)", () => {
@@ -216,9 +218,9 @@ describe("security centre: what the source still wires (source guard, not behavi
     expect(ctx).toContain("const tearDownWorkspace");
     const teardown = ctx.slice(ctx.indexOf("const tearDownWorkspace"));
     const decommission = teardown.slice(teardown.indexOf("const decommissionWorkspace"));
-    expect(decommission).toContain("await tearDownWorkspace(path)");
+    expect(decommission).toContain("tearDown: (on) => tearDownWorkspace(path, on.workspaceState)");
     expect(decommission.slice(decommission.indexOf("const liftWorkspaceEncryption"))).toContain(
-      "await tearDownWorkspace(path)"
+      "tearDown: (on) => tearDownWorkspace(path, on.workspaceState)"
     );
 
     // The ordering is the whole point: a publication's credential slot is named

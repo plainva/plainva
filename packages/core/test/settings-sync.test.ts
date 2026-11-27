@@ -49,6 +49,7 @@ import {
 } from "../src/index.js";
 import type { ISyncTarget, SyncOperation, PushResult, PullResult, SettingsExchangeInfo } from "../src/index.js";
 import type { IVaultAdapter } from "../src/index.js";
+import { createVaultCallOff, isCalledOffError } from "../src/index.js";
 
 function mk(fill = 7, keyId = "aabbccddeeff0011"): MasterKeyBundle {
   return { keyId, masterKey: new Uint8Array(32).fill(fill) };
@@ -340,6 +341,21 @@ describe("SettingsSyncStep.run", () => {
     // Local file adopts the remote doc; a second run is a converged no-op.
     await step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter);
     expect(store.applied).toHaveLength(1);
+  });
+
+  it("applies nothing it got once the vault's runtime was called off — the app's settings lie past the fence", async () => {
+    const vault = new FakeVault();
+    const target = new FakeTarget();
+    target.remote.set(PROFILE_SYNC_PATH, new TextEncoder().encode(serializeProfile(doc(9, "phone", "2026-07-20", { dailyFolder: "Journal" }))));
+    const store = { values: { dailyFolder: "Daily" }, applied: [] as Record<string, unknown>[] };
+    const fence = createVaultCallOff();
+    const seen: unknown[] = [];
+    const step = new SettingsSyncStep({ port: makePort(store), ...dev, allows: fence.allows, onExchange: (i) => { seen.push(i); } });
+    fence.callOff();
+    await expect(step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter)).rejects.toSatisfy(isCalledOffError);
+    expect(store.values, "a late answer never overwrites what the next runtime set").toEqual({ dailyFolder: "Daily" });
+    expect(store.applied).toHaveLength(0);
+    expect(seen).toHaveLength(0);
   });
 
   it("uploads a local edit and does not re-apply its own upload next cycle", async () => {
@@ -1121,6 +1137,19 @@ describe("SecretsSyncStep", () => {
     expect(Object.keys(store.bundle.entries).sort()).toEqual(["a", "b"]);
     expect(store.imported).toHaveLength(1);
     expect(Object.keys(openSecretsBundle(mk(), target.remote.get(SECRETS_SYNC_PATH)!).entries).sort()).toEqual(["a", "b"]);
+  });
+
+  it("imports nothing into the keychain once the vault's runtime was called off", async () => {
+    const target = new FakeTarget();
+    const vault = new FakeVault();
+    target.remote.set(SECRETS_SYNC_PATH, sealSecretsBundle(mk(), bundle({ b: entry("b@x", 1, "sB") })));
+    const store = { bundle: bundle({ a: entry("a@x", 1, "sA") }), imported: [] as SecretsBundle[] };
+    const fence = createVaultCallOff();
+    const step = new SecretsSyncStep({ port: makeSecretsPort(store), masterKey: mk(), now: () => "t", allows: fence.allows });
+    fence.callOff();
+    await expect(step.run(target as unknown as ISyncTarget, vault as unknown as IVaultAdapter)).rejects.toSatisfy(isCalledOffError);
+    expect(store.imported).toHaveLength(0);
+    expect(Object.keys(store.bundle.entries)).toEqual(["a"]);
   });
 
   it("is a no-op import when local and remote already agree", async () => {

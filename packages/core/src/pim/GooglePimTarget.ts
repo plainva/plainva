@@ -9,10 +9,12 @@ import type {
   PimBlockRef,
   PimCalendar,
   PimEvent,
+  PimEventCreate,
   PimEventDraft,
   PimEventLinks,
   PimEventRef,
   PimTask,
+  PimTaskCreate,
   PimTaskDraft,
   PimTaskList,
   PimTaskRef,
@@ -307,7 +309,7 @@ export class GooglePimTarget implements IPimTarget {
 
   // ---- write side (stage 3) ----------------------------------------------
 
-  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
+  async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
     // `sendUpdates=all` makes Google email the invitees — the native invite that
     // Gmail renders as an event (same uid, RSVP syncs back). Only when asked.
     const notify = draft.notifyAttendees ? "?sendUpdates=all" : "";
@@ -356,6 +358,15 @@ export class GooglePimTarget implements IPimTarget {
     return { etag: data.etag };
   }
 
+  async eventExists(ref: PimEventRef): Promise<boolean> {
+    const res = await this.request(`${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`);
+    if (res.status === 404 || res.status === 410) return false;
+    if (!res.ok) throw await pimRequestError("google read event", res);
+    // A deleted event stays readable for a while, marked cancelled.
+    const body = (await res.json()) as { status?: string };
+    return body.status !== "cancelled";
+  }
+
   async deleteEvent(ref: PimEventRef): Promise<void> {
     const res = await this.request(
       `${CAL_BASE}/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}`,
@@ -390,7 +401,7 @@ export class GooglePimTarget implements IPimTarget {
     }
   }
 
-  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
+  async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
     const res = await this.request(`${TASKS_BASE}/lists/${encodeURIComponent(listId)}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CloudAccountRecord } from "@plainva/ui";
+import { parkClosingSyncPlace, resetClosingSyncPlacesForTests, sameSyncTarget, syncStateBindingFor, toast, toastStore, type CloudAccountRecord } from "@plainva/ui";
+import i18n from "@plainva/ui/i18n";
 import type { MobileVault } from "./vaultService";
+import { reloadActiveMobileVault } from "./vaultService";
+import { detachLoadedSync } from "./loadedSync";
 
 /**
  * Third review of plan "Verbinden", finding 4: a restart stopped what ran
@@ -26,6 +29,8 @@ const state = vi.hoisted(() => ({
   settings: new Map<string, unknown>(),
   /** What happened, in order: a reset of the sync state, a worker built. */
   log: [] as string[],
+  /** The registry's entry as written, patch by patch. */
+  updates: [] as string[],
   settingsOnly: [] as Array<{ running: boolean }>,
   /** The sync records confirm remote files (cleared with them). */
   confirmed: false,
@@ -38,13 +43,23 @@ const state = vi.hoisted(() => ({
   /** What `.pvws/genesis.pvgen` answers in the vault's folder (R8 follow-up). */
   genesis: "none" as "none" | "found" | "error",
   /** A stored workspace status (a member) - with or without its keys. */
-  wsStatus: null as null | { phase: string },
+  wsStatus: null as null | { phase: string } | "unreadable",
+  /** A decommission or lift that passed its gate and stopped (`mobileDecommissionUnfinished`). */
+  decommissionUnfinished: null as null | "decommission" | "lift" | "unreadable",
   /** How often the genesis was read on its own. */
   genesisReads: 0,
   /** The settings store fails for the encrypted-remote fact. */
   brokenStore: false,
   /** The addresses this phone confirmed (F57). */
   confirmedEndpoints: new Set<string>(),
+  /** The vault on screen (a switch during a step moves it). */
+  activeId: "v",
+  /** The runtime on screen; null: the default vault's (`runtimeOnScreen`). */
+  screen: null as unknown,
+  /** Holds every worker's drain (a cycle that waits for a provider). */
+  drainGate: null as null | Promise<void>,
+  /** The vault left and opened anew when a step gave up waiting for its sync (vaultService). */
+  renew: vi.fn(async (_left: { drain: Promise<void> }): Promise<unknown> => undefined),
 }));
 
 vi.mock("@plainva/core", async (original) => {
@@ -52,7 +67,7 @@ vi.mock("@plainva/core", async (original) => {
     running = false;
     start() { this.running = true; }
     stop() { this.running = false; }
-    async stopAndDrain() { this.running = false; }
+    async stopAndDrain() { this.running = false; if (state.drainGate) await state.drainGate; }
     triggerImmediate() {}
     async pushSettingsNow() {}
   }
@@ -133,22 +148,40 @@ vi.mock("./cloudAccountsStore", () => ({
 }));
 vi.mock("./vaultRegistry", async (original) => ({
   ...await original<typeof import("./vaultRegistry")>(),
-  getActiveVaultEntry: async () => ({ id: "v" }),
+  getActiveVaultEntry: async () => ({ id: state.activeId }),
   newVaultId: () => "added",
   addVault: async () => undefined,
   getVaultEntry: async () => ({ id: "v", provider: "webdav", pausedHere: state.pausedHere, syncedBefore: state.syncedBefore }),
   updateVault: async (_id: string, patch: { pausedHere?: boolean; syncedBefore?: boolean }) => {
+    state.updates.push(JSON.stringify(patch));
     if (patch.pausedHere !== undefined) state.pausedHere = patch.pausedHere;
     if (patch.syncedBefore !== undefined) state.syncedBefore = patch.syncedBefore;
   },
 }));
-vi.mock("./vaultService", () => ({ getMobileVault: async () => vault, switchVault: vi.fn() }));
+vi.mock("./vaultService", () => ({ getMobileVault: async () => vault, switchVault: vi.fn(), renewAfterSyncGaveUp: state.renew, runtimeOnScreen: () => state.screen ?? vault, reloadActiveMobileVault: vi.fn(async () => true), transitionsSettled: async () => {} }));
 vi.mock("./flowVault", () => ({ enterMadeVault: async () => undefined }));
 vi.mock("./mobileSettingsSync", () => ({
   mobileSyncDeviceId: async () => "phone",
   prepareMobileSettingsSync: async (_v: unknown, _p: unknown, raw: unknown) => ({ target: raw, runner: { run: async () => undefined } }),
 }));
-vi.mock("./mobileWorkspaceSecurity", () => ({ loadMobilePublicationRuntime: async () => null, getMobileWorkspaceStatus: async () => state.wsStatus }));
+const r11 = vi.hoisted(() => ({
+  /** What the stand-in decommission does (`leaveWorkspaceStep` runs the real step around it). */
+  decomm: null as null | ((input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => Promise<void>),
+  liftMarkFails: false,
+}));
+vi.mock("./mobileWorkspaceSecurity", () => ({
+  decommissionMobileWorkspace: async (input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => { await r11.decomm!(input); },
+  markMobileEncryptionLift: async () => { if (r11.liftMarkFails) throw new Error("lift mark failed"); },
+  loadMobilePublicationRuntime: async () => null,
+  getMobileWorkspaceStatus: async () => {
+    if (state.wsStatus === "unreadable") throw new Error("preferences unreadable");
+    return state.wsStatus;
+  },
+  mobileDecommissionUnfinished: async () => {
+    if (state.decommissionUnfinished === "unreadable") throw new Error("preferences unreadable");
+    return state.decommissionUnfinished;
+  },
+}));
 vi.mock("../adapters/webdavHttp", () => ({ webdavFetch: vi.fn(), allowHttpOrigin: vi.fn() }));
 vi.mock("../adapters/syncUpload", () => ({ createContentRefResolver: () => ({}), mobileSyncUploader: {} }));
 
@@ -173,7 +206,11 @@ const vault = {
   reindexPaths: async () => undefined,
 } as unknown as MobileVault;
 
-import { connectProvider, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSyncAndDrain } from "./syncService";
+import { retireWorkspaceRuntime } from "./syncService";
+import { leaveWorkspaceStep } from "./workspaceLeaving";
+import { holdVaultSync } from "./syncHolds";
+import { armLeaveGuard, disarmLeaveGuard, foreignInputArmed } from "./leaveGuard";
+import { connectProvider, detachSync, foregroundSync, restartSync, startSyncAfterBoot, disconnectFiles, getSyncStatus, isFirstPullPending, listStoredProviderFolders, syncNow, pauseSyncHere, restartSyncIfActive, startSyncIfConfigured, stopSync, stopSyncForStep, withRuntimeStep, withVaultSyncStopped } from "./syncService";
 
 function holdTheStart(): void {
   let release = () => {};
@@ -194,6 +231,7 @@ beforeEach(() => {
   state.url = "https://dav.example.test/vault";
   state.settings.clear();
   state.log.length = 0;
+  state.updates.length = 0;
   state.gate = null;
   state.joinGate = null;
   state.confirmed = false;
@@ -204,15 +242,20 @@ beforeEach(() => {
   state.settingsOnly.length = 0;
   state.genesis = "none";
   state.wsStatus = null;
+  state.decommissionUnfinished = null;
   state.genesisReads = 0;
   state.brokenStore = false;
   state.confirmedEndpoints.clear();
+  state.drainGate = null;
+  state.activeId = "v";
+  state.screen = null;
 });
 
 afterEach(async () => {
+  state.drainGate = null;
   state.gate?.release();
   state.joinGate?.release();
-  await stopSyncAndDrain();
+  await detachSync().drain();
 });
 
 describe("a start still building its worker (third review, finding 4)", () => {
@@ -232,7 +275,7 @@ describe("a start still building its worker (third review, finding 4)", () => {
   it("is followed by the switch arriving from the settings profile", async () => {
     // A first start installs the listener for the switch.
     await startSyncIfConfigured(vault);
-    await stopSyncAndDrain();
+    await detachSync().drain();
     await vi.waitFor(() => expect(running()).toEqual({ workers: 0, settingsOnly: 0 }));
 
     holdTheStart();
@@ -330,7 +373,7 @@ describe("the sync state belongs to the folder, not the account (third review, f
 
   it("another folder drops queue and records before the worker is built", async () => {
     await startSyncIfConfigured(vault);
-    await stopSyncAndDrain();
+    await detachSync().drain();
     state.url = "https://dav.example.test/another-vault";
     await startSyncIfConfigured(vault);
     expect(state.log).toEqual(["worker", "clear queue", "clear records", "worker"]);
@@ -343,12 +386,15 @@ describe("an encrypted workspace's start that a stop overtakes (fourth review, f
     const promise = new Promise<boolean>((resolve) => { release = () => resolve(false); });
     state.joinGate = { reached: false, release, promise };
     const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {} } as unknown as MobileVault;
+    state.screen = workspaceVault;
+    // A runtime carries its workspace only with its status (the start loads them together).
+    state.wsStatus = { phase: "active" };
     const starting = startSyncIfConfigured(workspaceVault);
     await vi.waitFor(() => expect(state.joinGate?.reached).toBe(true));
     expect(getSyncStatus().status).toBe("syncing");
 
     // The vault is closed, or switched, while the join still runs.
-    await stopSyncAndDrain();
+    await detachSync().drain();
     state.joinGate.release();
     await starting;
 
@@ -364,6 +410,8 @@ describe("an encrypted workspace's first cycle (3.119)", () => {
     const markFirstSyncComplete = vi.fn();
     const sweepOwedToRemote = vi.fn();
     const workspaceVault = { ...vault, workspaceRuntime: {}, workspaceState: {}, markFirstSyncComplete, sweepOwedToRemote } as unknown as MobileVault;
+    state.screen = workspaceVault;
+    state.wsStatus = { phase: "active" };
     await startSyncIfConfigured(workspaceVault);
     const encrypted = state.workerHooks[state.workerHooks.length - 1];
     expect(encrypted?.onFirstCycleComplete).toBeTypeOf("function");
@@ -381,14 +429,14 @@ describe("a vault that synced before stays one, whatever its records say (fifth 
     state.confirmed = true;
     await startSyncIfConfigured(vault);
     expect(state.targets[0].allowRootCreation).toBe(false);
-    await stopSyncAndDrain();
+    await detachSync().drain();
     // Connected to another folder: the reset empties the records, and the
     // first cycle there confirms nothing (the folder briefly gone).
     state.url = "https://dav.example.test/another-vault";
     await startSyncIfConfigured(vault);
     expect(state.log).toContain("clear records");
     expect(state.confirmed).toBe(false);
-    await stopSyncAndDrain();
+    await detachSync().drain();
     // The next start: no folder is created; the target says it is missing.
     await startSyncIfConfigured(vault);
     expect(state.targets[2].allowRootCreation).toBe(false);
@@ -399,7 +447,7 @@ describe("a vault that synced before stays one, whatever its records say (fifth 
     expect(state.targets[0].allowRootCreation).toBe(true);
     state.workerHooks[0].onFirstCycleComplete?.({ skipped: [], conflictCopies: [] });
     await vi.waitFor(() => expect(state.syncedBefore).toBe(true));
-    await stopSyncAndDrain();
+    await detachSync().drain();
     await startSyncIfConfigured(vault);
     expect(state.targets[1].allowRootCreation).toBe(false);
   });
@@ -413,7 +461,7 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
       state.genesis = genesis;
       await startSyncIfConfigured(vault);
       expect(running().workers).toBe(1);
-      await stopSyncAndDrain();
+      await detachSync().drain();
       state.workers.length = 0;
     }
     expect(state.genesisReads).toBe(0);
@@ -452,7 +500,7 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     for (let i = 0; i < 2; i++) {
       await startSyncIfConfigured(vault);
       expect(running().workers).toBe(0);
-      await stopSyncAndDrain();
+      await detachSync().drain();
     }
     await startSyncIfConfigured(vault);
     expect(running().workers).toBe(1);
@@ -477,6 +525,419 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
   });
 
+  for (const leaving of ["decommission", "lift"] as const) {
+    it(`a vault whose ${leaving} passed its gate and stopped never starts the plain sync, and says what was asked for (review B2, round 9)`, async () => {
+      expect.hasAssertions();
+      state.decommissionUnfinished = leaving;
+      state.genesis = "error";
+      await startSyncIfConfigured(vault);
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+      expect(getSyncStatus()).toMatchObject({ status: "error", errorKind: "pair-required", message: i18n.t(leaving === "lift" ? "workspaceSecurity.liftUnfinished" : "workspaceSecurity.decommissionUnfinished") });
+    });
+  }
+
+  /*
+   * Review B2, round 10, SP1 (S1, S2): past its gate the runtime that still carries the workspace in memory is no
+   * valid one. A step that fails there gives it no sync back — the encrypted worker never runs on a workspace half
+   * gone — and opens the vault anew; the new runtime is held by the fact of the gate.
+   */
+  it("S1: a decommission failing past its gate on the open runtime starts no worker on it, and opens the vault anew", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    state.wsStatus = { phase: "active" };
+    await startSyncIfConfigured(ws).catch(() => undefined);
+    expect(running().workers).toBe(1);
+    vi.mocked(reloadActiveMobileVault).mockClear();
+    const outcome = await withRuntimeStep({ vaultId: "v", runtime: ws }, {
+      work: async (stop) => {
+        await stop();
+        // What `decommissionMobileWorkspace` has done when `removeSecret` throws: the fact written, the status gone.
+        state.wsStatus = null;
+        state.decommissionUnfinished = "decommission";
+        throw new Error("keychain failed after the gate");
+      },
+      reload: { own: "security-area", afterFailure: async () => state.decommissionUnfinished !== null },
+    }).then(() => "done", (e: Error) => e.message);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(outcome).toBe("keychain failed after the gate");
+    // THE DEFECT (SP1): the release started the encrypted worker again, on the runtime with the workspace in memory.
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    expect(getSyncStatus()).toMatchObject({ status: "error", message: i18n.t("workspaceSecurity.decommissionUnfinished") });
+    expect(reloadActiveMobileVault).toHaveBeenCalledWith("security-area", { runtime: ws });
+  });
+
+  it("round 11: a runtime past a decommission's gate gets no sync again, also once the fact is gone — and \"released\" never turns into \"joined\"", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    // The decommission finished: no status, no fact, the departure noted. A lift's queueing failed after it.
+    state.wsStatus = null;
+    state.decommissionUnfinished = null;
+    state.settings.set("encryptedRemote_v", { v: 2, state: "released", workspace: "ws-1" });
+    retireWorkspaceRuntime(ws);
+    await startSyncIfConfigured(ws).catch(() => undefined);
+    await restartSyncIfActive("v");
+    // THE DEFECT: the encrypted worker started on the runtime with the workspace in memory, and wrote "joined".
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "released" });
+    expect(getSyncStatus().status).toBe("off");
+  });
+
+  /*
+   * Review B2, round 11, SP-A (the reviewer's probes L-enqueue, L-liftMark, R-success, R-fail, R-reload-false,
+   * L-control), over the real `leaveWorkspaceStep` and the real `withRuntimeStep`; the decommission stands in for
+   * what it has done at the point of the failure — and tells its gate, as the real one does.
+   */
+  describe("past a decommission's gate, with or without its fact", () => {
+    const KEY = "encryptedRemote_v";
+    function wsVault(enqueue: () => Promise<void> = async () => undefined): MobileVault {
+      return { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {}, syncQueue: { ...(vault as unknown as { syncQueue: object }).syncQueue, enqueueAllLocalFiles: enqueue } } as unknown as MobileVault;
+    }
+    /** The real decommission run to its end: status gone, the fact of its gate gone, the departure noted. */
+    const completeDecommission = (departure: "released" | "left", gate = true) => async (input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => {
+      await input.stopSync();
+      if (gate) input.passedGate?.();
+      state.wsStatus = null;
+      state.decommissionUnfinished = null;
+      state.settings.set(KEY, departure === "released" ? { v: 2, state: "released", workspace: "unreadable-genesis" } : { v: 2, state: "left", peers: "others", workspace: "unreadable-genesis" });
+    };
+    /** A failure past the gate before the end: the fact of the gate set, the status gone. */
+    const failPastGate = (intent: "decommission" | "lift") => async (input: { stopSync: () => Promise<unknown>; passedGate?: () => void }) => {
+      await input.stopSync();
+      input.passedGate?.();
+      state.wsStatus = null;
+      state.decommissionUnfinished = intent;
+      throw new Error("keychain failed after the gate");
+    };
+    async function begin(ws: MobileVault): Promise<void> {
+      state.settings.set(KEY, { v: 2, state: "joined", workspace: "unreadable-genesis" });
+      state.screen = ws;
+      state.wsStatus = { phase: "active" };
+      state.genesis = "found";
+      await startSyncIfConfigured(ws).catch(() => undefined);
+      expect(running().workers).toBe(1);
+      vi.mocked(reloadActiveMobileVault).mockClear();
+    }
+    afterEach(() => { r11.decomm = null; r11.liftMarkFails = false; });
+
+    for (const variant of ["enqueue", "liftMark"] as const) {
+      for (const gate of [true, false]) {
+        it(`L-${variant}${gate ? "" : " (the gate not told)"}: a lift whose decommission finished, then ${variant} fails — no worker on the old runtime, "released" stays, the vault opens anew`, async () => {
+          expect.hasAssertions();
+          const ws = wsVault(variant === "enqueue" ? async () => { throw new Error("enqueue failed"); } : async () => undefined);
+          r11.liftMarkFails = variant === "liftMark";
+          r11.decomm = completeDecommission("released", gate);
+          await begin(ws);
+          const outcome = await leaveWorkspaceStep(ws, "lift").then(() => "done", (e: Error) => e.message);
+          await new Promise((r) => setTimeout(r, 50));
+          expect(outcome).not.toBe("done");
+          // THE DEFECT (SP-A): the release started the encrypted worker on the old runtime, and "released" became "joined".
+          expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+          expect(state.settings.get(KEY)).toMatchObject({ state: "released" });
+          if (gate) expect(reloadActiveMobileVault).toHaveBeenCalledWith("security-area", { runtime: ws });
+        });
+      }
+    }
+
+    it("R-success: a decommission that finished, whose own reload then fails — no worker on the old runtime, \"left\" stays", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("left");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      const outcome = await leaveWorkspaceStep(ws, "decommission").then(() => "done", (e: Error) => e.message);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(outcome).toBe("reload failed");
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+      expect(state.settings.get(KEY)).toMatchObject({ state: "left", peers: "others" });
+    });
+
+    for (const intent of ["decommission", "lift"] as const) {
+      it(`R-fail-${intent}: a failure past the gate whose reload fails too — held with the row's text, also after "Sync now" and coming online`, async () => {
+        expect.hasAssertions();
+        const ws = wsVault();
+        r11.decomm = failPastGate(intent);
+        await begin(ws);
+        vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+        await leaveWorkspaceStep(ws, intent).catch(() => undefined);
+        await new Promise((r) => setTimeout(r, 50));
+        syncNow();
+        window.dispatchEvent(new Event("online"));
+        await new Promise((r) => setTimeout(r, 50));
+        expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+        expect(state.settings.get(KEY)).toMatchObject({ state: "joined" });
+      });
+    }
+
+    it("R-reload-false: past the gate, the reload waits behind someone's input — no worker", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = failPastGate("decommission");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => false);
+      await leaveWorkspaceStep(ws, "decommission").catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    });
+
+    /*
+     * Review B2, round 12, MG-3 (the reviewer's probes Q1-reloadFails and R-success-reloadFails): a retired runtime
+     * that stays on screen because its step's reload failed. "Sync now", coming back and coming online try that
+     * reload again — never the sync on the old runtime.
+     */
+    const pokes = async () => {
+      const calls = () => vi.mocked(reloadActiveMobileVault).mock.calls.length;
+      const before = calls();
+      syncNow();
+      await new Promise((r) => setTimeout(r, 10));
+      const afterSyncNow = calls();
+      foregroundSync();
+      await new Promise((r) => setTimeout(r, 10));
+      const afterForeground = calls();
+      window.dispatchEvent(new Event("online"));
+      await new Promise((r) => setTimeout(r, 10));
+      return [afterSyncNow - before, afterForeground - afterSyncNow, calls() - afterForeground];
+    };
+
+    it("MG-3 (Q1-reloadFails): told its gate, the status stayed, the reload failed — each trigger tries the reload again, and the vault opened anew syncs as a whole workspace", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      await begin(ws);
+      r11.decomm = async (input) => { await input.stopSync(); input.passedGate?.(); throw new Error("preferences unwritable (status)"); };
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      expect(await leaveWorkspaceStep(ws, "decommission").then(() => "done", (e: Error) => e.message)).toBe("preferences unwritable (status)");
+      await new Promise((r) => setTimeout(r, 50));
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+      expect(getSyncStatus().status).toBe("off");
+      vi.mocked(reloadActiveMobileVault).mockClear();
+      vi.mocked(reloadActiveMobileVault).mockImplementation(async () => { throw new Error("reload failed again"); });
+      try {
+        // THE DEFECT (MG-3): none of the three did anything — the old runtime sat on "Sync paused" until a switch.
+        expect(await pokes()).toEqual([1, 1, 1]);
+        // No surface of its own (round 13, SP-1): input on any surface, the Security area's too, puts the reload off.
+        expect(vi.mocked(reloadActiveMobileVault).mock.calls.every((c) => c[0] === undefined && (c[1] as { runtime?: unknown }).runtime === ws)).toBe(true);
+      } finally { vi.mocked(reloadActiveMobileVault).mockImplementation(async () => true); }
+      expect(running(), "never the sync on the old runtime").toEqual({ workers: 0, settingsOnly: 0 });
+      // The next try succeeds: the vault opened anew, its status still there — a whole workspace, its encrypted worker runs.
+      const fresh = wsVault();
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { state.screen = fresh; await startSyncIfConfigured(fresh).catch(() => undefined); return true; });
+      syncNow();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(state.screen).toBe(fresh);
+      expect(running().workers).toBe(1);
+    });
+
+    it("MG-3 (R-success-reloadFails): the decommission finished, its own reload failed — each trigger tries the reload again, \"left\" stays", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("left");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      expect(await leaveWorkspaceStep(ws, "decommission").then(() => "done", (e: Error) => e.message)).toBe("reload failed");
+      await new Promise((r) => setTimeout(r, 50));
+      vi.mocked(reloadActiveMobileVault).mockClear();
+      expect(await pokes()).toEqual([1, 1, 1]);
+      expect(reloadActiveMobileVault).toHaveBeenCalledWith(undefined, { runtime: ws });
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+      expect(state.settings.get(KEY)).toMatchObject({ state: "left", peers: "others" });
+    });
+
+    it("SP-1 (round 13): input in the Security area puts off the reload a trigger asks for — a trigger is no surface that typed", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("left");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      await leaveWorkspaceStep(ws, "decommission").catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 50));
+      // The reload as it decides at its turn: put off behind input on a surface that is not its own (`vaultService`).
+      const decided: string[] = [];
+      vi.mocked(reloadActiveMobileVault).mockClear();
+      vi.mocked(reloadActiveMobileVault).mockImplementation(async (own) => { decided.push(foreignInputArmed(own) ? "put off" : "reloaded"); return !foreignInputArmed(own); });
+      armLeaveGuard({ id: "security-area", message: "the recovery code" });
+      try {
+        // Typed the recovery code, went to the password manager and came back.
+        foregroundSync();
+        await new Promise((r) => setTimeout(r, 10));
+        // THE DEFECT (SP-1): asked for the Security area's own surface, the reload went over the code without a question.
+        expect(decided).toEqual(["put off"]);
+      } finally {
+        disarmLeaveGuard("security-area");
+        vi.mocked(reloadActiveMobileVault).mockImplementation(async () => true);
+      }
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    });
+
+    it("MG-3: while something holds the vault's sync (a step at work, a reload waiting behind input), the triggers reload nothing — theirs is the reload", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("left");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { throw new Error("reload failed"); });
+      await leaveWorkspaceStep(ws, "decommission").catch(() => undefined);
+      await new Promise((r) => setTimeout(r, 50));
+      vi.mocked(reloadActiveMobileVault).mockClear();
+      const release = holdVaultSync("v");
+      try {
+        expect(await pokes()).toEqual([0, 0, 0]);
+      } finally { release(); }
+      await new Promise((r) => setTimeout(r, 10));
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    });
+
+    it("L-control: the same lift without a failure — the reload replaces the runtime, and the new one syncs plain", async () => {
+      expect.hasAssertions();
+      const ws = wsVault();
+      r11.decomm = completeDecommission("released");
+      await begin(ws);
+      vi.mocked(reloadActiveMobileVault).mockImplementationOnce(async () => { state.screen = { ...vault } as unknown as MobileVault; return true; });
+      expect(await leaveWorkspaceStep(ws, "lift").then(() => "done", (e: Error) => e.message)).toBe("done");
+      await new Promise((r) => setTimeout(r, 50));
+      expect(state.settings.get(KEY)).toMatchObject({ state: "released" });
+      await startSyncIfConfigured(state.screen as MobileVault);
+      expect(running().workers).toBe(1);
+    });
+  });
+
+  it("a runtime retired at the gate gets no sync, also where the status removal then failed and the status still stands (Q1) — until the vault opens anew", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    state.wsStatus = { phase: "active" };
+    retireWorkspaceRuntime(ws);
+    await startSyncIfConfigured(ws).catch(() => undefined);
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+  });
+
+  it("H-3 (round 12): a runtime whose status went after it opened, retired by no step — asked again, it is opened anew, never synced", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    state.wsStatus = null;
+    state.decommissionUnfinished = null;
+    await startSyncIfConfigured(ws).catch(() => undefined);
+    expect(getSyncStatus().status).toBe("off");
+    vi.mocked(reloadActiveMobileVault).mockClear();
+    syncNow();
+    await new Promise((r) => setTimeout(r, 10));
+    expect(reloadActiveMobileVault).toHaveBeenCalledWith(undefined, { runtime: ws });
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+  });
+
+  it("S2: the same vault opened anew, without its workspace in memory — held, with the row's text", async () => {
+    expect.hasAssertions();
+    state.screen = vault;
+    state.wsStatus = null;
+    state.decommissionUnfinished = "decommission";
+    await startSyncIfConfigured(vault).catch(() => undefined);
+    expect(running().workers).toBe(0);
+    expect(getSyncStatus()).toMatchObject({ status: "error", message: i18n.t("workspaceSecurity.decommissionUnfinished") });
+  });
+
+  it("a failure that leaves the runtime valid (before the gate) reloads nothing: the step's own failure, as before", async () => {
+    expect.hasAssertions();
+    vi.mocked(reloadActiveMobileVault).mockClear();
+    const outcome = await withRuntimeStep({ vaultId: "v", runtime: vault }, {
+      work: async (stop) => { await stop(); throw new Error("the keystore refused"); },
+      reload: { own: "security-area", afterFailure: async () => false },
+    }).then(() => "done", (e: Error) => e.message);
+    expect(outcome).toBe("the keystore refused");
+    expect(reloadActiveMobileVault).not.toHaveBeenCalled();
+  });
+
+  it("a held vault is asked again by \"Sync now\" once its decommission is finished (N6)", async () => {
+    expect.hasAssertions();
+    state.decommissionUnfinished = "decommission";
+    await startSyncIfConfigured(vault);
+    expect(running().workers).toBe(0);
+    // Finished elsewhere (the Security area): the fact is gone, and "Sync now" asks the gate again at once.
+    state.decommissionUnfinished = null;
+    syncNow();
+    await vi.waitFor(() => expect(running().workers).toBe(1));
+  });
+
+  it("a fact that cannot be read leaves a vault without a workspace in memory to its folder's gate, as on main (review B2, round 12)", async () => {
+    expect.hasAssertions();
+    state.decommissionUnfinished = "unreadable";
+    await startSyncIfConfigured(vault);
+    // THE DEFECT (round 12, question 1): every vault was held with "Sync error" while the settings store failed.
+    expect(running().workers).toBe(1);
+  });
+
+  for (const what of ["the fact", "the status"] as const) {
+    it(`a store that cannot be read (${what}) holds a runtime with a workspace in memory, and asks again by itself once it answers (N11, MG-A; round 12, questions 1 and 2)`, async () => {
+      expect.hasAssertions();
+      vi.useFakeTimers();
+      try {
+        const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+        state.screen = ws;
+        state.wsStatus = what === "the status" ? "unreadable" : { phase: "active" };
+        state.decommissionUnfinished = what === "the fact" ? "unreadable" : null;
+        await startSyncIfConfigured(ws);
+        expect(running().workers, "held: no encrypted worker on what may be half gone").toBe(0);
+        // THE DEFECT (round 12, question 2): a status that could not be read counted as gone — silent, "Sync paused".
+        expect(getSyncStatus().status).toBe("error");
+        // The store answers again: the hold asks again by itself, without "Sync now".
+        state.wsStatus = { phase: "active" };
+        state.decommissionUnfinished = null;
+        await vi.advanceTimersByTimeAsync(10 * 60_000);
+        for (let i = 0; i < 50 && running().workers === 0; i++) await vi.advanceTimersByTimeAsync(100);
+        expect(running().workers).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  }
+
+  it("Y12 (round 13): a runtime held because the store could not be read is asked again at once by \"Sync now\", before its timer", async () => {
+    expect.hasAssertions();
+    const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = ws;
+    state.wsStatus = { phase: "active" };
+    state.decommissionUnfinished = "unreadable";
+    await startSyncIfConfigured(ws);
+    expect(running().workers).toBe(0);
+    state.decommissionUnfinished = null;
+    syncNow();
+    for (let i = 0; i < 50 && running().workers === 0; i++) await new Promise((r) => setTimeout(r, 5));
+    // THE DEFECT (Y12): not held, "Sync now" asked nothing — only the timer, a minute later.
+    expect(running().workers).toBe(1);
+  });
+
+  it("Y17 (round 13): a timer of that hold left behind by a later start does nothing once the sync was stopped", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    try {
+      const ws = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+      state.screen = ws;
+      state.wsStatus = { phase: "active" };
+      state.decommissionUnfinished = "unreadable";
+      await startSyncIfConfigured(ws);
+      // A second start while held sets its own timer; the first one is left behind (H-2 of round 13).
+      await startSyncIfConfigured(ws);
+      expect(running().workers).toBe(0);
+      stopSync();
+      state.decommissionUnfinished = null;
+      await vi.advanceTimersByTimeAsync(30 * 60_000);
+      // THE DEFECT (Y17): the timer left behind restarted the sync that was stopped.
+      expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("MG-A: a step's question that fails after its failure counts as past the gate — the vault opens anew", async () => {
+    expect.hasAssertions();
+    vi.mocked(reloadActiveMobileVault).mockClear();
+    const outcome = await withRuntimeStep({ vaultId: "v", runtime: vault }, {
+      work: async (stop) => { await stop(); throw new Error("keychain failed"); },
+      reload: { own: "security-area", afterFailure: async () => { throw new Error("preferences unreadable"); } },
+    }).then(() => "done", (e: Error) => e.message);
+    expect(outcome).toBe("keychain failed");
+    expect(reloadActiveMobileVault).toHaveBeenCalledWith("security-area", { runtime: vault });
+  });
+
   it("a store that fails inside the rule does not stop the start", async () => {
     state.brokenStore = true;
     await expect(startSyncIfConfigured(vault)).resolves.toBeUndefined();
@@ -493,6 +954,8 @@ describe("the encrypted-workspace rule on the phone (R8)", () => {
   it("joining keeps the knowledge, as membership", async () => {
     known();
     const joined = { ...vault, workspaceRuntime: { memberId: "m", genesis: { kind: "genesis" } }, workspaceState: {} } as unknown as MobileVault;
+    state.screen = joined;
+    state.wsStatus = { phase: "active" };
     await startSyncIfConfigured(joined).catch(() => undefined);
     expect(state.settings.get("encryptedRemote_v")).toMatchObject({ state: "joined" });
   });
@@ -502,18 +965,20 @@ describe("the first pull of a vault (O8: a cloud vault arriving is not an empty 
   it("is pending from the worker's start until its first cycle is done, and nothing without a worker", async () => {
     expect(isFirstPullPending(getSyncStatus())).toBe(false);
     // A vault opened afresh: what earlier tests' pulls of `vault` failed does not carry over.
-    await startSyncIfConfigured({ ...vault } as MobileVault);
+    state.screen = { ...vault } as MobileVault;
+    await startSyncIfConfigured(state.screen as MobileVault);
     expect(getSyncStatus().firstPullDone).toBe(false);
     expect(isFirstPullPending(getSyncStatus())).toBe(true);
     const plain = state.workers[state.workers.length - 1] as { onFirstCycleComplete?: (outcome: { skipped: string[]; conflictCopies: string[] }) => void };
     plain.onFirstCycleComplete!({ skipped: [], conflictCopies: [] });
     expect(getSyncStatus().firstPullDone).toBe(true);
     expect(isFirstPullPending(getSyncStatus())).toBe(false);
-    await stopSyncAndDrain();
+    await detachSync().drain();
     expect(getSyncStatus().firstPullDone).toBeNull();
   });
   it("the first failure ends \"being loaded\" for the session, a new start included (third review of O8)", async () => {
     const opened = { ...vault } as MobileVault;
+    state.screen = opened;
     await startSyncIfConfigured(opened);
     expect(isFirstPullPending(getSyncStatus())).toBe(true);
     type W = { onStatusChange?: (status: "idle" | "syncing" | "retrying" | "error", message?: string, reason?: unknown, retryAt?: number) => void };
@@ -524,14 +989,331 @@ describe("the first pull of a vault (O8: a cloud vault arriving is not an empty 
     expect(getSyncStatus().firstPullFailed).toBe(true);
     expect(isFirstPullPending(getSyncStatus())).toBe(false);
     // The sync starts again for the same opened vault (settings, a return to the app): Home stays as it is.
-    await stopSyncAndDrain();
+    await detachSync().drain();
     await startSyncIfConfigured(opened);
     expect(getSyncStatus().firstPullDone).toBe(false);
     expect(isFirstPullPending(getSyncStatus())).toBe(false);
     // The vault opened again (a switch, a reload) is a pull of its own.
-    await stopSyncAndDrain();
-    await startSyncIfConfigured({ ...vault } as MobileVault);
+    await detachSync().drain();
+    state.screen = { ...vault } as MobileVault;
+    await startSyncIfConfigured(state.screen as MobileVault);
     expect(isFirstPullPending(getSyncStatus())).toBe(true);
+  });
+});
+
+/**
+ * A sync belongs to the runtime it started for. A close takes it off at once
+ * (`detachSync`) and drains it only after its saves; a save that hangs past
+ * the close's deadline used to leave the old worker in place — the next
+ * vault's start found it and started nothing, and the old vault's late drain
+ * then stopped whatever ran by then.
+ */
+describe("the sync of a vault that closes", () => {
+  it("is taken off at once: the next vault's sync starts while the old one still drains, and the late drain stops only its own", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
+    const old = state.workers[0];
+
+    // The close begins: the sync is taken off, its drain comes after the saves — which hang.
+    let answer!: () => void;
+    state.drainGate = new Promise<void>((r) => (answer = r));
+    const { drain } = detachSync();
+    expect(old.running, "its clock stopped at once").toBe(false);
+
+    // The next runtime opens meanwhile and starts its sync (another runtime object; the fakes here know one registry entry).
+    const next = { ...vault } as MobileVault;
+    state.screen = next;
+    await startSyncIfConfigured(next);
+    expect(state.workers, "a worker for the next vault").toHaveLength(2);
+    const mine = state.workers[1];
+    expect(mine.running).toBe(true);
+
+    // The old vault's drain, late: it reaches its own worker only.
+    const drained = drain();
+    answer();
+    await drained;
+    expect(mine.running, "the next vault's sync runs on").toBe(true);
+  });
+});
+
+/**
+ * Never two runtimes at one place, and the sync folder at the provider is a
+ * place: two vault entries can be bound to the same folder. While one of them
+ * closes with a request still open there, the other's sync waits for it — a
+ * late upload of the old runtime would land over what the new one sent.
+ */
+describe("a sync start at a folder where another vault's runtime still closes", () => {
+  afterEach(() => { resetClosingSyncPlacesForTests(); toast.clearAll(); });
+
+  const folder = (url: string) => syncStateBindingFor({ provider: "webdav", webdav: { url, user: "u" } });
+
+  it("waits until that runtime has ended, and starts then", async () => {
+    expect.hasAssertions();
+    let end!: () => void;
+    parkClosingSyncPlace(folder(state.url), "Other entry", new Promise<void>((r) => (end = r)));
+    const starting = startSyncIfConfigured(vault);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(state.workers, "nothing at the folder beside the closing runtime").toHaveLength(0);
+    end();
+    await starting;
+    expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
+  });
+
+  it("stops waiting when the sync is stopped meanwhile, and its notice (text 8) goes with it", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    try {
+      parkClosingSyncPlace(folder(state.url), "Other entry", new Promise<void>(() => undefined));
+      const starting = startSyncIfConfigured(vault);
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(toastStore.get().map((t) => t.message)).toEqual([i18n.t("closing.stillClosingSameFolder", { vault: "Other entry" })]);
+      // The vault is closed while its sync still waits for the folder.
+      detachSync();
+      await vi.advanceTimersByTimeAsync(0);
+      await starting;
+      // THE DEFECT: the notice stood after the vault that waited was closed.
+      expect(toastStore.get().map((t) => t.message)).toEqual([]);
+      expect(state.workers).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not wait for a runtime closing at another folder", async () => {
+    expect.hasAssertions();
+    parkClosingSyncPlace(folder("https://dav.example.test/elsewhere"), "Other entry", new Promise<void>(() => undefined));
+    await startSyncIfConfigured(vault);
+    expect(running()).toEqual({ workers: 1, settingsOnly: 0 });
+  });
+
+  it("the close names the folder its sync used, so the next start there waits for this runtime", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    const { place } = detachSync();
+    expect(place && sameSyncTarget(place, folder(state.url))).toBe(true);
+  });
+});
+
+/**
+ * A step that stops the sync to work on the vault — the security wizard, a
+ * password, files switched off — waits for its drain within the close's
+ * deadline, never without end. A cycle that does not end in time is left:
+ * the vault opens anew, the step goes on with the new runtime, and that
+ * runtime's start after its boot puts nothing in place until the step
+ * starts the sync itself.
+ */
+describe("a step that stops the sync", () => {
+  afterEach(() => { vi.useRealTimers(); state.renew.mockReset(); });
+
+  const otherVault = () => ({ ...vault, vaultId: "work" }) as MobileVault;
+  /** The step as its caller makes it: its vault and its runtime, from the press on. */
+  const step = () => ({ vaultId: "v", runtime: vault });
+
+  it("goes on with nothing where another vault is on screen already when it is called — and stops nothing of that one", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    // The caller had its vault; a switch (a link, a widget) came before the step's first line.
+    const other = otherVault();
+    state.screen = other;
+    const outcome = await stopSyncForStep(step()).then(() => "went on", (e: Error) => e.name);
+    // THE DEFECT (probe m5): the step read "the active vault", took that one's sync and went on with its runtime.
+    expect(outcome).toBe("StepNotRunError");
+    expect(running().workers, "the other vault's sync runs on").toBe(1);
+    expect(state.renew).not.toHaveBeenCalled();
+  });
+
+  for (const when of ["within the deadline", "after the deadline"] as const) {
+    it(`does not go on where the vault was switched away from while it waited (${when})`, async () => {
+      expect.hasAssertions();
+      await startSyncIfConfigured(vault);
+      let answer!: () => void;
+      state.drainGate = new Promise<void>((r) => (answer = r));
+      vi.useFakeTimers();
+      const stopping = stopSyncForStep(step()).then((v) => (v === null ? "the vault it has" : "a runtime"), (e: Error) => e.name);
+      await vi.advanceTimersByTimeAsync(10_000);
+      // The person switches to another vault while the step waits for its cycle.
+      state.screen = otherVault();
+      if (when === "within the deadline") answer();
+      await vi.advanceTimersByTimeAsync(20_000);
+      // THE DEFECT: the step went on — with its own, now closed runtime, or with the other vault's opened anew.
+      expect(await stopping).toBe("StepNotRunError");
+      expect(state.renew, "the vault on screen now is not left for the step").not.toHaveBeenCalled();
+      vi.useRealTimers();
+      answer();
+    });
+  }
+
+  it("does not go on where the same vault was left and opened again while it waited (away and back)", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    let answer!: () => void;
+    state.drainGate = new Promise<void>((r) => (answer = r));
+    const stopping = stopSyncForStep(step()).then((v) => (v === null ? "its old runtime" : "a runtime"), (e: Error) => e.name);
+    await new Promise((r) => setTimeout(r, 10));
+    // Away and back: the same vault, a new runtime of it.
+    state.screen = { ...vault } as MobileVault;
+    answer();
+    // THE DEFECT (probe m6): the vault's id matched, and the step went on with its old, closed runtime.
+    expect(await stopping).toBe("StepNotRunError");
+  });
+
+  it("a restart for a vault that is not on screen stops nothing of the one that is", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    const runningWorker = state.workers[state.workers.length - 1];
+    const built = state.workers.length;
+    // THE DEFECT (N11): asked for "work" with "v" on screen, the restart stopped and started "v"'s sync.
+    await restartSyncIfActive("work");
+    expect(runningWorker?.running, "the vault on screen keeps its worker").toBe(true);
+    expect(state.workers.length, "no worker built anew").toBe(built);
+  });
+
+  it("a restart in the start chain for a runtime no longer on screen starts nothing", async () => {
+    expect.hasAssertions();
+    // Nothing runs: the vault the restart was asked for is not on screen any more.
+    const before = state.workers.length;
+    state.screen = otherVault();
+    // THE DEFECT (MU6): a restart whose vault was left went on as if it had found nothing to stop, and started a worker.
+    await restartSync(vault);
+    expect(state.workers.length, "no new worker").toBe(before);
+  });
+
+  it("goes on with the vault it has where the sync ends in time", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    expect(await stopSyncForStep(step())).toBeNull();
+    expect(state.renew).not.toHaveBeenCalled();
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+  });
+
+  it("leaves the vault after 30 s, goes on with its new runtime, and that runtime's sync waits for the step", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    let answer!: () => void;
+    state.drainGate = new Promise<void>((r) => (answer = r));
+    const fresh = { ...vault } as MobileVault;
+    state.renew.mockImplementationOnce(async () => fresh);
+    vi.useFakeTimers();
+    let on: MobileVault | null | undefined;
+    let through!: () => void;
+    const working = new Promise<void>((r) => (through = r));
+    const stepping = withRuntimeStep(step(), {
+      work: async (stop) => {
+        on = await stop();
+        await working;
+      },
+    });
+    await vi.advanceTimersByTimeAsync(29_000);
+    // THE DEFECT: the step waited for the cycle for as long as it ran — with no end where a call hung.
+    expect(on, "within the deadline it still waits").toBeUndefined();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.waitFor(() => expect(on, "the step goes on with the new runtime").toBe(fresh));
+    expect(state.renew).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+
+    // The new runtime's start after its boot: held for the step, as is a restart from elsewhere.
+    state.screen = fresh;
+    await startSyncAfterBoot(fresh);
+    await restartSyncIfActive("v");
+    expect(running()).toEqual({ workers: 0, settingsOnly: 0 });
+    // The step through, its release starts the sync once.
+    through();
+    await stepping;
+    await vi.waitFor(() => expect(running()).toEqual({ workers: 1, settingsOnly: 0 }));
+    answer();
+  });
+});
+
+/**
+ * A step on a vault's sign-ins — a password, the broker, the files taken out
+ * — belongs to the vault, not to a runtime of it (`withVaultSyncStopped`): it
+ * holds the vault's sync from its first line to its end, stops what runs of
+ * it then, and never says it did not run (review B2 round 5, s1/s2).
+ */
+describe("a step on a vault's sign-ins", () => {
+  afterEach(() => { vi.useRealTimers(); state.renew.mockReset(); toast.clearAll(); });
+  const otherVault = () => ({ ...vault, vaultId: "work" }) as MobileVault;
+
+  it("stops only that vault's sync, and runs where another vault is on screen", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    state.screen = otherVault();
+    let ran = false;
+    await withVaultSyncStopped("v", async () => { ran = true; });
+    expect(ran).toBe(true);
+    expect(running().workers, "the other vault's sync runs on").toBe(1);
+  });
+
+  for (const start of ["startSyncAfterBoot", "startSyncIfConfigured"] as const) {
+    it(`leaves no sync of the vault running when it was left and opened again in the wait — files taken out (${start})`, async () => {
+      expect.hasAssertions();
+      await startSyncIfConfigured(vault);
+      let answer!: () => void;
+      state.drainGate = new Promise<void>((r) => (answer = r));
+      const disconnecting = disconnectFiles("v").then(() => "done", (e: Error) => e.name);
+      await new Promise((r) => setTimeout(r, 10));
+      // Away and back within the wait: the new runtime of the vault starts its sync.
+      state.drainGate = null;
+      const fresh = { ...vault } as MobileVault;
+      state.screen = fresh;
+      await (start === "startSyncAfterBoot" ? startSyncAfterBoot(fresh) : startSyncIfConfigured(fresh));
+      answer();
+      expect(await disconnecting).toBe("done");
+      // THE DEFECT (probe s1): the step compared with the runtime it began on; the new one's worker kept the sign-in.
+      expect(running().workers, "no sync runs for the account's files once they are taken out").toBe(0);
+    });
+  }
+
+  it("never says it did not run where its renew after the deadline meets a switch — it writes, and says nothing", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    state.drainGate = new Promise<void>(() => undefined);
+    // As vaultService does where the vault was left before the renew's turn: the step's runtime is not on screen.
+    state.renew.mockImplementationOnce(async (left: { drain: Promise<void>; notRun?: () => Error }) => { throw left.notRun!(); });
+    vi.useFakeTimers();
+    const disconnecting = disconnectFiles("v").then(() => "done", (e: Error) => e.name);
+    await vi.advanceTimersByTimeAsync(31_000);
+    const outcome = await disconnecting;
+    vi.useRealTimers();
+    // THE DEFECT (probe s2): "Nothing was changed" was said, and then the sign-in was taken out.
+    expect(outcome).toBe("done");
+    expect(toastStore.get().map((t) => t.message).filter((m) => /did not run|nicht gelaufen/.test(m))).toEqual([]);
+    expect(state.updates, "the files are taken out").toEqual(['{"pausedHere":false}']);
+  });
+
+  it("starts the vault's sync again where the step fails: it changed nothing", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    await expect(withVaultSyncStopped("v", async () => { throw new Error("keychain locked"); })).rejects.toThrow("keychain locked");
+    await vi.waitFor(() => expect(running().workers).toBe(1));
+  });
+
+  it("holds every start of the vault while it runs, and lets the one after it start", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    let during = -1;
+    await withVaultSyncStopped("v", async () => {
+      await startSyncAfterBoot(vault);
+      await startSyncIfConfigured(vault);
+      during = running().workers;
+    });
+    expect(during, "nothing of the vault's sync starts while the step holds it").toBe(0);
+    await restartSyncIfActive("v");
+    expect(running().workers).toBe(1);
+  });
+});
+
+describe("the sync loaded lazily (performance plan L5)", () => {
+  it("is taken off at once by a close in vaultService, which never imports it at the start", async () => {
+    expect.hasAssertions();
+    await startSyncIfConfigured(vault);
+    expect(running().workers).toBe(1);
+    // As `settleBeforeClosing` does: synchronously, through what the sync registered as its module loaded.
+    const taken = detachLoadedSync();
+    expect(taken.running, "the close found the running sync").toBe(true);
+    expect(running().workers, "and took it off before anything waited").toBe(0);
+    await taken.drain();
   });
 });
 
@@ -541,6 +1323,7 @@ describe("the plain sync's first cycle (stability plan R22)", () => {
     const markFirstSyncComplete = vi.fn();
     const sweepOwedToRemote = vi.fn();
     const plainVault = { ...vault, markFirstSyncComplete, sweepOwedToRemote } as unknown as MobileVault;
+    state.screen = plainVault;
     await startSyncIfConfigured(plainVault);
     const plain = state.workerHooks[state.workerHooks.length - 1];
     expect(plain?.onFirstCycleComplete).toBeTypeOf("function");

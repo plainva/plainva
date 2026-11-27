@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -97,6 +98,21 @@ public class WebDavHttpPlugin extends Plugin {
             }
         }
         return false;
+    }
+
+    /**
+     * The calls still running, by the id the web layer gave them: a request it
+     * gives up waiting for is cancelled here (`cancel`), so it does not run on
+     * until `callTimeout` and reach the provider late.
+     */
+    private final ConcurrentHashMap<String, Call> running = new ConcurrentHashMap<>();
+
+    @PluginMethod
+    public void cancel(PluginCall call) {
+        String id = call.getString("id");
+        Call http = id == null ? null : running.remove(id);
+        if (http != null) http.cancel();
+        call.resolve();
     }
 
     static final OkHttpClient client = new OkHttpClient.Builder()
@@ -270,15 +286,20 @@ public class WebDavHttpPlugin extends Plugin {
             if (value != null) builder.header(key, value);
         }
 
-        client.newCall(builder.build()).enqueue(new Callback() {
+        final String requestId = call.getString("requestId", null);
+        Call http = client.newCall(builder.build());
+        if (requestId != null) running.put(requestId, http);
+        http.enqueue(new Callback() {
             @Override
             public void onFailure(Call c, IOException e) {
+                if (requestId != null) running.remove(requestId, c);
                 String code = HttpFailure.code(e);
                 call.reject(code, code);
             }
 
             @Override
             public void onResponse(Call c, Response response) {
+                if (requestId != null) running.remove(requestId, c);
                 File spilled = null;
                 try (Response ownedResponse = response) {
                     JSObject responseHeaders = new JSObject();

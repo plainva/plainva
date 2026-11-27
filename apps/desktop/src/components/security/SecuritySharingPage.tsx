@@ -3,7 +3,7 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { readFile, writeFile } from "@tauri-apps/plugin-fs";
 import { InfoTip, Banner, Button, ICON, Modal, dismissEncryptedRemote, encryptedRemoteDismissable, encryptedRemoteFilePorts, useDiscardGuard, QrImage, Select, SettingCard, SettingCardBlock, SettingCardNote, SettingRow, TextInput, publicationErrorText, publicationInstructionText, publicationStatusText, toast, type SecurityAreaId } from "@plainva/ui";
 import { useTranslation } from "react-i18next";
-import { useForeignLegacyComments } from "@plainva/ui";
+import { isStepNoticeError, useForeignLegacyComments } from "@plainva/ui";
 import { useVault } from "../../contexts/VaultContext";
 import { defaultPublishedPropertyPolicy, publishedSliceProviderInstructions, type PublicationRecipient, type PublishedProjectionPreview, type PublishedSliceMode, type PublishedSliceProvider, type WorkspacePublicationRecord, type WorkspaceSliceObject } from "@plainva/core/workspace";
 import { appConfirm } from "../../services/appDialogs";
@@ -241,7 +241,11 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
     // publicationErrorText leaves anything it does not recognise untouched, so
     // the non-publication actions keep the message they always showed; the five
     // publication codes stop reaching the person as "publication-key-missing".
-    catch (error) { console.error("[SecuritySharingPage] governance action failed", error); toast.error(publicationErrorText(error, t)); }
+    catch (error) {
+      console.error("[SecuritySharingPage] governance action failed", error);
+      // A step's own notice (restoring access: not run, did not finish) is the one word.
+      if (!isStepNoticeError(error)) toast.error(publicationErrorText(error, t));
+    }
     finally { setBusy(false); }
   };
 
@@ -351,7 +355,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       await refreshDiagnostics();
     } catch (error) {
       console.error("[SecuritySharingPage] resuming setup failed", error);
-      toast.error(t("workspaceSecurity.setupFailed"));
+      // A step's own notice (not run, did not finish) is the one word: no second one.
+      if (!isStepNoticeError(error)) toast.error(t("workspaceSecurity.setupFailed"));
     } finally { setBusy(false); }
   };
 
@@ -388,7 +393,8 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       toast.info(t("workspaceSecurity.decommissionDone"));
     } catch (error) {
       console.error("[SecuritySharingPage] workspace decommission failed", error);
-      toast.error(t("workspaceSecurity.decommissionFailed"));
+      // A step's own notice (not run, did not finish) is the one word: no second one.
+      if (!isStepNoticeError(error)) toast.error(t("workspaceSecurity.decommissionFailed"));
     } finally { setBusy(false); }
   };
 
@@ -406,7 +412,7 @@ export const SecuritySharingPage: React.FC<SecuritySharingPageProps> = ({ select
       toast.info(t("workspaceSecurity.liftEncryptionDone"));
     } catch (error) {
       console.error("[SecuritySharingPage] lift encryption failed", error);
-      toast.error(t("workspaceSecurity.liftEncryptionFailed"));
+      if (!isStepNoticeError(error)) toast.error(t("workspaceSecurity.liftEncryptionFailed"));
     } finally { setBusy(false); }
   };
 

@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
+import { vaultEntryName } from "./vaultEntryName";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import ts from "typescript";
+import { holdVaultSync, syncReleased, vaultSyncHeld } from "./syncHolds";
 import { noteFullTextDamage, readFullTextDamage, type IDatabaseAdapter } from "@plainva/core";
-import { indexDatabaseRebuildOffered } from "@plainva/ui";
+import { closeWaitNoteName, parkClosingSyncPlace, waitForClosingVault, indexDatabaseRebuildOffered, waitWithDeadline } from "@plainva/ui";
 import { armLeaveGuard, armedLeaveGuards, disarmLeaveGuard, foreignInputArmed, resetLeaveGuard } from "./leaveGuard";
 import { resetScreenStepsForTest, takeScreen } from "./screenStep";
 import { retiredBoot } from "./bootRetirement";
@@ -22,14 +24,14 @@ import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 
 const source = readFileSync(resolve("src/services/vaultService.ts"), "utf8");
 const file = ts.createSourceFile("vaultService.ts", source, ts.ScriptTarget.Latest, true);
-const NAMES = ["retireBoot", "reloadActiveMobileVault", "offerReload", "rebuildActiveIndexDatabase", "rebuildOpenMobileIndexDatabase"];
+const NAMES = ["leaveScreen", "backOnScreen", "clearScreen", "screenTransition", "drainedOnce", "inScreenTransitions", "rebuildOpenIndexDatabaseOf", "retireBoot", "retiredStart", "runtimeOnScreen", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "reloadActiveMobileVault", "offerReload", "rebuildActiveIndexDatabase", "rebuildOpenMobileIndexDatabase"];
 const parts: string[] = [];
 ts.forEachChild(file, (node) => {
   if (ts.isFunctionDeclaration(node) && node.name && NAMES.includes(node.name.text)) parts.push(node.getText(file).replace(/^export /, ""));
 });
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(initial); let bootSettled = true; let bootAbort = null;\n" +
-    "const ABANDON_BOOT_AFTER_MS = 2000; const RELOAD_STEP = \"vault-reload\"; const LOCAL_VAULT_ID = \"local\";\n" +
+  "let screenTransitions = Promise.resolve(); let bootPromise = Promise.resolve(initial); let screen = { state: 'open', of: bootPromise, runtime: initial }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let bootEntryAnswer = Promise.resolve(null);\n" +
+    "const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const RELOAD_STEP = \"vault-reload\"; const LOCAL_VAULT_ID = \"local\";\n" +
     parts.join("\n") +
     "\nreturn { rebuildActiveIndexDatabase };",
   { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
@@ -48,13 +50,20 @@ async function harness(opts: { workspace?: boolean; failed?: boolean } = {}) {
     db,
     indexDatabaseFailure: null,
     isEncryptedWorkspace: !!opts.workspace,
-    dispose: vi.fn(async () => { order.push("dispose"); }),
+    ended: vi.fn(async () => {}), flushOwed: vi.fn(async () => {}), dispose: vi.fn(async () => { order.push("dispose"); }),
   };
+  const stopSyncAndDrain = vi.fn(async () => { order.push("drain"); });
   const deps = {
+    holdVaultSync, syncReleased, vaultSyncHeld,
     retiredBoot,
     initial: vault,
-    noteSaver: { flushAll: vi.fn(async () => { order.push("save"); }) },
-    stopSyncAndDrain: vi.fn(async () => { order.push("drain"); }),
+    noteSaver: { flushAll: vi.fn(async () => { order.push("save"); }), pendingPaths: () => [] },
+    // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, vaultEntryName, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
+    reportingTo: () => () => {},
+    stopSyncAndDrain,
+    // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
+    detachSync: () => ({ drain: () => stopSyncAndDrain(), place: null, running: true }),
     getActiveVaultEntry: async () => ({ id: "v1", name: "" }),
     setAsideMobileIndexDatabase: vi.fn(async (name: string) => { order.push(`set aside ${name}`); return `${name}.broken-1`; }),
     indexDatabaseRebuildOffered,

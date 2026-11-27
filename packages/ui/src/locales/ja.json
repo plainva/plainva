@@ -3711,6 +3711,7 @@
   "sync": {
     "error": "同期エラー——クリックで詳細と再試行",
     "retryingAt": "接続がありません — {{time}} に再試行します",
+    "stuck": "同期が {{minutes}} 分間止まっています。実行中の処理が終わり次第、Plainva が同期をやり直します。アプリを再起動するとすぐに終わります。",
     "retrying": "Plainva が同期を再試行しています…",
     "syncing": "同期中...",
     "syncingCount": "同期 {{current}}/{{total}}",
@@ -6019,6 +6020,13 @@
     "eventConflict": "予定がリモートで変更されました — 表示を更新しました。",
     "eventWriteFailed": "プロバイダーへの保存に失敗しました。",
     "eventWriteRefused": "予定は保存されませんでした: {{reason}}",
+    "eventCreateLost": "プロバイダーに新しい予定「{{title}}」がありません。",
+    "notShownYetEventChange": "プロバイダーはまだ新しい予定を表示していません。変更は保存されませんでした。少し待ってからもう一度お試しください。",
+    "notShownYetEventDelete": "プロバイダーはまだ新しい予定を表示していません。何も削除されていません。少し待ってからもう一度お試しください。",
+    "notShownYetTaskChange": "プロバイダーはまだ新しいタスクを表示していません。変更は保存されませんでした。少し待ってからもう一度お試しください。",
+    "notShownYetTaskDelete": "プロバイダーはまだ新しいタスクを表示していません。何も削除されていません。少し待ってからもう一度お試しください。",
+    "eventMoveLost": "プロバイダーに移動した予定「{{title}}」がありません。元のカレンダーからは削除されています。",
+    "blockerCreateLost": "プロバイダーに新しいブロック「{{title}}」がありません。",
     "eventDeleteRefused": "予定は削除されませんでした: {{reason}}",
     "eventWriteRetry": "再試行",
     "eventSending": "送信中",
@@ -7100,6 +7108,8 @@
     "decommissionNote": "ローカルの鍵を削除します。クラウド上の暗号化ファイルは残るため、あとでフォルダーを自分で削除してください。",
     "decommissionTypeName": "確認のため、Vault の名前を入力してください: {{name}}",
     "decommissionNameMismatch": "Vault の名前が違います。何も変更されていません。",
+    "decommissionUnfinished": "このデバイスで廃止が完了していません。それまでこの Vault は何も同期しません。その後、フォルダーをどうするか決めてください。",
+    "liftUnfinished": "暗号化の解除が完了していません。廃止として終わります。それまでは何も同期せず、その後フォルダーを決めてください。",
     "orphanRecovery": "クラウド上のワークスペースが見つからないか破損しています。同期は停止したままです。下で廃止してリセットしてください。",
     "setupTitle": "暗号化ワークスペースを設定",
     "setupProgress": "設定ステップ{{step}}/3",
@@ -8237,5 +8247,19 @@
     "guide": "ガイドを開く",
     "statusNotYet": "未接続",
     "stepSetUp": "設定"
+  },
+  "closing": {
+    "savingWait": "Plainva は 「{{name}}」 をまだ保存しています。終わると先に進みます。",
+    "savingWaitMany_other": "Plainva は {{count}} 件のノートをまだ保存しています。終わると先に進みます。",
+    "syncWait": "「{{vault}}」 の同期処理がまだ実行中です。終わると先に進みます。",
+    "openingWait": "「{{vault}}」 はまだ開いている途中です。終わると先に進みます。",
+    "savingGaveUp": "「{{name}}」 はまだ保存が完了していません。Plainva は先に進みます。保存はバックグラウンドで最後まで続き、テキストは下書きにも残ります。",
+    "savingGaveUpMany_other": "{{count}} 件のノートはまだ保存が完了していません。Plainva は先に進みます。保存はバックグラウンドで最後まで続き、テキストは下書きにも残ります。",
+    "syncGaveUp": "「{{vault}}」 の同期処理が完了しませんでした。Plainva はそれを止めて先に進みます。失われるものはありません。足りない分は次の同期で取り戻されます。",
+    "openingGaveUp": "「{{vault}}」 を開き終えられませんでした。Plainva は応答があり次第、それを閉じて削除します。",
+    "stillClosing": "「{{vault}}」 はまだ閉じている途中です。終わると Plainva がもう一度開きます。",
+    "stillClosingSameFolder": "「{{vault}}」 は同じ同期フォルダーを使っていて、まだ閉じている途中です。終わると同期が始まります。",
+    "stepNotRun": "処理は実行されませんでした: 「{{vault}}」 が閉じられているか開き直されている途中だったか、もう一度開けませんでした。何も変更されていません。保管庫が開いたら、もう一度お試しください。",
+    "stepInterrupted": "「{{vault}}」 の処理は完了しませんでした: 実行中に保管庫が閉じられたか、開き直されました。一部はすでに済んでいる可能性があります。保管庫が開いたら、足りないものを確認してください。"
   }
 }

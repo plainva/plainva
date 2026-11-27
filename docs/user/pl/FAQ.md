@@ -1,6 +1,6 @@
 # FAQ i rozwiązywanie problemów
 
-Stan na: 2026-11-18
+Stan na: 2026-11-26
 
 Odpowiedzi na najczęstsze pytania — od zgodności z Obsidian, przez pliki konfliktów, po kopie zapasowe.
 
@@ -149,6 +149,10 @@ Gwiezdna Flota zasadniczo nie komentuje plotek. Ale podobno logo na pasku tytuł
 ### Część okna pokazuje „Nie można wyświetlić tego obszaru”
 
 Nie udało się narysować jednego obszaru: karty, sekcji paska bocznego, widoku bazy danych, wiadomości, strony ustawień, okna dialogowego albo na telefonie ekranu lub arkusza. Zastępowany jest tylko ten obszar; reszta działa dalej, a otwarta notatka zachowuje swój tekst. **Załaduj ten obszar ponownie** rysuje obszar od nowa. Jeśli nie uda się po raz drugi, komunikat to mówi i zostaje: zamknij kartę (**Zamknij kartę**) albo na telefonie dotknij **Wstecz**, a jeśli to się powtarza, uruchom Plainva ponownie. Błąd jest zapisany w **Informacje i diagnostyka**; eksport diagnostyki stamtąd nie zawiera treści notatek i pomaga przy zgłoszeniu błędu.
+
+### Dlaczego zamykanie vaultu czasem chwilę trwa?
+
+Przy zamykaniu, przełączaniu, ponownym wczytywaniu lub usuwaniu vaultu Plainva czeka, aż notatki zostaną zapisane, a trwający krok synchronizacji się zakończy – z jednym terminem na całe zamykanie. Jeśli trwa to dłużej niż 5 sekund, komunikat mówi, na co Plainva czeka. Po 30 sekundach Plainva przechodzi dalej i nic nie ginie: zapis, który jeszcze się nie zakończył, kończy się w tle, a tekst jest też w szkicu; niedokończony krok synchronizacji zostaje zatrzymany, a następna synchronizacja uzupełni to, czego brakuje. Vault, który przy usuwaniu wciąż się otwiera, zostaje zamknięty i usunięty, gdy tylko odpowie. Jeśli otworzysz ten sam vault ponownie, gdy wciąż się zamyka, Plainva to pokaże i otworzy go, gdy tylko się zamknie i żadne jego żądanie nie będzie już trwać u dostawcy – nigdy dwa razy naraz. Jeśli inny vault używa tego samego folderu synchronizacji, jego synchronizacja zacznie się dopiero wtedy, gdy ten vault się zamknie. Kroki, które zatrzymują synchronizację – na przykład przy konfigurowaniu szyfrowanego workspace albo zmianie hasła – również czekają najwyżej 30 sekund; potem Plainva otwiera vault ponownie i tam kończy krok. Jeśli vault zostanie w międzyczasie zamknięty lub ponownie otwarty albo nie da się go ponownie otworzyć, krok dotyczący szyfrowanego workspace lub folderu synchronizacji pokaże, jeśli w ogóle nie został wykonany albo nie został ukończony; nowego hasła ani nowego logowania to nie wstrzymuje. Jeśli synchronizacja stoi od 15 minut, pokazuje to wiersz stanu; Plainva uruchomi ją ponownie, gdy tylko zakończy się bieżący krok, a ponowne uruchomienie aplikacji kończy ją od razu.
 
 ## Zobacz też
 

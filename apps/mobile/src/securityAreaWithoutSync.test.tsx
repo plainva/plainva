@@ -28,7 +28,7 @@ vi.mock("./services/syncService", () => ({
   findMobileWorkspaceObjectStore: store.find,
   getMobileRemoteWorkspaceInfo: vi.fn(async () => { throw new Error("sync connection required"); }),
   quarantineSync: vi.fn(),
-  stopSyncAndDrain: vi.fn(async () => undefined),
+  stopSyncForStep: vi.fn(async () => null),
   restartSyncIfActive: vi.fn(async () => undefined),
   mobileEncryptedRemotePorts: vi.fn(async () => ({ load: async () => null, save: async () => undefined, clear: async () => undefined })),
 }));

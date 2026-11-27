@@ -32,6 +32,7 @@ import {
 } from "./profileFile.js";
 import { SETTINGS_ENC_PATH, memberProfilePath } from "./paths.js";
 import { FatalSyncProtocolError } from "./errors.js";
+import { CalledOffError } from "../sync/callOff.js";
 
 /** Shell-implemented bridge between the profile document and the native store. */
 export interface ProfileSettingsPort {
@@ -122,6 +123,13 @@ export interface SettingsSyncStepOptions {
    * vault locked, no cycle yet) look identical from the outside.
    */
   onExchange?: (info: SettingsExchangeInfo) => void | Promise<void>;
+  /**
+   * Whether the vault's runtime may still apply what this step got
+   * (`createVaultCallOff`): the app's settings lie past its fenced storage,
+   * and a late answer of a called-off runtime must not overwrite what the
+   * next one set. Absent: always.
+   */
+  allows?: () => boolean;
   /**
    * Reports a profile written before the canonical account projection. The
    * payload is redacted: no values or field names leave the profile step.
@@ -253,7 +261,10 @@ export class SettingsSyncStep {
       .concat(Object.keys(current).filter((k) => !(k in desired)))
       .sort();
     const changed = changedNames.length > 0;
-    if (changed) await this.options.port.applyValues(desired);
+    if (changed) {
+      if (this.options.allows && !this.options.allows()) throw new CalledOffError("settings sync");
+      await this.options.port.applyValues(desired);
+    }
 
     const adopted = results.find((r) => r.adoptedFrom);
     if (adopted?.adoptedFrom) {
@@ -262,6 +273,7 @@ export class SettingsSyncStep {
     }
     const downloaded = this.combinePartitionEvents(results.map((result) => result.downloaded));
     const uploaded = this.combinePartitionEvents(results.map((result) => result.uploaded));
+    if (this.options.onExchange && this.options.allows && !this.options.allows()) throw new CalledOffError("settings sync");
     await this.options.onExchange?.({
       checked: {
         fields: Object.keys(current).length,

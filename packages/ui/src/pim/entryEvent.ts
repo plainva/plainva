@@ -1,9 +1,11 @@
+import { createTryFor, createVaultKey, forgetCreateUid } from "./createUids";
 import {
   setFrontmatterPath,
   readFrontmatterPath,
   updateVaultText,
   wikiTargetForPath,
   type IVaultAdapter,
+  type PimEventCreate,
   type PimEventDraft,
   type PimEventRow,
 } from "@plainva/core";
@@ -107,7 +109,7 @@ export interface CreateEntryEventOptions {
    * (conflict guard, error surface, immediate re-pull). Everything that decides
    * what the LINK means stays here.
    */
-  createEvent: (calendarKey: string, draft: PimEventDraft) => Promise<{ uid: string }>;
+  createEvent: (calendarKey: string, draft: PimEventCreate) => Promise<{ uid: string }>;
   /** "<accountId> <calendarId>" as picked. */
   calendarKey: string;
   notePath: string;
@@ -141,7 +143,10 @@ export async function createEntryEvent(opts: CreateEntryEventOptions): Promise<C
     durationMinutes: opts.durationMinutes,
     noteTarget,
   });
-  const res = await opts.createEvent(opts.calendarKey, draft);
+  // The same appointment tried again keeps its uid (issue 119).
+  const where = `${createVaultKey(opts.adapter)} ${opts.calendarKey}`;
+  const res = await opts.createEvent(opts.calendarKey, { ...draft, ...createTryFor("entry-event", where, { note: opts.notePath, draft }, draft) });
+  forgetCreateUid("entry-event", where, { note: opts.notePath, draft });
 
   // `anchored` is decided here and nowhere else: the appointment already
   // exists, so a note that cannot be written is a warning, not a rollback.

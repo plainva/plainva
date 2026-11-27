@@ -285,6 +285,14 @@ export interface PimEventDraft {
    * `undefined` leaves the link as it is, `null` removes it — the blocker
    * becomes an ordinary event (K3: "move only this blocker"). */
   blockOf?: string | null;
+  /**
+   * Creates only: the uid the new event is to carry, where the provider lets
+   * the client name it (CalDAV). Made once per create of the person
+   * (`newPimCreateUid`) and sent with every try of it, so a "Try again" finds
+   * the event it already left on the server instead of making a second one
+   * (issue 119). Providers that name their own ids ignore it.
+   */
+  createAs?: string;
   /** The event's own list of its blockers (K3). `undefined` leaves the remote
    * list untouched — every ordinary write — and an array REPLACES it; an empty
    * one clears it. */
@@ -330,7 +338,25 @@ export interface PimTaskDraft {
    */
   notes?: string;
   completed: boolean;
+  /** Creates only: as `PimEventDraft.createAs`. */
+  createAs?: string;
 }
+
+/**
+ * What a create is sent with: the draft and the uid of this create of the
+ * person (issue 119). Required, so no caller can create without one: "Try
+ * again" sends the same uid, and a provider that lets the client name the
+ * event (CalDAV) finds the event the first try left instead of making a
+ * second one. `newPimCreateUid` makes one; `createUidFor` keeps one per
+ * action across tries. `createSent` says a try is not the first of its
+ * create, and carries every version its earlier tries sent or set out to send
+ * (a try that failed may still have landed): CalDAV writes over the object it
+ * meets at the address only where it says one of them, and otherwise creates
+ * anew under a uid of its own (`docs/engineering/Calendar_Create_Tries.md`).
+ * The uid in the result is the one the provider holds the create under.
+ */
+export type PimEventCreate = PimEventDraft & { createAs: string; createSent?: PimEventDraft[] };
+export type PimTaskCreate = PimTaskDraft & { createAs: string; createSent?: PimTaskDraft[] };
 
 /**
  * What a task update reports back.
@@ -357,6 +383,32 @@ export interface PimWriteResult {
   uid: string;
   etag?: string;
   href?: string;
+}
+
+/** The `PimNotShownYetError` an error is or carries in its message (over the bus only the message crosses). */
+export function notShownYetOf(error: unknown): { what: "event" | "task"; action: "change" | "delete" } | null {
+  if (error instanceof PimNotShownYetError) return { what: error.what, action: error.action };
+  const m = error instanceof Error ? /does not show this new (event|task) yet - (nothing was deleted|the change was not saved)/.exec(error.message) : null;
+  return m ? { what: m[1] as "event" | "task", action: m[2] === "nothing was deleted" ? "delete" : "change" } : null;
+}
+
+/**
+ * An edit of an event this app created a moment ago, which the provider does
+ * not show yet (issue 119). Not "gone" and not "refused": the change can be
+ * sent again in a moment. Its message is what the person reads after "The
+ * event was not saved:" - also in an auxiliary window, where only the message
+ * crosses.
+ */
+export class PimNotShownYetError extends Error {
+  constructor(
+    readonly what: "event" | "task" = "event",
+    readonly action: "change" | "delete" = "change",
+  ) {
+    // The message carries both, so a window that receives only the message
+    // (over the bus) can still say the right sentence (`notShownYetOf`).
+    super(`your provider does not show this new ${what} yet - ${action === "delete" ? "nothing was deleted" : "the change was not saved"}; try again in a moment`);
+    this.name = "PimNotShownYetError";
+  }
 }
 
 /** The remote object changed since we last saw it (HTTP 412 / etag mismatch).
@@ -432,7 +484,7 @@ export interface IPimTarget {
   listTaskLists(collections?: PimCalendar[]): Promise<PimTaskList[]>;
   pullTasks(listId: string): Promise<PullTasksResult>;
   /** Creates a single event; recurring events are out of scope until stage 4. */
-  createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult>;
+  createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult>;
   /** Updates a single event. Throws PimConflictError when the remote object
    * moved past `ref.etag`. Providers preserve fields the draft does not carry
    * (partial update / read-modify-write). */
@@ -458,7 +510,15 @@ export interface IPimTarget {
    * the provider notify the organiser. Providers without native scheduling
    * (or where the user is not an attendee) may leave this undefined. */
   respondToEvent?(ref: PimEventRef, response: "accepted" | "declined" | "tentative"): Promise<{ etag?: string } | void>;
-  createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult>;
+  /**
+   * Whether the provider holds this event now (issue 119): a created event
+   * that no sync has listed for a while is asked about before it leaves the
+   * screen. `false` only for "not there"; anything else the provider says is
+   * thrown. Providers that cannot be asked leave it undefined - their event
+   * stays on screen.
+   */
+  eventExists?(ref: PimEventRef): Promise<boolean>;
+  createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult>;
   /** Updates a task (title/due/completed/notes). Etag-guarded where the
    * provider supports it (CalDAV, Graph); Google Tasks is last-write-wins. */
   updateTask(ref: PimTaskRef, draft: PimTaskDraft): Promise<PimTaskUpdateResult>;

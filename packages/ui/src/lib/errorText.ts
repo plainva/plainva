@@ -20,7 +20,7 @@
 
 import { connectionErrorText } from "./connectionErrorText";
 import { unconfirmedEndpointOf } from "./endpointConfirmation";
-import { isDamagedFullText, isStructureNeedsIndexError } from "@plainva/core";
+import { isDamagedFullText, isStructureNeedsIndexError, notShownYetOf } from "@plainva/core";
 import i18n from "i18next";
 
 const INPUT_REJECTIONS = new Map([
@@ -149,8 +149,31 @@ export function refusalReason(err: unknown): string {
   return unconfirmedEndpointOf(err) ? errorText(err) : err instanceof Error ? err.message : String(err);
 }
 
+/** The sentence for a write to an event or task created a moment ago that the provider does not show yet (issue 119), or null. */
+export function notShownYetText(err: unknown): string | null {
+  const notYet = notShownYetOf(err);
+  if (!notYet) return null;
+  if (notYet.what === "task") return notYet.action === "delete" ? i18n.t("pim.notShownYetTaskDelete") : i18n.t("pim.notShownYetTaskChange");
+  return notYet.action === "delete" ? i18n.t("pim.notShownYetEventDelete") : i18n.t("pim.notShownYetEventChange");
+}
+
+/**
+ * What a refused write of an event says, whole (issue 119). One that met an
+ * event the provider does not show yet says exactly that - the event IS
+ * saved, only this change or deletion is not; behind "The event was not
+ * saved:" that sentence was what made the reporter believe it lost.
+ */
+export function eventWriteRefusalText(err: unknown, what: "save" | "delete"): string {
+  const notYet = notShownYetText(err);
+  if (notYet) return notYet;
+  return i18n.t(what === "delete" ? "pim.eventDeleteRefused" : "pim.eventWriteRefused", { reason: refusalReason(err) });
+}
+
 /** Never returns an empty string: a blank reason is worse than an ugly one. */
 export function errorText(err: unknown): string {
+  // A write to something just created that the provider does not show yet (issue 119).
+  const notYet = notShownYetText(err);
+  if (notYet) return notYet;
   // An address this device has not confirmed (F57): what is missing is the confirmation.
   const unconfirmed = unconfirmedEndpointOf(err);
   if (unconfirmed) return i18n.t("cloudAccounts.confirmAddress", { address: unconfirmed });

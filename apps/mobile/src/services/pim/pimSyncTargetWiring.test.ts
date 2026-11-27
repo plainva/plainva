@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getPlatformServices, setPlatformServices } from "@plainva/ui";
+import { getPlatformServices, pendingEventWrites, setPlatformServices } from "@plainva/ui";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { PimAccountRow } from "@plainva/core";
 import type { MobileVault } from "../vaultService";
 
@@ -37,6 +39,9 @@ vi.mock("@plainva/core", async (original) => {
       async upsertAccount() {}
       async setScopeState() {}
       async getScopeState() { return null; }
+      async getEventByUid() { return null; }
+      async findEventsByUid() { return []; }
+      async listCalendars() { return []; }
     },
     PimWorker: class { start() {} stop() {} async triggerImmediate() {} },
   };
@@ -76,5 +81,27 @@ describe("the phone's calendar sync is told why an unconfirmed account waits", (
     await expect(runtimeModule.runtime!.syncTarget(account)).rejects.toMatchObject({ name: "EndpointNotConfirmedError", endpoint: "http://192.168.1.6:80" });
     // The plain builder keeps "no target" for every other caller.
     await expect(runtimeModule.runtime!.buildTarget(account)).resolves.toBeNull();
+  });
+});
+
+describe("the events drawn from the overlay belong to the vault, not to the runtime (issue 119)", () => {
+  const row = { accountId: "cal", calendarId: "c", uid: "plainva-x", title: "Team sync", start: { ts: 1 }, end: { ts: 2 }, allDay: false } as never;
+
+  it("a restart of the runtime in the same vault (accounts imported through the settings sync) keeps them; leaving the vault empties them", async () => {
+    expect.hasAssertions();
+    pendingEventWrites.settle(pendingEventWrites.begin({ kind: "create", row }), undefined, 0);
+    await pim.restartPimAfterImport({ vaultId: "v", db: { name: "v" } } as unknown as MobileVault);
+    expect(pendingEventWrites.snapshot()).toHaveLength(1);
+    pim.leavePimVault();
+    expect(pendingEventWrites.snapshot()).toEqual([]);
+  });
+
+  it("the runtime runs the shared watch, and the vault switch leaves through `leavePimVault`", () => {
+    expect.hasAssertions();
+    const read = (p: string) => readFileSync(join(__dirname, p), "utf8");
+    expect(read("pimService.ts")).toMatch(/watchCreatedEvents: \(cache, targetFor\) =>\s*watchCreatedEvents\(pendingEventWrites, \{ cache, targetFor, expand: \(\) => pimTargets\(\)\.then\(\(m\) => m\.expandEventDraft\) \}\)/);
+    expect(read("pimRuntime.ts")).toMatch(/stopCreatedEventWatch =\s*wiring\.watchCreatedEvents\?\.\(cache/);
+    expect(read("pimService.ts")).toContain("clearCreatedEvents: () => pendingEventWrites.clear()");
+    expect(read("../../hooks/useVaultBoot.ts")).toContain("leavePimVault();");
   });
 });

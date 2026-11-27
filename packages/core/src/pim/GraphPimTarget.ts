@@ -7,11 +7,13 @@ import type {
   PimAuthProvider,
   PimCalendar,
   PimEvent,
+  PimEventCreate,
   PimEventDraft,
   PimEventLinks,
   PimRecurrence,
   PimEventRef,
   PimTask,
+  PimTaskCreate,
   PimTaskDraft,
   PimTaskList,
   PimTaskRef,
@@ -326,7 +328,7 @@ export class GraphPimTarget implements IPimTarget {
 
   // ---- write side (stage 3) ----------------------------------------------
 
-  async createEvent(calendarId: string, draft: PimEventDraft): Promise<PimWriteResult> {
+  async createEvent(calendarId: string, draft: PimEventCreate): Promise<PimWriteResult> {
     const res = await this.request(`${GRAPH_BASE}/me/calendars/${encodeURIComponent(calendarId)}/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -363,6 +365,15 @@ export class GraphPimTarget implements IPimTarget {
     return { etag: data["@odata.etag"] };
   }
 
+  async eventExists(ref: PimEventRef): Promise<boolean> {
+    // Through the calendar it was created in, as the create went (a shared
+    // calendar of somebody else is not under /me/events).
+    const res = await this.request(`${GRAPH_BASE}/me/calendars/${encodeURIComponent(ref.calendarId)}/events/${encodeURIComponent(ref.uid)}?$select=id`);
+    if (res.status === 404 || res.status === 410) return false;
+    if (!res.ok) throw await pimRequestError("graph read event", res);
+    return true;
+  }
+
   async deleteEvent(ref: PimEventRef): Promise<void> {
     const res = await this.request(`${GRAPH_BASE}/me/events/${encodeURIComponent(ref.uid)}`, {
       method: "DELETE",
@@ -392,7 +403,7 @@ export class GraphPimTarget implements IPimTarget {
     }
   }
 
-  async createTask(listId: string, draft: PimTaskDraft): Promise<PimWriteResult> {
+  async createTask(listId: string, draft: PimTaskCreate): Promise<PimWriteResult> {
     const res = await this.request(`${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(listId)}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

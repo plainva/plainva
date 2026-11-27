@@ -8,8 +8,8 @@ import { buildInviteIcs } from "@plainva/ui/mail";
 import { utf8ToBase64 } from "@plainva/ui/mail";
 import { listMailAccounts, pickDefaultMailAccount } from "@plainva/ui/mail";
 import { loadDefaultMailAccount } from "../../services/mail/defaultMailAccount";
-import { errorText, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
-import { PimConflictError, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
+import { createChange, errorText, eventWriteRefusalText, formCreateTries, etagStamp, formatClockTime, formatMinuteRange, seriesDeleteSubject, applyEventChanges, chunkWeeks, describeEventChanges, buildContiguousDays, buildMonthCells, buildWeekCells, Button, createCalendarEvent, isPendingEventUid, pendingEventRow, pendingEventWrites, showWrittenEvents, useShownEvents, writeEventOptimistically, DateJumpPicker, DateJumpPopover, DateJumpTrigger, draftToRow, dayRangeLabel, isoWeekLabel, isoWeeksForCells, useShowWeekNumbers, weekNumbersShown, WeekNumbersToggle, layoutSpanningEvents, EmptyState, ICON, IconButton, markdownToHtml, minutesToHHMM, Segmented, startOfMonth, toast, useWeekStartDay, writeNoteProperty, loadBaseOverlay, overlayCandidates, overlayKey, type OverlayCandidate, type OverlayEntry, logDiagnostic } from "@plainva/ui";
+import { expandEventDraft, PimConflictError, newPimCreateUid, parseRRule, uniqueBlockRefs, type PimAccountRow, type PimEventRow, type PimCalendar, type PimEventCreate, type PimEventDraft, type PimSyncProblem } from "@plainva/core";
 import {
   blockLinkKey,
   deleteEventWithBlockers,
@@ -189,7 +189,6 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
   // What the cache holds, and on top of it what the user just did (issue 119):
   // a write shows from the moment it is made, not from the provider's answer.
   const [cachedEvents, setEvents] = useState<PimEventRow[]>([]);
-  const events = useShownEvents(cachedEvents);
   const [status, setStatus] = useState<{ status: string; message?: string }>({ status: "idle" });
   // Accounts and calendars that are not being synced — the line above the grid.
   const [syncProblems, setSyncProblems] = useState<PimSyncProblem[]>([]);
@@ -248,6 +247,14 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
     const grid = buildMonthCells(viewDate, weekStartDay);
     return { cells: grid, gridDays: [] as Date[], rangeStartTs: grid[0].getTime(), rangeEndTs: grid[grid.length - 1].getTime() + DAY_MS };
   }, [viewMode, viewDate, selectedDate, weekStartDay]);
+  // A new series is drawn by its occurrences in this window until a sync lists
+  // it, and a hidden calendar draws nothing from the overlay either (issue 119).
+  const shownCalendar = useCallback(
+    (accountId: string, calendarId: string) =>
+      accounts.some((a) => a.id === accountId && a.enabled) && calendars.some((c) => c.accountId === accountId && c.id === calendarId && c.selected),
+    [accounts, calendars],
+  );
+  const events = useShownEvents(cachedEvents, pendingEventWrites, { startTs: rangeStartTs, endTs: rangeEndTs }, shownCalendar);
   // The month's week column: a narrow first column, so cells and bars move
   // one column right (their placement is explicit).
   const monthWeeks = showWeeks && cells.length > 0 ? isoWeeksForCells(cells) : null;
@@ -1018,11 +1025,8 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       const reason = refusalReason(error);
       logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
       // A refused deletion said "was not saved" (issue 119) - true of nothing
-      // the person had done.
-      const message =
-        what === "delete"
-          ? t("pim.eventDeleteRefused", { reason, defaultValue: "Der Termin wurde nicht gelöscht: {{reason}}" })
-          : t("pim.eventWriteRefused", { reason, defaultValue: "Der Termin wurde nicht gespeichert: {{reason}}" });
+      // the person had done; and an event not shown yet says just that.
+      const message = eventWriteRefusalText(error, what);
       toast.error(message, {
         label: t("pim.eventWriteRetry", { defaultValue: "Erneut versuchen" }),
         run: retry,
@@ -1037,6 +1041,44 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       void writeEventForm(e, values, action).catch((error) => reportWriteFailure(error, () => retryWrites.current?.save(e, values, action)));
     },
     [writeEventForm, reportWriteFailure]
+  );
+
+  /**
+   * Creates an event the person typed. One action of the person: this form's
+   * event. "Try again" on a failed write is the same action — in another
+   * window the central one then does not create it twice (A15), and the draft
+   * keeps its uid (`createAs`) for the same reason at the provider.
+   */
+  const startCreate = useCallback(
+    (accountId: string, calId: string, draft: PimEventCreate, seeded?: () => void) => {
+      const action = newWriteAction("event-create");
+      const actionTargets = { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) };
+      // "Try again" is a later try of the same create (issue 119): it names
+      // what the try before it sent, and the provider is written over only
+      // where nobody changed the event since.
+      const nextTry = formCreateTries(draft);
+      const create = () => {
+        const attempt: PimEventCreate = nextTry();
+        const id = pendingEventWrites.reserve();
+        const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", attempt);
+        void writeEventOptimistically(
+          pendingEventWrites,
+          // A series shows its occurrences from the first moment (issue 119).
+          createChange(pendingEventRow(id, shown), attempt, expandEventDraft),
+          () => createCalendarEvent(actionTargets, accountId, calId, attempt),
+          (out) => out.rows.map((row) => createChange(row, attempt, expandEventDraft)),
+          id,
+        ).then(
+          () => {
+            refreshAfterWrite();
+            seeded?.();
+          },
+          (error) => reportWriteFailure(error, create),
+        );
+      };
+      create();
+    },
+    [reportWriteFailure, targetFor, refreshAfterWrite]
   );
 
   /**
@@ -1062,7 +1104,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
         saveEventForm(e, values);
         return;
       }
-      const draft = eventFormToDraft(values);
+      // One uid for this create, kept by "Try again": a create that did land
+      // after all is found under it, never made twice (issue 119).
+      const draft: PimEventCreate = { ...eventFormToDraft(values), createAs: newPimCreateUid() };
       const [accountId, ...rest] = values.calendarKey.split(" ");
       const calId = rest.join(" ");
       if (!accountId || !calId) throw new Error(t("pim.noWritableCalendar", { defaultValue: "Kein beschreibbarer Kalender ausgewählt." }));
@@ -1071,31 +1115,9 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
       // Whoever handed this appointment over hears of it once the calendar took it — not before, and not on a failure.
       const seeded = seedSaved.current;
       seedSaved.current = null;
-      // One action of the person: this form's event. "Try again" on a failed
-      // write is the same action — in another window the central one then
-      // does not create it twice (A15) — and the next form is a new one.
-      const action = newWriteAction("event-create");
-      const actionTargets = { targetFor: async (account: string) => withWriteAttempt(await targetFor(account), action) };
-      const create = () => {
-        const id = pendingEventWrites.reserve();
-        const { uid: _uid, ...shown } = draftToRow(accountId, calId, "", draft);
-        void writeEventOptimistically(
-          pendingEventWrites,
-          { kind: "create", row: pendingEventRow(id, shown) },
-          () => createCalendarEvent(actionTargets, accountId, calId, draft),
-          (out) => out.rows.map((row) => ({ kind: "create" as const, row })),
-          id,
-        ).then(
-          () => {
-            refreshAfterWrite();
-            seeded?.();
-          },
-          (error) => reportWriteFailure(error, create),
-        );
-      };
-      create();
+      startCreate(accountId, calId, draft, seeded ?? undefined);
     },
-    [editState, saveEventForm, reportWriteFailure, targetFor, refreshAfterWrite, t]
+    [editState, saveEventForm, startCreate, t]
   );
 
   // ---- drag reschedule (move/resize existing single events) ----------------
@@ -1606,7 +1628,7 @@ export function CalendarView({ onOpenPath, isActivePane = true }: CalendarViewPr
           // Shown until the cache has it, like every other written event (issue
           // 119). A recurring block expands at the provider; the overlay knows
           // its occurrences by their series and steps aside for them.
-          showWrittenEvents(pendingEventWrites, [{ kind: "create", row: { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href } }]);
+          showWrittenEvents(pendingEventWrites, [{ kind: "create", what: "blocker", row: { ...draftToRow(accountId, calId, res.uid, bd), etag: res.etag, href: res.href } }]);
         },
       });
       if (ok > 0) {

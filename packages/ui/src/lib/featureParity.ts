@@ -814,6 +814,21 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
     verified: "2026-11-16",
   },
   {
+    id: "created-event-unconfirmed",
+    title: "A new event the provider has not listed yet stays on screen until a sync lists it or the provider, asked three times, says it does not have it (issue 119)",
+    area: "pim",
+    kind: "decision",
+    desktop: "yes",
+    mobile: "partial",
+    mobileReason:
+      "Same shared watch (`watchCreatedEvents`) on both shells. The phone's own " +
+      "calendars (the device account, which the desktop does not have) are not " +
+      "asked: the device store takes a create at once and the next run lists it, " +
+      "so asking is not needed - such an event stays until that run and is never " +
+      "reported as missing (decided 2026-11-25).",
+    verified: "2026-11-25",
+  },
+  {
     id: "device-pim-accounts",
     title: "The device's own calendars and reminder lists as a calendar account",
     area: "pim",
@@ -1394,6 +1409,37 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "tapped cell, so the phone keeps the long-press sheet with the same " +
       "entry - one gesture, not a hidden one. Both reach the same request.",
     verified: "2026-09-03",
+  },
+  {
+    id: "workspace-leaving-interrupted",
+    title: "Leaving an encrypted workspace when the step is interrupted midway (decommission, lift)",
+    area: "security",
+    kind: "gap",
+    desktop: "partial",
+    desktopReason:
+      "Interrupted before its last step (the keychain entry, its gate) goes, the " +
+      "vault stays a workspace that syncs encrypted, with its own buttons, and a " +
+      "lift can be pressed again: its runtime knows whether this device is the " +
+      "workspace's only one. Only where the app ends after the keychain entry " +
+      "went and before the folder's departure was noted does the vault open as " +
+      "no workspace with its folder still marked joined: the sync holds with " +
+      "the folder's \"join it\" notice, and no row offers to finish.",
+    mobile: "partial",
+    mobileReason:
+      "Neither shell finishes anything by itself, and neither syncs plain or " +
+      "encrypted on a workspace half gone. The phone clears its gate (the " +
+      "status) first, as it always did: past it, the runtime that carried the " +
+      "workspace never syncs again and the vault opens anew without it; while " +
+      "the decommission has not finished, the Security area says so " +
+      "(decommissionUnfinished, liftUnfinished) and the sync stays held. Without " +
+      "a runtime nobody can tell whether other devices use the folder, so a " +
+      "lift can only be finished as a decommission and the folder stays theirs " +
+      "(left). A lift whose decommission finished and whose queueing failed " +
+      "opens plain, its files queued by the first plain sync. Closing the gap " +
+      "needs the phone to keep what it knew of the workspace past its gate. In " +
+      "the maintainer's open-items plan since 2026-11-26 (Sammelplan § 3.189 " +
+      "Nr. 23; review B2, rounds 10 and 11).",
+    verified: "2026-11-26",
   },
   {
     id: "workspace-passphrase-change",

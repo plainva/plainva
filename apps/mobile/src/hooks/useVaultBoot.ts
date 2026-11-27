@@ -7,7 +7,7 @@ import { getActiveVaultEntry } from "../services/vaultRegistry";
 import { bindConflictStore } from "../services/conflictState";
 // The sync and the calendars start after the first picture and load then (performance plan L5); what the boot asks
 // of a running calendar is the runtime's, which stays light.
-import { isPimRuntimeReady, stopPim } from "../services/pim/pimRuntime";
+import { isPimRuntimeReady, leavePimVault } from "../services/pim/pimRuntime";
 import { prefetchDeferredParts } from "../lib/deferredParts";
 const pimServiceModule = () => import("../services/pim/pimService");
 import { startCloudAccountsReconcile } from "../services/cloudAccountsStore";
@@ -100,10 +100,10 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         });
         void staggered.then((loaded) => {
         if (!loaded || !current()) return;
-        const [{ startSyncIfConfigured }, { startPim }] = loaded;
+        const [{ startSyncAfterBoot }, { startPim }] = loaded;
         stagger?.cancel();
         stagger = staggerAfterFirstPaint([
-          () => { if (current()) void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e)); },
+          () => { if (current()) void startSyncAfterBoot(v).catch((e) => console.error("[boot] sync start failed", e)); },
           () => {
             if (!current()) return;
             const pim = startPim(v);
@@ -137,7 +137,7 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
       stagger = null;
       stopReconcile?.();
       stopReconcile = null;
-      stopPim();
+      leavePimVault();
       stopMobileMail();
       setVault(null);
       handlersRef.current.onSwitching();

@@ -450,10 +450,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   }, []);
 
+  // What runs for this window: every held vault, but not one that only this window holds and no longer shows. Its
+  // hold moves in an effect after the render that switched (`setHolderVault` above), and for that one render the
+  // vault being left would get a provider of its own — a load of it that waits for its own close (text 7).
+  const running = useMemo(
+    () => held.filter((path) => path === shownVault || holdersOf(path).some((holder) => holder !== label)),
+    [held, shownVault, label],
+  );
+
   const value = useMemo<AppContextType>(
     () => ({
       shownVault,
-      heldVaults: held,
+      heldVaults: running,
       recentVaults,
       autoOpenLastVault,
       isBooting,
@@ -463,7 +471,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       removeRecentVault,
       setAutoOpenLastVault,
     }),
-    [shownVault, held, recentVaults, autoOpenLastVault, isBooting, openVault, selectVault, closeVault, removeRecentVault, setAutoOpenLastVault],
+    [shownVault, running, recentVaults, autoOpenLastVault, isBooting, openVault, selectVault, closeVault, removeRecentVault, setAutoOpenLastVault],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

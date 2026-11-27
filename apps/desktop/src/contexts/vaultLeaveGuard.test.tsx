@@ -71,14 +71,21 @@ vi.mock("../services/tabTransfer", () => ({
   },
 }));
 
+/** Every provider that came up, by its vault — a provider is a load of that vault. */
+const providers = vi.hoisted(() => ({ mounted: [] as string[] }));
+
 /** The runtime is not what is tested here; which vault draws the app is. */
 vi.mock("./VaultContext", async () => {
   const actual = await vi.importActual<typeof import("./VaultContext")>("./VaultContext");
+  const { useEffect: onMount } = await vi.importActual<typeof import("react")>("react");
   return {
     ...actual,
-    VaultProvider: ({ vaultPath, clientVaultPath, children }: { vaultPath?: string | null; clientVaultPath?: string | null; children?: ReactNode }) => (
-      <div data-testid={`runtime:${vaultPath ?? clientVaultPath ?? "none"}`}>{children}</div>
-    ),
+    VaultProvider: ({ vaultPath, clientVaultPath, children }: { vaultPath?: string | null; clientVaultPath?: string | null; children?: ReactNode }) => {
+      onMount(() => {
+        providers.mounted.push(vaultPath ?? clientVaultPath ?? "none");
+      }, []);
+      return <div data-testid={`runtime:${vaultPath ?? clientVaultPath ?? "none"}`}>{children}</div>;
+    },
   };
 });
 
@@ -191,6 +198,20 @@ async function second() {
 }
 
 describe("the central window, with nothing to lose", () => {
+  it("brings up no provider for the vault it leaves", async () => {
+    expect.hasAssertions();
+    await central();
+    providers.mounted.length = 0;
+    await act(async () => {
+      await api!.openVault("/B");
+    });
+    await settle();
+    expect(shownIn()).toBe("/B");
+    // THE DEFECT: for the render before the hold moved, the vault being left got a provider of its own — a load of it
+    // that waited for its own close and said "is still closing" though nobody went back to it.
+    expect(providers.mounted).toEqual(["/B"]);
+  });
+
   it("switches without asking anyone", async () => {
     await central();
     let opened: boolean | null = null;

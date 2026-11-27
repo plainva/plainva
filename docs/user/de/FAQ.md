@@ -1,6 +1,6 @@
 # FAQ & Fehlerbehebung
 
-Stand: 2026-11-18
+Stand: 2026-11-26
 
 Antworten auf die häufigsten Fragen — von Obsidian-Kompatibilität über Konfliktdateien bis zu Backups.
 
@@ -149,6 +149,10 @@ Die Sternenflotte kommentiert Gerüchte grundsätzlich nicht. Aber es heißt, da
 ### Ein Teil des Fensters zeigt „Dieser Bereich kann nicht angezeigt werden“
 
 Ein Bereich ließ sich nicht zeichnen — ein Tab, ein Abschnitt der Seitenleiste, eine Datenbank-Ansicht, eine Mail, eine Einstellungsseite, ein Dialog oder am Telefon ein Bildschirm oder ein Blatt. Ersetzt wird nur dieser Bereich; alles andere arbeitet weiter, und eine offene Notiz behält ihren Text. **Diesen Bereich neu laden** zeichnet den Bereich neu. Scheitert er ein zweites Mal, sagt die Meldung das und bleibt stehen: Schließe den Tab (**Tab schließen**) oder tippe am Telefon auf **Zurück**, und starte Plainva neu, wenn es wieder passiert. Der Fehler steht unter **Über & Diagnose**; der Diagnose-Export dort enthält keinen Notizinhalt und hilft bei einer Fehlermeldung.
+
+### Warum dauert das Schließen eines Vaults manchmal einen Moment?
+
+Beim Schließen, Wechseln, Neuladen oder Entfernen eines Vaults wartet Plainva, bis Notizen fertig gespeichert sind und ein laufender Sync-Schritt beendet ist – mit einer Frist für das ganze Schließen. Dauert es länger als 5 Sekunden, sagt ein Hinweis, worauf Plainva wartet. Nach 30 Sekunden geht Plainva weiter, und verloren geht nichts: Ein Speichern, das noch nicht fertig ist, läuft im Hintergrund zu Ende, und der Text liegt zusätzlich im Entwurf; einen Sync-Schritt, der nicht fertig wurde, hält Plainva an, und der nächste Abgleich holt nach, was fehlt. Ein Vault, der beim Entfernen noch geöffnet wird, wird geschlossen und entfernt, sobald er antwortet. Öffnest Du denselben Vault wieder, während er noch geschlossen wird, sagt Plainva das und öffnet ihn, sobald er geschlossen ist und keine seiner Anfragen beim Anbieter mehr läuft – nie zweimal zugleich. Nutzt ein anderer Vault denselben Sync-Ordner, startet dessen Sync erst, wenn dieser Vault geschlossen ist. Schritte, die den Sync anhalten – etwa beim Einrichten eines verschlüsselten Workspace oder beim Ändern eines Passworts –, warten ebenso höchstens 30 Sekunden; danach öffnet Plainva den Vault neu und führt den Schritt dort zu Ende. Wird der Vault währenddessen geschlossen oder neu geöffnet, oder lässt er sich nicht wieder öffnen, sagt ein Schritt am verschlüsselten Workspace oder am Sync-Ordner, wenn er gar nicht gelaufen oder nicht fertig geworden ist; ein neues Passwort oder eine neue Anmeldung hält das nicht auf. Hängt ein Abgleich 15 Minuten, zeigt die Statuszeile das an; Plainva startet ihn neu, sobald der laufende Schritt endet, und ein Neustart der App beendet ihn sofort.
 
 ## Siehe auch
 

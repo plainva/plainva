@@ -21,6 +21,12 @@ import type { VaultEntry } from "./vaultRegistry";
  */
 
 const folder = vi.hoisted(() => ({ plugin: null as VaultFolderNative | null }));
+/** Every runtime a start creates (`createVaultCallOff` is its first step after the wait). */
+const runtimes = vi.hoisted(() => ({ created: 0 }));
+vi.mock("@plainva/core", async (original) => {
+  const core = await original<typeof import("@plainva/core")>();
+  return { ...core, createVaultCallOff: () => { runtimes.created += 1; return core.createVaultCallOff(); } };
+});
 const registry = vi.hoisted(() => ({ vaults: [] as VaultEntry[], activeId: "local", fresh: new Set<string>() }));
 
 vi.mock("../platform/vaultFolder", () => ({
@@ -47,7 +53,12 @@ const anyFn = () => new Proxy({} as Record<string, unknown>, {
   get: (cache, key) => (typeof key !== "string" || key === "then" ? undefined : (cache[key] ??= vi.fn(async () => null))),
   has: () => true,
 });
-vi.mock("./syncService", () => anyFn());
+vi.mock("./syncService", () => {
+  const service = anyFn();
+  // What a close takes off the sync (`detachSync`): nothing runs here.
+  service.detachSync = () => ({ drain: async () => {}, place: null, running: false });
+  return service;
+});
 vi.mock("./mobileWorkspaceSecurity", () => anyFn());
 vi.mock("./profileImportJournal", () => anyFn());
 vi.mock("./mobileSettingsSync", () => ({ mobileSyncDeviceId: async () => "device-1", clearMobileSyncState: vi.fn() }));
@@ -167,3 +178,65 @@ describe("opening a vault in a picked folder", () => {
     await vault.dispose();
   });
 });
+
+/**
+ * Never two runtimes at one vault, also through the starts: a start of a
+ * vault waits until the vault's previous runtime has ended (text 7). A start
+ * that a switch retired while it waited used to go on when that runtime ended
+ * — beside the next start of the same vault. Run with the real boot against
+ * two folder vaults; the previous runtime of the first one stays open on a
+ * statement its database holds.
+ */
+describe("the starts of a vault whose previous runtime still ends", () => {
+  it("open it once: a start retired while it waited never opens", async () => {
+    expect.hasAssertions();
+    const files = new Map<string, string | Uint8Array>([["Home.md", "# Home"]]);
+    const { plugin } = fakeVaultFolder(files);
+    let releaseRead!: () => void;
+    const held = new Promise<void>((resolve) => (releaseRead = resolve));
+    let resolvesOfA = 0;
+    folderVault({ ...plugin, resolve: (o) => { if (o.handle === "h") resolvesOfA += 1; return plugin.resolve(o); } });
+    // A statement the database holds: the runtime that asked has not ended until it answers.
+    const bridge = (globalThis as Record<string, unknown>).__plainvaFixtureSql as { all(name: string, sql: string, params: unknown[]): Promise<unknown> };
+    const all = bridge.all;
+    bridge.all = async (name, sql, params) => {
+      if (sql.includes("/* held */")) await held;
+      return all(name, sql, params);
+    };
+    registry.vaults.push({ id: "folder-2", name: "Other", external: { handle: "other", label: "Other", platform: "android" } });
+    const service = await import("./vaultService");
+    const first = await service.getMobileVault();
+    const perStart = resolvesOfA;
+    expect(perStart).toBeGreaterThan(0);
+    const stuck = first.db!.query("SELECT 1 AS one /* held */").catch(() => []);
+
+    // Away to the other vault: the runtime of the first one is left, and still ends.
+    await service.switchVault("folder-2");
+    expect((await service.getMobileVault()).vaultId).toBe("folder-2");
+    // Back: its start waits for that runtime (text 7) ...
+    await service.switchVault("folder-1");
+    const retired = service.getMobileVault().then((v) => v.vaultId, (e: Error) => e.name);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    // ... and is retired by the next switch while it waits.
+    await service.switchVault("folder-2");
+    await service.getMobileVault();
+    // Back once more: the second start of the vault waits too.
+    await service.switchVault("folder-1");
+    const live = service.getMobileVault();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const before = resolvesOfA;
+    const createdBefore = runtimes.created;
+
+    releaseRead();
+    await stuck;
+    const opened = await live;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(opened.vaultId).toBe("folder-1");
+    // THE DEFECT: the retired start went on when the old runtime ended, beside the live one — two runtimes at one vault.
+    expect(runtimes.created - createdBefore, "one runtime at the vault").toBe(1);
+    expect(resolvesOfA - before, "one start opens the vault").toBe(perStart);
+    expect(await retired, "the retired start opened nothing").toBe("AbortError");
+    await opened.dispose();
+  }, 60_000);
+});
+

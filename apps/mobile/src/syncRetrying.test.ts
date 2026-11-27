@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import i18n from "@plainva/ui/i18n";
+import { SYNC_STUCK_AFTER_MINUTES } from "@plainva/core";
 import { syncStateLabel } from "./components/syncSubtitle";
 
 const SRC = fileURLToPath(new URL(".", import.meta.url));
@@ -39,6 +40,18 @@ describe("the temporary sync state says when, not what broke", () => {
     const t = i18n.t.bind(i18n) as never;
     expect(syncStateLabel({ status: "idle" }, t)).not.toBe(syncStateLabel({ status: "error" }, t));
     expect(syncStateLabel({ status: "syncing" }, t)).not.toBe(syncStateLabel({ status: "retrying" }, t));
+  });
+});
+
+describe("a cycle the watchdog gave up on says so, and the notice goes with the next cycle", () => {
+  it("replaces the status line while the given-up step still runs, with the minutes of the watchdog", () => {
+    const t = i18n.t.bind(i18n) as never;
+    const stuck = syncStateLabel({ status: "retrying", reason: "stuck", retryAt: Date.now() }, t);
+    expect(stuck).toBe(i18n.t("sync.stuck", { minutes: SYNC_STUCK_AFTER_MINUTES }));
+    expect(stuck).toContain(String(SYNC_STUCK_AFTER_MINUTES));
+    // The next cycle runs: the worker reports `syncing` without the reason, and the notice is gone.
+    expect(syncStateLabel({ status: "syncing", reason: null }, t)).toBe(i18n.t("mobile.syncSyncing"));
+    expect(syncStateLabel({ status: "retrying", reason: null }, t)).not.toBe(stuck);
   });
 });
 

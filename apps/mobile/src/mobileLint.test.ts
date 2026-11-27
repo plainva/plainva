@@ -1486,14 +1486,15 @@ describe("a vault switch the program starts is offered, not taken", () => {
     expect(callers("createExternalVault")).toEqual(["services/vaultService.ts"]);
     // "Delete" on a vault's page.
     expect(callers("deleteVault")).toEqual(["VaultDetailScreen.tsx", "services/vaultService.ts"]);
-    // A button of the screen on top (retry, the security steps, the rebuilt index).
+    // A button of the screen on top (retry, the security steps, the rebuilt index); a step's own reload goes through
+    // its frame (`withRuntimeStep`, for the runtime the step went on with).
     expect(callers("reloadActiveMobileVault")).toEqual([
       "AddVaultScreen.tsx",
       "VaultDetailScreen.tsx",
       "screens/SearchScreen.tsx",
       "screens/SecurityAreaScreen.tsx",
-      "screens/SecurityWizardScreen.tsx",
       "screens/base/BaseScreen.tsx",
+      "services/syncService.ts",
       "services/vaultService.ts",
     ]);
   });
@@ -2778,7 +2779,7 @@ describe("managing shares from the phone", () => {
     expect(body).toMatch(/decommissionConfirm/);
     expect(body).toMatch(/decommissionTypeName/);
     const asked = body.indexOf("mPrompt(");
-    const done = body.indexOf("decommissionMobileWorkspace(");
+    const done = body.indexOf('leaveWorkspaceStep(vault, "decommission"');
     expect(asked).toBeGreaterThan(-1);
     expect(done).toBeGreaterThan(asked);
     // …and between them there is a way out that the NAME decides, so a mis-tap

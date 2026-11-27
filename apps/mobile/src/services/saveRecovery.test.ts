@@ -1,3 +1,4 @@
+import { closeWaitNoteName, parkClosingSyncPlace, waitForClosingVault, waitWithDeadline } from "@plainva/ui";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -5,16 +6,19 @@ import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { createHash } from "node:crypto";
 import ts from "typescript";
+import { holdVaultSync, syncReleased, vaultSyncHeld } from "./syncHolds";
+import { isCalledOffError } from "@plainva/core";
 import { createRequire } from "node:module";
 import { CommentActionNotStartedError } from "@plainva/core";
 import { keepTextBeside, type CommentEditorSnapshot } from "@plainva/ui";
-import { BackupVaultAdapter, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, isNotTextFileError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, type IDatabaseAdapter } from "@plainva/core";
+import { BackupVaultAdapter, createVaultCallOff, ConflictAwareVaultAdapter, ConflictError, QueueingVaultAdapter, SyncQueue, SyncStateRepository, isNotTextFileError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE, type IDatabaseAdapter } from "@plainva/core";
 import { LocalVaultAdapter } from "../../../../packages/core/src/vault/LocalVaultAdapter";
 import { realSqlite } from "../../../../packages/core/test/helpers/realSqlite";
 import { createSaveCoordinator, type SaveCoordinator } from "../../../../packages/ui/src/lib/saveCoordinator";
 import { createSaveFailureTeller, saveFailureReason } from "../../../../packages/ui/src/lib/saveRetry";
 import { writeEditorSave } from "../../../../packages/ui/src/lib/editorSave";
 import type { MobileVault } from "./vaultService";
+import { vaultEntryName } from "./vaultEntryName";
 import { retiredBoot } from "./bootRetirement";
 
 // CodeMirror belongs to the shared UI package; load that exact installed copy.
@@ -33,7 +37,7 @@ const parts: string[] = [];
 let saveMethod = "", saverInit = "";
 function visit(node: ts.Node) {
   if (ts.isFunctionDeclaration(node) && node.name &&
-      ["switchVault", "switchTo", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
+      ["inScreenTransitions", "leaveScreen", "backOnScreen", "clearScreen", "screenTransition", "drainedOnce", "savesOf", "removeVaultAndData", "switchVault", "switchTo", "settleBeforeClosing", "leaveVault", "closingKeys", "closingAt", "resumeOnScreen", "offerReload", "reloadActiveMobileVault", "retireBoot", "retiredStart", "runtimeOnScreen", "deleteVault", "rememberPersistedText", "rememberCommentWrite", "getLastPersistedText"].includes(node.name.text)) {
     parts.push(node.getText(file).replace(/^export /, ""));
   }
   if (ts.isMethodDeclaration(node) && node.name.getText(file) === "save") saveMethod = node.getText(file);
@@ -41,9 +45,9 @@ function visit(node: ts.Node) {
   ts.forEachChild(node, visit);
 }
 visit(file);
-if (!saveMethod || !saverInit || parts.length !== 10) throw new Error("mobile save/lifecycle definitions missing");
+if (!saveMethod || !saverInit || parts.length !== 24) throw new Error("mobile save/lifecycle definitions missing");
 const compiled = ts.transpileModule(
-  "let bootPromise = Promise.resolve(vault); let bootSettled = true; let bootAbort = null; let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
+  "let screenTransitions = Promise.resolve(); let bootPromise = Promise.resolve(vault); let screen = { state: 'open', of: bootPromise, runtime: vault }; let bootSettled = true; let bootAbort = null; let bootEntry = null; let deferredReload = null; let bootEntryAnswer = Promise.resolve(null); let previousVaultId = null; let switching = null; const RELOAD_STEP = 'vault-reload'; const ABANDON_BOOT_AFTER_MS = 2000; const closingVaults = new Map(); const lastPersistedText = new Map(); const editorBaseText = new Map(); const editorTextShape = new Map(); const keptTexts = new Map();\n" +
   "const vaultOps = {" + saveMethod + "}; const noteSaver = " + saverInit + ";\n" + parts.join("\n"), {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None },
   },
@@ -74,18 +78,25 @@ async function makeVault() {
   const queue = new SyncQueue(db);
   const repo = new SyncStateRepository(db);
   const files = new ConflictAwareVaultAdapter(new QueueingVaultAdapter(new BackupVaultAdapter(raw), queue), repo);
-  const vault = { vaultId: root, adapter: raw, files, db, indexer: null, dispose: vi.fn(async () => {}) } as unknown as MobileVault;
+  const vault = { vaultId: root, adapter: raw, files, db, indexer: null, ended: vi.fn(async () => {}), flushOwed: vi.fn(async () => {}), dispose: vi.fn(async () => {}) } as unknown as MobileVault;
   return { vault, raw, db, repo };
 }
 function harness(vault: MobileVault) {
   const events = new EventTarget();
   const drafts = new Map<string, { text: string; revision: number }>();
   const conflicts: Array<{ path: string; copy: string; vaultId: string }> = [];
+  /** What the saver said to the person (its toasts). */
+  const said: string[] = [];
   const stopped = vi.fn(async () => {});
   const activated = vi.fn(async () => {});
+  const restarted = vi.fn(async (_v: MobileVault) => {});
   const deps = {
+    holdVaultSync, syncReleased, vaultSyncHeld,
+    isCalledOffError,
     // What `retireBoot` hands a running boot to (bootRetirement.ts), as in the module.
     retiredBoot,
+    // The close's deadline (`settleBeforeClosing`), as in the module; its notice and its draft flush are not what is asked here.
+    waitWithDeadline, waitForClosingVault, parkClosingSyncPlace, vaultEntryName, closeWaitNoteName, flushDraftsBeforeClosing: async () => {}, getVaultEntry: async () => ({ name: "" }),
     vault, createSaveCoordinator, createSaveFailureTeller, saveFailureReason, writeEditorSave, ConflictError, mergeEditorText, containsTextChanges, applyTextShape, editorTextOf, DEFAULT_TEXT_SHAPE,
     isNotTextFileError, keepTextBeside,
     writeDraft: (v: MobileVault, path: string, text: string, revision: number) =>
@@ -96,15 +107,17 @@ function harness(vault: MobileVault) {
     },
     noteConflict: (path: string, copy: string, vaultId: string) => { conflicts.push({ path, copy, vaultId }); },
     conflictCopyPath: () => { throw new Error("actual conflict path required"); },
-    syncSoon: () => {}, toast: { warning: () => {}, error: () => {} }, i18n: { t: (s: string) => s },
+    syncSoon: () => {}, toast: { warning: (m: string) => { said.push(m); }, error: (m: string) => { said.push(m); } }, i18n: { t: (s: string) => s },
     stopSyncAndDrain: stopped, setActiveVault: activated, reloadMobileSettingsForActiveVault: async () => {},
-    startSyncIfConfigured: async () => {}, foreignInputArmed: () => false, takeScreen: () => true,
+    // The close takes the sync off at once and drains it after the saves (`detachSync`): here, the stand-in above.
+    detachSync: () => ({ drain: () => stopped(), place: null, running: true }),
+    startSyncIfConfigured: restarted, foreignInputArmed: () => false, takeScreen: () => true,
     window: events, CustomEvent,
     LOCAL_VAULT_ID: "local",
     getActiveVaultEntry: async () => ({ id: "current", name: "" }),
     // The diagnostics of a failed index step are not what is asked here (stability plan R4).
     reportingTo: () => () => {}, reportBackground: () => {},
-    console: { error: () => {} },
+    console: { error: () => {}, warn: () => {} },
   };
   const result = new Function(...Object.keys(deps), compiled +
     "\nreturn {noteSaver,switchVault,reloadActiveMobileVault,deleteVault,getLastPersistedText,rememberPersistedText,rememberCommentWrite};")(...Object.values(deps)) as {
@@ -117,7 +130,7 @@ function harness(vault: MobileVault) {
       rememberCommentWrite(v: MobileVault, path: string, text: string): void;
     };
   savers.push(result.noteSaver);
-  return { ...result, drafts, conflicts, stopped, activated, events };
+  return { ...result, drafts, conflicts, stopped, activated, restarted, events, said };
 }
 
 const hostFile = ts.createSourceFile("EditorHost.tsx", readFileSync(resolve("src/EditorHost.tsx"), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -149,6 +162,33 @@ function hostHarness(vault: MobileVault, h: ReturnType<typeof harness>, text: st
   h.events.addEventListener("m-editor-save-confirmed", callbacks.confirmed);
   return { ...callbacks, session, sessionRef };
 }
+
+describe("an editor that types into a runtime the close called off (review B2, round 7, S4)", () => {
+  it("ends that save at once, keeps its text in the draft journal, says nothing, and holds no later close of the vault up", async () => {
+    expect.hasAssertions();
+    const a = await makeVault();
+    // The runtime a close gave up on: its storage refuses every new call, for good (`createVaultCallOff`).
+    const fence = createVaultCallOff();
+    const left = { ...a.vault, files: fence.storage(a.vault.files) } as MobileVault;
+    fence.callOff();
+    const h = harness(left);
+    // The editor stays mounted until the switch's event and schedules with its own `vault` (EditorHost: `noteSaver.schedule(vault, …)`).
+    const editor = hostHarness(left, h, "");
+    editor.session.view.dispatch({ changes: { from: 0, to: 0, insert: "typed as the vault closed" } });
+    // Its flush on unmount (`noteSaver.flush(path, vault)`): refused once, by the fence.
+    await expect(h.noteSaver.flush("Note.md", left)).rejects.toMatchObject({ name: "CalledOffError" });
+    // THE DEFECT: the entry stayed pending for good, and every later close's flush of the vault was refused by it.
+    expect(h.noteSaver.hasPending()).toBe(false);
+    await expect(h.noteSaver.flushAll(a.vault)).resolves.toBeUndefined();
+    // Its text is not lost: the draft journal has it, and offers it when the note opens again.
+    expect(h.drafts.get(JSON.stringify([left.vaultId, "Note.md"]))?.text).toBe("typed as the vault closed");
+    expect(h.said).toEqual([]);
+    // The vault's next runtime saves through itself.
+    h.noteSaver.schedule(a.vault, "Note.md", "typed again");
+    await h.noteSaver.flush("Note.md", a.vault);
+    expect(await a.raw.readTextFile("Note.md")).toBe("typed again");
+  });
+});
 
 describe("mobile saves through the actual adapter and lifecycle chain", () => {
   it("adopts a confirmed comment write in its captured CodeMirror document", async () => {
@@ -231,7 +271,13 @@ describe("mobile saves through the actual adapter and lifecycle chain", () => {
     const run = () => action === "switch" ? h.switchVault("other") :
       action === "reload" ? h.reloadActiveMobileVault() : h.deleteVault(a.vault.vaultId);
     await expect(run()).rejects.toThrow("disk full");
-    expect(h.stopped).not.toHaveBeenCalled();
+    if (action === "delete") expect(h.stopped, "the delete's save comes before anything of the vault is stopped").not.toHaveBeenCalled();
+    else {
+      // The close took the sync off at once (`detachSync`); the switch or reload that failed gives it back once what
+      // it took has drained — the vault stays open with its sync, as on `main` (review B2, round 7, S1).
+      await vi.waitFor(() => expect(h.restarted).toHaveBeenCalledWith(a.vault));
+      expect(h.stopped.mock.invocationCallOrder[0]).toBeLessThan(h.restarted.mock.invocationCallOrder[0]!);
+    }
     expect(h.activated).not.toHaveBeenCalled();
     expect(a.vault.dispose).not.toHaveBeenCalled();
     expect(h.noteSaver.hasPending("Note.md", a.vault)).toBe(true);

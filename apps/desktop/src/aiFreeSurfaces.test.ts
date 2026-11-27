@@ -82,3 +82,23 @@ describe("surfaces that are no surface of the AI", () => {
     }, 60_000);
   }
 });
+
+/**
+ * The sync worker stays out of the start: the status lines of both shells name the minutes of a stuck sync, and
+ * taking that number from `SyncWorker.ts` put the whole worker (about 50 KB) into the start files of both shells
+ * (review of B2, 2026-11-27). The same plugin the build uses points the import at its defining module, which must be
+ * `sync/syncStuck.ts`; the worker loads when a sync starts.
+ */
+describe("status lines that name a stuck sync", () => {
+  for (const surface of ["apps/desktop/src/components/StatusBar.tsx", "apps/mobile/src/components/syncSubtitle.ts"]) {
+    it(`${surface} takes the minutes of a stuck sync from a module that is not the sync worker`, () => {
+      expect.hasAssertions();
+      plugin.buildStart();
+      const file = join(ROOT, surface);
+      const code = plugin.transform(readFileSync(file, "utf8"), file)?.code ?? "";
+      const line = code.split("\n").find((l) => /\bSYNC_STUCK_AFTER_MINUTES\b/.test(l) && /\bfrom\b/.test(l)) ?? "";
+      expect(line.split("\\").join("/")).toContain("packages/core/src/sync/syncStuck");
+      expect(line).not.toMatch(/SyncWorker/);
+    }, 60_000);
+  }
+});

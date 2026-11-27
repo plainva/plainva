@@ -5,6 +5,7 @@ import {
   classifyGenesisReadError,
   decideHeldFolder,
   dismissEncryptedRemote,
+  encryptedRemoteDepartureNoted,
   encryptedRemoteDismissable,
   encryptedRemoteFactFor,
   encryptedRemoteFilePorts,
@@ -141,6 +142,47 @@ describe("a held folder (R8)", () => {
     await markEncryptedRemoteDeparted(locked.ports, workspaceDeparture(null));
     expect(await held(locked, async () => bytes)).toEqual({ kind: "left", peers: "unknown" });
     expect(await encryptedRemoteDismissable(locked.ports)).toBe(true);
+  });
+
+  it("G1 (review B2, round 11, SP-B): a departure that cannot tell writes \"left, unknown\" over an old \"released\" — the folder holds, never plain next to a workspace that lives again", async () => {
+    expect.hasAssertions();
+    // The desktop was the workspace's only device and ended it: released. The workspace lives again (recovered on
+    // another device), the desktop joins it — joining writes no mark — and then decommissions it while locked.
+    const ended = await workspace("Ended");
+    const m = memory();
+    await markEncryptedRemoteDeparted(m.ports, workspaceDeparture(ended.runtime));
+    await markEncryptedRemoteDeparted(m.ports, workspaceDeparture(null));
+    // THE DEFECT: an early return kept "released", and the plain worker ran next to the living workspace.
+    expect(await held(m, async () => ended.bytes)).toEqual({ kind: "left", peers: "unknown" });
+    expect(await encryptedRemoteDismissable(m.ports)).toBe(true);
+  });
+
+  it("MG-2 (review B2, round 12): a departure reads back as noted exactly where the mark took it — never where the store refused it, never for an older note that only looks alike", async () => {
+    expect.hasAssertions();
+    const departures = [
+      { workspace: "w1", sole: true },
+      { workspace: "w1", sole: false },
+      { workspace: "w1", sole: "unknown" },
+      { workspace: undefined, sole: "unknown" },
+      { workspace: undefined, sole: true },
+      // Another workspace's release (Y15 of round 13): an older "released" is no release of this one.
+      { workspace: "w2", sole: true },
+    ] as const;
+    for (const departure of departures) {
+      const m = memory();
+      await markEncryptedRemoteDeparted(m.ports, departure);
+      expect(await encryptedRemoteDepartureNoted(m.ports, departure), JSON.stringify(departure)).toBe(true);
+      // A store that keeps nothing: the older note stays, and it is another one.
+      const keeps: EncryptedRemotePorts = { ...m.ports, save: async () => {} };
+      for (const other of departures.filter((d) => d !== departure)) {
+        await markEncryptedRemoteDeparted(keeps, other);
+        const same = JSON.stringify(m.stored()) === JSON.stringify((await (async () => { const n = memory(); await markEncryptedRemoteDeparted(n.ports, other); return n.stored(); })()));
+        expect(await encryptedRemoteDepartureNoted(keeps, other), `${JSON.stringify(other)} over ${JSON.stringify(departure)}`).toBe(same);
+      }
+    }
+    await markEncryptedRemoteDeparted(broken, departures[0]);
+    await expect(encryptedRemoteDepartureNoted(broken, departures[0])).rejects.toThrow("disk");
+    expect(await encryptedRemoteDepartureNoted(memory().ports, departures[0])).toBe(false);
   });
 
   it("a lifted workspace whose objects stay: plain for the device that ended it, pair-required for any other", async () => {

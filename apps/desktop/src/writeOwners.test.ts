@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 type Owner = "person" | "background" | "read" | "chain";
 
 const HANDOFFS: Record<string, Owner> = {
-  'const tauriVaultAdapter = countWrites(new TauriVaultAdapter(path), "background");': "chain",
+  'const tauriVaultAdapter = countWrites(callOff.storage(new TauriVaultAdapter(path)), "background");': "chain",
   // The sync's own removals left unrecorded by a runtime that ended: only asks whether a file is still there.
   'await adoptOwnRemovals(dbAdapter, ownDeletions, { vaultIsThere: () => vaultFolderIsThere(tauriVaultAdapter).then((there) => there === true), exists: (p) => tauriVaultAdapter.exists(p) }).catch(reportingTo("sync:own-removals"));': "read",
   'await perfMeasure("vault open: native filesystem", () => tauriVaultAdapter.initialize());': "chain",
@@ -50,23 +50,25 @@ const HANDOFFS: Record<string, Owner> = {
   "writeTextFile: (p, c) => personVaultAdapter.writeTextFile(p, c),": "person",
   // The encrypted workspace's sync, settings sync and reconcile at opening.
   "const remotePorts = encryptedRemoteFilePorts(backupVaultAdapter);": "background",
-  "const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });": "background",
+  "const runner = await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows, ...(workspaceRuntime ? { memberId: workspaceRuntime.memberId } : {}) });": "background",
   "const settingsOnly = new sync.SettingsOnlySync(runner, target, backupVaultAdapter, intervalMs, undefined, sessionCheck, () => {": "background",
   "vault: backupVaultAdapter,": "background",
-  "const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId })) ?? undefined;": "background",
+  "const sideband = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, memberId: runtime.memberId, allows: callOff.allows })) ?? undefined;": "background",
   "const worker = new workspace.EncryptedWorkspaceWorker(objectStore, workspaceStateStore, backupVaultAdapter, runtime, {": "background",
   "sideband: sideband ? () => sideband.run(target!, backupVaultAdapter) : undefined,": "background",
   // The file sync.
   "vaultAdapter,": "background",
   "createContentRefResolver(path, tauriVaultAdapter),": "read",
-  "const settingsSync = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter })) ?? undefined;": "background",
+  "const settingsSync = (await buildSettingsSyncStep(path, { pimRuntime, rawVault: backupVaultAdapter, allows: callOff.allows })) ?? undefined;": "background",
   "const fileWorker = new sync.SyncWorker(engine, target, syncRepo, backupVaultAdapter, syncQueue, intervalMs, { settingsSync, deletionJournal, ownDeletions, workspaceListed });": "background",
   "if (!(await syncRepo.hasConfirmedRemoteFiles().catch(() => true))) holdBackStartersAtFirstListing(fileWorker, backupVaultAdapter, syncRepo);": "background",
   // What the surfaces, the owner bus and every other window get.
   "vaultAdapter: personVaultAdapter,": "person",
   "backupAdapter: personBelowChain,": "person",
   "belowChainAdapter: personBelowChain,": "person",
-  "buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null })": "background",
+  // The same link, kept for a step that left the vault and goes on with its new runtime (`stopSyncForStep`).
+  "belowChain: personBelowChain,": "person",
+  "buildSettingsSyncStep(state.vaultPath, { pimRuntime: state.pimRuntime, rawVault: uncounted(state.belowChainAdapter), memberId: workspaceRuntimeRef.current?.memberId ?? null, allows: callOffRef.current?.allows })": "background",
   // Clearing out old snapshots (`backupScheduler.ts`).
   "const stop = startBackupScheduler({ vaultPath: state.vaultPath, adapter: uncounted(state.vaultAdapter) });": "background",
 };
