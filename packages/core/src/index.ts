@@ -91,6 +91,7 @@ export * from "./sync/DropboxSyncTarget.js";
 export * from "./sync/DropboxAuth.js";
 export * from "./sync/SyncEngine.js";
 export * from "./sync/SyncWorker.js";
+export * from "./sync/syncStuck.js";
 export * from "./sync/SettingsOnlySync.js";
 export * from "./sync/connectionFailure.js";
 export * from "./pim/taskNoteIdentity.js";

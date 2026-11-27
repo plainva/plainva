@@ -28,6 +28,7 @@ import { nextUnsyncableRetry, type UnsyncableEntry } from "./unsyncablePaths.js"
 import { localNameRefusal } from "./localNameRefusal.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
+import { CYCLE_STALE_ABANDON_MS } from "./syncStuck.js";
 import { isMassDeletion as isMassDeletionOf, MASS_DELETE_MIN, MASS_DELETE_SHARE } from "./massDeletion.js";
 import { contentSha256Of } from "../vault/localText.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
@@ -235,13 +236,6 @@ const FULL_LISTING_MAX_AGE_MS = 10 * 60 * 1000;
  * its cleanup no-ops, so it cannot double-schedule against the fresh cycle.
  */
 const CYCLE_STALE_WARN_MS = 10 * 60 * 1000;
-const CYCLE_STALE_ABANDON_MS = 15 * 60 * 1000;
-/**
- * After how many minutes without activity the watchdog gives a cycle up —
- * the minutes the notice of a stuck sync names (`stuck`), from the same
- * number as the watchdog.
- */
-export const SYNC_STUCK_AFTER_MINUTES = CYCLE_STALE_ABANDON_MS / 60_000;
 const WATCHDOG_TICK_MS = 60 * 1000;
 /** A tick this much later than scheduled means the process was not running. */
 const SUSPEND_SLACK_MS = 30 * 1000;
