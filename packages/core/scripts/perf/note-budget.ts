@@ -90,6 +90,18 @@ if (budgetFactor !== 1) setNoteBudget(NOTE_BUDGET * budgetFactor);
  */
 const HUNT_PARSE_MS = 5_000;
 const HUNT_PARSE_MS_PER_MB = 10_000;
+/** What the hunt gives a slow note, and `main`'s reading of it, to compare their times; and `main`'s heap there. */
+const HUNT_SLOW_MS = 900_000;
+const HUNT_MAIN_HEAP_MB = 4_096;
+
+/**
+ * A line in the run's summary on GitHub (`GITHUB_STEP_SUMMARY`), where a note the hunt or the edge search found is
+ * read without opening the log: its name, the seed it is drawn from, and why. The run stays red.
+ */
+function summary(line: string): void {
+  const file = process.env.GITHUB_STEP_SUMMARY;
+  if (file) appendFileSync(file, `- ${line}\n`);
+}
 /** The largest note `--check` reads: beyond it a note's text alone, read as one line of stand-ins, outgrows the heap (Performance_Notes.md). */
 const FAR_CHARS = 10_000_000;
 /**
@@ -347,10 +359,10 @@ async function child(name: string, n: number, scale: number, parse: string, boun
 }
 
 /** Whether all three parses read the note under the capped heap, each in a process of its own; the slowest's time. */
-function passes(name: string, n: number, bounded: boolean, scale = 1, parses: readonly string[] = shellParses): { ok: boolean; slowest: number; why: string; late?: boolean } {
+function passes(name: string, n: number, bounded: boolean, scale = 1, parses: readonly string[] = shellParses, limits: { heap?: number; ms?: number } = {}): { ok: boolean; slowest: number; why: string; late?: boolean } {
   let slowest = 0;
   for (const parse of parses) {
-    const run = spawnSync(process.execPath, [`--max-old-space-size=${heapMb}`, "--import", "tsx", HERE, "--child", name, String(n), String(scale), parse, bounded ? "bounded" : "unbounded"], { cwd: CORE, encoding: "utf8", timeout: 300_000, env: { ...process.env, PLAINVA_NOTE_BUDGET_FACTOR: String(budgetFactor) } });
+    const run = spawnSync(process.execPath, [`--max-old-space-size=${limits.heap ?? heapMb}`, "--import", "tsx", HERE, "--child", name, String(n), String(scale), parse, bounded ? "bounded" : "unbounded"], { cwd: CORE, encoding: "utf8", timeout: limits.ms ?? 300_000, env: { ...process.env, PLAINVA_NOTE_BUDGET_FACTOR: String(budgetFactor) } });
     const out = /^ok (\d+)/m.exec(run.stdout ?? "");
     // A reader stopped at five minutes ran out of time, not of memory (`late`).
     const late = run.status === null && (run.error as NodeJS.ErrnoException | undefined)?.code === "ETIMEDOUT";
@@ -687,10 +699,23 @@ function hunt(args: string[]): boolean {
     // The time of a parse grows with what a shell's budget reads formatted: at four times the phone's, the desktop reads
     // notes of 10 MB formatted that took the phone's readers no more than the phone's budget — on main as long.
     const most = (HUNT_PARSE_MS + (HUNT_PARSE_MS_PER_MB * noteOf(name, 0).length) / 1e6) * budgetFactor;
-    const why = !run.ok ? run.why : run.slowest > most ? `a parse took ${run.slowest} ms, more than ${Math.round(most)}` : scanIsLinear(name);
+    let why = !run.ok ? run.why : run.slowest > most ? `a parse took ${run.slowest} ms, more than ${Math.round(most)}` : scanIsLinear(name);
+    // Slow, not short of memory: the rule is a time at most three times `main`'s for the same note (Performance_Notes.md,
+    // "Time"), where `main` reads it at all — under no cap of the shell's heap (4 GB), and both given a quarter of an hour.
+    if (why && (run.late || (run.ok && run.slowest > most))) {
+      const long = { ms: HUNT_SLOW_MS };
+      const own = run.late ? passes(name, 0, true, 1, parses, long) : run;
+      const main = passes(name, 0, false, 1, parses, { ...long, heap: HUNT_MAIN_HEAP_MB });
+      // `main` past the half hour, the note read: `main` is the slower.
+      if (own.ok && (main.ok ? own.slowest <= 3 * main.slowest : main.late === true)) {
+        console.log(`slow     ${name} (${noteOf(name, 0).length} chars): ${own.slowest} ms, main ${main.ok ? `${main.slowest} ms` : `over ${HUNT_SLOW_MS / 60_000} min`} under ${HUNT_MAIN_HEAP_MB} MB — within three times`);
+        why = "";
+      } else why = `${why}; ${own.ok ? `${own.slowest} ms` : own.why} against main ${main.ok ? `${main.slowest} ms` : main.why} under ${HUNT_MAIN_HEAP_MB} MB`;
+    }
     if (why) {
       failed.push(name);
       console.log(`FAIL     ${name} (${noteOf(name, 0).length} chars): ${why}`);
+      summary(`hunt ${shell}, seed ${seed}: \`${name}\` (${noteOf(name, 0).length} chars): ${why}`);
     }
   }
   console.log(`hunt     ${tried} notes in ${Math.round((performance.now() - started) / 1000)} s: ${failed.length ? `${failed.length} FAILED (${failed.join(", ")})` : "every note passes"}`);
@@ -727,6 +752,7 @@ function edge(args: string[]): boolean {
     if (!run.ok) {
       failed.push(`${name}:${n}`);
       console.log(`FAIL     ${name} at ${n} units (${chars} chars): ${run.why}`);
+      summary(`edge ${shell}, seed ${seed}: \`${name}\` at ${n} units (${chars} chars): ${run.why}`);
     }
   }
   console.log(`edge     ${tried} notes in ${Math.round((performance.now() - started) / 1000)} s: ${failed.length ? `${failed.length} FAILED (${failed.join(", ")})` : "every note passes"}`);

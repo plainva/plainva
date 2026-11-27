@@ -1172,7 +1172,23 @@ took 40 s where `main` took 4.4 s. Two entries (`definitionMarks`) read them in 
 piece). Over the bound, and named as a limit: a form whose parse takes minutes on `main` itself — 18 543
 short callouts (0.66 MB) at the desktop's edge take 57 s to index (`main` 59 s), the reading view up to
 three minutes. The budget bounds what a parse holds, not micromark's own time for such a form; it is
-read as on `main`.
+read as on `main`. Two notes the hunt drew on the desktop (fourth review of L14), measured here on
+`main` (`e008c1467`) and on the branch under the same heap of 4 GB, no cap of the shell's:
+
+| Note | Size | Index, `main` / branch | Note source, `main` / branch |
+|---|---:|---:|---:|
+| `mix:716212:6` (13 217 short callouts among 59 parts) | 1.66 MB | 45.5 s / 21.4 s | 37.7 s / 21.0 s |
+| `mix:716212:2` (brackets, angles, journal lines, tables and more) | 9.84 MB | over 470 s / 258 s | over 470 s / 255 s |
+
+Under 512 MB `main` reads neither: its index runs out of memory. A named limit, as the callouts:
+micromark grows faster than the note for these forms, and the branch reads them in less time than
+`main`. What the user sees meanwhile: the desktop indexes in its window's own thread
+(`VaultIndexer`, created in `VaultContext.tsx`), and a note's parse is one synchronous call — for those
+seconds or minutes the window does not answer, on `main` as well. The hunt (`perf:notes -- --hunt`)
+holds a note it finds slow to this rule: it reads the note again, the branch's way and `main`'s way
+under 4 GB, a quarter of an hour each, and passes it where the branch takes at most three times
+`main`'s time or `main` does not finish. A note the hunt or the edge search fails is named, with its
+seed, in the run's summary on GitHub.
 
 **Quotes whose depth changes (2026-11-27).** A paragraph over the inline budget is read as written,
 and keeps the quote and list markers of its lines: the parser opens their quotes and items on every

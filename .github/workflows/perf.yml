@@ -187,7 +187,7 @@ jobs:
     name: Note budget search (${{ matrix.shell }})
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
