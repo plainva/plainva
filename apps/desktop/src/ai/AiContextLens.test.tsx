@@ -38,7 +38,7 @@ const NOTES: Record<string, string> = {
   "Diary.md": `---\nmood: calm\nweather: rain\n---\n# 日記\n\n${"今日は雨でした。".repeat(12)}`,
 };
 
-async function mounted(options: { candidates?: Candidate[]; pins?: string[] }) {
+async function mounted(options: { candidates?: Candidate[]; pins?: string[]; cloudSearch?: true; onSend?: () => void }) {
   const saved = new Map<string, ConversationRecord>();
   let ledger: LedgerEntry[] = [];
   const policyOf = async (path: string) => effectivePolicy(path, notePolicyFrom({}), []);
@@ -54,7 +54,12 @@ async function mounted(options: { candidates?: Candidate[]; pins?: string[] }) {
     activeNote: async () => null,
     readNote: async (path) => (NOTES[path] === undefined ? null : { path, title: path.replace(/\.md$/, ""), text: NOTES[path]! }),
     situation: async () => ({ now: "2026-10-26 10:00", weekday: "Monday", calendarDay: "2026-10-26", journalDay: "2026-10-26", active: null, tabs: [], tasks: [], events: [], dailyNote: null }),
-    candidates: async () => (options.candidates ? [options.candidates] : []),
+    // A search at a model off this device asks it with the question: the preview refuses that before it goes.
+    candidates: async (question, _active, _recipient, egress) => {
+      if (options.cloudSearch)
+        await egress.send("emb-preview", { endpointId: "openai", url: "https://api.openai.com/v1/embeddings", method: "POST", headers: {}, body: { input: [question] }, auth: "bearer", stream: false } as never, () => undefined);
+      return options.candidates ? [options.candidates] : [];
+    },
     // As the index knows them: the size of the file, properties and all.
     noteSizes: async (paths) => new Map(paths.filter((path) => path in NOTES).map((path) => [path, utf8Length(NOTES[path]!)])),
     policy: { policyOf, resolveLink: async () => null },
@@ -92,7 +97,7 @@ async function mounted(options: { candidates?: Candidate[]; pins?: string[] }) {
   await act(async () => {
     root!.render(
       <AiSessionContext.Provider value={session}>
-        <AiContextLens question="what is the rate" />
+        <AiContextLens question="what is the rate" {...(options.onSend ? { onSend: options.onSend } : {})} />
       </AiSessionContext.Provider>,
     );
   });
@@ -121,5 +126,26 @@ describe("View context against sending every note whole", () => {
     expect(utf8Length(NOTES["Diary.md"]!)).toBeGreaterThan(preview.pack.material.sentChars * 2);
     expect(container.querySelector('[data-testid="ai-lens"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="ai-lens-savings"]')).toBeNull();
+  });
+});
+
+describe("View context where the search by meaning asks a model off this device only when you send (approved 27.11.)", () => {
+  it("names that model, says notes it would find are not shown, claims no note would go, and its button only sends", async () => {
+    expect.hasAssertions();
+    const { session, container } = await mounted({ cloudSearch: true, onSend: () => undefined });
+    expect((await session.previewContext("what is the rate"))!.searchBy).toEqual(["OpenAI"]);
+    expect(container.querySelector('[data-testid="ai-lens-search-at-send"]')?.textContent).toBe("The search by meaning asks OpenAI only when you send: notes it would find are not shown here.");
+    expect(container.querySelector('[data-testid="ai-lens-search-goes-to"]')?.textContent).toBe("Search by meaning: OpenAI (when you send)");
+    expect(container.textContent).not.toContain(i18n.t("ai.lens.nothing"));
+    expect(container.querySelector('[data-testid="ai-lens-send"]')?.textContent).toBe("Send");
+  });
+
+  it("says none of it where nothing is held back", async () => {
+    expect.hasAssertions();
+    const { container } = await mounted({ onSend: () => undefined });
+    expect(container.querySelector('[data-testid="ai-lens-search-at-send"]')).toBeNull();
+    expect(container.querySelector('[data-testid="ai-lens-search-goes-to"]')).toBeNull();
+    expect(container.textContent).toContain(i18n.t("ai.lens.nothing"));
+    expect(container.querySelector('[data-testid="ai-lens-send"]')?.textContent).toBe(i18n.t("ai.lens.sendWith"));
   });
 });

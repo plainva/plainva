@@ -111,12 +111,12 @@ export function aiFailureText(t: T, failure: ModelFailure, recipient: string | F
  * question is back in the field" stand only over a request of the first class whose question went back (`returned`);
  * a request that may have arrived says so. `images`: the pictures of the turn that failed.
  */
-export function conversationFailureText(t: T, failure: ModelFailure, recipient: FailureRecipient, model: string, how: { returned?: boolean; images?: number; departed?: boolean } = {}): string {
+export function conversationFailureText(t: T, failure: ModelFailure, recipient: FailureRecipient, model: string, how: { returned?: boolean; images?: number; departedTo?: readonly string[]; locale?: string } = {}): string {
   const provider = recipient.label;
   // The model call never went, but the run handed something on before it (B7, review S1: the question embedded for
-  // the search at a cloud model, a foreign server's prompt). The reason and its remedy stand; the sentence about
-  // sending says nothing until its own words are decided — never "nothing was sent".
-  if (how.departed && failureClassOf(failure) === "never_sent" && SAYS_NOTHING_SENT.has(failure.kind)) return aiFailureText(t, failure, recipient, model, { sent: "" });
+  // the search at a cloud model, a foreign server's prompt): the reason and its remedy stand, and the sentence about
+  // sending names whom it went to — never "nothing was sent".
+  if (how.departedTo?.length && failureClassOf(failure) === "never_sent" && SAYS_NOTHING_SENT.has(failure.kind)) return aiFailureText(t, failure, recipient, model, { sent: alreadySentText(t, how.departedTo, how.locale) });
   if (failure.kind === "unreachable" && how.returned) return t("ai.error.unreachable", { provider });
   // No answer, or one that broke off, from a provider elsewhere: the request may have arrived. A server on this device
   // and a device without any network keep their own words.
@@ -124,6 +124,37 @@ export function conversationFailureText(t: T, failure: ModelFailure, recipient: 
   // The provider said "too large" of a turn with pictures: mostly one of them.
   if (failure.kind === "context_too_long" && (how.images ?? 0) > 0) return `${aiFailureText(t, failure, recipient, model)} ${t("ai.error.imageTooBig")}`;
   return aiFailureText(t, failure, recipient, model);
+}
+
+/**
+ * The sentence about sending where something of the request already left the device (B7, approved 27.11.): "Already
+ * sent to: …. Nothing more was sent." `recipients` are names as a person reads them (`departureNames`).
+ */
+export function alreadySentText(t: T, recipients: readonly string[], locale = "en"): string {
+  return t("ai.error.alreadySent", { recipients: namesListed([...new Set(recipients)], locale) });
+}
+
+/**
+ * Whom a run's list of departures names (`departedTo`: endpoint ids, `mcp:<server id>`, `web`, `mail`), as a person
+ * reads them: a provider by its label, a server by its name, the web page and the mail server in words of their own.
+ */
+export function departureNames(t: T, entries: readonly string[], names: { provider: (id: string) => string; server: (id: string) => string }): string[] {
+  const out = entries.map((entry) =>
+    entry === "web" ? t("ai.error.recipient.web") : entry === "mail" ? t("ai.error.recipient.mail") : entry.startsWith("mcp:") ? names.server(entry.slice(4)) : names.provider(entry),
+  );
+  return [...new Set(out)];
+}
+
+/** "A, B and C" in the language's own list form; a comma list where the engine has no `Intl.ListFormat`. */
+export function namesListed(names: readonly string[], locale: string): string {
+  type ListFormatter = new (locale: string, options: { style: "long"; type: "conjunction" }) => { format(list: readonly string[]): string };
+  const ListFormat = (Intl as unknown as { ListFormat?: ListFormatter }).ListFormat;
+  try {
+    if (ListFormat) return new ListFormat(locale, { style: "long", type: "conjunction" }).format(names);
+  } catch {
+    /* an unknown locale: fall through */
+  }
+  return names.join(", ");
 }
 
 /** The failures whose words say that nothing was sent (`ai.error.*`, the sentence `{{sent}}`). */

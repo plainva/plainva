@@ -9,7 +9,7 @@ import {
   type ModelFailure,
   type SemanticSource,
 } from "@plainva/core/ai";
-import { aiFailureText } from "./aiSettingsModel";
+import { aiFailureText, alreadySentText } from "./aiSettingsModel";
 import type { EngineState, MeasurementReport, UnusedEmbeddings } from "./localEmbeddings";
 
 /**
@@ -44,10 +44,11 @@ export function semanticFailureText(t: T, engine: Extract<EngineState, { kind: "
 }
 
 /** Why the last run stopped: the provider's word where it gave one, the error otherwise. */
-export function semanticRunFailureText(t: T, source: SemanticSource, failure: ModelFailure | null, detail: string, departed = false): string {
+export function semanticRunFailureText(t: T, source: SemanticSource, failure: ModelFailure | null, detail: string, departed = false, locale = "en"): string {
   const target = source.kind === "provider" ? source.target : null;
-  // Packages of the run went before it stopped (review B7-4, M-R4-6): no "nothing was sent" then.
-  return failure ? aiFailureText(t, failure, target?.provider.label ?? "", target?.model, departed ? { sent: "" } : {}) : t("ai.semantic.runFailed", { reason: detail });
+  // Packages of the run went before it stopped (review B7-4, M-R4-6): the sentence about sending names the provider then.
+  const label = target?.provider.label ?? "";
+  return failure ? aiFailureText(t, failure, label, target?.model, departed && label ? { sent: alreadySentText(t, [label], locale) } : departed ? { sent: "" } : {}) : t("ai.semantic.runFailed", { reason: detail });
 }
 
 /** Who computes while search by meaning is on. */

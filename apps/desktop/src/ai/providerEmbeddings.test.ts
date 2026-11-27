@@ -178,8 +178,8 @@ describe("search by meaning with an own provider", () => {
       const state = controller.snapshot();
       expect(state.runFailure?.kind).toBe("too_large");
       expect(state.runDeparted).toBe(departed);
-      const words = semanticRunFailureText(t, source, state.runFailure, "", state.runDeparted);
-      if (departed) expect(words).not.toMatch(/Nothing was sent/);
+      const words = semanticRunFailureText(t, source, state.runFailure, "", state.runDeparted, "en");
+      if (departed) expect(words).toMatch(/Already sent to: OpenAI\. Nothing more was sent\./);
       else expect(words).toMatch(/Nothing was sent/);
       await controller.close();
     }

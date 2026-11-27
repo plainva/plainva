@@ -1,6 +1,6 @@
 # Assistente IA (Beta)
 
-Ultimo aggiornamento: 2026-11-25
+Ultimo aggiornamento: 2026-11-27
 
 Plainva può rispondere a domande sulle tue note con un modello IA di tua scelta. Legge il tuo vault, cita le note su cui si basa, apre note e viste per te e propone modifiche — come proposte su una nota, come bozze di qualcosa di nuovo o come un piano che confermi tu. Cambia una nota da solo soltanto dove lo consenti (**Applica direttamente**). L'assistente è **sperimentale** ed è disattivato finché non lo attivi, singolarmente su ogni dispositivo.
 
@@ -68,11 +68,11 @@ Una domanda che attende la tua risposta — il riepilogo prima dell'invio, una p
 
 Se qualcosa va storto, il messaggio nomina chi ne è l'origine (questo dispositivo, la rete, il provider o Plainva) e offre la correzione esatta; su un dispositivo senza connessione lo dice.
 
-**Una richiesta che non ha mai lasciato il dispositivo.** Quando Plainva ha deciso prima che partisse qualcosa — nessuna connessione al provider, una richiesta troppo grande da inviare, una chiave mancante —, il messaggio dice che non è stato inviato nulla, e una domanda che hai digitato torna nel campo: **Invia di nuovo** la invia appena la connessione torna.
+**Quando una richiesta fallisce.** Quando Plainva stessa ha fermato la richiesta prima che qualcosa di essa lasciasse il dispositivo — non è stato possibile stabilire alcuna connessione al provider, la richiesta era troppo grande da inviare, nessuna chiave è memorizzata, l'indirizzo del modello non è configurato —, la domanda che hai digitato torna nel campo e nulla di essa resta nella conversazione. Il messaggio dice perché e che cosa cambiare; se era la connessione, dice che non è stato inviato nulla e offre **Invia di nuovo**, che invia subito la domanda.
 
-**Una richiesta che potrebbe essere arrivata.** Quando il provider non ha risposto, o la connessione si è interrotta dopo essersi stabilita, la domanda e il suo registro restano nella conversazione, perché il provider potrebbe averla ricevuta; **Invia di nuovo** invia la stessa domanda ancora una volta al suo posto, senza una seconda copia. Quando una richiesta con un'immagine era troppo grande, **Ometti l'immagine** la invia di nuovo senza l'immagine; l'immagine resta nella conversazione, segnata come **non inviata**.
+Quando una parte della richiesta potrebbe essere arrivata a qualcuno — il provider non ha risposto, la connessione si è interrotta dopo essersi stabilita, la tua domanda era già andata al **Modello di ricerca**, oppure il modello di testo di un server ha ricevuto prima i tuoi dati —, la domanda e il suo registro restano nella conversazione, e il messaggio non dice che non è stato inviato nulla. Quando hanno fallito il provider o la connessione, **Invia di nuovo** invia la stessa domanda ancora una volta al suo posto, senza una seconda copia, al modello che la conversazione mostra ora — il messaggio continua a nominare il provider a cui era andata prima; quando ciò porterebbe con sé più di quanto hai approvato, per esempio dopo il passaggio a un altro modello, oppure quando **Chiedi prima di ogni richiesta** è attivo e il modello non gira su questo dispositivo, il riepilogo prima dell'invio chiede prima, nominando il modello a cui andrà allora la domanda. Una conversazione che girava su questo dispositivo non va a un modello nel cloud nemmeno con **Invia di nuovo**. Altrimenti il messaggio dice che cosa cambiare. Quando una richiesta con un'immagine era troppo grande, **Ometti l'immagine** la invia di nuovo senza l'immagine; l'immagine resta nella conversazione, segnata come **non inviata**.
 
-Ciò che digiti nel campo resta su questo dispositivo per ogni conversazione finché non lo invii, anche dopo un riavvio.
+Ciò che digiti nel campo resta su questo dispositivo per ogni conversazione finché non lo invii — per un massimo di 30 giorni, per le 50 conversazioni usate per ultime, e non oltre l'eliminazione della conversazione.
 
 Un link in una risposta si apre solo dopo che ne hai confermato l'indirizzo, e le immagini nelle risposte non vengono mai caricate.
 

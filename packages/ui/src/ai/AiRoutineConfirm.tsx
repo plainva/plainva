@@ -4,6 +4,7 @@ import { routineDays, type RoutineDraft } from "@plainva/core/ai";
 import { Banner } from "../components/ui/Banner";
 import { AiSendOverview } from "./AiSendOverview";
 import type { RoutinePreview } from "./aiSession";
+import { namesListed } from "./aiSettingsModel";
 import { routineScheduleText } from "./routineView";
 
 /**
@@ -68,7 +69,7 @@ export function AiRoutineConfirm({ draft, preview, weekStart = 1, touch, onOpenN
           </>
         )}
         <dt>{t("ai.routines.confirm.needs")}</dt>
-        <dd>{t("ai.routines.confirm.needsDesc")}</dd>
+        <dd>{t("ai.routines.confirm.needsDesc", { model: preview.model })}</dd>
         <dt>{t("ai.routines.confirm.when")}</dt>
         <dd data-testid="ai-routine-when">{draft.missed === "skip" ? t("ai.routines.confirm.whenSkip", { schedule }) : t("ai.routines.confirm.whenCatchUp", { schedule })}</dd>
       </dl>
@@ -85,6 +86,11 @@ export function AiRoutineConfirm({ draft, preview, weekStart = 1, touch, onOpenN
       {!preview.here && (
         <AiSendOverview manifest={preview.manifest} growth={preview.growth} preview={{ title: t("ai.routines.confirm.overview", { provider: preview.provider }) }} touch={touch} {...(onOpenNote ? { onOpenNote } : {})} {...(preview.direct ? { direct: "folders" as const } : {})} />
       )}
+      {preview.searchWent?.length ? (
+        <p className="pv-ai-overview-hint" data-testid="ai-routine-search-went">
+          {t("ai.routines.confirm.searchWent", { search: namesListed(preview.searchWent, i18n.language) })}
+        </p>
+      ) : null}
     </>
   );
 }

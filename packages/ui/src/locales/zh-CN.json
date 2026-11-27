@@ -280,6 +280,11 @@
         "background": "{{provider}}只在 Plainva 打开时回答。",
         "unsupportedLanguage": "{{provider}}不支持这种语言。请用其他语言书写，或选择其他模型。",
         "unavailable": "{{provider}}当前不可用。"
+      },
+      "alreadySent": "已发送至：{{recipients}}。没有发送更多内容。",
+      "recipient": {
+        "web": "网页",
+        "mail": "你的邮件服务器"
       }
     },
     "empty": {
@@ -612,7 +617,9 @@
       "redact": "在本次对话中遮盖",
       "unredact": "不遮盖发送",
       "situation": "任务、日程和打开的笔记的信息",
-      "neverWeb_other": "不进入可使用互联网的对话：{{count}}条笔记"
+      "neverWeb_other": "不进入可使用互联网的对话：{{count}}条笔记",
+      "searchAtSend": "按含义搜索只在发送时询问 {{search}}：它会找到的笔记不会显示在这里。",
+      "searchGoesTo": "按含义搜索：{{search}}（发送时）"
     },
     "selection": {
       "menu": "AI",
@@ -1128,7 +1135,7 @@
         "tokens": "{{tokens}}个Token",
         "conversation": "测试运行 · {{skill}} · {{scenario}}"
       },
-      "writeFailed":"无法将技能写入仓库。"
+      "writeFailed": "无法将技能写入仓库。"
     },
     "learn": {
       "action": "从此对话中学习",
@@ -1471,13 +1478,14 @@
         "resultDesc": "文件夹“{{folder}}”中的一篇笔记，名为“{{title}}”，标明由 AI 撰写，并附上它所依据的内容。例程不会更改其他任何内容。",
         "resultTop": "仓库顶层的一篇笔记，名为“{{title}}”，标明由 AI 撰写，并附上它所依据的内容。例程不会更改其他任何内容。",
         "needs": "当它需要你时",
-        "needsDesc": "如果它需要只有你才能允许的事，它会停下，不发送任何内容，并在列表中说明。",
+        "needsDesc": "如果它需要只有你才能允许的事，它会在 {{model}} 收到请求之前停下，并在列表中说明。",
         "when": "何时",
         "whenCatchUp": "{{schedule}}，在 Plainva 打开期间。如果 Plainva 已关闭：在下次打开时运行一次。",
         "whenSkip": "{{schedule}}，在 Plainva 打开期间。如果 Plainva 已关闭：这次运行会被跳过。",
         "shared": "此仓库是共享工作区：其成员可以读到这个例程写入的笔记，涵盖该文件夹的发布的读者也可以。",
         "save": "设置例程",
-        "saveAgain": "再次确认"
+        "saveAgain": "再次确认",
+        "searchWent": "为了准备这些内容，按含义搜索的请求已发送至 {{search}}。"
       },
       "refused": {
         "skill": "这个技能在这里不能成为例程：它在此设备上未启用，或者它不再只读取。",
@@ -3109,14 +3117,6 @@
     "backupZipKeepDesc": "较旧的会自动删除。",
     "backupZipOpen": "打开文件夹",
     "browseFolders": "选择文件夹…",
-    "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
-    "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
-    "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
-    "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
-    "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
-    "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
-    "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
-    "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
     "vaultPathRefused": "此处不能使用“{{path}}”。请填写仓库内的文件夹或文件，文件夹之间用 /，且不在 .plainva 中。",
     "pickerNoFileAccess": "此设备无权访问该账户的文件。请在“云账户”中重新登录。",
     "checkingUpdate": "正在检查更新…",
@@ -6987,8 +6987,7 @@
       "dynamic": "由规则得出的实体化结果"
     },
     "sliceReviewHint": "Review the scope; sanitized projections scrub excluded links and private properties.",
-    "mobile": {
-    },
+    "mobile": {},
     "unlockToApprove": "请解锁一台已在此工作区中的设备来批准该请求。",
     "transferOwner": "转移所有权",
     "ownerTransferRequirements": "请选择新的所有者和当前的恢复文件。",

@@ -324,6 +324,11 @@
         "background": "{{provider}} risponde solo mentre Plainva è aperto.",
         "unsupportedLanguage": "{{provider}} non parla questa lingua. Scrivi in un'altra o scegli un altro modello.",
         "unavailable": "{{provider}} non è disponibile al momento."
+      },
+      "alreadySent": "Già inviato a: {{recipients}}. Non è stato inviato altro.",
+      "recipient": {
+        "web": "la pagina web",
+        "mail": "il tuo server di posta"
       }
     },
     "empty": {
@@ -688,7 +693,9 @@
       "situation": "Attività, appuntamenti e dettagli della nota aperta",
       "neverWeb_one": "Non in una conversazione con Internet: {{count}} nota",
       "neverWeb_many": "Non in una conversazione con Internet: {{count}} note",
-      "neverWeb_other": "Non in una conversazione con Internet: {{count}} note"
+      "neverWeb_other": "Non in una conversazione con Internet: {{count}} note",
+      "searchAtSend": "La ricerca per significato interroga {{search}} solo all'invio: le note che troverebbe non sono mostrate qui.",
+      "searchGoesTo": "Ricerca per significato: {{search}} (all'invio)"
     },
     "selection": {
       "menu": "IA",
@@ -1236,7 +1243,7 @@
         "tokens": "{{tokens}} token",
         "conversation": "Verifica · {{skill}} · {{scenario}}"
       },
-      "writeFailed":"Impossibile scrivere la competenza nel vault."
+      "writeFailed": "Impossibile scrivere la competenza nel vault."
     },
     "learn": {
       "action": "Impara da questa conversazione",
@@ -1591,13 +1598,14 @@
         "resultDesc": "Una nota nella cartella «{{folder}}», chiamata «{{title}}», contrassegnata come scritta dall'IA, con ciò su cui si basa. La routine non modifica nient'altro.",
         "resultTop": "Una nota al livello superiore del vault, chiamata «{{title}}», contrassegnata come scritta dall'IA, con ciò su cui si basa. La routine non modifica nient'altro.",
         "needs": "Quando serve il tuo intervento",
-        "needsDesc": "Dove le servirebbe qualcosa che solo tu puoi consentire, si ferma, non invia nulla e lo dice nell'elenco.",
+        "needsDesc": "Dove le servirebbe qualcosa che solo tu puoi consentire, si ferma prima che {{model}} riceva la sua richiesta e lo dice nell'elenco.",
         "when": "Quando",
         "whenCatchUp": "{{schedule}}, mentre Plainva è aperto. Se era chiuso: una volta alla prossima apertura.",
         "whenSkip": "{{schedule}}, mentre Plainva è aperto. Se era chiuso: quell'esecuzione viene saltata.",
         "shared": "Questo vault è un workspace condiviso: i suoi membri possono leggere le note che questa routine scrive, così come i lettori di una pubblicazione che comprende la cartella.",
         "save": "Configura routine",
-        "saveAgain": "Conferma di nuovo"
+        "saveAgain": "Conferma di nuovo",
+        "searchWent": "Per preparare questo, la richiesta è andata a {{search}} per la ricerca per significato."
       },
       "refused": {
         "skill": "Questa competenza non può essere una routine qui: non è attiva su questo dispositivo, oppure non si limita più a leggere.",
@@ -3287,14 +3295,6 @@
     "backupZipKeepDesc": "Quelli più vecchi vengono eliminati automaticamente.",
     "backupZipOpen": "Apri cartella",
     "browseFolders": "Scegli cartella…",
-    "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
-    "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
-    "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
-    "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
-    "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
-    "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
-    "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
-    "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
     "vaultPathRefused": "«{{path}}» non si può usare qui. Indica una cartella o un file all’interno del vault, con / tra le cartelle e fuori da .plainva.",
     "pickerNoFileAccess": "Questo dispositivo non ha accesso ai file di questo account. Accedi di nuovo in «Account cloud».",
     "checkingUpdate": "Ricerca aggiornamenti in corso...",
@@ -7279,8 +7279,7 @@
       "dynamic": "Il risultato materializzato di una regola"
     },
     "sliceReviewHint": "Review the scope; sanitized projections scrub excluded links and private properties.",
-    "mobile": {
-    },
+    "mobile": {},
     "unlockToApprove": "Sblocca un dispositivo già presente nel workspace per approvare questa richiesta.",
     "transferOwner": "Trasferisci la proprietà",
     "ownerTransferRequirements": "Scegli il nuovo proprietario e il file di ripristino attuale.",

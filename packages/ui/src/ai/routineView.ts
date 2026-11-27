@@ -17,6 +17,7 @@ import {
   type RoutineNeed,
   type RoutineSchedule,
 } from "@plainva/core/ai";
+import { alreadySentText, departureNames } from "./aiSettingsModel";
 import { skillView } from "./aiSkills";
 
 /**
@@ -214,12 +215,21 @@ export function routineNeed(
 
 /**
  * What a routine needs, as its line says it. "Would send more than you confirmed" ends with the sentence about sending
- * (review B7-3, S5): "nothing was sent" where nothing of that run had left the device, no sentence where it had — its
- * request had gone to a search model in the cloud while the run was put together.
+ * (review B7-3, S5): "nothing was sent" where nothing of that run had left the device, "Already sent to: …" where its
+ * request had gone to a search model in the cloud while the run was put together — none where a run kept before the
+ * list was kept says only that something went.
  */
-function needText(t: Translate, need: RoutineNeed, departed: boolean): string {
+function needText(t: Translate, need: RoutineNeed, sent: string): string {
   if (need !== "scope") return t(`ai.routines.needs.${need}`);
-  return t("ai.routines.needs.scope", { sent: departed ? "" : t("ai.error.nothingSent") }).replace(/\s{2,}/g, " ").trim();
+  return t("ai.routines.needs.scope", { sent }).replace(/\s{2,}/g, " ").trim();
+}
+
+/** The sentence about sending of a routine's last run that stopped for its user. */
+function sentOf(t: Translate, routine: Routine, custom: AiAppSettings["custom"], locale: string): string {
+  const last = routine.last;
+  if (!(last?.outcome === "needs-you" && last.departed === true)) return t("ai.error.nothingSent");
+  if (!last.departedTo?.length) return "";
+  return alreadySentText(t, departureNames(t, last.departedTo, { provider: (id) => providerById(id, custom)?.label ?? id, server: (id) => id }), locale);
 }
 
 function lastText(t: Translate, routine: Routine, now: Date, locale: string): string {
@@ -271,7 +281,7 @@ export function routineRows(
     const status = running
       ? t("ai.routines.runningNow")
       : need
-        ? needText(t, need, routine.last?.outcome === "needs-you" && routine.last.departed === true)
+        ? needText(t, need, sentOf(t, routine, input.settings.custom, locale))
         : [lastText(t, routine, now, locale), routine.paused ? t("ai.routines.paused") : upcoming ? t("ai.routines.next", { when: upcoming }) : ""].filter(Boolean).join(" · ");
     return {
       id: routine.id,

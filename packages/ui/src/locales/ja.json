@@ -280,6 +280,11 @@
         "background": "{{provider}}はPlainvaが開いている間だけ応答します。",
         "unsupportedLanguage": "{{provider}}はこの言語に対応していません。別の言語で書くか、別のモデルを選んでください。",
         "unavailable": "{{provider}}は現在利用できません。"
+      },
+      "alreadySent": "送信済み: {{recipients}}。それ以上は送信されていません。",
+      "recipient": {
+        "web": "Web ページ",
+        "mail": "あなたのメールサーバー"
       }
     },
     "empty": {
@@ -612,7 +617,9 @@
       "redact": "この会話で伏せる",
       "unredact": "伏せずに送信",
       "situation": "タスク、予定、開いているノートの情報",
-      "neverWeb_other": "インターネットを使う会話には含めない: {{count}} 件のノート"
+      "neverWeb_other": "インターネットを使う会話には含めない: {{count}} 件のノート",
+      "searchAtSend": "意味による検索は送信時にのみ {{search}} に問い合わせます。検索で見つかるノートはここには表示されません。",
+      "searchGoesTo": "意味による検索: {{search}}（送信時）"
     },
     "selection": {
       "menu": "AI",
@@ -1128,7 +1135,7 @@
         "tokens": "{{tokens}} トークン",
         "conversation": "テスト実行 · {{skill}} · {{scenario}}"
       },
-      "writeFailed":"スキルを保管庫に書き込めませんでした。"
+      "writeFailed": "スキルを保管庫に書き込めませんでした。"
     },
     "learn": {
       "action": "この会話から学ぶ",
@@ -1471,13 +1478,14 @@
         "resultDesc": "フォルダー「{{folder}}」に置かれる、「{{title}}」という名前のノート。AIが書いたものと明記され、何に基づいているかも添えられます。ルーティンは、それ以外には何も変更しません。",
         "resultTop": "保管庫の最上位に置かれる、「{{title}}」という名前のノート。AIが書いたものと明記され、何に基づいているかも添えられます。ルーティンは、それ以外には何も変更しません。",
         "needs": "対応が必要になるとき",
-        "needsDesc": "あなたにしか許可できないものが必要になる場合、ルーティンは停止し、何も送信せず、そのことを一覧に表示します。",
+        "needsDesc": "あなたにしか許可できないものが必要になる場合、ルーティンは {{model}} がリクエストを受け取る前に停止し、そのことを一覧に表示します。",
         "when": "いつ",
         "whenCatchUp": "{{schedule}}、Plainvaが開いている間。閉じていた場合: 次に開いたときに1回だけ。",
         "whenSkip": "{{schedule}}、Plainvaが開いている間。閉じていた場合: その回はスキップされます。",
         "shared": "この保管庫は共有ワークスペースです。このルーティンが書くノートはメンバーが読めるほか、このフォルダーを含む公開の読者も読めます。",
         "save": "ルーティンを設定する",
-        "saveAgain": "もう一度確認する"
+        "saveAgain": "もう一度確認する",
+        "searchWent": "これを用意するため、意味による検索のリクエストが {{search}} に送られました。"
       },
       "refused": {
         "skill": "このスキルは、ここではルーティンにできません。この端末で有効になっていないか、もう読み取るだけではなくなっています。",
@@ -3109,14 +3117,6 @@
     "backupZipKeepDesc": "古いものは自動的に削除されます。",
     "backupZipOpen": "フォルダーを開く",
     "browseFolders": "フォルダーを選択…",
-    "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
-    "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
-    "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
-    "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
-    "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
-    "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
-    "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
-    "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
     "vaultPathRefused": "「{{path}}」はここでは使えません。保管庫内のフォルダーまたはファイルを、フォルダーの区切りに / を使い、.plainva の外で指定してください。",
     "pickerNoFileAccess": "このデバイスはこのアカウントのファイルにアクセスできません。「クラウドアカウント」で再度サインインしてください。",
     "checkingUpdate": "アップデートを確認しています...",
@@ -6987,8 +6987,7 @@
       "dynamic": "ルールの結果を実体化したもの"
     },
     "sliceReviewHint": "Review the scope; sanitized projections scrub excluded links and private properties.",
-    "mobile": {
-    },
+    "mobile": {},
     "unlockToApprove": "この申請を承認するには、既存のワークスペースのデバイスのロックを解除してください。",
     "transferOwner": "所有権を移す",
     "ownerTransferRequirements": "新しい所有者と現在の復旧ファイルを選んでください。",

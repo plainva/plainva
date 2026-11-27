@@ -1,6 +1,6 @@
 # Assistant IA (Bêta)
 
-Dernière mise à jour : 2026-11-25
+Dernière mise à jour : 2026-11-27
 
 Plainva peut répondre à des questions sur vos notes avec un modèle d'IA de votre choix. Il lit votre vault, cite les notes sur lesquelles il s'appuie, ouvre des notes et des vues pour vous et propose des modifications — sous forme de propositions sur une note, de brouillons pour ce qui est nouveau, ou d'un plan que vous confirmez. Il ne modifie une note lui-même que là où vous l'autorisez (**Appliquer directement**). L'assistant est **expérimental** et désactivé jusqu'à ce que vous l'activiez, séparément sur chaque appareil.
 
@@ -68,11 +68,11 @@ Une question qui attend votre réponse — l'aperçu d'envoi, une page, une rech
 
 Quand quelque chose échoue, le message indique de qui il vient — cet appareil, le réseau, le fournisseur ou Plainva — et propose le remède exact : **Saisir une nouvelle clé** pour une clé, **Changer de modèle** pour un modèle inconnu. Le texte d'erreur propre à un fournisseur se trouve derrière **Détails**. Hors ligne, le message dit que cet appareil est hors ligne et qu'il faut renvoyer la question ensuite.
 
-**Une requête qui n'a jamais quitté l'appareil.** Quand Plainva a tranché avant que quoi que ce soit ne parte — aucune connexion au fournisseur, une requête trop volumineuse pour être envoyée, une clé manquante —, le message dit que rien n'a été envoyé, et une question que vous avez saisie revient dans le champ : **Renvoyer** l'envoie dès que la connexion est rétablie.
+**Quand une requête échoue.** Quand Plainva a lui-même arrêté la requête avant que quoi que ce soit n'ait quitté l'appareil — aucune connexion au fournisseur n'a pu être établie, la requête était trop volumineuse pour être envoyée, aucune clé n'est enregistrée, l'adresse du modèle n'est pas configurée —, la question que vous avez saisie revient dans le champ et rien n'en reste dans la conversation. Le message dit pourquoi et quoi changer ; si c'était la connexion, il dit que rien n'a été envoyé et propose **Renvoyer**, qui envoie la question aussitôt.
 
-**Une requête qui est peut-être arrivée.** Quand le fournisseur n'a pas répondu, ou que la connexion s'est rompue après s'être établie, la question et son relevé restent dans la conversation, car le fournisseur l'a peut-être reçue ; **Renvoyer** envoie la même question une fois de plus à sa place, sans en faire de copie. Quand une requête avec une image était trop volumineuse, **Laisser l'image de côté** la renvoie sans l'image ; l'image reste dans la conversation, marquée **non envoyée**.
+Quand une partie de la requête a peut-être atteint quelqu'un — le fournisseur n'a pas répondu, la connexion s'est rompue après s'être établie, votre question était déjà partie vers le **Modèle de recherche**, ou le modèle de texte d'un serveur a reçu vos saisies avant —, la question et son relevé restent dans la conversation, et le message ne dit pas que rien n'a été envoyé. Quand le fournisseur ou la connexion a fait défaut, **Renvoyer** envoie la même question une fois de plus à sa place, sans en faire de copie, au modèle que la conversation affiche maintenant — le message continue de nommer le fournisseur auquel elle était allée auparavant ; quand cela emporterait plus que ce que vous avez approuvé, par exemple après un changement de modèle, ou quand **Demander avant chaque requête** est activé et que le modèle ne tourne pas sur cet appareil, l'aperçu d'envoi demande d'abord, en nommant le modèle auquel la question ira alors. Une conversation qui s'est déroulée sur cet appareil ne va pas non plus vers un modèle dans le cloud avec **Renvoyer**. Sinon, le message dit quoi changer. Quand une requête avec une image était trop volumineuse, **Laisser l'image de côté** la renvoie sans l'image ; l'image reste dans la conversation, marquée **non envoyée**.
 
-Ce que vous saisissez dans le champ est conservé sur cet appareil pour chaque conversation jusqu'à l'envoi, même après un redémarrage.
+Ce que vous saisissez dans le champ est conservé sur cet appareil pour chaque conversation jusqu'à l'envoi — pendant 30 jours au plus, pour les 50 conversations utilisées en dernier, et pas au-delà de la suppression de la conversation.
 
 Un lien dans une réponse ne s'ouvre qu'après confirmation de son adresse, et les images dans les réponses ne sont jamais chargées.
 

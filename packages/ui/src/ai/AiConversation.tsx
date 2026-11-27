@@ -26,7 +26,7 @@ import { AiRunOverview } from "./AiRunOverview";
 import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { openLearnSurface } from "./aiLearn";
 import { startAiSkill } from "./aiStart";
-import { conversationFailureText, failureRecipient, failureSender } from "./aiSettingsModel";
+import { conversationFailureText, departureNames, failureRecipient, failureSender } from "./aiSettingsModel";
 import { aiSetupStep, requestAiSettingsIntent } from "./aiSetup";
 import { GROUNDS_NAMED, groundTitles } from "./answerGrounds";
 import type { AiDress, AiSession } from "./aiSession";
@@ -857,7 +857,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
     ? notice.kind === "failed"
       ? providerWords
         ? t(notice.failure.kind === "refused_by_provider" ? "ai.error.refusedShort" : "ai.error.providerErrorShort", { provider: tried.label })
-        : conversationFailureText(t, notice.failure, failureRecipient(tried), triedChoice.model, { returned: shownNotice?.returned === true, images: retryable?.images ?? 0, departed: Boolean(shownNotice?.departedTo?.length) })
+        : conversationFailureText(t, notice.failure, failureRecipient(tried), triedChoice.model, { returned: shownNotice?.returned === true, images: retryable?.images ?? 0, departedTo: departureNames(t, shownNotice?.departedTo ?? [], { provider: providerLabel, server: (id) => state.mcp.servers.find((server) => server.id === id)?.label ?? id }), locale: i18n.language })
       : STOP_KEYS[notice.kind]
         ? t(STOP_KEYS[notice.kind]!)
         : null

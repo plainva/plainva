@@ -302,6 +302,11 @@
         "background": "{{provider}} answers only while Plainva is open.",
         "unsupportedLanguage": "{{provider}} does not speak this language. Write in another one or choose another model.",
         "unavailable": "{{provider}} is not available right now."
+      },
+      "alreadySent": "Already sent to: {{recipients}}. Nothing more was sent.",
+      "recipient": {
+        "web": "the web page",
+        "mail": "your mail server"
       }
     },
     "empty": {
@@ -650,7 +655,9 @@
       "unredact": "Send unredacted",
       "situation": "Tasks, appointments and the open note's details",
       "neverWeb_one": "Not in a conversation with the internet: {{count}} note",
-      "neverWeb_other": "Not in a conversation with the internet: {{count}} notes"
+      "neverWeb_other": "Not in a conversation with the internet: {{count}} notes",
+      "searchAtSend": "The search by meaning asks {{search}} only when you send: notes it would find are not shown here.",
+      "searchGoesTo": "Search by meaning: {{search}} (when you send)"
     },
     "selection": {
       "menu": "AI",
@@ -1182,7 +1189,7 @@
         "tokens": "{{tokens}} tokens",
         "conversation": "Test run · {{skill}} · {{scenario}}"
       },
-      "writeFailed":"The skill could not be written into the vault."
+      "writeFailed": "The skill could not be written into the vault."
     },
     "learn": {
       "action": "Learn from this conversation",
@@ -1531,13 +1538,14 @@
         "resultDesc": "A note in the folder “{{folder}}”, called “{{title}}”, marked as written by the AI, with what it rests on. The routine changes nothing else.",
         "resultTop": "A note at the top of the vault, called “{{title}}”, marked as written by the AI, with what it rests on. The routine changes nothing else.",
         "needs": "When it needs you",
-        "needsDesc": "Where it would need something only you can allow, it stops, sends nothing and says so in the list.",
+        "needsDesc": "Where it would need something only you can allow, it stops before {{model}} gets its request and says so in the list.",
         "when": "When",
         "whenCatchUp": "{{schedule}}, while Plainva is open. If it was closed: once at the next opening.",
         "whenSkip": "{{schedule}}, while Plainva is open. If it was closed: that run is skipped.",
         "shared": "This vault is a shared workspace: its members can read the notes this routine writes, and so can the readers of a publication that covers the folder.",
         "save": "Set up routine",
-        "saveAgain": "Confirm again"
+        "saveAgain": "Confirm again",
+        "searchWent": "To put this together, the request went to {{search}} for the search by meaning."
       },
       "refused": {
         "skill": "This skill cannot be a routine here: it is not active on this device, or it no longer only reads.",
@@ -3198,14 +3206,6 @@
     "backupZipKeepDesc": "Older ones are deleted automatically.",
     "backupZipOpen": "Open folder",
     "browseFolders": "Choose folder…",
-    "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
-    "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
-    "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
-    "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
-    "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
-    "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
-    "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
-    "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
     "vaultPathRefused": "“{{path}}” can’t be used here. Give a folder or file inside the vault, with / between folders and outside .plainva.",
     "pickerNoFileAccess": "This device has no file access for this account. Sign in again under “Cloud accounts”.",
     "checkingUpdate": "Checking for updates...",
@@ -7132,8 +7132,7 @@
       "dynamic": "A materialized rule result"
     },
     "sliceReviewHint": "Review the materialized scope. Sanitized projections scrub excluded links and private properties.",
-    "mobile": {
-    },
+    "mobile": {},
     "unlockToApprove": "Unlock an existing workspace device to approve this request.",
     "transferOwner": "Transfer ownership",
     "ownerTransferRequirements": "Choose the new owner and current recovery file.",

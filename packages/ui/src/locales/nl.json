@@ -302,6 +302,11 @@
         "background": "{{provider}} antwoordt alleen zolang Plainva open is.",
         "unsupportedLanguage": "{{provider}} spreekt deze taal niet. Schrijf in een andere of kies een ander model.",
         "unavailable": "{{provider}} is nu niet beschikbaar."
+      },
+      "alreadySent": "Al verzonden naar: {{recipients}}. Verder is er niets verzonden.",
+      "recipient": {
+        "web": "de webpagina",
+        "mail": "je mailserver"
       }
     },
     "empty": {
@@ -650,7 +655,9 @@
       "unredact": "Zonder weglakken versturen",
       "situation": "Taken, afspraken en gegevens van de open notitie",
       "neverWeb_one": "Niet in een gesprek met internet: {{count}} notitie",
-      "neverWeb_other": "Niet in een gesprek met internet: {{count}} notities"
+      "neverWeb_other": "Niet in een gesprek met internet: {{count}} notities",
+      "searchAtSend": "Zoeken op betekenis vraagt {{search}} pas bij het verzenden: notities die het zou vinden, staan hier nog niet.",
+      "searchGoesTo": "Zoeken op betekenis: {{search}} (bij het verzenden)"
     },
     "selection": {
       "menu": "AI",
@@ -1182,7 +1189,7 @@
         "tokens": "{{tokens}} tokens",
         "conversation": "Testrun · {{skill}} · {{scenario}}"
       },
-      "writeFailed":"De vaardigheid kon niet in de vault worden geschreven."
+      "writeFailed": "De vaardigheid kon niet in de vault worden geschreven."
     },
     "learn": {
       "action": "Leren van dit gesprek",
@@ -1531,13 +1538,14 @@
         "resultDesc": "Een notitie in de map “{{folder}}”, met de naam “{{title}}”, gemarkeerd als door de AI geschreven en met vermelding van waarop ze berust. Verder verandert de routine niets.",
         "resultTop": "Een notitie op het bovenste niveau van de vault, met de naam “{{title}}”, gemarkeerd als door de AI geschreven en met vermelding van waarop ze berust. Verder verandert de routine niets.",
         "needs": "Wanneer ze je nodig heeft",
-        "needsDesc": "Waar ze iets nodig zou hebben wat alleen jij kunt toestaan, stopt ze, verzendt ze niets en meldt ze dat in de lijst.",
+        "needsDesc": "Waar ze iets nodig zou hebben wat alleen jij kunt toestaan, stopt ze voordat {{model}} haar verzoek krijgt en meldt ze dat in de lijst.",
         "when": "Wanneer",
         "whenCatchUp": "{{schedule}}, zolang Plainva open is. Was Plainva gesloten: één keer bij het volgende openen.",
         "whenSkip": "{{schedule}}, zolang Plainva open is. Was Plainva gesloten: die uitvoering wordt overgeslagen.",
         "shared": "Deze vault is een gedeelde workspace: de leden ervan kunnen de notities lezen die deze routine schrijft, net als de lezers van een publicatie die de map omvat.",
         "save": "Routine instellen",
-        "saveAgain": "Opnieuw bevestigen"
+        "saveAgain": "Opnieuw bevestigen",
+        "searchWent": "Om dit samen te stellen, ging het verzoek voor zoeken op betekenis naar {{search}}."
       },
       "refused": {
         "skill": "Deze vaardigheid kan hier geen routine zijn: ze is op dit apparaat niet actief, of ze beperkt zich niet meer tot lezen.",
@@ -3198,14 +3206,6 @@
     "backupZipKeepDesc": "Oudere worden automatisch verwijderd.",
     "backupZipOpen": "Map openen",
     "browseFolders": "Map kiezen…",
-    "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
-    "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
-    "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
-    "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
-    "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
-    "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
-    "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
-    "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
     "vaultPathRefused": "‘{{path}}’ kan hier niet worden gebruikt. Geef een map of bestand in de vault op, met / tussen mappen en buiten .plainva.",
     "pickerNoFileAccess": "Dit apparaat heeft geen toegang tot de bestanden van dit account. Meld je opnieuw aan bij ‘Cloudaccounts’.",
     "checkingUpdate": "Zoeken naar updates...",
@@ -7133,8 +7133,7 @@
       "dynamic": "Het gematerialiseerde resultaat van een regel"
     },
     "sliceReviewHint": "Review the scope; sanitized projections scrub excluded links and private properties.",
-    "mobile": {
-    },
+    "mobile": {},
     "unlockToApprove": "Ontgrendel een bestaand workspace-apparaat om dit verzoek goed te keuren.",
     "transferOwner": "Eigendom overdragen",
     "ownerTransferRequirements": "Kies de nieuwe eigenaar en het huidige herstelbestand.",

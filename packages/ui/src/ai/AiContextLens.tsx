@@ -9,6 +9,7 @@ import { ICON } from "../lib/iconSizes";
 import { toast } from "../services/toastStore";
 import { requestGraphTrail } from "../graph/graphTrail";
 import type { ContextPreview } from "./aiSession";
+import { namesListed } from "./aiSettingsModel";
 import { percentOf } from "./usageLines";
 import { useAiSession, useAiState } from "./useAiSession";
 import { useSensitiveKinds } from "./sensitiveKinds";
@@ -169,6 +170,9 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
     </div>
   );
   const situationHint = preview?.pack.situationHint;
+  // A search at a model off this device is asked only when the message is sent (review B7-3, S7; texts approved 27.11.):
+  // the lens says so, names it, and makes no claim about notes it would find.
+  const heldSearch = preview?.searchHeldBack && preview.searchBy.length ? namesListed(preview.searchBy, i18n.language) : null;
 
   return (
     <section className={cx("pv-ai-lens", side && "pv-ai-lens--side", touch && "pv-ai-lens--touch")} aria-label={t("ai.lens.title")} data-testid="ai-lens">
@@ -183,6 +187,11 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
         )}
       </div>
       <p className="pv-ai-lens-tag">{t("ai.lens.tagline")}</p>
+      {heldSearch && (
+        <p className="pv-ai-lens-tag" data-testid="ai-lens-search-at-send">
+          {t("ai.lens.searchAtSend", { search: heldSearch })}
+        </p>
+      )}
 
       {!preview ? (
         !loading && <p className="pv-ai-lens-note">{t("ai.lens.unavailable")}</p>
@@ -193,6 +202,7 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
               <dt>{t("ai.overview.goesTo")}</dt>
               <dd>
                 {preview.manifest.providerLabel} · {preview.manifest.model}
+                {heldSearch && <div data-testid="ai-lens-search-goes-to">{t("ai.lens.searchGoesTo", { search: heldSearch })}</div>}
               </dd>
             </div>
             <div>
@@ -222,7 +232,7 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
           {preview.manifest.local && <p className="pv-ai-lens-note">{t("ai.lens.local")}</p>}
 
           {refs.length === 0 ? (
-            <p className="pv-ai-lens-note">{t("ai.lens.nothing")}</p>
+            heldSearch ? null : <p className="pv-ai-lens-note">{t("ai.lens.nothing")}</p>
           ) : (
             <ul className="pv-ai-lens-list">
               {refs.map((ref) => {
@@ -348,7 +358,7 @@ export function AiContextLens({ question, onClose, onOpenNote, onSend, touch, si
       {onSend && (
         <div className="pv-ai-overview-actions">
           <Button variant="primary" onClick={onSend} data-testid="ai-lens-send">
-            {t("ai.lens.sendWith")}
+            {heldSearch ? t("ai.send") : t("ai.lens.sendWith")}
           </Button>
         </div>
       )}

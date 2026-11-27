@@ -96,9 +96,10 @@ export interface RoutineRun {
   applied?: AppliedWrite[];
   /**
    * Something of this run had left the device before it stopped for its user (review B7-3, S5): its request went to a
-   * search model in the cloud, say. Its line then says nothing about sending.
+   * search model in the cloud, say. Its line then names whom (`departedTo`: endpoint ids, `mcp:<id>`, `web`, `mail`).
    */
   departed?: true;
+  departedTo?: string[];
 }
 
 export interface Routine {
@@ -356,6 +357,9 @@ function readRun(value: unknown): RoutineRun | undefined {
     ...(NEEDS.includes(run.need as RoutineNeed) ? { need: run.need as RoutineNeed } : {}),
     ...(FAILURES.includes(run.failure as RoutineFailure) ? { failure: run.failure as RoutineFailure } : {}),
     ...(run.departed === true ? { departed: true as const } : {}),
+    ...(run.departed === true && Array.isArray(run.departedTo) && run.departedTo.length <= 20 && run.departedTo.every((entry) => typeof entry === "string" && entry.length > 0 && entry.length <= 200)
+      ? { departedTo: [...(run.departedTo as string[])] }
+      : {}),
     ...(typeof run.note === "string" && run.note.length <= 500 ? { note: run.note } : {}),
     ...(typeof run.noteTitle === "string" && run.noteTitle.length <= 200 ? { noteTitle: run.noteTitle } : {}),
     ...(() => {

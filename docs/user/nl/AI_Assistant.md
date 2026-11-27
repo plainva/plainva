@@ -1,6 +1,6 @@
 # AI-assistent (Beta)
 
-Laatst bijgewerkt: 2026-11-25
+Laatst bijgewerkt: 2026-11-27
 
 Plainva kan vragen over je notities beantwoorden met een AI-model van jouw keuze. Het leest je vault, noemt de notities waarop het zich baseert, opent notities en weergaven voor je en stelt wijzigingen voor — als voorstellen bij een notitie, als concepten voor iets nieuws of als een plan dat jij bevestigt. Een notitie verandert het alleen zelf waar jij dat toestaat (**Direct toepassen**). De assistent is **experimenteel** en staat uit totdat je hem inschakelt, apart op elk apparaat.
 
@@ -68,11 +68,11 @@ Een vraag die op jou wacht — het overzicht vóór het verzenden, een pagina, e
 
 Gaat er iets mis, dan noemt de melding wie de bron is (dit apparaat, het netwerk, de provider of Plainva) en biedt ze de precieze oplossing; zonder verbinding op het apparaat zegt ze dat ook.
 
-**Een verzoek dat het apparaat nooit heeft verlaten.** Heeft Plainva beslist voordat er iets verzonden werd — helemaal geen verbinding met de provider, een verzoek dat te groot is om te verzenden, een ontbrekende sleutel —, dan zegt de melding dat er niets is verzonden, en een vraag die je hebt getypt staat weer in het veld: **Opnieuw verzenden** verstuurt hem zodra de verbinding terug is.
+**Als een verzoek mislukt.** Heeft Plainva zelf het verzoek tegengehouden voordat er iets van het apparaat vertrok — er kwam geen verbinding met de provider tot stand, het verzoek was te groot om te verzenden, er is geen sleutel opgeslagen, het adres van het model is niet ingericht —, dan staat de vraag die je typte weer in het veld en blijft er niets van in het gesprek. De melding zegt waarom en wat je moet wijzigen; lag het aan de verbinding, dan zegt ze dat er niets is verzonden en biedt ze **Opnieuw verzenden** aan, dat de vraag meteen verstuurt.
 
-**Een verzoek dat kan zijn aangekomen.** Heeft de provider niet geantwoord, of is de verbinding weggevallen nadat ze stond, dan blijven de vraag en het overzicht ervan in het gesprek, want de provider kan hem hebben ontvangen; **Opnieuw verzenden** verstuurt dezelfde vraag nog een keer op zijn plaats, zonder tweede kopie. Was een verzoek met een afbeelding te groot, dan verstuurt **Afbeelding weglaten** het opnieuw zonder de afbeelding; de afbeelding blijft in het gesprek, gemarkeerd als **niet verzonden**.
+Kan een deel van het verzoek iemand hebben bereikt — de provider heeft niet geantwoord, de verbinding viel weg nadat ze stond, je vraag was al naar het **Zoekmodel** gegaan, of het tekstsjabloon van een server kreeg je invoer eerder —, dan blijven de vraag en het overzicht ervan in het gesprek en zegt de melding niet dat er niets is verzonden. Lag het aan de provider of de verbinding, dan verstuurt **Opnieuw verzenden** dezelfde vraag nog een keer op zijn plaats, zonder tweede kopie, naar het model dat het gesprek nu toont — de melding noemt nog steeds de provider waarheen ze eerder ging; gaat er daarbij meer mee dan je hebt goedgekeurd, bijvoorbeeld na een wissel naar een ander model, of staat **Vragen vóór elk verzoek** aan en draait het model niet op dit apparaat, dan vraagt eerst het overzicht vóór het verzenden, met de naam van het model waarheen de vraag dan gaat. Een gesprek dat op dit apparaat liep, gaat ook met **Opnieuw verzenden** niet naar een model in de cloud. Anders zegt de melding wat je moet wijzigen. Was een verzoek met een afbeelding te groot, dan verstuurt **Afbeelding weglaten** het opnieuw zonder de afbeelding; de afbeelding blijft in het gesprek, gemarkeerd als **niet verzonden**.
 
-Wat je in het veld typt, blijft per gesprek op dit apparaat bewaard tot je het verzendt, ook na een herstart.
+Wat je in het veld typt, blijft per gesprek op dit apparaat bewaard tot je het verzendt — maximaal 30 dagen, voor de 50 laatst gebruikte gesprekken, en niet langer dan het gesprek bestaat.
 
 Een link in een antwoord opent pas nadat je het adres ervan hebt bevestigd, en afbeeldingen in antwoorden worden nooit geladen.
 

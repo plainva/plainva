@@ -1,6 +1,6 @@
 # Assistente de IA (Beta)
 
-Última revisão: 2026-11-25
+Última revisão: 2026-11-27
 
 O Plainva pode responder perguntas sobre suas notas com um modelo de IA da sua escolha. Ele lê seu vault, cita as notas que usou, abre notas e visualizações para você e propõe alterações — como sugestões em uma nota, como rascunhos de algo novo ou como um plano que você confirma. Ele só muda uma nota sozinho onde você permite (**Aplicar diretamente**). O assistente é **experimental** e fica desligado até você ativá-lo, separadamente em cada dispositivo.
 
@@ -68,11 +68,11 @@ Uma pergunta que espera por você — o resumo de envio, uma página, uma pesqui
 
 Quando algo falha, a mensagem diz de quem ela vem — deste dispositivo, da rede, do provedor ou do Plainva — e oferece o remédio exato: **Digitar uma nova chave** para uma chave, **Trocar modelo** para um modelo desconhecido. O texto de erro do próprio provedor fica atrás de **Detalhes**. Sem rede, a mensagem diz que este dispositivo está offline e que você deve enviar a pergunta de novo depois.
 
-**Uma solicitação que nunca saiu do dispositivo.** Quando o Plainva decidiu antes que qualquer coisa fosse enviada — nenhuma conexão com o provedor, uma solicitação grande demais para enviar, uma chave que falta —, a mensagem diz que nada foi enviado, e uma pergunta que você digitou volta para o campo: **Enviar de novo** a envia assim que a conexão voltar.
+**Quando uma solicitação falha.** Quando o próprio Plainva interrompeu a solicitação antes que qualquer parte dela saísse do dispositivo — não foi possível estabelecer conexão com o provedor, a solicitação era grande demais para enviar, nenhuma chave está guardada, o endereço do modelo não está configurado —, a pergunta que você digitou volta para o campo e nada dela fica na conversa. A mensagem diz por quê e o que mudar; se foi a conexão, diz que nada foi enviado e oferece **Enviar de novo**, que envia a pergunta na hora.
 
-**Uma solicitação que pode ter chegado.** Quando o provedor não respondeu, ou a conexão caiu depois de estabelecida, a pergunta e seu registro ficam na conversa, porque o provedor pode tê-la recebido; **Enviar de novo** envia a mesma pergunta mais uma vez no mesmo lugar, sem uma segunda cópia. Quando uma solicitação com uma imagem era grande demais, **Deixar a imagem de fora** a envia de novo sem a imagem; a imagem fica na conversa, marcada como **não enviada**.
+Quando parte da solicitação pode ter chegado a alguém — o provedor não respondeu, a conexão caiu depois de estabelecida, sua pergunta já tinha ido ao **Modelo de pesquisa**, ou o modelo de texto de um servidor recebeu antes as suas entradas —, a pergunta e seu registro ficam na conversa, e a mensagem não diz que nada foi enviado. Quando o provedor ou a conexão falhou, **Enviar de novo** envia a mesma pergunta mais uma vez no mesmo lugar, sem uma segunda cópia, ao modelo que a conversa mostra agora — a mensagem continua nomeando o provedor para o qual ela foi antes; quando isso levaria mais do que você aprovou, por exemplo depois de trocar para outro modelo, ou quando **Perguntar antes de cada solicitação** está ativado e o modelo não roda neste dispositivo, o resumo de envio pergunta primeiro e nomeia o modelo para o qual a pergunta irá então. Uma conversa que rodou neste dispositivo também não vai a um modelo na nuvem com **Enviar de novo**. Fora isso, a mensagem diz o que mudar. Quando uma solicitação com uma imagem era grande demais, **Deixar a imagem de fora** a envia de novo sem a imagem; a imagem fica na conversa, marcada como **não enviada**.
 
-O que você digita no campo fica guardado neste dispositivo para cada conversa até você enviar, também depois de reiniciar.
+O que você digita no campo fica guardado neste dispositivo para cada conversa até você enviar — por até 30 dias, para as 50 conversas usadas por último, e não além da exclusão da conversa.
 
 Um link em uma resposta só abre depois que você confirma o endereço dele, e imagens em respostas nunca são carregadas.
 

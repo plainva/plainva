@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import i18n from "@plainva/ui/i18n";
-import { isCloudRecipient, type EgressChunk, type ModelFailure } from "@plainva/core/ai";
-import { conversationFailureText, routineRows, type AiSession, type AiVaultHost } from "@plainva/ui/ai";
+import { isCloudRecipient, type EgressChunk, type ModelFailure, type RoutineDraft } from "@plainva/core/ai";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { AiRoutineConfirm, alreadySentText, conversationFailureText, departureNames, routineRows, type AiSession, type AiVaultHost } from "@plainva/ui/ai";
 import { session, settled, unreachable, vaultHost } from "./failureClassHarness";
 import { at, routineSession, routineVault } from "./routineSessionHarness";
 
@@ -42,7 +44,7 @@ function withServer(s: AiSession, prompt: (args: Record<string, string>, questio
   return askedWith;
 }
 
-const en = (failure: ModelFailure, departed: boolean, returned = false) => conversationFailureText(i18n.getFixedT("en"), failure, { label: "Anthropic" }, "m-1", { departed, returned });
+const en = (failure: ModelFailure, departedTo: readonly string[] = [], returned = false) => conversationFailureText(i18n.getFixedT("en"), failure, { label: "Anthropic" }, "m-1", { departedTo, returned, locale: "en" });
 
 describe("a foreign server's prompt (S4)", () => {
   it("keeps its turn and never says 'nothing was sent': the user's words were at the server before the run (R2-P1)", async () => {
@@ -125,30 +127,38 @@ describe("what else the device sends while a question runs (M9)", () => {
 
 describe("the notice's words about sending (D5)", () => {
   it("say 'nothing was sent' with reason and remedy where nothing of the request left", () => {
-    expect(en({ kind: "too_large" }, false)).toBe("The request is too large to send. Nothing was sent. Usually an image is too big.");
-    expect(en({ kind: "invalid_request", message: "x" }, false)).toBe("Plainva could not put this request together. Nothing was sent. Please report this as a bug.");
-    expect(en({ kind: "window_too_small", needed: 9000, window: 8192 }, false)).toContain("the window stated for m-1 is 8192. Nothing was sent. Raise the window");
-    expect(en({ kind: "local_only" }, false)).toBe("“Fully local” is on, and Anthropic does not run on this device. Nothing was sent. Choose a model on this device, or switch “Fully local” off.");
+    expect(en({ kind: "too_large" })).toBe("The request is too large to send. Nothing was sent. Usually an image is too big.");
+    expect(en({ kind: "invalid_request", message: "x" })).toBe("Plainva could not put this request together. Nothing was sent. Please report this as a bug.");
+    expect(en({ kind: "window_too_small", needed: 9000, window: 8192 })).toContain("the window stated for m-1 is 8192. Nothing was sent. Raise the window");
+    expect(en({ kind: "local_only" })).toBe("“Fully local” is on, and Anthropic does not run on this device. Nothing was sent. Choose a model on this device, or switch “Fully local” off.");
   });
 
-  it("keep reason and remedy, and claim nothing about sending, where something of the request left before the model call", () => {
+  it("keep reason and remedy, and name whom it went to, where something of the request left before the model call (approved 27.11.)", () => {
     // The way out stays named: an image too big, the window to raise, a bug to report, the switch — never "Something went wrong".
-    expect(en({ kind: "too_large" }, true)).toBe("The request is too large to send. Usually an image is too big.");
-    expect(en({ kind: "invalid_request", message: "x" }, true)).toBe("Plainva could not put this request together. Please report this as a bug.");
-    expect(en({ kind: "window_too_small", needed: 9000, window: 8192 }, true)).toBe(
-      "This request needs about 9000 tokens; the window stated for m-1 is 8192. Raise the window at the server and in the profile, switch “Can call tools” off for this model, or leave notes out.",
+    expect(en({ kind: "too_large" }, ["OpenAI"])).toBe("The request is too large to send. Already sent to: OpenAI. Nothing more was sent. Usually an image is too big.");
+    expect(en({ kind: "invalid_request", message: "x" }, ["Tracker"])).toBe("Plainva could not put this request together. Already sent to: Tracker. Nothing more was sent. Please report this as a bug.");
+    expect(en({ kind: "window_too_small", needed: 9000, window: 8192 }, ["the web page"])).toBe(
+      "This request needs about 9000 tokens; the window stated for m-1 is 8192. Already sent to: the web page. Nothing more was sent. Raise the window at the server and in the profile, switch “Can call tools” off for this model, or leave notes out.",
     );
-    expect(en({ kind: "local_only" }, true)).toBe("“Fully local” is on, and Anthropic does not run on this device. Choose a model on this device, or switch “Fully local” off.");
+    expect(en({ kind: "local_only" }, ["Tracker", "OpenAI"])).toBe("“Fully local” is on, and Anthropic does not run on this device. Already sent to: Tracker and OpenAI. Nothing more was sent. Choose a model on this device, or switch “Fully local” off.");
     for (const kind of ["too_large", "window_too_small"] as const) {
-      const text = en(kind === "too_large" ? { kind } : { kind, needed: 9000, window: 8192 }, true);
+      const text = en(kind === "too_large" ? { kind } : { kind, needed: 9000, window: 8192 }, ["OpenAI"]);
       expect(text).not.toMatch(/nothing was sent|Something went wrong/i);
     }
   });
 
+  it("names a run's departures as a person reads them: the provider, the server, the web page, the mail server", () => {
+    const t = i18n.getFixedT("en");
+    const names = departureNames(t, ["openai", "mcp:srv", "web", "mail", "openai"], { provider: (id) => (id === "openai" ? "OpenAI" : id), server: (id) => (id === "srv" ? "Tracker" : id) });
+    expect(names).toEqual(["OpenAI", "Tracker", "the web page", "your mail server"]);
+    expect(alreadySentText(t, names, "en")).toBe("Already sent to: OpenAI, Tracker, the web page, and your mail server. Nothing more was sent.");
+    expect(alreadySentText(i18n.getFixedT("de"), ["OpenAI", "Dein Mail-Server"], "de")).toBe("Schon gesendet an: OpenAI und Dein Mail-Server. Mehr wurde nicht gesendet.");
+  });
+
   it("the same in German, where the sentence stands in the middle", () => {
-    const de = (failure: ModelFailure, departed: boolean) => conversationFailureText(i18n.getFixedT("de"), failure, { label: "Anthropic" }, "m-1", { departed });
-    expect(de({ kind: "too_large" }, false)).toBe("Die Anfrage ist zu groß zum Senden. Es wurde nichts gesendet. Meist ist ein Bild zu groß.");
-    expect(de({ kind: "too_large" }, true)).toBe("Die Anfrage ist zu groß zum Senden. Meist ist ein Bild zu groß.");
+    const de = (failure: ModelFailure, departedTo: readonly string[] = []) => conversationFailureText(i18n.getFixedT("de"), failure, { label: "Anthropic" }, "m-1", { departedTo, locale: "de" });
+    expect(de({ kind: "too_large" })).toBe("Die Anfrage ist zu groß zum Senden. Es wurde nichts gesendet. Meist ist ein Bild zu groß.");
+    expect(de({ kind: "too_large" }, ["OpenAI"])).toBe("Die Anfrage ist zu groß zum Senden. Schon gesendet an: OpenAI. Mehr wurde nicht gesendet. Meist ist ein Bild zu groß.");
   });
 });
 
@@ -168,6 +178,8 @@ describe("the context preview sends nothing (H12)", () => {
     expect(handed).toEqual(["Where is the offer?"]);
     expect(fake.sent).toEqual([]);
     expect(preview.searchHeldBack).toBe(true);
+    // Whom a send would ask, by name: the lens says it (approved 27.11.).
+    expect(preview.searchBy).toEqual(["OpenAI"]);
   });
 
   it("lets a search model on this device answer, and holds nothing back then", async () => {
@@ -232,8 +244,8 @@ describe("a routine that stops for its user (review B7-3, S5)", () => {
     h.go(at(9, 7, 1));
     expect(await h.s.runDueRoutines()).toBe(1);
     const last = h.s.getState().routines.list.find((routine) => routine.name === "Morning brief")!.last;
-    expect(last).toMatchObject({ outcome: "needs-you", need: "scope", departed: true });
-    expect(lineOf(h)).toBe("Needs you: the routine would now send more than you confirmed.");
+    expect(last).toMatchObject({ outcome: "needs-you", need: "scope", departed: true, departedTo: ["openai"] });
+    expect(lineOf(h)).toBe("Needs you: the routine would now send more than you confirmed. Already sent to: OpenAI. Nothing more was sent.");
   });
 
   it("says 'nothing was sent' where nothing of it had left", async () => {
@@ -266,7 +278,7 @@ describe("'Send again' is the same turn (review B7-3, S6)", () => {
     const notice = s.getState().notice!;
     expect(notice.stop.kind === "failed" && notice.stop.failure.kind).toBe("local_only");
     expect(notice.departedTo).toEqual(["anthropic"]);
-    expect(en({ kind: "local_only" }, Boolean(notice.departedTo?.length))).not.toMatch(/Nothing was sent/);
+    expect(en({ kind: "local_only" }, notice.departedTo?.length ? ["Anthropic"] : [])).toBe("“Fully local” is on, and Anthropic does not run on this device. Already sent to: Anthropic. Nothing more was sent. Choose a model on this device, or switch “Fully local” off.");
     // The turn stays, as it was.
     expect(s.getState().active!.conversation.turns.map((turn) => turn.role)).toEqual(["user"]);
   });
@@ -369,5 +381,22 @@ describe("a routine while this device asks before every request (review B7-4, M-
     expect(asked.length).toBeGreaterThan(0);
     expect(h.sent).toEqual([]);
     expect(outcome.kind === "preview" && outcome.preview.everyRequest).toBe(true);
+    // Nobody off this device was asked: the confirmation says no search went.
+    expect(outcome.kind === "preview" && outcome.preview.searchWent).toBeUndefined();
+  });
+
+  it("its confirmation says whom the search went to where it asked one off this device, and names the model it stops before (approved 27.11.)", async () => {
+    expect.hasAssertions();
+    const vault = routineVault(NOTES);
+    cloudSearchOf(vault);
+    const h = await routineSession([vector, vector], vault);
+    const draft: RoutineDraft = { name: "Morning brief", skill: "plainva:daily-orientation", request: "Look at the tax audit", days: [1, 2, 3, 4, 5], time: "07:00", missed: "catch-up", onlyWhenChanged: false, choice: { providerId: "anthropic", model: "m-1" } };
+    const outcome = await h.s.routinePreview(draft);
+    if (outcome.kind !== "preview") throw new Error(outcome.kind);
+    expect(outcome.preview.searchWent).toEqual(["OpenAI"]);
+    await i18n.changeLanguage("en");
+    const html = renderToStaticMarkup(createElement(AiRoutineConfirm, { draft, preview: outcome.preview }));
+    expect(html).toContain("Where it would need something only you can allow, it stops before m-1 gets its request and says so in the list.");
+    expect(html).toContain("To put this together, the request went to OpenAI for the search by meaning.");
   });
 });

@@ -1,6 +1,6 @@
 # Asistente de IA (Beta)
 
-Última actualización: 2026-11-25
+Última actualización: 2026-11-27
 
 Plainva puede responder preguntas sobre tus notas con un modelo de IA de tu elección. Lee tu vault, cita las notas que usó, abre notas y vistas por ti y propone cambios — como sugerencias en una nota, como borradores de algo nuevo o como un plan que tú confirmas. Solo cambia una nota por sí mismo donde tú lo permites (**Aplicar directamente**). El asistente es **experimental** y está desactivado hasta que lo actives, por separado en cada dispositivo.
 
@@ -68,11 +68,11 @@ Una pregunta que espera tu respuesta —el resumen previo al envío, una página
 
 Si algo falla, el mensaje indica de quién viene —de este dispositivo, de la red, del proveedor o de Plainva— y ofrece el remedio adecuado: **Introducir una clave nueva** en caso de una clave, **Cambiar de modelo** en caso de un modelo desconocido. El texto de error propio de un proveedor está tras **Detalles**. Sin red, el mensaje dice que este dispositivo está sin conexión y que debes volver a enviar la pregunta después.
 
-**Una solicitud que nunca salió del dispositivo.** Cuando Plainva decidió antes de enviar nada —ninguna conexión con el proveedor, una solicitud demasiado grande para enviarla, una clave que falta—, el mensaje dice que no se envió nada, y una pregunta que escribiste vuelve al campo: **Enviar de nuevo** la envía en cuanto vuelve la conexión.
+**Cuando una solicitud falla.** Cuando Plainva mismo detuvo la solicitud antes de que algo de ella saliera del dispositivo —no se pudo establecer ninguna conexión con el proveedor, la solicitud era demasiado grande para enviarla, no hay ninguna clave guardada, la dirección del modelo no está configurada—, la pregunta que escribiste vuelve al campo y nada de ella queda en la conversación. El mensaje dice por qué y qué cambiar; si fue la conexión, dice que no se envió nada y ofrece **Enviar de nuevo**, que envía la pregunta al instante.
 
-**Una solicitud que puede haber llegado.** Cuando el proveedor no respondió, o la conexión se cortó después de establecerse, la pregunta y su registro se quedan en la conversación, porque el proveedor puede haberla recibido; **Enviar de nuevo** envía la misma pregunta otra vez en su sitio, sin una segunda copia. Cuando una solicitud con una imagen era demasiado grande, **Omitir la imagen** la envía de nuevo sin la imagen; la imagen se queda en la conversación, marcada como **no enviada**.
+Cuando parte de la solicitud puede haber llegado a alguien —el proveedor no respondió, la conexión se cortó después de establecerse, tu pregunta ya había ido al **Modelo de búsqueda**, o la plantilla de texto de un servidor recibió antes tus entradas—, la pregunta y su registro se quedan en la conversación, y el mensaje no dice que no se envió nada. Cuando falló el proveedor o la conexión, **Enviar de nuevo** envía la misma pregunta otra vez en su sitio, sin una segunda copia, al modelo que la conversación muestra ahora —el mensaje sigue nombrando al proveedor al que fue antes—; cuando eso llevaría más de lo que aprobaste, por ejemplo tras cambiar a otro modelo, o cuando **Preguntar antes de cada solicitud** está activado y el modelo no se ejecuta en este dispositivo, el resumen previo al envío pregunta primero y nombra el modelo al que irá entonces la pregunta. Una conversación que se ejecutó en este dispositivo tampoco va a un modelo en la nube con **Enviar de nuevo**. En los demás casos el mensaje dice qué cambiar. Cuando una solicitud con una imagen era demasiado grande, **Omitir la imagen** la envía de nuevo sin la imagen; la imagen se queda en la conversación, marcada como **no enviada**.
 
-Lo que escribes en el campo se guarda en este dispositivo para cada conversación hasta que lo envías, también tras un reinicio.
+Lo que escribes en el campo se guarda en este dispositivo para cada conversación hasta que lo envías —durante un máximo de 30 días, para las 50 conversaciones usadas más recientemente, y no más allá de borrar la conversación.
 
 Un enlace en una respuesta se abre solo después de que confirmes su dirección, y las imágenes en las respuestas nunca se cargan.
 

@@ -299,6 +299,8 @@ describe("a run that fills a column", () => {
     vi.stubGlobal("window", { setTimeout: () => 0, clearTimeout: () => undefined });
     reportFill(t, outcome, "Branche");
     expect(lastToast()).not.toMatch(/Nothing was sent/);
+    // It names whom the rows went to (approved 27.11.).
+    expect(lastToast()).toMatch(/Already sent to: \S.*\. Nothing more was sent\./);
     // The first row failing: nothing of the run left, and the toast says so.
     const first = await session([tooLarge], fillVault());
     const none = await first.s.fillProperty({ base: BASE, column: branche, rows: [row("Acme"), row("Bolt")] });

@@ -1,6 +1,6 @@
 # Asystent AI (Beta)
 
-Stan na: 2026-11-25
+Stan na: 2026-11-27
 
 Plainva potrafi odpowiadać na pytania o notatki za pomocą wybranego modelu AI. Czyta vault, przywołuje notatki, z których korzystała, otwiera notatki oraz widoki i proponuje zmiany — jako propozycje w notatce, jako szkice czegoś nowego albo jako plan, który potwierdzasz. Sama zmienia notatkę tylko tam, gdzie na to pozwolisz (**Zastosuj od razu**). Asystent jest **eksperymentalny** i wyłączony, dopóki nie zostanie włączony, osobno na każdym urządzeniu.
 
@@ -68,11 +68,11 @@ Pytanie, które czeka na Twoją odpowiedź — przegląd przed wysłaniem, stron
 
 Gdy coś pójdzie źle, komunikat nazywa źródło (to urządzenie, sieć, dostawca lub Plainva) i podaje dokładne rozwiązanie; bez połączenia na urządzeniu też to mówi.
 
-**Zapytanie, które nigdy nie opuściło urządzenia.** Gdy Plainva zdecydowała, zanim cokolwiek wysłano — brak jakiegokolwiek połączenia z dostawcą, zapytanie za duże do wysłania, brakujący klucz — komunikat mówi, że nic nie zostało wysłane, a pytanie, które wpisano, wraca do pola: **Wyślij ponownie** wysyła je, gdy połączenie wróci.
+**Gdy zapytanie się nie powiedzie.** Gdy Plainva sama zatrzymała zapytanie, zanim cokolwiek z niego opuściło urządzenie — nie udało się nawiązać połączenia z dostawcą, zapytanie było za duże do wysłania, nie zapisano żadnego klucza, adres modelu nie jest skonfigurowany —, wpisane pytanie wraca do pola i nic z niego nie zostaje w rozmowie. Komunikat mówi, dlaczego i co zmienić; jeśli chodziło o połączenie, mówi, że nic nie wysłano, i oferuje **Wyślij ponownie**, które wysyła pytanie od razu.
 
-**Zapytanie, które mogło dotrzeć.** Gdy dostawca nie odpowiedział albo połączenie zerwało się po nawiązaniu, pytanie i jego zapis zostają w rozmowie, bo dostawca mógł je otrzymać; **Wyślij ponownie** wysyła to samo pytanie jeszcze raz w tym samym miejscu, bez drugiej kopii. Gdy zapytanie z obrazem było za duże, **Pomiń obraz** wysyła je ponownie bez obrazu; obraz zostaje w rozmowie z oznaczeniem **nie wysłano**.
+Gdy część zapytania mogła do kogoś dotrzeć — dostawca nie odpowiedział, połączenie zerwało się po nawiązaniu, Twoje pytanie trafiło już do profilu **Model wyszukiwania**, albo szablon tekstowy serwera otrzymał wcześniej Twoje dane —, pytanie i jego zapis zostają w rozmowie, a komunikat nie mówi, że nic nie wysłano. Gdy zawiódł dostawca lub połączenie, **Wyślij ponownie** wysyła to samo pytanie jeszcze raz w tym samym miejscu, bez drugiej kopii, do modelu, który rozmowa pokazuje teraz — komunikat nadal podaje dostawcę, do którego trafiło wcześniej; gdyby przy tym poszło więcej, niż zatwierdzono, na przykład po przełączeniu na inny model, albo gdy **Pytaj przed każdym zapytaniem** jest włączone, a model nie działa na tym urządzeniu, najpierw pyta przegląd przed wysłaniem i podaje model, do którego pytanie wtedy trafi. Rozmowa, która działała na tym urządzeniu, nie trafia przez **Wyślij ponownie** także do modelu w chmurze. W pozostałych przypadkach komunikat mówi, co zmienić. Gdy zapytanie z obrazem było za duże, **Pomiń obraz** wysyła je ponownie bez obrazu; obraz zostaje w rozmowie z oznaczeniem **nie wysłano**.
 
-To, co wpisujesz w pole, zostaje na tym urządzeniu dla każdej rozmowy, dopóki tego nie wyślesz, także po ponownym uruchomieniu.
+To, co wpisujesz w pole, zostaje na tym urządzeniu dla każdej rozmowy, dopóki tego nie wyślesz — najwyżej przez 30 dni, dla 50 ostatnio używanych rozmów i nie dłużej niż do usunięcia rozmowy.
 
 Link w odpowiedzi otwiera się dopiero po potwierdzeniu jego adresu, a obrazy w odpowiedziach nigdy nie są wczytywane.
 

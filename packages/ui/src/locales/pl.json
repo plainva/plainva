@@ -346,6 +346,11 @@
         "background": "{{provider}} odpowiada tylko wtedy, gdy Plainva jest otwarta.",
         "unsupportedLanguage": "{{provider}} nie zna tego języka. Napisz w innym albo wybierz inny model.",
         "unavailable": "{{provider}} jest teraz niedostępny."
+      },
+      "alreadySent": "Już wysłano do: {{recipients}}. Nic więcej nie zostało wysłane.",
+      "recipient": {
+        "web": "strona internetowa",
+        "mail": "Twój serwer poczty"
       }
     },
     "empty": {
@@ -726,7 +731,9 @@
       "neverWeb_one": "Nie w rozmowie z internetem: {{count}} notatka",
       "neverWeb_few": "Nie w rozmowie z internetem: {{count}} notatki",
       "neverWeb_many": "Nie w rozmowie z internetem: {{count}} notatek",
-      "neverWeb_other": "Nie w rozmowie z internetem: {{count}} notatki"
+      "neverWeb_other": "Nie w rozmowie z internetem: {{count}} notatki",
+      "searchAtSend": "Wyszukiwanie według znaczenia pyta {{search}} dopiero przy wysyłaniu: notatek, które by znalazło, tu jeszcze nie ma.",
+      "searchGoesTo": "Wyszukiwanie według znaczenia: {{search}} (przy wysyłaniu)"
     },
     "selection": {
       "menu": "AI",
@@ -1290,7 +1297,7 @@
         "tokens": "{{tokens}} tokenów",
         "conversation": "Test · {{skill}} · {{scenario}}"
       },
-      "writeFailed":"Nie udało się zapisać umiejętności w vaulcie."
+      "writeFailed": "Nie udało się zapisać umiejętności w vaulcie."
     },
     "learn": {
       "action": "Naucz się z tej rozmowy",
@@ -1651,13 +1658,14 @@
         "resultDesc": "Notatka w folderze „{{folder}}” o nazwie „{{title}}”, oznaczona jako napisana przez AI, wraz z tym, na czym się opiera. Poza tym rutyna niczego nie zmienia.",
         "resultTop": "Notatka na najwyższym poziomie vaultu o nazwie „{{title}}”, oznaczona jako napisana przez AI, wraz z tym, na czym się opiera. Poza tym rutyna niczego nie zmienia.",
         "needs": "Gdy czeka na Ciebie",
-        "needsDesc": "Tam, gdzie potrzebowałaby czegoś, na co pozwolić możesz tylko Ty, zatrzymuje się, niczego nie wysyła i mówi o tym na liście.",
+        "needsDesc": "Tam, gdzie potrzebowałaby czegoś, na co pozwolić możesz tylko Ty, zatrzymuje się, zanim {{model}} dostanie jej żądanie, i mówi o tym na liście.",
         "when": "Kiedy",
         "whenCatchUp": "{{schedule}}, dopóki Plainva jest otwarta. Jeśli była zamknięta: raz przy następnym otwarciu.",
         "whenSkip": "{{schedule}}, dopóki Plainva jest otwarta. Jeśli była zamknięta: to uruchomienie zostaje pominięte.",
         "shared": "Ten vault jest wspólnym obszarem roboczym: jego członkowie mogą czytać notatki, które pisze ta rutyna, podobnie jak czytelnicy publikacji obejmującej ten folder.",
         "save": "Skonfiguruj rutynę",
-        "saveAgain": "Potwierdź ponownie"
+        "saveAgain": "Potwierdź ponownie",
+        "searchWent": "Aby to przygotować, żądanie wyszukiwania według znaczenia trafiło do {{search}}."
       },
       "refused": {
         "skill": "Ta umiejętność nie może tu być rutyną: nie jest aktywna na tym urządzeniu albo już nie tylko czyta.",
@@ -3376,14 +3384,6 @@
     "backupZipKeepDesc": "Starsze są usuwane automatycznie.",
     "backupZipOpen": "Otwórz folder",
     "browseFolders": "Wybierz folder…",
-    "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
-    "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
-    "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
-    "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
-    "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
-    "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
-    "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
-    "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
     "vaultPathRefused": "„{{path}}” nie może być tu użyte. Podaj folder lub plik w obrębie vaultu, z / między folderami i poza .plainva.",
     "pickerNoFileAccess": "To urządzenie nie ma dostępu do plików tego konta. Zaloguj się ponownie w sekcji „Konta w chmurze”.",
     "checkingUpdate": "Sprawdzanie aktualizacji...",
@@ -7425,8 +7425,7 @@
       "dynamic": "Zmaterializowany wynik reguły"
     },
     "sliceReviewHint": "Review the scope; sanitized projections scrub excluded links and private properties.",
-    "mobile": {
-    },
+    "mobile": {},
     "unlockToApprove": "Odblokuj istniejące urządzenie workspace’u, aby zatwierdzić to żądanie.",
     "transferOwner": "Przekaż własność",
     "ownerTransferRequirements": "Wybierz nowego właściciela i bieżący plik odzyskiwania.",

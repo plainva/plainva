@@ -182,32 +182,20 @@ test("at the width this device's reader shows mails in, the assistant reads no w
 /**
  * Text drawn under a direction override (B7, review H7): a person sees the letters mirrored, a machine reads them
  * plainly — the assistant reads none of it. Right-to-left text as mail writes it — `dir="rtl"`, an embedding, an
- * isolate — keeps every word.
+ * isolate — keeps every word. Words that invisible direction marks only show in another order are read in the order
+ * of the text (review B7-5, the maintainer's decision (a), as on `main`): `order` holds one case of each kind that
+ * earlier rounds left out.
  */
 const DIRECTION = {
   hidden: [
     { name: "U+202E override", html: `<p>VISIBLEd1</p><p>&#x202E;SECRETd1 gnissim&#x202C; after</p>` },
     { name: "bdo dir=rtl", html: `<p>VISIBLEd2</p><p><bdo dir="rtl">SECRETd2 words</bdo></p>` },
     { name: "U+202D override", html: `<p>VISIBLEd3</p><p>&#x202D;SECRETd3&#x202C;</p>` },
-    // Turned around without an override (review B7-2, M11): the person reads the second before the first.
-    { name: "U+2067 isolate with a mark between two Latin words", html: `<p>VISIBLEd4 &#x2067;SECRETd4a &#x200F; SECRETd4b&#x2069; end</p>` },
-    { name: "dir=rtl paragraph with a mark between two Latin words", html: `<p>VISIBLEd5</p><p dir="rtl">SECRETd5a &#x200F; SECRETd5b</p>` },
-    { name: "U+202B embedding with a mark between two Latin words", html: `<p>VISIBLEd6 &#x202B;SECRETd6a &#x200F; SECRETd6b&#x202C; end</p>` },
-    // Across elements of one line (review B7-3, M13): bold, a span, a link, two isolating boxes.
-    { name: "o1 isolate across <b>", html: `<p>VISIBLEo1 &#x2067;<b>SECRETo1a</b> &#x200F; <b>SECRETo1b</b>&#x2069; end</p>` },
-    { name: "o2 isolate across <span>", html: `<p>VISIBLEo2 &#x2067;<span>SECRETo2a</span> &#x200F; SECRETo2b&#x2069; end</p>` },
-    { name: "o3 dir=rtl with a mark across a link", html: `<p>VISIBLEo3</p><p dir="rtl"><a href="https://x.example">SECRETo3a</a> &#x200F; SECRETo3b</p>` },
-    { name: "o4 dir=rtl paragraph, two spans", html: `<p>VISIBLEo4</p><p dir="rtl"><span>SECRETo4a</span> &#x200F; <span>SECRETo4b</span></p>` },
-    { name: "o5 bdi beside bdi", html: `<p>VISIBLEo5</p><p dir="rtl"><bdi>SECRETo5a</bdi> <bdi>SECRETo5b</bdi></p>` },
-    // Within one paragraph (review B7-4, M-R4-2): ruby, a raised or tiny word between, a right-to-left letter nobody
-    // sees between, a box with a block inside between, a right-to-left span in a left-to-right paragraph.
-    { name: "c3 ruby around each word", html: `<p>VISIBLEc3 &#x2067;<ruby>SECRETc3a</ruby> &#x200F; <ruby>SECRETc3b</ruby>&#x2069; end</p>` },
-    { name: "c4 a raised word between", html: `<p>VISIBLEc4 &#x2067;SECRETc4a <sup>x</sup> &#x200F; SECRETc4b&#x2069; end</p>` },
-    { name: "c4b a tiny word between", html: `<p>VISIBLEc4b &#x2067;SECRETc4c <span style="font-size:5px">x</span> &#x200F; SECRETc4d&#x2069; end</p>` },
-    { name: "c5 a Hebrew letter of no size between", html: `<p>VISIBLEc5 &#x2067;SECRETc5a <span style="font-size:0">א</span> SECRETc5b&#x2069; end</p>` },
-    { name: "c5b a Hebrew letter in the background's colour between", html: `<p style="background:#fff">VISIBLEc5b &#x2067;SECRETc5c <span style="color:#fff">א</span> SECRETc5d&#x2069; end</p>` },
-    { name: "c11 a box holding a block between", html: `<p>VISIBLEc11 &#x2067;SECRETc11a <span style="display:inline-block"><span style="display:block" dir="ltr">x</span></span> &#x200F; SECRETc11b&#x2069; end</p>` },
-    { name: "c13 a right-to-left span with two bdi in a left-to-right paragraph", html: `<p>VISIBLEc13 <span dir="rtl"><bdi>SECRETc13a</bdi> <bdi>SECRETc13b</bdi></span> end</p>` },
+  ],
+  order: [
+    { name: "an isolate with a mark between two Latin words (o-cases)", html: `<p>VISIBLEt1a &#x2067;VISIBLEt1b &#x200F; VISIBLEt1c&#x2069; VISIBLEt1d</p>` },
+    { name: "a right-to-left span with two bdi in a left-to-right paragraph (c-cases)", html: `<p>VISIBLEt2a <span dir="rtl"><bdi>VISIBLEt2b</bdi> <bdi>VISIBLEt2c</bdi></span> VISIBLEt2d</p>` },
+    { name: "a right-to-left box with invisible marks after Latin words (x-cases)", html: `<p>VISIBLEt3a</p><div dir="rtl">VISIBLEt3b&#x061C; VISIBLEt3c&#x061C; VISIBLEt3d</div>` },
   ],
   kept: [
     { name: "dir=rtl paragraph with Latin words", html: `<p dir="rtl">VISIBLEr1 שלום עולם VISIBLEr1b</p>` },
@@ -221,7 +209,7 @@ const DIRECTION = {
   ],
 };
 
-test("text under a direction override is not read; right-to-left text, embeddings and isolates keep every word", async ({ page }) => {
+test("text under a direction override is not read; right-to-left text, embeddings, isolates and marks keep every word, in the order of the text", async ({ page }) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1000, height: 900 });
   await loadProbe(page);
@@ -230,6 +218,12 @@ test("text under a direction override is not read; right-to-left text, embedding
     const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
     for (const word of open.ai) if (word.startsWith("SECRET")) wrong.push(`${entry.name}: the assistant reads ${word}, drawn mirrored`);
     if (!open.ai.some((word) => word.startsWith("VISIBLE"))) wrong.push(`${entry.name}: the assistant lost the words around it`);
+  }
+  for (const entry of DIRECTION.order) {
+    const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
+    const all = Array.from(entry.html.matchAll(/VISIBLE[a-z0-9]+/g), (m) => m[0]);
+    const read = open.ai.filter((word) => all.includes(word));
+    if (read.join(" ") !== all.join(" ")) wrong.push(`${entry.name}: the assistant reads "${read.join(" ")}", not the text's "${all.join(" ")}"`);
   }
   for (const entry of DIRECTION.kept) {
     const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
@@ -241,10 +235,11 @@ test("text under a direction override is not read; right-to-left text, embedding
 });
 
 /**
- * Right-to-left mail as it is written (review B7-4, M-R4-3): Hebrew and Arabic newsletters, receipts and letters with
- * Latin buttons, columns, names, numbers, addresses and mixed lines. None of them turns a word around for a person, so
- * every word the reader shows is read — a word left out that the reader shows is a fault. The finding of words turned
- * around is measured here the other way: it may not cost these mails a word.
+ * Right-to-left mail as it is written (review B7-4, M-R4-3; review B7-5): Hebrew, Arabic, Persian and Urdu newsletters,
+ * receipts and letters with Latin buttons, columns, names, numbers, addresses, mixed lines, cells, signatures and lists
+ * that wrap — every word the reader shows is read, at both widths; a word left out that the reader shows is a fault.
+ * k- and h-cases are this branch's, g-cases the reviewer's of round 5 (g9–g12 lost words while the branch tried to find
+ * words turned around).
  */
 const IB = "display:inline-block;padding:4px 10px;border:1px solid #888";
 const RTL_MAIL = [
@@ -272,6 +267,20 @@ const RTL_MAIL = [
   { name: "h14 Arabic inline grid of two buttons", html: `<div dir="rtl"><span style="${IB};display:inline-grid">VISIBLEh14a</span> <span style="${IB};display:inline-grid">VISIBLEh14b</span></div>` },
   { name: "h15 Hebrew newsletter, centred buttons and a Latin footer line", html: `<div dir="rtl" style="text-align:center"><p>מבצע סוף השנה</p><p><a style="${IB}" href="https://x.example/s">VISIBLEh15a Shop</a> <a style="${IB}" href="https://x.example/u">VISIBLEh15b</a></p><p dir="ltr">VISIBLEh15c Inc., 1 Main St, Tel Aviv</p></div>` },
   { name: "h16 Arabic paragraph that wraps, Latin words on several lines", html: `<p dir="rtl">${Array.from({ length: 12 }, (_, n) => `نص عربي VISIBLEh16w${n} كلمة`).join(" ")}</p>` },
+  { name: "g1 Outlook-style Hebrew letter with a Latin company and signature", html: `<div dir="rtl" style="font-family:Arial"><p dir="RTL">שלום רב,</p><p dir="RTL">מצורפת הצעת המחיר מ-VISIBLEg1a Ltd. לפרויקט VISIBLEg1b.</p><p dir="RTL">בברכה,<br>VISIBLEg1c VISIBLEg1d<br>טל: 054-1234567</p></div>` },
+  { name: "g2 Gmail Hebrew reply quoting an English mail", html: `<div dir="rtl"><div dir="rtl">היי, ראית את המייל מ-<a href="mailto:x@y.example">VISIBLEg2a@y.example</a>?</div><br><div class="gmail_quote"><div dir="ltr" class="gmail_attr">On Mon, Nov 23, 2026 at 10:00 AM VISIBLEg2b Smith &lt;VISIBLEg2c@y.example&gt; wrote:<br></div><blockquote style="margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><div dir="ltr">Hi team, the VISIBLEg2d meeting moved to Thursday.</div></blockquote></div></div>` },
+  { name: "g3 Hebrew newsletter in tables, button and two product cells", html: `<table dir="rtl" width="100%" cellpadding="0"><tr><td align="center" style="background-color:#1a73e8;color:#ffffff;padding:20px"><h1>מבצע VISIBLEg3a</h1><p>עד 50% הנחה על VISIBLEg3b VISIBLEg3c</p><a href="https://x.example" style="display:inline-block;background-color:#ffffff;color:#1a73e8;padding:10px 20px">VISIBLEg3d Now</a></td></tr><tr><td style="padding:10px"><table width="100%"><tr><td width="50%">VISIBLEg3e Pro<br>₪199</td><td width="50%">VISIBLEg3f Max<br>₪299</td></tr></table></td></tr></table>` },
+  { name: "g4 Persian order notice with code and link", html: `<div dir="rtl">سلام، سفارش شما با شماره VISIBLEg4a-1234 ارسال شد. پیگیری: <a href="https://x.example">VISIBLEg4b.example/track</a></div>` },
+  { name: "g5 Urdu account notice", html: `<p dir="rtl">آپ کا VISIBLEg5a اکاؤنٹ تیار ہے۔ لاگ ان کریں: VISIBLEg5b</p>` },
+  { name: "g6 Hebrew date, time, price, phone, code", html: `<p dir="rtl">תאריך: 27/11/2026, שעה 10:30, מחיר: $49.99, טלפון: +972-3-555-1234, קוד VISIBLEg6a</p>` },
+  { name: "g7 Hebrew line quoting a mixed subject", html: `<p dir="rtl">בנושא: "Re: VISIBLEg7a VISIBLEg7b Q4 report" – אנא עדכנו.</p>` },
+  { name: "g8 an English sentence that wraps in an rtl box", html: `<div dir="rtl">VISIBLEg8a Thank you for your order. VISIBLEg8b Your package will arrive soon, VISIBLEg8c and we hope you enjoy it very much indeed.</div>` },
+  { name: "g9 Hebrew table, a cell with a Latin list parted by commas and marks", html: `<table dir="rtl"><tr><td>אמצעי תשלום</td><td>VISIBLEg9a,&#x200F; VISIBLEg9b,&#x200F; VISIBLEg9c</td></tr></table>` },
+  { name: "g10 Hebrew list of brands with marks that wraps", html: `<p dir="rtl">אנחנו עובדים עם החברות הבאות: VISIBLEg10a,&#x200F; VISIBLEg10b,&#x200F; VISIBLEg10c,&#x200F; VISIBLEg10d,&#x200F; VISIBLEg10e,&#x200F; VISIBLEg10f,&#x200F; VISIBLEg10g.</p>` },
+  { name: "g11 Arabic header on a gradient without a background colour, marks round a name", html: `<div dir="rtl" style="background-image:linear-gradient(#0b3d91,#1a73e8);color:#ffffff;padding:16px"><p>&#x200F;شركة&#x200F; VISIBLEg11a&#x200F; VISIBLEg11b&#x200F; ترحب بكم</p></div>` },
+  { name: "g12 Hebrew signature, a line of name and title with a mark", html: `<div dir="rtl"><div>בברכה,</div><div>VISIBLEg12a,&#x200F; VISIBLEg12b</div></div>` },
+  { name: "g13 Outlook Hebrew with LTR spans", html: `<p dir="RTL"><span lang="HE">הפגישה עם </span><span lang="EN-US" dir="LTR">VISIBLEg13a VISIBLEg13b</span><span lang="HE"> נדחתה ל-</span><span dir="LTR">VISIBLEg13c 3</span></p>` },
+  { name: "g14 Arabic receipt rows as a table with Latin items", html: `<table dir="rtl" width="100%"><tr><td>المنتج</td><td>السعر</td></tr><tr><td>VISIBLEg14a VISIBLEg14b</td><td>USD 20</td></tr><tr><td>VISIBLEg14c</td><td>USD 5</td></tr></table>` },
 ];
 
 test("right-to-left mail as it is written: every word the reader shows is read", async ({ page }) => {

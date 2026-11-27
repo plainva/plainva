@@ -1,4 +1,3 @@
-import { contrast, MIN_CONTRAST, MIN_OPACITY, MIN_TEXT_PX, over, readColour, type Rgba } from "@plainva/core";
 import { applyFrameFit } from "./frameFit";
 import { mailReaderWidths } from "./readerWidth";
 
@@ -442,199 +441,6 @@ function overriddenRanges(text: Text, win: Window): Array<[number, number]> {
   return out;
 }
 
-/** A letter of a script written right to left (Hebrew, Arabic, Syriac, Thaana, N'Ko …). */
-const RTL_LETTER = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]|\uD802[\uDC00-\uDFFF]|\uD803[\uDC00-\uDE7F]/;
-/** A letter of a script written left to right (Latin, Greek, Cyrillic … — anything with letters that is not the above). */
-const LTR_LETTER = /[A-Za-z\u00C0-\u024F\u0370-\u03FF\u0400-\u04FF]/;
-/** What can turn the order of words around without an override: marks, embeddings, isolates, a right-to-left box. */
-const REORDERING = /[\u200F\u061C\u202B\u2067\u2068]/;
-/**
- * Elements that can give text a direction of their own. Not `dir="ltr"`: a box of left-to-right text inside one of
- * left-to-right text turns nothing around — and mail wraps whole messages so (review B7-4, H-R4-1).
- */
-const OWN_DIRECTION = '[dir]:not([dir="ltr" i]),bdi';
-/** The most words of one line a word is compared with (a line of thousands of words is no line a person reads). */
-const LINE_WORDS_MAX = 256;
-
-/**
- * Whether an element's box flows in the line of its parent's text: inline, `contents`, ruby (review B7-4, M-R4-2). An
- * `inline-block`, `inline-flex`, `inline-grid` or `inline-table` is a unit of its own (review B7-4, M-R4-3): a button,
- * a column — its words are compared among themselves, and it is not a word of the line around it.
- */
-function flowsInLine(display: string): boolean {
-  return display === "inline" || display === "contents" || display.startsWith("ruby");
-}
-
-/**
- * The block a text is laid out in: the nearest ancestor whose box does not flow in its parent's line (review B7-3,
- * M13). Words turned around by direction marks stand on one line of one block, whatever elements (`<b>`, `<span>`,
- * `<a>`, `<bdi>`, `<ruby>`) lie between them.
- */
-function blockOf(text: Text, win: Window, blocks: Map<Element, Element>): Element | null {
-  const parent = text.parentElement;
-  if (!parent) return null;
-  const known = blocks.get(parent);
-  if (known) return known;
-  let at: Element = parent;
-  while (at.parentElement && flowsInLine(win.getComputedStyle(at).display)) at = at.parentElement;
-  blocks.set(parent, at);
-  return at;
-}
-
-/**
- * Whether the order of a block's words on screen can differ from their order in the text (a cheap check first): it
- * holds a mark, an embedding or an isolate, or it or something in it or around it has a direction of its own other
- * than left to right. Not `unicode-bidi` itself: the engine's own sheet makes every block an isolate, and a block of
- * left-to-right text turns nothing around.
- */
-function mayReorder(block: Element, win: Window, known: Map<Element, boolean>): boolean {
-  let may = known.get(block);
-  if (may !== undefined) return may;
-  may = REORDERING.test(block.textContent ?? "") || block.closest(OWN_DIRECTION) !== null || block.querySelector(OWN_DIRECTION) !== null || win.getComputedStyle(block).direction === "rtl";
-  known.set(block, may);
-  return may;
-}
-
-/** Whether a block lays its lines out from the right. */
-function rightToLeft(block: Element, win: Window, known: Map<Element, boolean>): boolean {
-  let rtl = known.get(block);
-  if (rtl === undefined) known.set(block, (rtl = win.getComputedStyle(block).direction === "rtl"));
-  return rtl;
-}
-
-/** The colour behind an element: the backgrounds of it and every box above it, painted on the white sheet. */
-function backdropOf(element: Element, win: Window): Rgba {
-  const layers: Rgba[] = [];
-  for (let at: Element | null = element; at; at = at.parentElement) {
-    const colour = readColour(win.getComputedStyle(at).backgroundColor.toLowerCase());
-    if (colour && colour[3] > 0) layers.push(colour);
-    if (colour && colour[3] >= 1) break;
-  }
-  let backdrop: Rgba = [255, 255, 255, 1];
-  for (let n = layers.length - 1; n >= 0; n--) backdrop = over(layers[n]!, backdrop);
-  return backdrop;
-}
-
-/**
- * Whether a person sees a word of a right-to-left script (review B7-4, M-R4-2): a size, a font a person reads, a colour
- * that stands from what lies behind it, nothing over it. Only a letter a person sees tells them to read the line from
- * the right; one nobody sees turns the words around just the same.
- */
-function letterSeen(frame: HTMLIFrameElement, text: Text, start: number, end: number, box: Box | null): boolean {
-  const win = frame.contentWindow!;
-  const element = text.parentElement;
-  if (!element || !box || box.right - box.left < 1 || box.bottom - box.top < 1) return false;
-  const style = win.getComputedStyle(element);
-  if (style.visibility !== "visible" || parseFloat(style.fontSize) < MIN_TEXT_PX || drawnOpacity(element, win) < MIN_OPACITY) return false;
-  const colour = readColour(style.color.toLowerCase());
-  const backdrop = backdropOf(element, win);
-  if (!colour || contrast(over(colour, backdrop), backdrop) < MIN_CONTRAST) return false;
-  return wordSeen(frame, { text, start, end, boxes: [box] }, () => false);
-}
-
-/** One word of a line, as far as its order counts: its box, and how to leave it out. */
-interface Placed {
-  box: Box;
-  hide: () => void;
-}
-
-/** A line of a block, as far as it has been read. */
-interface Line {
-  /** The left-to-right words since the last right-to-left word a person sees. */
-  words: Placed[];
-  /** The lowest edge of the words so far: a word below it starts the next line. */
-  bottom: number;
-  /** The words found turned around: left out when the line ends, unless it is read from the right. */
-  turned: Set<Placed>;
-  /** A person reads this line from the right: a right-to-left box, a letter of a right-to-left script they see on it. */
-  fromRight: boolean;
-}
-
-/**
- * Words a person reads in another order than they stand in the text, without an override (review B7-2, M11; review
- * B7-3, M13; review B7-4, M-R4-2): two words of a left-to-right script on one line of one block, with no letter of a
- * right-to-left script a person sees between them, the later one drawn before the earlier — only invisible marks,
- * embeddings or isolates turn them so, across the elements between them too. Every earlier word of the line counts,
- * not only the last: a raised or tiny word between the two does not part them. Each block keeps its own line, so a
- * button or a column inside it neither parts its words nor joins them. Both are left out, as under an override.
- *
- * Kept (review B7-4, M-R4-3): right-to-left text, a left-to-right name inside it, buttons and columns in it — and a line
- * of a right-to-left box on which a person sees a letter of a right-to-left script: they read it from the right, and
- * from the right the words stand in the order of the text. Fed the words in the order of the text; `end` leaves out
- * what the lines still hold.
- */
-class WordOrder {
-  private readonly lines = new Map<Element, Line>();
-  /** The last right-to-left word of each block not yet asked whether a person sees it. */
-  private readonly unasked = new Map<Element, { measure: () => Box | null; seen: (box: Box | null) => boolean }>();
-
-  /** `measure` gives the word's first box; `seen`, whether a person sees a word of a right-to-left script there. */
-  next(block: Element, rtlBox: boolean, word: string, measure: () => Box | null, seen: (box: Box | null) => boolean, hide: () => void): void {
-    let line = this.lines.get(block);
-    if (RTL_LETTER.test(word)) {
-      // Asked only where it decides something: it parts words of the line, or tells how the line is read. Marks,
-      // spaces and punctuation are passed by.
-      const parts = line !== undefined && line.words.length > 0;
-      const tells = rtlBox && !(line?.fromRight ?? false);
-      if (!parts && !tells) {
-        if (rtlBox) this.unasked.set(block, { measure, seen });
-        return;
-      }
-      this.unasked.delete(block);
-      const box = measure();
-      if (!seen(box) || !box) return;
-      if (!line || box.top >= line.bottom - 1) this.lines.set(block, (line = this.open(block, box)));
-      line.words = [];
-      if (rtlBox) line.fromRight = true;
-      return;
-    }
-    if (!LTR_LETTER.test(word)) return;
-    const box = measure();
-    if (!box) return;
-    // A word below every box of the line so far starts the next one (lines are broken in the order of the text).
-    if (!line || box.top >= line.bottom - 1) {
-      this.lines.set(block, (line = this.open(block, box)));
-      // The right-to-left word just before it, on this line, tells how the line is read.
-      const before = this.unasked.get(block);
-      this.unasked.delete(block);
-      if (rtlBox && before) {
-        const at = before.measure();
-        if (at && at.top < box.bottom && box.top < at.bottom && before.seen(at)) line.fromRight = true;
-      }
-    }
-    line.bottom = Math.max(line.bottom, box.bottom);
-    const placed: Placed = { box, hide };
-    for (const a of line.words) {
-      // One line: the same top within a fifth of the word's height — lines laid over each other are not one line.
-      const height = Math.min(a.box.bottom - a.box.top, box.bottom - box.top);
-      const oneLine = Math.abs(a.box.top - box.top) < 0.2 * height && Math.abs(a.box.bottom - box.bottom) < 0.2 * height;
-      if (oneLine && box.right <= a.box.left + 0.5) {
-        line.turned.add(a);
-        line.turned.add(placed);
-      }
-    }
-    line.words.push(placed);
-    if (line.words.length > LINE_WORDS_MAX) line.words.shift();
-  }
-
-  /** Leaves out the turned words of every line still open. */
-  end(): void {
-    for (const line of this.lines.values()) this.close(line);
-    this.lines.clear();
-  }
-
-  private open(block: Element, box: Box): Line {
-    const before = this.lines.get(block);
-    if (before) this.close(before);
-    return { words: [], bottom: box.bottom, turned: new Set(), fromRight: false };
-  }
-
-  private close(line: Line): void {
-    if (!line.fromRight) for (const word of line.turned) word.hide();
-    line.turned.clear();
-  }
-}
-
 /** The pass ran out of its budget (B7, review M4): the mail is too long to check in time, not unsafe. */
 export class EngineBudgetError extends Error {
   constructor() {
@@ -701,34 +507,13 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
       for (const line of lines) laterText.add(k, line);
       await pace.step();
     }
-    // Word order across a block (review B7-3, M13): the blocks the texts lie in, which of them may turn words around.
-    const blocks = new Map<Element, Element>();
-    const reorderable = new Map<Element, boolean>();
-    const order = new WordOrder();
-    const directions = new Map<Element, boolean>();
     for (let k = 0; k < texts.length; k++) {
       const { text, path, offset, lines } = texts[k]!;
-      // Under a direction override a person sees the letters mirrored: none of it is read (B7, review H7).
+      // Under a direction override a person sees the letters mirrored: none of it is read (B7, review H7). Words that
+      // invisible direction marks merely show in another order are read in the order of the text (review B7-5, the
+      // maintainer's decision (a), as on `main`).
       const overridden = overriddenRanges(text, win);
       for (const [from, to] of overridden) hide(path, offset + from, offset + to);
-      // Words turned around without one (review B7-2, M11): left out the same way.
-      const block = blockOf(text, win, blocks);
-      if (block && mayReorder(block, win, reorderable)) {
-        const rtlBlock = rightToLeft(block, win, directions);
-        for (const { index, word } of wordsOf(text.data)) {
-          const measure = () => {
-            const range = doc.createRange();
-            range.setStart(text, index);
-            range.setEnd(text, index + word.length);
-            return boxesOf(range, win)[0] ?? null;
-          };
-          order.next(block, rtlBlock, word, measure, (box) => letterSeen(frame, text, index, index + word.length, box), () => {
-            hide(path, offset + index, offset + index + word.length);
-            overridden.push([index, index + word.length]);
-          });
-          await pace.step();
-        }
-      }
       // Its own later lines over its earlier ones (lines laid on top of each other) count as well.
       const own = new LaterWords();
       lines.forEach((line, n) => own.add(n, line));
@@ -762,7 +547,6 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
         await pace.step();
       }
     }
-    order.end();
     // The parents' own texts, for the check that the reader's tree is the frame's.
     for (const [element, length] of offsets) {
       const path = elementPath(element, body);

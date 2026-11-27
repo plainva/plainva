@@ -5,7 +5,8 @@ import type { TFunction } from "i18next";
 import { providerById, type CustomEndpoint } from "@plainva/core/ai";
 import type { FillOutcome } from "./aiSession";
 import { countFilterMatches, FILTER_WORDS_LIMITS, type FilterSchemaColumn } from "./aiBaseFilter";
-import { aiFailureText } from "./aiSettingsModel";
+import { aiFailureText, alreadySentText } from "./aiSettingsModel";
+import i18n from "../i18n";
 import type { BaseAi } from "../base/BaseAi";
 import { baseFilterOpLabels } from "../base/baseFilterCatalog";
 import type { PropertyFilterRule } from "../base/filterExpr";
@@ -48,8 +49,8 @@ export function reportFill(t: TFunction, outcome: FillOutcome, column: string): 
   ]
     .filter(Boolean)
     .join(" · ");
-  // Rows before it went out (review B7-4, M-R4-6): the run's sentence about sending stays empty then.
-  if (outcome.failure) toast.error(`${aiFailureText(t, outcome.failure, outcome.provider, outcome.model, outcome.departed ? { sent: "" } : {})} ${words}`);
+  // Rows before it went out (review B7-4, M-R4-6): the run's sentence about sending names the model's provider then.
+  if (outcome.failure) toast.error(`${aiFailureText(t, outcome.failure, outcome.provider, outcome.model, outcome.departed ? { sent: alreadySentText(t, [outcome.provider], i18n.language) } : {})} ${words}`);
   else if (outcome.proposed > 0) toast.success(words);
   else toast.info(words);
 }

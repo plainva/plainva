@@ -1001,6 +1001,8 @@ export interface ContextPreview {
    * what only that search finds is not among the notes shown — a send would ask it, and may bring more.
    */
   searchHeldBack: boolean;
+  /** Whom a send would ask for that search, by name (the lens says it, approved 27.11.); empty where nobody. */
+  searchBy: string[];
 }
 
 export interface ProviderTest {
@@ -1471,8 +1473,9 @@ interface RunOutcome {
   answer?: string;
   /** A routine's run that ended before its model call: what it needs from its user. */
   need?: RoutineNeed;
-  /** And whether something of it had left the device by then (review B7-3, S5): its list was not empty. */
+  /** And whether something of it had left the device by then (review B7-3, S5): its list was not empty — and whom it named. */
   departed?: true;
+  departedTo?: string[];
   /** A routine's preview: what a run would send, and what it may spend. */
   manifest?: EgressManifest;
   limits?: RunLimits;
@@ -1508,6 +1511,8 @@ export interface RoutinePreview {
   log?: { folder: string; file: string; notes: number; max: number };
   /** It may change and create notes in the folders whose rule lets it (plan "KI direkt schreiben", W4): the confirmation says so. */
   direct?: true;
+  /** Putting this preview together asked a search model off this device (approved 27.11.): whom, by name. */
+  searchWent?: string[];
 }
 
 /**
@@ -1882,18 +1887,22 @@ export class AiSession {
    * The session's egress for what may send nothing (review B7-2, H12): a request to a model on this device goes, one
    * to anyone else is answered "fully local" (`local_only`, never sent) before it leaves, and counted.
    */
-  private deviceOnlyEgress(): { egress: LocalOnlyEgress; refused: () => number } {
+  private deviceOnlyEgress(): { egress: LocalOnlyEgress; refused: () => number; refusedTo: () => string[] } {
     let refused = 0;
+    const refusedTo = new Set<string>();
     const egress: LocalOnlyEgress = {
       ...this.out,
       send: async (requestId, spec, onChunk) => {
         if (runsOnDevice(providerById(spec.endpointId, this.state.settings.custom))) return this.out.send(requestId, spec, onChunk);
         // Held back is only what a send would ask (review B7-3, S7): while the device is fully local, nobody is asked then either.
-        if (!this.state.settings.localOnly) refused++;
+        if (!this.state.settings.localOnly) {
+          refused++;
+          refusedTo.add(spec.endpointId);
+        }
         onChunk({ type: "failed", code: "local_only", message: "a preview sends nothing" });
       },
     };
-    return { egress, refused: () => refused };
+    return { egress, refused: () => refused, refusedTo: () => [...refusedTo] };
   }
 
   readonly getState = (): AiState => this.state;
@@ -5020,6 +5029,7 @@ export class AiSession {
           shared: Boolean(vault.encrypted?.()),
           everyRequest: this.state.settings.confirmEveryRequest && !manifest.local,
           noMail: !manifest.local && manifest.tools.some((name) => MAIL_TOOL_NAMES.includes(name)),
+          ...(outcome.departedTo?.length ? { searchWent: this.departureLabels(outcome.departedTo) } : {}),
           ...(direct && manifest.tools.some((name) => DIRECT_TOOL_NAMES.includes(name)) ? { direct: true as const } : {}),
         },
       };
@@ -5200,7 +5210,7 @@ export class AiSession {
     });
     // The vault went away under it.
     if (!outcome) return { outcome: "stopped" };
-    if (outcome.need) return { ...needs(outcome.need), ...(outcome.departed ? { departed: true as const } : {}) };
+    if (outcome.need) return { ...needs(outcome.need), ...(outcome.departed ? { departed: true as const, ...(outcome.departedTo ? { departedTo: outcome.departedTo } : {}) } : {}) };
     const record = outcome.record;
     // What the run changed directly (plan W4) goes with how it ended, whatever that was: it happened.
     const applied = record?.runs[record.runs.length - 1]?.writes?.applied;
@@ -5293,6 +5303,7 @@ export class AiSession {
           shared: Boolean(vault.encrypted?.()),
           everyRequest: this.state.settings.confirmEveryRequest && !manifest.local,
           noMail: false,
+          ...(outcome.departedTo?.length ? { searchWent: this.departureLabels(outcome.departedTo) } : {}),
           log: { folder, file: folderLogPath(folder), notes: found.material.items.length, max: FOLDER_LOG_NOTES_MAX },
         },
       };
@@ -5321,7 +5332,7 @@ export class AiSession {
     const outcome = await this.runMessage(this.logAsk(), vault, routine.choice, { routine: { title, limits: FOLDER_LOG_LIMITS, scope: routine.scope, log: this.logStart(material) }, since });
     // The vault went away under it.
     if (!outcome) return { outcome: "stopped" };
-    if (outcome.need) return { ...needs(outcome.need), ...(outcome.departed ? { departed: true as const } : {}) };
+    if (outcome.need) return { ...needs(outcome.need), ...(outcome.departed ? { departed: true as const, ...(outcome.departedTo ? { departedTo: outcome.departedTo } : {}) } : {}) };
     const record = outcome.record;
     const left = record ? { conversationId: record.id } : {};
     await this.dropPrevious(vault, routine, record, title);
@@ -6860,7 +6871,8 @@ export class AiSession {
     const built = await context.build(new Set(this.state.leaveOutNext), new Set(record ? (record.redact ?? []) : this.state.draftRedact));
     if (this.vault !== vault) return null;
     const proposed = new Set(context.candidates.flat().map((c) => c.path));
-    return { ...built, candidates: proposed.size, searchHeldBack: held.refused() > 0 };
+    const searchBy = [...new Set(held.refusedTo().map((id) => providerById(id, this.state.settings.custom)?.label ?? id))];
+    return { ...built, candidates: proposed.size, searchHeldBack: held.refused() > 0, searchBy };
   }
 
   /**
@@ -7795,14 +7807,14 @@ export class AiSession {
     const pictures = door ? { images: imagesOf(door.lead), ...(door.blind ? { blind: true } : {}) } : null;
     if (routine) {
       // What a run would send, for the routine's confirmation: put together exactly as a run does it, and not sent.
-      if (routine.preview) return { stop: { kind: "cancelled" }, manifest, ...(limits ? { limits } : {}) };
+      if (routine.preview) return { stop: { kind: "cancelled" }, manifest, ...(limits ? { limits } : {}), ...(run.to.length ? { departed: true as const, departedTo: [...new Set(run.to)] } : {}) };
       // Nobody is there to answer an overview (plan P8, ADR 0033). Within what was confirmed for this routine the
       // request goes; where it would bring along more — or where this device asks before every request — nothing is
       // sent, and the run ends with what it needs. A model on this device is sent nothing that leaves.
       if (!manifest.local) {
         // Putting the context together may have asked a search model in the cloud already (review B7-3, S5): the run's
         // list says so, and its line then claims nothing about sending.
-        const departed = run.to.length > 0 ? { departed: true as const } : {};
+        const departed = run.to.length > 0 ? { departed: true as const, departedTo: [...new Set(run.to)] } : {};
         if (this.state.settings.confirmEveryRequest) return { stop: { kind: "cancelled" }, need: "confirm", ...departed };
         if (scopeGrowth(manifest, routine.scope).length > 0) return { stop: { kind: "cancelled" }, need: "scope", ...departed };
       }
@@ -8617,6 +8629,11 @@ export class AiSession {
       ...(reach.web && this.state.web.allow.length ? { webHosts: [...this.state.web.allow] } : {}),
       ...(reach.memory ? { memory: reach.toolless ? { ...reach.memory, lookup: false } : reach.memory } : {}),
     };
+  }
+
+  /** Endpoint ids of a run's list of departures as a person reads them: the provider's label. */
+  private departureLabels(ids: readonly string[]): string[] {
+    return [...new Set(ids.map((id) => providerById(id, this.state.settings.custom)?.label ?? id))];
   }
 
   private priceOf(choice: ModelChoice): { input: number; output: number } | undefined {
