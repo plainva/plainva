@@ -34,6 +34,10 @@
  *   fails until it is flipped to `"pass"` — a fixed rule is armed, never left
  *   silently loose.
  *
+ * - `mustStart`: module families that belong in the start files by decision
+ *   (the editor, which draws the last open note): the gate fails when a
+ *   change to the build drops one into a later load.
+ *
  * The builds go to a temp folder with source maps (`vite build --sourcemap`),
  * never into the shells' own `dist/`. Code splitting is the same with and
  * without maps.
@@ -222,6 +226,10 @@ for (const shell of Object.keys(SHELLS)) {
     if (now[key] > was[key] * growth) failures.push(`${shell}: ${key} ${now[key]} is more than ${Math.round(baseline.growth * 100)} % over the baseline ${was[key]}`);
     else if (now[key] < was[key] / growth) notes.push(`${shell}: ${key} shrank from ${was[key]} to ${now[key]} — lower the baseline with --update`);
     if (budget[key] && now[key] > budget[key]) notes.push(`${shell}: ${key} ${now[key]} is over the budget of ${budget[key]} (plan § 4; packages L5)`);
+  }
+  for (const rule of baseline.mustStart ?? []) {
+    if (carries(now.families, rule.family).length === 0) failures.push(`${shell}: ${rule.family} must be in the start files (${rule.why})`);
+    else console.log(`    ok: ${rule.family} is in the start files`);
   }
   for (const doubled of now.twice) failures.push(`${shell}: a module stands in more than one chunk, and would run twice: ${doubled}`);
   for (const rule of baseline.mustNotStart) {

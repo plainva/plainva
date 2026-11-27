@@ -1,5 +1,6 @@
 import { Compartment, StateEffect, StateField, type EditorState, type Extension } from "@codemirror/state";
 import { Decoration, EditorView, WidgetType, type DecorationSet } from "@codemirror/view";
+import { loadPart } from "../lib/partLoad";
 
 /**
  * The suggestion mode inside the editor (plan Vorschlagsmodus, V2; word-level
@@ -79,7 +80,8 @@ export function loadSuggestionDiff(load: () => Promise<{ presentableDiff: Diff }
   loading ??= (async () => {
     for (let attempt = 0; ; attempt++) {
       try {
-        diff = (await load()).presentableDiff;
+        // Each try has an end (`loadPart`): a load that hangs fails like one that failed, and the send says so.
+        diff = (await loadPart(load)).presentableDiff;
         return;
       } catch (error) {
         if (attempt >= DIFF_RETRY_MS.length) {

@@ -174,7 +174,9 @@ const shown = () => ({ to: recipients(), subject: value("draft-subject"), body: 
 
 /** A compose request, as every sender in the app makes it. */
 async function ask(detail: { subject: string; markdown: string; to?: string; attachments?: MailAttachment[] }) {
-  act(() => {
+  // Awaited: the composer is a part loaded on demand (`deferredPart`), and React resumes a part that suspended in
+  // `use` only inside an awaited `act`.
+  await act(async () => {
     window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail }));
   });
   await settle();

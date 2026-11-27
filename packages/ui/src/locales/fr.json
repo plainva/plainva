@@ -5284,6 +5284,8 @@
     "areaTitle": "Cette zone ne peut pas être affichée",
     "areaBody": "Une erreur l’a arrêtée. Le reste de Plainva continue de fonctionner, et l’erreur est consignée dans {{place}}.",
     "areaAgain": "Elle a de nouveau échoué après le rechargement. Si cela persiste, redémarrez Plainva ; l’erreur est consignée dans {{place}}.",
+    "partLoadTitle": "Cette partie n’a pas pu être chargée",
+    "partLoad": "Une partie de Plainva n’a pas pu être chargée. Réessayez ; si cela persiste, redémarrez Plainva.",
     "areaReload": "Recharger cette zone",
     "structureNeedsIndex": "Impossible pour le moment : l'index de recherche n'a pas pu être ouvert sur cet appareil, la synchronisation ne pourrait donc pas transmettre une suppression, un renommage, un déplacement ou un nouveau dossier à vos autres appareils. Redémarrez l'app pour réessayer ; vos notes elles-mêmes sont intactes.",
     "fullTextDamaged": "L'index de recherche est endommagé. Plainva le reconstruit à la prochaine ouverture ; d'ici là, la recherche ne trouve rien. Vos notes elles-mêmes sont intactes.",

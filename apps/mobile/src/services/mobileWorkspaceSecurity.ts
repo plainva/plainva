@@ -23,7 +23,6 @@ import {
   createWorkspaceRecoveryPackage,
   deserializePersonalWorkspaceRuntime,
   wipeWorkspaceRuntimeSecrets,
-  initializePersonalWorkspaceMigration,
   personalWorkspaceRuntime,
   workspaceDocumentHash,
   loadWorkspacePairingApproval,
@@ -72,6 +71,18 @@ import { WorkspaceQuarantineService, type QuarantineRetryOutcome, type Quarantin
 import type { MobileVault } from "./vaultService";
 import { Capacitor } from "@capacitor/core";
 import { secureCredentialStore } from "../platform/secureStore";
+
+/**
+ * The migration of a vault into its encrypted workspace and its worker (about 240 KB) load when a setup is activated
+ * or resumed — a step the person takes —, not with the workspace lock the start reads (package B1b). A load that fails
+ * fails the step before anything is written, and the step can be taken again.
+ */
+async function runWorkspaceMigration(
+  ...args: Parameters<typeof import("@plainva/core/workspace").initializePersonalWorkspaceMigration>
+): ReturnType<typeof import("@plainva/core/workspace").initializePersonalWorkspaceMigration> {
+  const { initializePersonalWorkspaceMigration } = await import("@plainva/core/workspace");
+  return initializePersonalWorkspaceMigration(...args);
+}
 
 export interface MobileWorkspaceStatus {
   version: 1;
@@ -302,7 +313,7 @@ export async function activatePreparedMobileWorkspace(input: {
   }
   await persistMobileWorkspaceRuntime(input.vaultId, draft.runtime);
   try {
-    const migration = await initializePersonalWorkspaceMigration({
+    const migration = await runWorkspaceMigration({
       store: input.store,
       state: input.state,
       vault: input.vault,
@@ -349,7 +360,7 @@ export async function resumeMobileWorkspaceSetup(input: {
   if (!runtime) throw new Error("workspace-key-bundle-missing");
   const recoveryConfirmedAt = status.recoveryConfirmedAt ?? new Date(0).toISOString();
   try {
-    const migration = await initializePersonalWorkspaceMigration({
+    const migration = await runWorkspaceMigration({
       store: input.store,
       state: input.state,
       vault: input.vault,

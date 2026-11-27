@@ -34,19 +34,25 @@
   ],
   "shells": {
     "desktop": {
-      "startBytes": 3981956,
-      "startGzipBytes": 1205611,
-      "entryBytes": 6190,
+      "startBytes": 3879893,
+      "startGzipBytes": 1178658,
+      "entryBytes": 6099,
       "afterStartBytes": 2129006,
       "afterStartGzipBytes": 679820
     },
     "mobile": {
-      "startBytes": 4454456,
-      "startGzipBytes": 1330240,
+      "startBytes": 4074531,
+      "startGzipBytes": 1231456,
       "entryBytes": 4472,
       "afterStartBytes": 1384774,
       "afterStartGzipBytes": 451292
     }
   },
-  "recorded": "2026-11-25"
+  "recorded": "2026-11-27",
+  "mustStart": [
+    {
+      "family": "npm:@codemirror/view",
+      "why": "the editor draws the last open note at the start, in both shells (maintainer, 2026-11-27)"
+    }
+  ]
 }

@@ -1,7 +1,13 @@
+import { Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import type { TasksQueryHost } from "@plainva/ui";
+import { AreaBoundary, type TasksQueryHost } from "@plainva/ui";
 import type { MobileVault } from "../services/vaultService";
-import { PhoneTasksQuery } from "./PhoneTasksQuery";
+import { deferredPart } from "../lib/deferredParts";
+
+// The query's view (about 140 KB with the shared block) loads with the first ```tasks block a note shows, not with
+// the editor (package B1b). Until it is there the block stands empty; nothing in a note changes before the view is
+// drawn and the person acts in it. A failed load shows in the block's AreaBoundary, whose reload loads again.
+const PhoneTasksQuery = deferredPart(() => import("./PhoneTasksQuery").then((m) => m.PhoneTasksQuery));
 
 /**
  * The phone's ```tasks blocks in the editor (plan Tasks-Abfragen, T6): each a
@@ -49,14 +55,18 @@ export function createPhoneTasksQueryHost(): PhoneTasksQueryHost {
               }
             : null;
         root.render(
-          <PhoneTasksQuery
-            vault={p.vault}
-            source={context.source}
-            notePath={p.notePath}
-            onOpenNote={p.onOpenNote}
-            onEditQuery={editQuery ?? undefined}
-            changeNote={context.changeNote}
-          />,
+          <AreaBoundary area="block:tasksQuery" size="section">
+            <Suspense fallback={null}>
+              <PhoneTasksQuery
+                vault={p.vault}
+                source={context.source}
+                notePath={p.notePath}
+                onOpenNote={p.onOpenNote}
+                onEditQuery={editQuery ?? undefined}
+                changeNote={context.changeNote}
+              />
+            </Suspense>
+          </AreaBoundary>,
         );
       };
       mounted.add(draw);

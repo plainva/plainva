@@ -1,7 +1,7 @@
 import { useWindowBookmarks } from "./hooks/useWindowBookmarks";
 import { useTabTransferSource } from "./hooks/useTabTransfer";
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
-import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { AreaBoundary, EmptyState, ICON, IconButton, setPendingSearchJump, toast } from "@plainva/ui";
 import { ArrowLeftToLine, PanelRight } from "lucide-react";
@@ -27,16 +27,17 @@ import { getWindowBus } from "./services/windowBus";
 import { routeOpenThroughOwner } from "./services/openRouting";
 import { PRESET_CONTENT } from "./services/windowManager";
 import { copyDesktopNoteLink, hasNoteLink } from "./services/noteLinkReceiver";
+import { deferredPart } from "./lib/deferredParts";
 
 /** Sections an auxiliary window may show (E5): everything note-bound, no calendar. */
 const AUX_SECTIONS: readonly SectionId[] = ["outline", "graph", "databases", "backlinks", "properties"];
 const AUX_RIGHT_WIDTH = 300;
 
-const ComposeWindow = lazy(() => import("./components/mail/ComposeWindow").then((m) => ({ default: m.ComposeWindow })));
+const ComposeWindow = deferredPart(() => import("./components/mail/ComposeWindow").then((m) => m.ComposeWindow));
 // The surfaces the aux bridge opens (finding 2026-09-07) — the same lazy
 // chunks the central window mounts, loaded on first use.
-const CompareModal = lazy(() => import("./components/CompareModal").then((m) => ({ default: m.CompareModal })));
-const MailDraftModal = lazy(() => import("./components/mail/MailDraftModal").then((m) => ({ default: m.MailDraftModal })));
+const CompareModal = deferredPart(() => import("./components/CompareModal").then((m) => m.CompareModal));
+const MailDraftModal = deferredPart(() => import("./components/mail/MailDraftModal").then((m) => m.MailDraftModal));
 
 /**
  * The shell of an auxiliary window (multi-window P0/P1, panes since P4).

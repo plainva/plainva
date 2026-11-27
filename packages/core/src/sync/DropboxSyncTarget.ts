@@ -7,7 +7,8 @@ import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { refreshDropboxAccessToken } from "./DropboxAuth.js";
 import { trimEndChars } from "../textScan.js";
-import { folderIdentity } from "./folderIdentity.js";
+import { dropboxRootPath } from "./targetIdentities.js";
+export { dropboxRootPath, dropboxFolderIdentity } from "./targetIdentities.js";
 
 /**
  * Dropbox credentials. Public client (PKCE, no secret); Full-Dropbox access — an
@@ -24,19 +25,8 @@ export interface DropboxCredentials {
 
 const API = "https://api.dropboxapi.com/2";
 const CONTENT = "https://content.dropboxapi.com/2";
-const DEFAULT_ROOT = "/Plainva";
 
-/** The folder a Dropbox target works in, resolved exactly as the target does (default "/Plainva"). */
-export function dropboxRootPath(rootPath?: string): string {
-  let root = (rootPath || DEFAULT_ROOT).replace(/\\/g, "/").trim();
-  if (!root.startsWith("/")) root = `/${root}`;
-  return trimEndChars(root, "/") || DEFAULT_ROOT;
-}
 
-/** Canonical identity of that folder; Dropbox paths ignore case (fourth review of plan "Verbinden", finding 1). */
-export function dropboxFolderIdentity(rootPath?: string): string {
-  return folderIdentity(dropboxRootPath(rootPath), { caseInsensitive: true });
-}
 /** files/upload hard limit is 150 MB; larger bodies go through an upload session. */
 const SIMPLE_UPLOAD_LIMIT = 150 * 1024 * 1024;
 const UPLOAD_CHUNK = 32 * 1024 * 1024;

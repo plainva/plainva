@@ -140,8 +140,9 @@ describe("tagCompletionSource", () => {
 describe("emojiColonCompletionSource", () => {
   const src = emojiColonCompletionSource();
 
-  it("suggests emoji after :name and inserts the Unicode character (never a shortcode)", () => {
-    const res = src(ctx("Nice :smile"));
+  it("suggests emoji after :name and inserts the Unicode character (never a shortcode)", async () => {
+    // The catalog loads with the first `:name` (package B1b): the answer may be a promise.
+    const res = await src(ctx("Nice :smile"));
     expect(res).not.toBeNull();
     expect(res!.from).toBe(5);
     expect(res!.options.length).toBeGreaterThan(0);
@@ -150,22 +151,22 @@ describe("emojiColonCompletionSource", () => {
     expect(apply.codePointAt(0)! > 127).toBe(true); // an actual emoji glyph, not ASCII
   });
 
-  it("requires at least two name characters", () => {
-    expect(src(ctx(":D"))).toBeNull();
-    expect(src(ctx("hi :x"))).toBeNull();
+  it("requires at least two name characters", async () => {
+    expect(await src(ctx(":D"))).toBeNull();
+    expect(await src(ctx("hi :x"))).toBeNull();
   });
 
-  it("does not trigger after a digit (times) or mid-word", () => {
-    expect(src(ctx("10:30"))).toBeNull();
-    expect(src(ctx("note:smile"))).toBeNull();
-    expect(src(ctx("a:smile"))).toBeNull();
+  it("does not trigger after a digit (times) or mid-word", async () => {
+    expect(await src(ctx("10:30"))).toBeNull();
+    expect(await src(ctx("note:smile"))).toBeNull();
+    expect(await src(ctx("a:smile"))).toBeNull();
   });
 
-  it("triggers at the start of a line", () => {
-    expect(src(ctx(":smile"))).not.toBeNull();
+  it("triggers at the start of a line", async () => {
+    expect(await src(ctx(":smile"))).not.toBeNull();
   });
 
-  it("returns null when nothing matches", () => {
-    expect(src(ctx(":zzzzzz"))).toBeNull();
+  it("returns null when nothing matches", async () => {
+    expect(await src(ctx(":zzzzzz"))).toBeNull();
   });
 });

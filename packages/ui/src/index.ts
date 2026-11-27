@@ -303,6 +303,7 @@ export * from "./lib/typography";
 export * from "./lib/useDebouncedValue";
 export * from "./lib/useStableHandler";
 export * from "./lib/lazyPart";
+export * from "./lib/partLoad";
 export * from "./lib/useSingleFlightHandler";
 export * from "./lib/taskDbHintStore";
 export * from "./lib/discardQuestion";

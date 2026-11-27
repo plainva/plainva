@@ -1,10 +1,11 @@
-import { lazy, Suspense, useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import type { ForwardSource, MailAttachment } from "@plainva/ui/mail";
 import { useVault } from "../../contexts/VaultContext";
 import { useComposeHost } from "../../services/mail/composeHost";
 import { popOutCompose } from "../../services/mail/composeWindow";
+import { deferredPart } from "../../lib/deferredParts";
 
-const MailDraftModal = lazy(() => import("./MailDraftModal").then((m) => ({ default: m.MailDraftModal })));
+const MailDraftModal = deferredPart(() => import("./MailDraftModal").then((m) => m.MailDraftModal));
 
 /**
  * The floating composer of a window that draws the whole shell — the central

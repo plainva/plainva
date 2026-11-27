@@ -19,6 +19,7 @@
  */
 
 import { connectionErrorText } from "./connectionErrorText";
+import { isPartLoadFailure } from "./partLoad";
 import { unconfirmedEndpointOf } from "./endpointConfirmation";
 import { isDamagedFullText, isStructureNeedsIndexError, notShownYetOf } from "@plainva/core";
 import i18n from "i18next";
@@ -171,6 +172,9 @@ export function eventWriteRefusalText(err: unknown, what: "save" | "delete"): st
 
 /** Never returns an empty string: a blank reason is worse than an ugly one. */
 export function errorText(err: unknown): string {
+  // A part of the app's bundle that could not be loaded, or did not arrive in time (package B1b): the app's own
+  // sentence, never the browser's ("Failed to fetch dynamically imported module …").
+  if (isPartLoadFailure(err)) return i18n.t("errors.partLoad");
   // A write to something just created that the provider does not show yet (issue 119).
   const notYet = notShownYetText(err);
   if (notYet) return notYet;

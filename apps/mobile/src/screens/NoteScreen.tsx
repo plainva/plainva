@@ -3,7 +3,7 @@ import { useReaderChrome } from "../hooks/useReaderChrome";
 import { listMobilePublicationFeedback } from "../services/mobileComments";
 import { phoneTemplateVault } from "../services/templateVault";
 import { vaultEntryName } from "../services/vaultEntryName";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Bookmark,
@@ -60,7 +60,8 @@ import { adoptDraft, clearDraft, clearDraftIf, offerDraft, releaseLeftoverDrafts
 import { AreaBoundary, forgetFreshNote, isFreshNote, keepTextBeside, newestConflictCopy } from "@plainva/ui";
 import { NoteConflictCard } from "../components/NoteConflictCard";
 import { ConflictCompareSheet } from "../components/ConflictCompareSheet";
-import { NoteContextSheet, type ContextTab } from "../components/NoteContextSheet";
+import type { ContextTab } from "../components/NoteContextSheet";
+import { deferredPart } from "../lib/deferredParts";
 import { RowActionSheet } from "../components/RowActionSheet";
 import { FolderPickerSheet } from "../components/FolderPickerSheet";
 import { CommentsSheet } from "../components/CommentsSheet";
@@ -75,6 +76,12 @@ import { aiEnabled, focusAiNote, openAiSheet, useMobileAiEnabled } from "../serv
 import { useMobileAiSession } from "../services/ai/mobileAiLoader";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { NOTE_HISTORY_EVENT, takeNoteHistoryRequest } from "../services/noteHistoryRequest";
+
+// The note's context (properties, links, history, graph …) opens on a tap, or docks beside a wide note; it is no part
+// of the first picture of a phone. It loads with its first opening (package B1b; not ahead in the idle time, which the
+// bundle gate counts as "shortly after the start"). A failed load shows in its AreaBoundary, and the next opening loads
+// again.
+const NoteContextSheet = deferredPart(() => import("../components/NoteContextSheet").then((m) => m.NoteContextSheet));
 
 /** A property value as the anchor quote carries it (desktop parity). */
 function propertyValueText(value: unknown): string {
@@ -1962,7 +1969,7 @@ export function NoteScreen({
 
       {info && !docked && (
         <AreaBoundary area="sheet:noteContext" size="dialog" exit={{ label: t("common.close"), onExit: () => setInfo(null) }}>
-        <NoteContextSheet
+        <Suspense fallback={null}><NoteContextSheet
           canComment={canComment}
           canWrite={workspaceCanWrite}
           commentCounts={propertyCommentCounts}
@@ -1978,7 +1985,7 @@ export function NoteScreen({
           onRestored={readAgain}
           path={path}
           vault={vault}
-        />
+        /></Suspense>
         </AreaBoundary>
       )}
     </div>
@@ -1992,7 +1999,7 @@ export function NoteScreen({
     <div className="m-worksplit">
       {page}
       <AreaBoundary area="pane:noteContext" size="section" exit={{ label: t("common.close"), onExit: () => setInfo(null) }}>
-      <NoteContextSheet
+      <Suspense fallback={null}><NoteContextSheet
         canComment={canComment}
         canWrite={workspaceCanWrite}
         commentCounts={propertyCommentCounts}
@@ -2010,7 +2017,7 @@ export function NoteScreen({
         onRestored={readAgain}
         path={path}
         vault={vault}
-      />
+      /></Suspense>
       </AreaBoundary>
     </div>
   );

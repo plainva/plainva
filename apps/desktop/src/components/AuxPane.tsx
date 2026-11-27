@@ -1,18 +1,19 @@
-import { Suspense, lazy } from "react";
+import { Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { AreaBoundary, EmptyState } from "@plainva/ui";
 import { COMPARISON_PREFIX } from "../services/comparisonWindow";
-const ComparisonWindow = lazy(() => import("./ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
+const ComparisonWindow = deferredPart(() => import("./ComparisonWindow").then((m) => m.ComparisonWindow));
 import { AI_TAB_PATH, CALENDAR_TAB_PATH, COMMENTS_TAB_PATH, GRAPH_TAB_PATH, JOURNAL_TAB_PATH, MAIL_TAB_PATH, TASKS_TAB_PATH, tabAreaName } from "./graph/virtualPaths";
+import { deferredPart } from "../lib/deferredParts";
 
-const Editor = lazy(() => import("./Editor").then((m) => ({ default: m.Editor })));
-const BaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default: m.BaseViewer })));
-const VaultGraphView = lazy(() => import("./graph/VaultGraphView").then((m) => ({ default: m.VaultGraphView })));
-const TasksView = lazy(() => import("./tasks/TasksView").then((m) => ({ default: m.TasksView })));
-const CalendarView = lazy(() => import("./pimcal/CalendarView").then((m) => ({ default: m.CalendarView })));
-const MailView = lazy(() => import("./mail/MailView").then((m) => ({ default: m.MailView })));
-const CommentsOverview = lazy(() => import("./comments/CommentsOverview").then((m) => ({ default: m.CommentsOverview })));
-const JournalView = lazy(() => import("./journal/JournalView").then((m) => ({ default: m.JournalView })));
+const Editor = deferredPart(() => import("./Editor").then((m) => m.Editor));
+const BaseViewer = deferredPart(() => import("./BaseViewer").then((m) => m.BaseViewer));
+const VaultGraphView = deferredPart(() => import("./graph/VaultGraphView").then((m) => m.VaultGraphView));
+const TasksView = deferredPart(() => import("./tasks/TasksView").then((m) => m.TasksView));
+const CalendarView = deferredPart(() => import("./pimcal/CalendarView").then((m) => m.CalendarView));
+const MailView = deferredPart(() => import("./mail/MailView").then((m) => m.MailView));
+const CommentsOverview = deferredPart(() => import("./comments/CommentsOverview").then((m) => m.CommentsOverview));
+const JournalView = deferredPart(() => import("./journal/JournalView").then((m) => m.JournalView));
 
 interface Props {
   path: string;

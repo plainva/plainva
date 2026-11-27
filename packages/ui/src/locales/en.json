@@ -5176,6 +5176,8 @@
     "areaTitle": "This area could not be shown",
     "areaBody": "An error stopped it. The rest of Plainva keeps working, and the error is recorded under {{place}}.",
     "areaAgain": "It failed again after reloading. If it keeps failing, restart Plainva; the error is recorded under {{place}}.",
+    "partLoadTitle": "This part could not be loaded",
+    "partLoad": "A part of Plainva could not be loaded. Try again; if it keeps failing, restart Plainva.",
     "areaReload": "Reload this area",
     "structureNeedsIndex": "This can't be done right now: the search index could not be opened on this device, so the sync could not carry a deletion, a rename, a move or a new folder to your other devices. Restart the app to try again; your notes themselves are untouched.",
     "fullTextDamaged": "The search index is damaged. Plainva rebuilds it the next time it opens; until then, search finds nothing. Your notes themselves are untouched.",

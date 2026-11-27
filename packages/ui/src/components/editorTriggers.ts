@@ -2,7 +2,6 @@ import { CompletionContext, CompletionResult, Completion, pickedCompletion } fro
 import type { EditorView } from "@codemirror/view";
 import i18n from "../i18n";
 import { analyzeNoteSource, visiblePathSql } from "@plainva/core";
-import { searchEmoji } from "./emojiData";
 import { parseHeadings } from "../lib/outline";
 import { searchLinkTargets, searchTags } from "../lib/inlineTriggers";
 
@@ -248,20 +247,42 @@ export function tagCompletionSource(deps: EditorTriggerDeps) {
 // render `:smile:` literally, breaking the "Obsidian must open files cleanly"
 // rule — so we store the portable character instead. Requires >=2 name chars
 // and a word boundary before the colon, so times ("10:30"), URLs and YAML-style
-// "key:" never trigger it. Synchronous — the catalog is bundled (no deps).
+// "key:" never trigger it. The catalog (about 50 KB) loads with the first `:name`
+// typed, not with the editor (package B1b); until it is there, and if it cannot
+// load, no list is offered, and nothing is inserted that the person did not pick.
+type EmojiCatalog = typeof import("./emojiData");
+let emojiCatalog: EmojiCatalog | null = null;
+let emojiLoading: Promise<EmojiCatalog | null> | null = null;
+
+function loadEmojiCatalog(): Promise<EmojiCatalog | null> {
+  emojiLoading ??= import("./emojiData").then(
+    (catalog) => (emojiCatalog = catalog),
+    () => {
+      emojiLoading = null; // the next `:name` tries again
+      return null;
+    },
+  );
+  return emojiLoading;
+}
+
 export function emojiColonCompletionSource() {
-  return (context: CompletionContext): CompletionResult | null => {
+  return (context: CompletionContext): CompletionResult | null | Promise<CompletionResult | null> => {
     const word = context.matchBefore(/:[\p{L}\p{N}_+-]{2,}/u);
     if (!word) return null;
     const before = word.from > 0 ? context.state.sliceDoc(word.from - 1, word.from) : "";
     if (before && !/[\s([{]/.test(before)) return null; // mid-word / after a digit (e.g. "10:30")
-    const matches = searchEmoji(word.text.slice(1)); // drop the leading :
-    if (matches.length === 0) return null;
-    const options: TriggerCompletion[] = matches.map((e) => ({
-      label: `${e.char}  ${e.name}`,
-      apply: e.char,
-      type: "emoji",
-    }));
-    return { from: word.from, filter: false, options };
+    const complete = (catalog: EmojiCatalog | null): CompletionResult | null => {
+      if (!catalog) return null;
+      const matches = catalog.searchEmoji(word.text.slice(1)); // drop the leading :
+      if (matches.length === 0) return null;
+      const options: TriggerCompletion[] = matches.map((e) => ({
+        label: `${e.char}  ${e.name}`,
+        apply: e.char,
+        type: "emoji",
+      }));
+      return { from: word.from, filter: false, options };
+    };
+    if (emojiCatalog) return complete(emojiCatalog);
+    return loadEmojiCatalog().then((catalog) => (context.aborted ? null : complete(catalog)));
   };
 }

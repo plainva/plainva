@@ -1,5 +1,4 @@
 import { fetchWithTransferTimeout, TransferCancelledError, discardResponse } from "./transferTimeout.js";
-import { folderIdentity } from "./folderIdentity.js";
 import { ISyncTarget, RemoteStat, SyncOperation, PushResult, PullResult, SyncContentRef, SyncUploader, RemoteProbe, RemotePresence, ListingMetrics, RemoteChangedError } from "./ISyncTarget.js";
 import { refreshTokenBody, readRefreshResponse } from "./oauthRefresh.js";
 import type { FetchFn } from "./WebDavSyncTarget.js";
@@ -10,6 +9,8 @@ import { streamUpload } from "./streamUpload.js";
 import { foldPathNormalization } from "./pathIdentity.js";
 import { foldsToSameName } from "./conditionalWrite.js";
 import { trimChars } from "../textScan.js";
+import { driveRootName } from "./targetIdentities.js";
+export { driveRootName, driveFolderIdentity } from "./targetIdentities.js";
 
 /** Quote one Drive query value; escaping quotes alone leaves backslashes active. */
 function driveQueryString(value: string): string {
@@ -55,22 +56,8 @@ const DRIVE_API = "https://www.googleapis.com/drive/v3";
 const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
-const DEFAULT_ROOT = "Plainva";
 
-/** The folder path a Drive target looks up, resolved exactly as the target does (default "Plainva"). */
-export function driveRootName(rootFolderName?: string): string {
-  return rootFolderName || DEFAULT_ROOT;
-}
 
-/**
- * Canonical identity of that folder (fourth review of plan "Verbinden",
- * finding 1): its path as the target walks it - Drive names are case
- * sensitive - and, where known, the folder id, which is the folder.
- */
-export function driveFolderIdentity(rootFolderName?: string, rootFolderId?: string): { root: string; rootId?: string } {
-  const root = folderIdentity(driveRootName(rootFolderName), { caseInsensitive: false }) || DEFAULT_ROOT;
-  return rootFolderId ? { root, rootId: rootFolderId } : { root };
-}
 
 /**
  * Folder names that hold device-local or VCS data and are never vault content: they must

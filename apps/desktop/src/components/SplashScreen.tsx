@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useVault } from "../contexts/VaultContext";
 import { FolderOpen, Cloud, Folder, Laptop, Plus, X, FilePlus2, Database, Download, SquareArrowOutUpRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -40,7 +40,7 @@ function useVaultTemplates(): VaultTemplates | null {
 }
 
 // Loaded only when a vault's index database failed: the start's entry file carries none of it.
-const SplashRebuildIndex = lazy(() => import("./SplashRebuildIndex").then((m) => ({ default: m.SplashRebuildIndex })));
+const SplashRebuildIndex = deferredPart(() => import("./SplashRebuildIndex").then((m) => m.SplashRebuildIndex));
 
 /** Brand mark geometry (not an icon role - the logo scales freely). */
 const SPLASH_LOGO_SIZE = 76;

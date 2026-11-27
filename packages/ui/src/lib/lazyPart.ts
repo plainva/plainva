@@ -1,4 +1,5 @@
 import { createElement, use, type ComponentType } from "react";
+import { loadPart } from "./partLoad";
 
 /**
  * A component loaded on demand (performance plan L5), from a chunk of the app's own bundle. Unlike a bare `lazy`,
@@ -23,7 +24,9 @@ function partOf<P extends object>(load: () => Promise<ComponentType<P>>): Part {
   let loading: Tracked<ComponentType<P>> | null = null;
   const start = (): Tracked<ComponentType<P>> => {
     if (!loading) {
-      const promise: Tracked<ComponentType<P>> = load();
+      // Bounded and in the app's words (`loadPart`): a load that hangs or fails reaches the boundary as a
+      // `PartLoadError`, never as a fallback that waits for ever (package B1b).
+      const promise: Tracked<ComponentType<P>> = loadPart(load);
       // The status React reads in `use`: a part loaded before is drawn without suspending.
       promise.status = "pending";
       promise.then(

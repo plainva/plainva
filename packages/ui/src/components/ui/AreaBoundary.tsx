@@ -11,6 +11,7 @@ import { logDiagnostic } from "../../services/diagnosticsLog";
 import { getPlatformServices, hasPlatformServices } from "../../platform/services";
 import { toast } from "../../services/toastStore";
 import i18n from "../../i18n";
+import { isPartLoadFailure } from "../../lib/partLoad";
 
 /**
  * A way out of a failed area that does not depend on the area itself: close
@@ -123,7 +124,7 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
   componentDidCatch(error: unknown, info: ErrorInfo) {
     logDiagnostic(`area:${this.props.area}`, describeAreaError(error, info.componentStack));
     console.error(`[area ${this.props.area}] could not be shown`, error);
-    if (this.props.size === "quiet") toastQuietFailure(this.props.area);
+    if (this.props.size === "quiet") toastQuietFailure(this.props.area, isPartLoadFailure(error));
   }
 
   private reload = () => {
@@ -151,6 +152,7 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
           area={area}
           exit={exit ?? null}
           failedAgain={this.state.reloads > 0}
+          loadFailed={isPartLoadFailure(this.state.error)}
           onDismiss={this.dismiss}
           onReload={this.reload}
           placeClassName={placeClassName}
@@ -178,16 +180,18 @@ function RenderArea({ build }: { build: () => ReactNode }) {
  * The diagnostics line is written every time, as for every area.
  */
 const toastedQuietAreas = new Set<string>();
-function toastQuietFailure(area: string): void {
+function toastQuietFailure(area: string, loadFailed: boolean): void {
   if (toastedQuietAreas.has(area)) return;
   toastedQuietAreas.add(area);
-  toast.warning(i18n.t("errors.areaTitle"));
+  toast.warning(i18n.t(loadFailed ? "errors.partLoadTitle" : "errors.areaTitle"));
 }
 
-function AreaFallback({ area, exit, failedAgain, onDismiss, onReload, placeClassName, size, testId }: {
+function AreaFallback({ area, exit, failedAgain, loadFailed, onDismiss, onReload, placeClassName, size, testId }: {
   area: string;
   exit: AreaExit | null;
   failedAgain: boolean;
+  /** The area's part of the bundle could not be loaded (`isPartLoadFailure`): said as that, not as a crash. */
+  loadFailed: boolean;
   onDismiss: () => void;
   onReload: () => void;
   placeClassName?: string;
@@ -197,10 +201,11 @@ function AreaFallback({ area, exit, failedAgain, onDismiss, onReload, placeClass
   const { t } = useTranslation();
   const place = t("settings.about");
   const small = size === "section";
+  const areaTitle = loadFailed ? t("errors.partLoadTitle") : t("errors.areaTitle");
   if (size === "icon") {
     // The glyph and the reload, stacked in the width of what it stands in for;
     // the sentence is the reload's tooltip and the alert's name.
-    const title = failedAgain ? t("errors.areaAgain", { place }) : t("errors.areaTitle");
+    const title = failedAgain ? t("errors.areaAgain", { place }) : areaTitle;
     return (
       <div
         aria-label={title}
@@ -231,7 +236,7 @@ function AreaFallback({ area, exit, failedAgain, onDismiss, onReload, placeClass
         role="alert"
       >
         <AlertCircle aria-hidden size={ICON.ui} />
-        <span className="pv-areafail-line">{failedAgain ? t("errors.areaAgain", { place }) : t("errors.areaTitle")}</span>
+        <span className="pv-areafail-line">{failedAgain ? t("errors.areaAgain", { place }) : areaTitle}</span>
         {!failedAgain && (
           <IconButton data-testid="area-fallback-reload" label={t("errors.areaReload")} onClick={onReload} size="sm">
             <RotateCw size={ICON.ui} />
@@ -270,9 +275,9 @@ function AreaFallback({ area, exit, failedAgain, onDismiss, onReload, placeClass
       <EmptyState
         action={actions}
         icon={small ? undefined : <AlertCircle size={ICON.empty} />}
-        title={size === "dialog" ? undefined : t("errors.areaTitle")}
+        title={size === "dialog" ? undefined : areaTitle}
       >
-        {failedAgain ? t("errors.areaAgain", { place }) : t("errors.areaBody", { place })}
+        {failedAgain ? t("errors.areaAgain", { place }) : loadFailed ? t("errors.partLoad") : t("errors.areaBody", { place })}
       </EmptyState>
     </div>
   );
@@ -282,8 +287,8 @@ function AreaFallback({ area, exit, failedAgain, onDismiss, onReload, placeClass
   // On the phone that layer is a sheet: the shell registers its own.
   if (size === "dialog") {
     const Sheet = hasPlatformServices() ? getPlatformServices().Sheet : undefined;
-    if (Sheet) return <Sheet onClose={onDismiss} testId="area-fallback-dialog" title={t("errors.areaTitle")}>{body}</Sheet>;
-    return <Modal onClose={onDismiss} testId="area-fallback-dialog" title={t("errors.areaTitle")}>{body}</Modal>;
+    if (Sheet) return <Sheet onClose={onDismiss} testId="area-fallback-dialog" title={areaTitle}>{body}</Sheet>;
+    return <Modal onClose={onDismiss} testId="area-fallback-dialog" title={areaTitle}>{body}</Modal>;
   }
   return body;
 }

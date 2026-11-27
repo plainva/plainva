@@ -2,8 +2,8 @@ import { useWindowBookmarks } from "./hooks/useWindowBookmarks";
 import { useTabTransferSource, useTabTransferTarget } from "./hooks/useTabTransfer";
 import { COMPARISON_PREFIX } from "./services/comparisonWindow";
 import { PATH_RENAMED_EVENT, type FileMovedDetail } from "./services/fileMoved";
-const ComparisonWindow = lazy(() => import("./components/ComparisonWindow").then(m => ({ default: m.ComparisonWindow })));
-import { useState, useEffect, useLayoutEffect, useCallback, useRef, useSyncExternalStore, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense, lazy } from "react";
+const ComparisonWindow = deferredPart(() => import("./components/ComparisonWindow").then((m) => m.ComparisonWindow));
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, useSyncExternalStore, Fragment, type MouseEvent as ReactMouseEvent, type CSSProperties, Suspense } from "react";
 import { useTranslation } from "react-i18next";
 import { applyIndexChanges } from "./services/fileActions";
 import { onTrayJournal, onTrayNewTask } from "./services/background";
@@ -15,9 +15,9 @@ import { useVault } from "./contexts/VaultContext";
 // paint the first frame, and each becomes its own chunk that only ever
 // downloads when the user opens it.
 import type { CompareSubject } from "./components/CompareModal";
-const CompareModal = lazy(() => import("./components/CompareModal").then(m => ({ default: m.CompareModal })));
-const DeletedFilesModal = lazy(() => import("./components/DeletedFilesModal").then(m => ({ default: m.DeletedFilesModal })));
-const ImageViewer = lazy(() => import("./components/ImageViewer").then(m => ({ default: m.ImageViewer })));
+const CompareModal = deferredPart(() => import("./components/CompareModal").then((m) => m.CompareModal));
+const DeletedFilesModal = deferredPart(() => import("./components/DeletedFilesModal").then((m) => m.DeletedFilesModal));
+const ImageViewer = deferredPart(() => import("./components/ImageViewer").then((m) => m.ImageViewer));
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
 import type { ShellCapabilities } from "./shellCapabilities";
@@ -29,22 +29,22 @@ import { DatabasesList } from "./components/DatabasesList";
 import { LeftPinnedSections } from "./components/LeftPinnedSections";
 import { LeftSidebarTabs } from "./components/LeftSidebarTabs";
 import { RIGHT_SIDEBAR_CHOSEN_KEY, RIGHT_SIDEBAR_WIDTH_KEY, rightSidebarWidthFrom, useSidebarStep } from "./lib/sidebarStep";
-const Editor = lazy(() => import('./components/Editor').then(m => ({ default: m.Editor })));
-const VaultGraphView = lazy(() => import('./components/graph/VaultGraphView').then(m => ({ default: m.VaultGraphView })));
-const TasksView = lazy(() => import('./components/tasks/TasksView').then(m => ({ default: m.TasksView })));
-const CalendarView = lazy(() => import('./components/pimcal/CalendarView').then(m => ({ default: m.CalendarView })));
+const Editor = deferredPart(() => import('./components/Editor').then((m) => m.Editor));
+const VaultGraphView = deferredPart(() => import('./components/graph/VaultGraphView').then((m) => m.VaultGraphView));
+const TasksView = deferredPart(() => import('./components/tasks/TasksView').then((m) => m.TasksView));
+const CalendarView = deferredPart(() => import('./components/pimcal/CalendarView').then((m) => m.CalendarView));
 // The series expansion for "Try again" on a lost new event: loaded with the calendar's code, never with the start (issue 119).
 const loadSeriesExpansion = () => import("./services/pim/seriesExpansion").then((m) => m.expandEventDraft);
-const MailView = lazy(() => import('./components/mail/MailView').then(m => ({ default: m.MailView })));
-const CommentsOverview = lazy(() => import('./components/comments/CommentsOverview').then(m => ({ default: m.CommentsOverview })));
-const JournalView = lazy(() => import('./components/journal/JournalView').then(m => ({ default: m.JournalView })));
-const AiTabView = lazy(() => import('./components/ai/AiTabView').then(m => ({ default: m.AiTabView })));
-const AiCompanion = lazy(() => import('./components/ai/AiCompanion').then(m => ({ default: m.AiCompanion })));
-const McpPairing = lazy(() => import('./components/ai/McpPairing').then(m => ({ default: m.McpPairing })));
-const McpPlanDialog = lazy(() => import('./components/ai/McpPlanDialog').then(m => ({ default: m.McpPlanDialog })));
-const LearnDialogs = lazy(() => import('./components/ai/LearnDialogs').then(m => ({ default: m.LearnDialogs })));
-const VaultFindReplaceModal = lazy(() => import('./components/VaultFindReplaceModal').then(m => ({ default: m.VaultFindReplaceModal })));
-const JournalCaptureDialog = lazy(() => import('./components/journal/JournalCaptureDialog').then(m => ({ default: m.JournalCaptureDialog })));
+const MailView = deferredPart(() => import('./components/mail/MailView').then((m) => m.MailView));
+const CommentsOverview = deferredPart(() => import('./components/comments/CommentsOverview').then((m) => m.CommentsOverview));
+const JournalView = deferredPart(() => import('./components/journal/JournalView').then((m) => m.JournalView));
+const AiTabView = deferredPart(() => import('./components/ai/AiTabView').then((m) => m.AiTabView));
+const AiCompanion = deferredPart(() => import('./components/ai/AiCompanion').then((m) => m.AiCompanion));
+const McpPairing = deferredPart(() => import('./components/ai/McpPairing').then((m) => m.McpPairing));
+const McpPlanDialog = deferredPart(() => import('./components/ai/McpPlanDialog').then((m) => m.McpPlanDialog));
+const LearnDialogs = deferredPart(() => import('./components/ai/LearnDialogs').then((m) => m.LearnDialogs));
+const VaultFindReplaceModal = deferredPart(() => import('./components/VaultFindReplaceModal').then((m) => m.VaultFindReplaceModal));
+const JournalCaptureDialog = deferredPart(() => import('./components/journal/JournalCaptureDialog').then((m) => m.JournalCaptureDialog));
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath, tabAreaName } from "./components/graph/virtualPaths";
 // The AI (performance plan L5): its host and its surfaces load once the AI was asked for, never with the start.
 const AiSelectionMenu = deferredPart(() => import("./components/ai/AiSelectionButton").then((m) => m.AiSelectionMenu));
@@ -90,7 +90,7 @@ import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type Folde
   SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey } from "@plainva/ui";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
-const ShortcutsModal = lazy(() => import("./components/ShortcutsModal").then(m => ({ default: m.ShortcutsModal })));
+const ShortcutsModal = deferredPart(() => import("./components/ShortcutsModal").then((m) => m.ShortcutsModal));
 import {
   openOrFocusContent,
   openPresetWindow,

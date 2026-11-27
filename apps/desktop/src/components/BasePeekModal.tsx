@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { EditorView } from "@codemirror/view";
 import { ArrowLeft, ArrowRight, Columns2, ExternalLink, Maximize2, MoreVertical, PanelRight, X } from "lucide-react";
@@ -8,6 +8,7 @@ import { PropertiesSection } from "./PropertiesSection";
 import { clampPeekSideWidth, readPeekSideWidth, useSidebarStep, writePeekSideWidth } from "../lib/sidebarStep";
 import { openAttachmentExternally } from "../services/openAttachment";
 import { useVault } from "../contexts/VaultContext";
+import { deferredPart } from "../lib/deferredParts";
 
 // Floating peek window for notes opened from a `.base` view or the graph.
 // The window chrome (drag by head, resize grip, session position memory,
@@ -20,14 +21,14 @@ import { useVault } from "../contexts/VaultContext";
 // the dynamic import breaks the static cycle
 // Editor -> NoteEmbedPlugin -> BaseViewer -> BasePeekModal -> Editor
 // (the same mechanism App uses for its lazy Editor).
-const LazyEditor = lazy(() => import("./Editor").then((m) => ({ default: m.Editor })));
+const LazyEditor = deferredPart(() => import("./Editor").then((m) => m.Editor));
 // A `.base` shown in the peek renders the full BaseViewer (lazy — same cycle
 // break as the editor: BaseViewer -> BasePeekModal -> BaseViewer).
-const LazyBaseViewer = lazy(() => import("./BaseViewer").then((m) => ({ default: m.BaseViewer })));
+const LazyBaseViewer = deferredPart(() => import("./BaseViewer").then((m) => m.BaseViewer));
 // Same lazy treatment for the image viewer — a peek opened on a gallery row is
 // an image often enough that it belongs here, and loading it eagerly would pull
 // the canvas editor into every note peek.
-const LazyImageViewer = lazy(() => import("./ImageViewer").then((m) => ({ default: m.ImageViewer })));
+const LazyImageViewer = deferredPart(() => import("./ImageViewer").then((m) => m.ImageViewer));
 
 /** What the window's editor holds when the entry is renamed: its text and where its caret stands. */
 export interface PeekCaret {

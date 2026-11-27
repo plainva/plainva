@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { StickyNote } from "lucide-react";
@@ -27,10 +27,11 @@ import { appConfirm } from "../../services/appDialogs";
 import { requestSaveFlush } from "../../services/saveFlush";
 import { rememberSessionViewMode } from "../../services/viewModeDefault";
 import { detectMac } from "../WindowControls";
+import { deferredPart } from "../../lib/deferredParts";
 
 // The full editor, loaded lazily — the same cycle break the peek uses:
 // Editor -> NoteEmbedPlugin -> BaseViewer -> PinboardEntryModal -> Editor.
-const LazyEditor = lazy(() => import("../Editor").then((m) => ({ default: m.Editor })));
+const LazyEditor = deferredPart(() => import("../Editor").then((m) => m.Editor));
 
 /**
  * "New entry" on a pinboard (plan Befunde 2026-09-24, E14–E16).

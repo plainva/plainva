@@ -126,7 +126,9 @@ const question = () => document.querySelector<HTMLElement>(".pv-overlay--dialog"
 
 /** Anything in the app asks for the composer through this event. */
 async function compose(detail: { subject?: string; markdown?: string; to?: string; attachments?: unknown[] }) {
-  act(() => {
+  // Awaited: the composer is a part loaded on demand (`deferredPart`), and React resumes a part that suspended in
+  // `use` only inside an awaited `act`.
+  await act(async () => {
     window.dispatchEvent(new CustomEvent("plainva-compose-mail", { detail }));
   });
   // The composer is a lazy chunk; wait for it rather than for a fixed count.

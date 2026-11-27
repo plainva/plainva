@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import { announceCredentials } from "./services/credentialsAnnouncement";
 import { useTranslation } from "react-i18next";
 import { getSettingsStore } from "./services/settingsStore";
@@ -30,8 +30,8 @@ import { deferredPart } from "./lib/deferredParts";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to paint
 // the first frame, and each becomes its own chunk that only ever downloads
 // when the user opens it.
-const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
-const OkfConversionModal = lazy(() => import("./components/OkfConversionModal").then(m => ({ default: m.OkfConversionModal })));
+const SettingsModal = deferredPart(() => import("./components/SettingsModal").then((m) => m.SettingsModal));
+const OkfConversionModal = deferredPart(() => import("./components/OkfConversionModal").then((m) => m.OkfConversionModal));
 
 /**
  * The central window (multi-window P0; shell split out in stage C0).

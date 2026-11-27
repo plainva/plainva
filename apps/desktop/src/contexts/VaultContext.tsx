@@ -1045,6 +1045,9 @@ export const VaultProvider: React.FC<{
       const dropboxReady = !filesStopped && fileAccess.ready.dropbox;
       const s3Ready = !filesStopped && fileAccess.ready.s3;
       const webdavReady = !filesStopped && fileAccess.ready.webdav;
+      // S3 and WebDAV read their listings as XML (about 100 KB with the parser): their module loads only for a vault that
+      // uses one — here, with the open's other modules and before any check of its abort (package B1b).
+      const xmlTargets = (s3Ready && s3Creds) || (webdavReady && webdavCreds?.url) ? await import("../services/syncXmlTargets") : null;
       /**
        * A provider IS configured for this vault, but nothing can open it.
        * Without saying so the load ended as plain "idle" with no provider: the
@@ -1559,14 +1562,14 @@ export const VaultProvider: React.FC<{
           dropboxTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
           dropboxTarget.allowRootCreation = !hasSyncedBefore;
           target = dropboxTarget;
-        } else if (s3Ready && s3Creds) {
+        } else if (s3Ready && s3Creds && xmlTargets) {
           syncProvider = "s3";
-          target = new sync.S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
-        } else if (webdavReady && webdavCreds && webdavCreds.url) {
+          target = new xmlTargets.S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
+        } else if (webdavReady && webdavCreds && webdavCreds.url && xmlTargets) {
           syncProvider = "webdav";
           // The fourth argument makes large writes stream from disk instead of
           // travelling through the webview (issue #48).
-          const webdavTarget = new sync.WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
+          const webdavTarget = new xmlTargets.WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
           webdavTarget.allowRootCreation = !hasSyncedBefore;
           target = webdavTarget;
         }

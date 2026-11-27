@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { buildInfoDefine } from "../../scripts/build-info.mjs";
 import { packageBarrels } from "../../scripts/vite/packageBarrels.mjs";
 import { startChunk } from "../../scripts/vite/startChunk.mjs";
+import { editorInStart } from "../../scripts/vite/editorInStart.mjs";
 import { pinTestTimeZone } from "../../scripts/test-clock.mjs";
 import { e2eBundleBuild, e2eBundlePlugins } from "./scripts/e2e-bundle.mjs";
 
@@ -24,7 +25,8 @@ export default defineConfig(async ({ mode }) => {
   return {
   // Named imports of the shared packages go to the defining module in a build, and what the start loads statically
   // forms one chunk (performance plan L5).
-  plugins: [packageBarrels(), start.plugin, react(), ...e2eBundlePlugins(mode, root)],
+  // The editor's chunk loads with the start by decision (editorInStart.mjs, package B1b).
+  plugins: [packageBarrels(), start.plugin, editorInStart("editor"), react(), ...e2eBundlePlugins(mode, root)],
   // Which build this is (channel, branch, commit, CI run) for About & diagnostics.
   define: buildInfoDefine(mode === "labs" ? labsEnv() : undefined),
   // The installed SDK has a deliberately smaller API. Both shells and every
@@ -136,6 +138,11 @@ export default defineConfig(async ({ mode }) => {
             // Kein manualChunks-Zwang, damit Vite sie als eigene Lazy-Chunks emittiert
             // und Codeblock-Highlighting on demand laedt.
             if (/\/@codemirror\/(lang-|legacy-modes)/.test(id) || id.includes("@lezer")) return undefined;
+            // language-data loads the languages by `import()`, so it depends on Vite's preload helper, and a group takes
+            // in what its modules depend on: in `editor` it took the helper, and the start reached the editor only
+            // through that (package B1b). It loads with the editor's own chunk; the start names `editor` itself
+            // (editorInStart.mjs).
+            if (id.includes("/@codemirror/language-data/")) return undefined;
             return "editor";
           }
           if (id.includes("react-markdown") || id.includes("remark") || id.includes("micromark") || id.includes("mdast") || id.includes("hast") || id.includes("unified") || id.includes("vfile")) {

@@ -1512,3 +1512,56 @@ the review round (the suggestion mode loads its word diff with the mode; the att
 helpers stand apart from the mail text). The next steps, after the vault's close path of B2: the workspace's
 document hashing apart from its signing, the folder identities apart from the targets, the workspace lock and status
 apart from the workspace's runtime on the phone.
+
+## Start bundle, second pass (B1b), 2026-11-27
+
+From the bundle gate against `main` at `e008c1467` (start bytes; "shortly after" with the AI off, as above):
+
+| Shell | | Start | gzip | Shortly after | Together |
+|---|---|---|---|---|---|
+| Desktop | before | 4 017 827 | 1 218 654 | 2 134 014 | 6 151 841 |
+| Desktop | after | 3 879 893 | 1 178 658 | 2 225 748 | 6 105 641 |
+| Phone | before | 4 483 526 | 1 340 538 | 1 384 197 | 5 867 723 |
+| Phone | after | 4 074 531 | 1 231 456 | 1 424 144 | 5 498 675 |
+
+**How it was measured.** A build with a plugin that dumps each chunk's modules and the static module graph, then the
+dominator tree of the start's modules from `main.tsx`: a module's "retained" size is what would leave the start if
+its import(s) were made dynamic. That finds the cheap cases — a small import that holds a large module in the start.
+
+**The desktop's editor is part of its start, by decision** (maintainer, 2026-11-27, as on the phone). It was there by
+accident: Vite's preload helper (`\0vite/preload-helper.js`, which every `import()` needs) was taken into the vendor
+group `editor` — a group takes in what its modules depend on, and `@codemirror/language-data` loads the languages by
+`import()` —, so every `import()` of the start imported the whole of CodeMirror (675 KB) for 3.5 KB. Taken out, the
+editor merely loaded a moment later (the gate's vault opens a note) and the first editable note waited one request
+longer. Now `language-data` stands outside the group and `scripts/vite/editorInStart.mjs` names the `editor` chunk in
+`index.html` as a `modulepreload`; `mustStart` in the gate's baseline fails a build whose start lacks CodeMirror.
+
+**Out of the start.** Both shells: the sync targets' folder identities stand in `core/src/sync/targetIdentities.ts`,
+apart from the targets (the vault's open compares them; reading them from the targets carried every target and
+fast-xml-parser into the start). Desktop: S3 and WebDAV load at the open only for a vault that uses one
+(`services/syncXmlTargets.ts`); the emoji catalogue of the `:name` completion loads with the first `:name` (both
+shells, `editorTriggers.ts`). Phone: the note's context sheet (loads with its first opening), the ```tasks block's
+view (with the first block), the settings search's highlight (with a search hit), the workspace migration and its
+worker (when a setup is activated or resumed).
+
+**Why "shortly after" grew.** The desktop's CalDAV calendar target reads XML too; it found the parser in the start
+before and brings it along now, and the gate's vault has a calendar account (+85 KB of fast-xml-parser and its
+helpers, loaded after the first picture instead of before it). On the phone, building blocks the moved parts shared
+with screens that load ahead in the idle time (the tasks and today screens) moved into those screens' chunks (+40 KB).
+Both are bytes after the first picture rather than before it; the baseline of "shortly after" is not raised.
+
+**What is left** (source size before minifying, the file is about 0.55 of it): both shells React (~540 KB), the
+editor with its Markdown/HTML/CSS/JavaScript grammars (desktop 675 KB file; phone ~950 KB source, by decision), YAML
+(~190 KB) and zod (~190 KB, through `core/src/markdown-ast.ts` and `metadata.ts`; replacing it is a package of its
+own), the vault, index and query service; on the desktop the right column's sections (databases ~86 KB, journal ~52 KB,
+calendar ~45 KB source) and the settings profile (~110 KB with the account repair); on the phone the encrypted
+workspace's lock and runtime (`mobileWorkspaceSecurity.ts` without the migration, ~150 KB).
+
+**A load that fails or hangs** (the rest of L5). Every component loaded on demand goes through `lazyPart`, and it
+through `loadPart` (`packages/ui/src/lib/partLoad.ts`): a load that has not settled after 20 s
+(`PART_LOAD_TIMEOUT_MS`) fails, and a failed one is a `PartLoadError`. The `AreaBoundary` shows either as "This part
+could not be loaded" with its reload; `errorText` says the same sentence for a `PartLoadError` and for the browsers'
+own messages ("Failed to fetch dynamically imported module …"), so a load that did not go through `loadPart` is
+still said in the app's words. The suggestion mode's word diff loads through it, so a send that waits for it ends.
+The desktop's 40 components behind React's bare `lazy` — which kept a failed load for ever — are `deferredPart`s now,
+as the phone's were; `apps/desktop/src/partLoad.test.tsx` fails on any `lazy(` in the sources.
