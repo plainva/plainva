@@ -161,10 +161,16 @@ export function session(script: EgressChunk[][]) {
     newId: () => `id${++ids}`,
     label: (key) => key,
   });
+  // Every send overview the session asks for, as it stood when it was answered: whom it names and why it asks.
+  const consents: Array<{ providerId: string; providerLabel: string; model: string; local: boolean; growth: string[]; blind: boolean }> = [];
   s.subscribe(() => {
-    if (s.getState().consent) s.answerConsent(true);
+    const consent = s.getState().consent;
+    if (!consent) return;
+    const { manifest, growth } = consent;
+    consents.push({ providerId: manifest.providerId, providerLabel: manifest.providerLabel, model: manifest.model, local: manifest.local, growth: growth.map((g) => g.kind), blind: consent.blind === true });
+    s.answerConsent(true);
   });
-  return { s, fake };
+  return { s, fake, consents };
 }
 
 /** Until the composer's draft store has done what it was given. */

@@ -7206,7 +7206,7 @@ export class AiSession {
 
   /**
    * "Send again" and "Leave out the image" (B7, second class): the request may have arrived, so the turn and its run
-   * stay, and the same turn goes once more where it stands — to the recipient of the failed run, through every check
+   * stay, and the same turn goes once more where it stands — to the model the conversation shows now, through every check
    * and, where it asks, the send overview. Resolves with how the run ended, or null when nothing was sent.
    */
   async retryLast(how: { withoutImages?: boolean } = {}): Promise<RunStop | null> {
@@ -7221,8 +7221,8 @@ export class AiSession {
     this.sending = true;
     try {
       // To the model the conversation shows now (review B7-4, M-R4-1): what the screen names as the target is the target.
-      // Where that is another model than the try's, the send overview asks first where it brings along more than was
-      // confirmed (`scopeGrowth` against the new recipient).
+      // The try is that model's in every respect (review B7-5, S-R5-1): `runMessage` stamps the failed try's manifest
+      // for it, so the send overview measures, asks and names this recipient, and the run keeps it.
       const choice = this.choice() ?? { providerId: last.run.providerId, model: last.run.model };
       return (await this.runMessage(message, vault, choice, { retry: { userTurn: last.userTurn, withoutImages: how.withoutImages === true, of: last.run } }))?.stop ?? null;
     } catch (error) {
@@ -7699,18 +7699,22 @@ export class AiSession {
 
     if (retry) {
       // The same turn once more (B7): its context is in it already, as it went, and the request carries what the failed
-      // run's did. Nothing is gathered anew; the send overview asks where it would for that request.
-      const manifest = retry.of.manifest;
-      if (!manifest) return null;
+      // run's did. Nothing is gathered anew; the send overview asks where it would for that request — to this recipient.
+      const tried = retry.of.manifest;
+      if (!tried) return null;
       const turn = record.conversation.turns[retry.userTurn];
       const part = turn?.parts.find((p): p is TextPart => p.type === "text" && Boolean(p.context));
       if (!turn) return null;
       const images = retry.withoutImages ? [] : imagesOf(turn.parts);
+      // A try belongs wholly to its recipient (review B7-5, S-R5-1): it inherits only the failed try's content, and
+      // everything it measures, asks, shows and keeps is this recipient's.
+      const manifest = this.restampedFor(tried, provider, choice, recipient, { toolless, web: web && this.state.web.enabled, tools: toolNames, more: moreNames, memory: tried.memory ? manifestMemoryOf(record.instructions) ?? tried.memory : undefined });
+      const listed = this.state.tests[choice.providerId]?.models?.find((model) => model.id === choice.model)?.vision;
       const growth = scopeGrowth(manifest, this.scope);
       if (growth.length > 0 || (this.state.settings.confirmEveryRequest && !manifest.local)) {
         if (this.vault !== vault || left()) return null;
         // Only as it is: what this request carries is the turn's, and a turn of the conversation is not changed.
-        const answer = await this.askConsent(manifest, growth, images.length ? { images } : null, true);
+        const answer = await this.askConsent(manifest, growth, images.length ? { images, ...(listed === false ? { blind: true } : {}) } : null, true);
         if (this.vault !== vault || answer !== "send") return null;
       }
       if (this.vault !== vault || left() || this.state.active?.id !== record.id) return null;
@@ -8579,6 +8583,40 @@ export class AiSession {
       // Its end is decided: a choice from here on goes onto the conversation as it is stored.
       if (this.running.get(record.id) === entry) this.running.delete(record.id);
     }
+  }
+
+  /**
+   * A failed try's manifest for the recipient of the try that follows it ("Send again", review B7-5, S-R5-1): the
+   * content stays as it went — the gate tells a cloud from this device only, and a conversation that ran here never
+   * goes to a cloud — while the recipient, where it runs, its price, its tools and what the overview says of the
+   * memory's lookup are this recipient's.
+   */
+  private restampedFor(
+    tried: EgressManifest,
+    provider: ProviderInfo,
+    choice: ModelChoice,
+    recipient: EgressRecipient,
+    reach: { toolless: boolean; web: boolean; tools: readonly string[]; more: readonly string[]; memory: ManifestMemory | undefined },
+  ): EgressManifest {
+    const content: EgressManifest = { ...tried };
+    delete content.estimatedCostUsd;
+    delete content.more;
+    delete content.webHosts;
+    delete content.memory;
+    const price = this.priceOf(choice);
+    return {
+      ...content,
+      providerId: provider.id,
+      providerLabel: provider.label,
+      model: choice.model,
+      local: !isCloudRecipient(recipient),
+      ...(price ? { estimatedCostUsd: (tried.estimatedTokens / 1_000_000) * price.input } : {}),
+      tools: [...reach.tools],
+      ...(reach.more.length ? { more: [...reach.more] } : {}),
+      web: reach.web,
+      ...(reach.web && this.state.web.allow.length ? { webHosts: [...this.state.web.allow] } : {}),
+      ...(reach.memory ? { memory: reach.toolless ? { ...reach.memory, lookup: false } : reach.memory } : {}),
+    };
   }
 
   private priceOf(choice: ModelChoice): { input: number; output: number } | undefined {

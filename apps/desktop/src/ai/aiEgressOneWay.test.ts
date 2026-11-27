@@ -123,6 +123,14 @@ function methodsOf(source: string): Map<string, string> {
     const start = m.index! + 1;
     out.set(m[1]!, source.slice(start, source.indexOf("\n  }\n", start)));
   }
+  // A class field that holds an arrow function is a method too (review B7-5, H-R5-1): its body to the field's end.
+  for (const m of source.matchAll(/\n {2}(?:(?:private|protected|public|static|readonly)\s+)*([a-zA-Z_]\w*)\s*(?::[^=\n]+)?=\s*(?:async\s*)?(?:\([^)\n]*\)|[a-zA-Z_]\w*)\s*(?::[^=\n]+)?=>/g)) {
+    if (out.has(m[1]!)) continue;
+    const start = m.index! + 1;
+    const line = source.indexOf("\n", start);
+    const oneLine = source.slice(start, line).trimEnd().endsWith(";");
+    out.set(m[1]!, source.slice(start, oneLine ? line : source.indexOf("\n  };\n", start)));
+  }
   return out;
 }
 function reached(source: string, from: readonly string[]): Map<string, string> {
@@ -134,7 +142,8 @@ function reached(source: string, from: readonly string[]): Map<string, string> {
     const body = all.get(name);
     if (out.has(name) || body === undefined) continue;
     out.set(name, body);
-    for (const call of body.matchAll(/this\.([a-zA-Z_]\w*)\(/g)) todo.push(call[1]!);
+    // Called or handed on as a value (`.call(this, …)`, `forEach(this.x, this)`): either way its body is part of the run.
+    for (const call of body.matchAll(/this\.([a-zA-Z_]\w*)/g)) todo.push(call[1]!);
   }
   return out;
 }
@@ -155,6 +164,8 @@ describe("what a run reaches: every method runMessage and execute call, and thos
       expect(body, name).not.toMatch(/this\.out\b|host\.egress|this\.egress\b/);
       // A cast, a destructuring, an alias or a computed member would hide a way out from the lines below.
       expect(body, name).not.toMatch(/this\[|=\s*this\s*[;,)]|this\.(?:host|mcp)\b(?!\.[a-zA-Z])/);
+      // Nor is the session itself handed on (review B7-5, H-R5-1): to a free function, as `.call`'s or `forEach`'s `this`.
+      expect(body, name).not.toMatch(/[(,]\s*this\s*(?:as\b[^,)]*)?[,)]|\.(?:call|apply|bind)\(\s*this\b/);
     }
   });
 

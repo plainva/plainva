@@ -363,3 +363,33 @@ describe("what the review rounds found (plan P9-4b)", () => {
     await vi.waitFor(() => expect(t.s.getState().skills.servers.map((g) => [g.serverId, g.entries[0]!.status])).toEqual([["tracker", "active"]]));
   });
 });
+
+describe("the server a run reads a skill from is in the run's list (review B7-5, H-R5-2)", () => {
+  it("names the server in what the run reached, once it read the skill from it", async () => {
+    const t = await withSkill([turn({ calls: [useSkill("u1")] }), turn({ text: "Done." })], { approve: true });
+    expect(await t.s.send("Review the diff.")).toEqual({ kind: "answered" });
+    expect(t.server.reads).toEqual([MAIN_URI]);
+    expect(t.s.getState().active!.runs[0]!.departedTo).toContain("mcp:tracker");
+  });
+
+  it("names it before the read: a read the user stops while it is on its way to the server is in the list as well", async () => {
+    const t = await withSkill([turn({ calls: [useSkill("u1")] }), turn({ text: "Done." })], { approve: true });
+    // The words of the request reached the server's side the moment it was asked; the user stops the run then.
+    t.server.onRead = () => {
+      t.s.stop();
+      return null;
+    };
+    await t.s.send("Review the diff.");
+    expect(t.server.reads).toEqual([MAIN_URI]);
+    const run = t.s.getState().active!.runs[0]!;
+    expect(run.stop).not.toBe("answered");
+    expect(run.departedTo).toContain("mcp:tracker");
+  });
+
+  it("names no server that served no skill in the run", async () => {
+    const t = await withSkill([turn({ text: "Done." })], { approve: true });
+    expect(await t.s.send("Review the diff.")).toEqual({ kind: "answered" });
+    expect(t.server.reads).toEqual([]);
+    expect(t.s.getState().active!.runs[0]!.departedTo ?? []).not.toContain("mcp:tracker");
+  });
+});
