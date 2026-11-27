@@ -349,8 +349,8 @@
       },
       "alreadySent": "Już wysłano do: {{recipients}}. Nic więcej nie zostało wysłane.",
       "recipient": {
-        "web": "strona internetowa",
-        "mail": "Twój serwer poczty"
+        "web": "strony internetowej",
+        "mail": "Twojego serwera poczty"
       }
     },
     "empty": {

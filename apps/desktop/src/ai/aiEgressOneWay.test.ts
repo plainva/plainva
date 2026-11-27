@@ -292,3 +292,12 @@ describe("a run reaches the shell's ways out only as table 1 names them", () => 
     expect(run).not.toMatch(/vaultTools\.executor\.execute|vault\.(?:web|mcp|agents)\./);
   });
 });
+
+describe("both shells say whom a note embedding already went to (review B7-6, H-R6-1)", () => {
+  it("hand the run's departure on to the failure text, the desktop's card and the phone's section alike", () => {
+    expect.hasAssertions();
+    for (const file of ["apps/desktop/src/components/settings/SemanticSearchCard.tsx", "apps/mobile/src/components/MobileSemanticSection.tsx"]) {
+      expect(text(file), file).toMatch(/semanticRunFailureText\(t, engine\.source, state\?\.runFailure \?\? null, progress\.error \?\? "", state\?\.runDeparted === true, i18n\.language\)/);
+    }
+  });
+});

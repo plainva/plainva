@@ -191,6 +191,13 @@ const DIRECTION = {
     { name: "U+202E override", html: `<p>VISIBLEd1</p><p>&#x202E;SECRETd1 gnissim&#x202C; after</p>` },
     { name: "bdo dir=rtl", html: `<p>VISIBLEd2</p><p><bdo dir="rtl">SECRETd2 words</bdo></p>` },
     { name: "U+202D override", html: `<p>VISIBLEd3</p><p>&#x202D;SECRETd3&#x202C;</p>` },
+    // Across element boundaries (review B7-6, S-R6-1): the override holds as far as the bidirectional algorithm lets it.
+    { name: "v4 U+202E before a <b>", html: `<p>VISIBLEv4</p><p>&#x202E;<b>SECRETv4</b>&#x202C; VISIBLEv4b</p>` },
+    { name: "v5 U+202E unclosed before a link", html: `<p>VISIBLEv5</p><p>&#x202E;go <a href="https://x.example">SECRETv5</a></p>` },
+    { name: "v6 U+202E across a span, second word", html: `<p>VISIBLEv6</p><p>&#x202E;SECRETv6a <span>SECRETv6b</span>&#x202C; VISIBLEv6b</p>` },
+    { name: "w1 U+202E across nested elements", html: `<p>VISIBLEw1 &#x202E;<span><i><a href="https://x.example">SECRETw1</a></i> SECRETw1b</span>&#x202C; VISIBLEw1b</p>` },
+    { name: "w2 opened in a child, closed in the parent", html: `<p><span>VISIBLEw2 &#x202E;SECRETw2</span> SECRETw2b&#x202C; VISIBLEw2b</p>` },
+    { name: "w3 opened in the parent, closed in a child", html: `<p>&#x202E;SECRETw3 <b>SECRETw3b&#x202C; VISIBLEw3</b> VISIBLEw3b</p>` },
   ],
   order: [
     { name: "an isolate with a mark between two Latin words (o-cases)", html: `<p>VISIBLEt1a &#x2067;VISIBLEt1b &#x200F; VISIBLEt1c&#x2069; VISIBLEt1d</p>` },
@@ -214,10 +221,12 @@ test("text under a direction override is not read; right-to-left text, embedding
   await page.setViewportSize({ width: 1000, height: 900 });
   await loadProbe(page);
   const wrong: string[] = [];
-  for (const entry of DIRECTION.hidden) {
-    const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
+  for (const entry of DIRECTION.hidden) for (const width of [343, 760]) {
+    const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, width] as const);
     for (const word of open.ai) if (word.startsWith("SECRET")) wrong.push(`${entry.name}: the assistant reads ${word}, drawn mirrored`);
     if (!open.ai.some((word) => word.startsWith("VISIBLE"))) wrong.push(`${entry.name}: the assistant lost the words around it`);
+    // Where the override ends, the words after it are read again (review B7-6, S-R6-1).
+    if (/^[vw]\d/.test(entry.name)) for (const word of Array.from(entry.html.matchAll(/VISIBLE[a-z0-9]+/g), (m) => m[0])) if (!open.ai.includes(word)) wrong.push(`${entry.name}: the assistant does not read ${word}`);
   }
   for (const entry of DIRECTION.order) {
     const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);

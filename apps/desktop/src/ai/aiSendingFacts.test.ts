@@ -382,7 +382,11 @@ describe("a routine while this device asks before every request (review B7-4, M-
     expect(h.sent).toEqual([]);
     expect(outcome.kind === "preview" && outcome.preview.everyRequest).toBe(true);
     // Nobody off this device was asked: the confirmation says no search went.
-    expect(outcome.kind === "preview" && outcome.preview.searchWent).toBeUndefined();
+    if (outcome.kind !== "preview") throw new Error(outcome.kind);
+    expect(outcome.preview.searchWent).toBeUndefined();
+    await i18n.changeLanguage("en");
+    const draft: RoutineDraft = { name: "Morning brief", skill: "plainva:daily-orientation", request: "Look at the tax audit", days: [1, 2, 3, 4, 5], time: "07:00", missed: "catch-up", onlyWhenChanged: false, choice: { providerId: "anthropic", model: "m-1" } };
+    expect(renderToStaticMarkup(createElement(AiRoutineConfirm, { draft, preview: outcome.preview }))).not.toContain("for the search by meaning");
   });
 
   it("its confirmation says whom the search went to where it asked one off this device, and names the model it stops before (approved 27.11.)", async () => {

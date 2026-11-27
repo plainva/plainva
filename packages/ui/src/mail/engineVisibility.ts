@@ -421,18 +421,67 @@ async function paintingBoxes(doc: Document, win: Window, pace: Pace): Promise<{ 
   };
 }
 
-/** Code units of the text drawn under a direction override (U+202D, U+202E up to U+202C; `<bdo>`, `bidi-override`). */
-function overriddenRanges(text: Text, win: Window): Array<[number, number]> {
+/**
+ * The explicit embeddings, overrides and isolates open in each block, carried from one text to the next in the order
+ * of the text (review B7-6, S-R6-1): an override set before a `<b>`, a `<span>` or a link holds inside it, and a pop in
+ * a child ends what its parent opened — as far as the bidirectional algorithm lets them, not as far as a text node.
+ */
+interface BidiState {
+  /** The block each text's parent is laid out in. */
+  blocks: Map<Element, Element>;
+  /** Per block, its stack: "O" an override (U+202D, U+202E), "E" an embedding (U+202A, U+202B), "I" an isolate (U+2066–2068). */
+  stacks: Map<Element, string[]>;
+}
+
+/** Whether an element's box flows in its parent's line, so that both are one paragraph for the bidirectional algorithm. */
+function flowsInLine(display: string): boolean {
+  return display === "inline" || display === "contents" || display.startsWith("ruby");
+}
+
+function blockOf(text: Text, win: Window, blocks: Map<Element, Element>): Element | null {
+  const parent = text.parentElement;
+  if (!parent) return null;
+  const known = blocks.get(parent);
+  if (known) return known;
+  let at: Element = parent;
+  while (at.parentElement && flowsInLine(win.getComputedStyle(at).display)) at = at.parentElement;
+  blocks.set(parent, at);
+  return at;
+}
+
+/**
+ * Code units of the text drawn under a direction override (U+202D, U+202E up to U+202C or the end of the block;
+ * `<bdo>`, `bidi-override`). Inside an embedding or an isolate opened within the override, the override does not hold
+ * (rules X2–X5c of the algorithm); a U+202C ends the innermost embedding or override, a U+2069 the innermost isolate and
+ * everything opened inside it.
+ */
+function overriddenRanges(text: Text, win: Window, bidi: BidiState): Array<[number, number]> {
   for (let at = text.parentElement; at; at = at.parentElement) {
     const style = win.getComputedStyle(at);
     if (at.localName === "bdo" || /override/.test(style.unicodeBidi)) return [[0, text.data.length]];
   }
+  const block = blockOf(text, win, bidi.blocks);
+  let stack = block ? bidi.stacks.get(block) : undefined;
+  if (!stack) {
+    stack = [];
+    if (block) bidi.stacks.set(block, stack);
+  }
   const out: Array<[number, number]> = [];
-  let open = -1;
+  let open = stack[stack.length - 1] === "O" ? 0 : -1;
   for (let i = 0; i < text.data.length; i++) {
     const c = text.data.charCodeAt(i);
-    if ((c === 0x202d || c === 0x202e) && open < 0) open = i;
-    else if (c === 0x202c && open >= 0) {
+    if (c === 0x202d || c === 0x202e) stack.push("O");
+    else if (c === 0x202a || c === 0x202b) stack.push("E");
+    else if (c >= 0x2066 && c <= 0x2068) stack.push("I");
+    else if (c === 0x202c) {
+      if (stack.length && stack[stack.length - 1] !== "I") stack.pop();
+    } else if (c === 0x2069) {
+      const isolate = stack.lastIndexOf("I");
+      if (isolate >= 0) stack.length = isolate;
+    } else continue;
+    const overriding = stack[stack.length - 1] === "O";
+    if (overriding && open < 0) open = i;
+    else if (!overriding && open >= 0) {
       out.push([open, i]);
       open = -1;
     }
@@ -507,12 +556,13 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
       for (const line of lines) laterText.add(k, line);
       await pace.step();
     }
+    const bidi: BidiState = { blocks: new Map(), stacks: new Map() };
     for (let k = 0; k < texts.length; k++) {
       const { text, path, offset, lines } = texts[k]!;
       // Under a direction override a person sees the letters mirrored: none of it is read (B7, review H7). Words that
       // invisible direction marks merely show in another order are read in the order of the text (review B7-5, the
       // maintainer's decision (a), as on `main`).
-      const overridden = overriddenRanges(text, win);
+      const overridden = overriddenRanges(text, win, bidi);
       for (const [from, to] of overridden) hide(path, offset + from, offset + to);
       // Its own later lines over its earlier ones (lines laid on top of each other) count as well.
       const own = new LaterWords();

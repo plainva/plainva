@@ -7497,7 +7497,11 @@ export class AiSession {
     // A skill narrows the run (plan KI-Harness P3): the bound one's folders from the start, a loaded one's from its load.
     const skillState = newSkillRunState();
     const bound = record.instructions?.skill;
-    const toolNames = toolless ? [] : record.conversation.tools;
+    // A try is sent with no more reach than its content was put together for (review B7-6, M-R6-1): "Send again" of a
+    // turn put together without the internet's tools — at a model without tools — has none of them, whatever the model
+    // shown now could take; the gate's `web` dimension is the try's. Its `cloud` dimension is kept by `keptOnDevice`.
+    const triedWithoutWeb = Boolean(retry?.of.manifest && !retry.of.manifest.web);
+    const toolNames = toolless ? [] : triedWithoutWeb ? record.conversation.tools.filter((name) => !hasWebTools([name])) : record.conversation.tools;
     // A conversation that carries the internet's tools (plan P4): its vault tools and its context leave `web: deny` notes out.
     const web = hasWebTools(toolNames);
     const webLog = web ? newRunWeb() : null;
@@ -8213,11 +8217,18 @@ export class AiSession {
     // "Leave out the image" (B7): the request carries the turn without its pictures; the conversation keeps them.
     const ownTurn = record.conversation.turns[userTurn]!;
     const withoutImages = Boolean(retry?.withoutImages);
-    const restoreTurn = (conversation: Conversation): Conversation =>
-      withoutImages ? { ...conversation, turns: conversation.turns.map((turn, index) => (index === userTurn ? ownTurn : turn)) } : conversation;
-    const requested: Conversation = withoutImages
+    // A try put together without the internet's tools goes without them (review B7-6, M-R6-1): the request leaves them
+    // out, the conversation keeps its tools as they were fixed.
+    const withoutWeb = Boolean(retry && !input.manifest.web && hasWebTools(record.conversation.tools));
+    const keptTools = record.conversation.tools;
+    const restoreTurn = (conversation: Conversation): Conversation => {
+      const turns = withoutImages ? conversation.turns.map((turn, index) => (index === userTurn ? ownTurn : turn)) : conversation.turns;
+      return withoutImages || withoutWeb ? { ...conversation, turns, ...(withoutWeb ? { tools: keptTools } : {}) } : conversation;
+    };
+    const pictured: Conversation = withoutImages
       ? { ...record.conversation, turns: record.conversation.turns.map((turn, index) => (index === userTurn ? { ...turn, parts: turn.parts.filter((part) => part.type !== "image") } : turn)) }
       : record.conversation;
+    const requested: Conversation = withoutWeb ? { ...pictured, tools: pictured.tools.filter((name) => !hasWebTools([name])) } : pictured;
     // What the composer held when this message went (B7): a conversation that was never begun gets it back with its question.
     const draftsBefore: ComposerDraft | null = input.typed && input.created
       ? {
