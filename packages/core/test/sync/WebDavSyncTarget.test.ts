@@ -220,21 +220,14 @@ describe("WebDavSyncTarget", () => {
     expect(mockFetch.mock.calls[1][1].headers["X-OC-Mtime"]).toBeUndefined();
   });
 
-  it("ignores the optional cursor argument and always returns a full listing", async () => {
-    const mockXml = `<d:multistatus xmlns:d="DAV:">
-        <d:response>
-          <d:href>/remote.php/webdav/note.md</d:href>
-          <d:propstat><d:prop><d:getetag>"aaa"</d:getetag></d:prop></d:propstat>
-        </d:response>
-      </d:multistatus>`;
-
-    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => mockXml });
-
-    // Passing a cursor must not change behaviour: still a full PROPFIND, and the
-    // cursor-only fields (deleted/nextCursor) stay undefined for WebDAV.
+  it("never takes a cursor it did not hand out: no request, and the worker is sent on to a full listing", async () => {
+    // A cursor pull lists nothing (plan L7b): only the vault folder's tag,
+    // asked by shouldListFully, ever stands in for a listing, and only where
+    // the server earned it. Any other cursor asks for the full listing.
     const pullRes = await target.pull("some-opaque-cursor");
-    expect(mockFetch.mock.calls[0][1].method).toBe("PROPFIND");
-    expect(pullRes.etagMap.get("note.md")).toBe("aaa");
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(pullRes.etagMap.size).toBe(0);
+    expect(pullRes.needsFullListing).toBe(true);
     expect(pullRes.deleted).toBeUndefined();
     expect(pullRes.nextCursor).toBeUndefined();
   });

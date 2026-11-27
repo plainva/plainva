@@ -305,6 +305,25 @@ export interface ISyncTarget {
    */
   getStartCursor?(): Promise<string>;
   /**
+   * Optional: asked before every cursor pull. True sends the worker to a full
+   * listing in this same cycle instead (WebDAV: the vault folder's tag moved,
+   * this device wrote, or the server is not or no longer trusted). A target
+   * that answers here never needs `needsFullListing` for the same reason.
+   */
+  shouldListFully?(): Promise<boolean>;
+  /**
+   * Optional: how many cursor pulls may run between two full listings, and
+   * the longest time between them. Absent: the worker's own defaults (20
+   * pulls, ten minutes).
+   */
+  fullListingCadence?: { cursorPullsBetween: number; maxAgeMs: number };
+  /**
+   * Optional: a small store in the vault's sync state that survives restarts
+   * (WebDAV keeps there which hosts contradicted their folder tags). Handed
+   * over by the worker before its first cycle.
+   */
+  useSyncMeta?(store: SyncMetaStore): void;
+  /**
    * Optional folder browsing for the settings' remote-folder picker (2026-07-06):
    * child folder NAMES one level below `path` ("" = the account/bucket root).
    * Deliberately independent of the configured vault folder/prefix — the picker's
@@ -343,4 +362,10 @@ export interface ISyncTarget {
    * Providers whose full listing is the only view leave it undefined.
    */
   listVaultFolder?(path: string): Promise<string[] | null>;
+}
+
+/** See `ISyncTarget.useSyncMeta`. */
+export interface SyncMetaStore {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
 }

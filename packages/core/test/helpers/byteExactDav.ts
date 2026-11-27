@@ -18,6 +18,12 @@ export interface ByteExactDav {
   folders: Set<string>;
   log: string[];
   url: string;
+  /** Changes a file past WebDAV (null removes it), as another program on the server would (`lazyScan`). */
+  pastWebdav: (path: string, text: string | null) => void;
+  /** Switches the kind of folder tags while the server runs. */
+  setFolderTags: (kind: FolderTagKind | undefined) => void;
+  /** PROPFIND requests by depth, in order. */
+  propfinds: string[];
 }
 
 const enc = (p: string) => p.split("/").map(encodeURIComponent).join("/");
@@ -51,7 +57,28 @@ export interface ByteExactDavOptions {
   propRequests?: "honor" | "ignore" | "refuse" | "unsupported" | "fail" | "garbage" | "dropEtag" | "dropResourcetype" | "dropModified" | "etagNotFound";
   /** Refuses `Depth: infinity` (403), as Apache mod_dav does by default: the sync walks with `Depth: 1`. */
   refuseInfinity?: boolean;
+  /**
+   * Folder tags (`getetag` on a collection), as the server kinds of the L7
+   * review have them (webdavFolderTags.ts):
+   * - "subtree": a hash of everything below (Nextcloud, ownCloud);
+   * - "ownEntries": follows only the names right inside the folder (a folder's time on disk: Apache, Synology);
+   * - "twoLevel": follows entries at most two levels below;
+   * - "putOnly": counts the PUTs below, never a DELETE, MOVE or MKCOL;
+   * - "static": never moves.
+   * Absent: folders carry no tag. `setFolderTags` switches the kind while the server runs.
+   */
+  folderTags?: FolderTagKind;
+  /**
+   * Changes made past WebDAV (`pastWebdav`) reach the listing only with a
+   * listing that is not `Depth: 0` (external storage scanned on access).
+   * Without it they show at once.
+   */
+  lazyScan?: boolean;
+  /** Lists `oc:permissions` for every entry ("M" for these folders and everything below them). */
+  mounts?: ReadonlySet<string>;
 }
+
+export type FolderTagKind = "subtree" | "ownEntries" | "twoLevel" | "putOnly" | "static";
 
 /** The properties a `<d:prop>` request names, by local name; null for `allprop` (no body, or `<allprop/>`). */
 function namedProps(body: unknown): Set<string> | null {
@@ -67,6 +94,44 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
   const log: string[] = [];
   let seq = 0;
   const tag = (etag: string) => (options.weakEtags ? `W/"${etag}"` : `"${etag}"`);
+  let folderTags = options.folderTags;
+  const staged = new Map<string, string | null>();
+  const putsBelow = new Map<string, number>();
+  const propfinds: string[] = [];
+  const applyStaged = () => {
+    for (const [p, text] of staged) {
+      if (text === null) files.delete(p);
+      else {
+        const segments = p.split("/");
+        for (let i = 1; i < segments.length; i++) folders.add(segments.slice(0, i).join("/"));
+        files.set(p, { bytes: new TextEncoder().encode(text), etag: `x${++seq}`, ...(options.clock ? { modified: options.clock() } : {}) });
+      }
+    }
+    staged.clear();
+  };
+  const fnv = (parts: string[]) => parts.sort().join("\n").split("").reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0, 2166136261).toString(16);
+  const folderTag = (p: string): string | undefined => {
+    if (folderTags === undefined) return undefined;
+    const below = (q: string) => (p === "" ? q !== "" : q.startsWith(`${p}/`));
+    const rel = (q: string) => (p === "" ? q : q.slice(p.length + 1));
+    switch (folderTags) {
+      case "subtree":
+        return "s" + fnv([...[...folders].filter(below).map((q) => `d:${q}`), ...[...files].filter(([q]) => below(q)).map(([q, f]) => `f:${q}:${f.etag}`)]);
+      case "ownEntries":
+        return "o" + fnv([...folders, ...files.keys()].filter((q) => below(q) && !rel(q).includes("/")));
+      case "twoLevel":
+        return "t" + fnv([...[...folders].filter((q) => below(q) && rel(q).split("/").length <= 2).map((q) => `d:${q}`), ...[...files].filter(([q]) => below(q) && rel(q).split("/").length <= 2).map(([q, f]) => `f:${q}:${f.etag}`)]);
+      case "putOnly":
+        return `p${putsBelow.get(p) ?? 0}`;
+      case "static":
+        return "static";
+    }
+  };
+  const permissionsOf = (p: string): string | undefined => {
+    if (!options.mounts) return undefined;
+    const mounted = [...options.mounts].some((m) => p === m || p.startsWith(`${m}/`));
+    return mounted ? "RGDNVCKM" : "RGDNVCK";
+  };
 
   const rel = (url: string): string => {
     const pathname = new URL(url).pathname;
@@ -80,17 +145,21 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
   /** Every property the entry has, by local name, as XML. */
   const propsOf = (p: string): Array<[string, string]> => {
     const id = [...p].reduce((h, ch) => (Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0), 2166136261).toString(16).padStart(8, "0");
+    const perms = permissionsOf(p);
     if (folders.has(p)) {
       const out: Array<[string, string]> = [["resourcetype", "<d:resourcetype><d:collection/></d:resourcetype>"]];
+      const own = folderTag(p);
+      if (own !== undefined) out.push(["getetag", `<d:getetag>"${own}"</d:getetag>`]);
+      if (perms !== undefined) out.push(["permissions", `<oc:permissions>${perms}</oc:permissions>`]);
       if (options.nextcloudProps) {
+        if (own === undefined) out.push(["getetag", `<d:getetag>"${id}f"</d:getetag>`]);
         out.push(
-          ["getetag", `<d:getetag>"${id}f"</d:getetag>`],
           ["getlastmodified", `<d:getlastmodified>${new Date(0).toUTCString()}</d:getlastmodified>`],
           ["quota-used-bytes", "<d:quota-used-bytes>123456789</d:quota-used-bytes>"],
           ["quota-available-bytes", "<d:quota-available-bytes>-3</d:quota-available-bytes>"],
           ["id", `<oc:id>${id}ocabcdef12345</oc:id>`],
           ["fileid", `<oc:fileid>${parseInt(id.slice(0, 6), 16)}</oc:fileid>`],
-          ["permissions", "<oc:permissions>RGDNVCK</oc:permissions>"],
+          ...(perms === undefined ? [["permissions", "<oc:permissions>RGDNVCK</oc:permissions>"] as [string, string]] : []),
           ["size", "<oc:size>123456</oc:size>"],
         );
       }
@@ -103,12 +172,13 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
       ["getcontentlength", `<d:getcontentlength>${f.bytes.length}</d:getcontentlength>`],
     ];
     if (f.modified !== undefined) out.push(["getlastmodified", `<d:getlastmodified>${new Date(f.modified).toUTCString()}</d:getlastmodified>`]);
+    if (perms !== undefined) out.push(["permissions", `<oc:permissions>${perms}</oc:permissions>`]);
     if (options.nextcloudProps) {
       out.push(
         ["getcontenttype", "<d:getcontenttype>text/markdown</d:getcontenttype>"],
         ["id", `<oc:id>${id}ocabcdef12345</oc:id>`],
         ["fileid", `<oc:fileid>${parseInt(id.slice(0, 6), 16)}</oc:fileid>`],
-        ["permissions", "<oc:permissions>RGDNVW</oc:permissions>"],
+        ...(perms === undefined ? [["permissions", "<oc:permissions>RGDNVW</oc:permissions>"] as [string, string]] : []),
         ["size", `<oc:size>${f.bytes.length}</oc:size>`],
         ["has-preview", "<nc:has-preview>false</nc:has-preview>"],
       );
@@ -140,7 +210,7 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
       if (options.propRequests === "dropModified") half = firstFile === undefined ? null : { path: firstFile, prop: "getlastmodified" };
       if (options.propRequests === "dropResourcetype") half = firstFolder === undefined ? null : { path: firstFolder, prop: "resourcetype" };
     }
-    const ns = options.nextcloudProps ? ` xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"` : "";
+    const ns = options.nextcloudProps || options.mounts ? ` xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"` : "";
     return new Response(`<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"${ns}>${paths.map((q) => entry(q, named, half)).join("")}</d:multistatus>`, { status: 207 });
   };
   const status = (code: number, headers?: Record<string, string>) =>
@@ -155,6 +225,8 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
     switch (method) {
       case "PROPFIND": {
         const depth = headers.get("Depth") ?? "infinity";
+        propfinds.push(depth);
+        if (!options.lazyScan || depth !== "0") applyStaged();
         const asked = namedProps(init?.body);
         const named = options.propRequests === "ignore" ? null : asked;
         if (named !== null) {
@@ -190,6 +262,10 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
         if (!folders.has(parent(p))) return status(409);
         const body = init?.body as Uint8Array | undefined;
         const etag = `e${++seq}`;
+        for (let q = parent(p); ; q = parent(q)) {
+          putsBelow.set(q, (putsBelow.get(q) ?? 0) + 1);
+          if (q === "") break;
+        }
         const mtime = headers.get("X-OC-Mtime");
         const modified = mtime !== null ? Number(mtime) * 1000 : options.clock?.();
         files.set(p, { bytes: body ? new Uint8Array(body) : new Uint8Array(), etag, ...(modified === undefined ? {} : { modified }) });
@@ -240,5 +316,9 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
         return status(405);
     }
   };
-  return { fetch, files, folders, log, url: base };
+  const pastWebdav = (path: string, text: string | null) => {
+    staged.set(path, text);
+    if (!options.lazyScan) applyStaged();
+  };
+  return { fetch, files, folders, log, url: base, pastWebdav, setFolderTags: (kind) => { folderTags = kind; }, propfinds };
 }

@@ -47,9 +47,12 @@ export async function device(dav: ByteExactDav, options: {
   /** Acts as a remote that refuses to delete a folder holding a file (as S3 does). */
   deletesFolderOnlyWhileEmpty?: boolean;
   hides?: (rel: string) => boolean;
+  /** false: the target never rests a cycle on the vault folder's tag (no store for it: every cycle lists, as before L7b). */
+  shortcut?: boolean;
 } = {}) {
   const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, (input, init) => dav.fetch(input, init));
   target.allowRootCreation = false;
+  if (options.shortcut === false) (target as { useSyncMeta?: unknown }).useSyncMeta = undefined;
   if (options.deletesFolderOnlyWhileEmpty) (target as { deletesFolderOnlyWhileEmpty?: boolean }).deletesFolderOnlyWhileEmpty = true;
   return deviceOn(target, options);
 }

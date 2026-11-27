@@ -521,12 +521,34 @@ Measured against the in-memory stand-in (`pnpm exec tsx scripts/perf/webdav-list
 
 | Files | Stand-in | `allprop` bytes | By name bytes | Saved | `allprop` pull | By name pull |
 |---|---|---|---|---|---|---|
-| 1 000 | Nextcloud's properties | 582 705 | 314 222 | 46 % | 50 ms | 27 ms |
-| 10 000 | Nextcloud's properties | 5 877 718 | 3 177 231 | 46 % | 457 ms | 258 ms |
-| 50 000 | Nextcloud's properties | 29 563 680 | 16 054 235 | 46 % | 2 350 ms | 1 314 ms |
-| 10 000 | only what the sync reads | 3 170 124 | 3 185 427 | 0 % | 258 ms | 262 ms |
+| 1 000 | Nextcloud's properties | 582 705 | 355 462 | 39 % | 51 ms | 29 ms |
+| 10 000 | Nextcloud's properties | 5 877 718 | 3 589 271 | 39 % | 488 ms | 284 ms |
+| 50 000 | Nextcloud's properties | 29 563 680 | 18 114 275 | 39 % | 2 502 ms | 1 450 ms |
+| 10 000 | only what the sync reads | 3 170 124 | 3 185 427 | 0 % | 284 ms | 278 ms |
 
-A server that already lists only these properties saves nothing (the 200 status of each propstat adds a few bytes). A real Nextcloud answer differs in detail from the stand-in's; measuring one needs a real account.
+A server whose vault folder has a tag is also asked for `oc:permissions` (the mount marks of L7b below); without that property the saving on the Nextcloud stand-in is 46 %. A server that already lists only these properties saves nothing (the 200 status of each propstat adds a few bytes). A real Nextcloud answer differs in detail from the stand-in's; measuring one needs a real account.
+
+## WebDAV cycles on the vault folder's tag (performance plan L7b, 2026-11-27)
+
+Where a server has shown that its folder tags follow every change below them, a cycle asks the vault folder's tag alone (`PROPFIND`, `Depth: 0`) and lists in full only when it moved, after this device wrote, and after three cycles on the tag alone or one minute (`fullListingCadence`). The maintainer's decision of 2026-11-27 bounds what this may cost: a foreign change the tag did not show arrives at most one minute later than with a full listing every cycle. How the trust is earned, tested again and taken back for good is in `packages/core/src/sync/webdavFolderTags.ts`; in short:
+
+- Trust needs three clean pairs of full listings, which together hold an edit, a creation, a deletion and a folder, inside folders, and one change at the vault's deepest level. In each pair every folder above every change carries a new tag (the ancestor test), no other folder's tag moved, and no entry carries a mount mark (`oc:permissions` with "M").
+- One folder above a change that kept its tag, or a listing with changes right after a probe that saw the old tag, is a contradiction. It is stored per host in the vault's sync state (`meta`, key `sync-target:webdav-folder-tags:refuted:v1:<origin>`) and holds across restarts and for every account on that host. Trust itself is never stored.
+- A cycle on the tag alone downloads, deletes and mirrors nothing. Pushes stay conditional (`If-Match`), so a change the shortcut has not seen yet is never overwritten.
+
+Servers whose folder tags follow only the entries right inside a folder (Apache mod_dav, Synology), or a fixed number of levels, or PUTs only, are refuted by the first change the ancestor test covers, mostly while every cycle still lists, so they never get the shortcut. `test/sync/webdav-folder-tags.test.ts` runs nine server stand-ins in a seeded random run of 80 steps, each on two sides of the same history, one with the shortcut and one without, and compares the observing device after every step: no step differs on any kind, and the test allows at most three cycles of difference once per device for the kinds with a gap.
+
+**A limit that stays.** A server that notices changes made past WebDAV only when a folder is listed deeply (Nextcloud external storage checked on access), and does not mark the mount, delays such a change by up to three cycles. Where another device's full listing triggers that scan, the observing device sees the tag move and lists, so it finds no contradiction, and the delay can recur. It stays within the one minute. Nextcloud and ownCloud mark such mounts with "M", and a marked mount keeps the shortcut off.
+
+Idle cycles against the stand-in with Nextcloud's properties and subtree tags, after the trust is earned (twelve cycles, `scripts/perf/webdav-listing-bytes.ts`):
+
+| Files | Requests per idle cycle | Bytes per idle cycle | A full listing by name every cycle | `allprop` every cycle (before L7a) |
+|---|---|---|---|---|
+| 1 000 | 1.25 | 89 249 | 355 462 | 582 705 |
+| 10 000 | 1.25 | 897 694 | 3 589 271 | 5 877 718 |
+| 50 000 | 1.25 | 4 528 907 | 18 114 275 | 29 563 680 |
+
+At the 15 s default and 10 000 files that is about 0.22 GB an hour instead of 0.86 GB (a listing by name every cycle) or 1.41 GB (`allprop` every cycle). The device's own time per idle cycle falls with the bytes it parses; the server's time is not measured here.
 
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 

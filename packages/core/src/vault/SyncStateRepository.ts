@@ -77,6 +77,16 @@ export class SyncStateRepository {
     await clearSeenFolders(this.db);
   }
 
+  /** A value a sync target keeps across restarts (`ISyncTarget.useSyncMeta`). */
+  async readTargetMeta(key: string): Promise<string | null> {
+    const row = await this.db.queryOne<{ value: string }>("SELECT value FROM meta WHERE key = ?", ["sync-target:" + key]);
+    return row?.value ?? null;
+  }
+
+  async writeTargetMeta(key: string, value: string): Promise<void> {
+    await this.db.execute("INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", ["sync-target:" + key, value]);
+  }
+
   /** Folders seen both here and on the remote (see seenFolders.ts). */
   async listSeenFolders(): Promise<Set<string>> {
     return listSeenFolders(this.db);

@@ -7,6 +7,8 @@ import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { trimChars, trimEndChars } from "../textScan.js";
 import { folderSegments } from "./folderIdentity.js";
+import { FOLDER_TAGS_REFUTED_KEY, FolderTagLedger, type FolderTagListing } from "./webdavFolderTags.js";
+import type { SyncMetaStore } from "./ISyncTarget.js";
 
 /**
  * Canonical identity of a WebDAV files root (fourth review of plan
@@ -72,6 +74,8 @@ export interface WebDavResponse {
    * where the entry does not name it at all.
    */
   answered: Partial<Record<SlimListingProp, "ok" | "absent">>;
+  /** `oc:permissions` from a 2xx propstat (Nextcloud, ownCloud): "M" marks a mount. */
+  permissions?: string;
 }
 
 /**
@@ -87,6 +91,22 @@ export type SlimListingProp = (typeof SLIM_LISTING_PROPS)[number];
 
 export const SLIM_LISTING_BODY =
   `<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop>${SLIM_LISTING_PROPS.map((p) => `<d:${p}/>`).join("")}</d:prop></d:propfind>`;
+
+/**
+ * The same, also asking for `oc:permissions`, whose "M" marks a mount
+ * (external storage, an incoming share): asked only of a server whose vault
+ * folder has a tag, since only such a server can earn the shortcut
+ * (webdavFolderTags.ts). A server without the property answers it in a 404
+ * propstat, or not at all; neither stops the listing.
+ */
+export const SLIM_LISTING_BODY_WITH_MOUNTS =
+  `<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:prop>${SLIM_LISTING_PROPS.map((p) => `<d:${p}/>`).join("")}<oc:permissions/></d:prop></d:propfind>`;
+
+/** A probe of the vault folder's tag alone. */
+const ROOT_TAG_PROBE_BODY = `<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>`;
+
+/** The cursor the target hands the worker while the vault folder's tag is trusted (`getStartCursor`). */
+export const ROOT_TAG_CURSOR = "webdav-root-tag";
 
 /** A slim listing the server refused or answered in part: the listing is asked again with `allprop`. */
 const SLIM_INCOMPLETE = Symbol("slim listing incomplete");
@@ -129,6 +149,7 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
     let size: number | undefined;
     let modifiedAt: number | undefined;
     let okEtag: string | undefined;
+    let permissions: string | undefined;
     const answered: WebDavResponse["answered"] = {};
     const propstats: any[] = Array.isArray(resp?.propstat) ? resp.propstat : [];
     for (const ps of propstats) {
@@ -142,6 +163,7 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
         else if (answered[name] === undefined) answered[name] = "absent";
       }
       if (ok && okEtag === undefined && typeof prop.getetag === "string") okEtag = prop.getetag;
+      if (ok && permissions === undefined && typeof prop.permissions === "string") permissions = prop.permissions;
       if (etag === undefined && typeof prop.getetag === "string") etag = prop.getetag;
       if (size === undefined && typeof prop.getcontentlength === "string" && /^\d+$/.test(prop.getcontentlength)) {
         size = Number(prop.getcontentlength);
@@ -158,7 +180,7 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
     // A tag in a 2xx propstat wins over one in a failed propstat (often an
     // empty `<d:getetag/>` the server says it does not have).
     if (okEtag !== undefined) etag = okEtag;
-    entries.push({ href, etag, isCollection, answered, ...(size === undefined ? {} : { size }), ...(modifiedAt === undefined ? {} : { modifiedAt }) });
+    entries.push({ href, etag, isCollection, answered, ...(permissions === undefined ? {} : { permissions }), ...(size === undefined ? {} : { size }), ...(modifiedAt === undefined ? {} : { modifiedAt }) });
   }
   return entries;
 }
@@ -315,6 +337,9 @@ export class WebDavSyncTarget implements ISyncTarget {
   }
 
   public async push(op: SyncOperation): Promise<PushResult | void> {
+    // Whatever this device writes moves the folder tags: the next cycle
+    // lists in full rather than take the new tag as known.
+    this.wroteSinceListing = true;
     if (op.file_path.includes(".CONFLICT")) {
       return;
     }
@@ -454,6 +479,7 @@ export class WebDavSyncTarget implements ISyncTarget {
    * collection already exists (same tolerance as ensureDir).
    */
   public async createFolder(path: string): Promise<void> {
+    this.wroteSinceListing = true;
     const rel = trimChars(path.replace(/\\/g, "/"), "/");
     if (!rel) return;
     let currentPath = "";
@@ -518,7 +544,126 @@ export class WebDavSyncTarget implements ISyncTarget {
   // WebDAV has no incremental change token: the `cursor` argument from the
   // ISyncTarget contract is intentionally ignored and a full PROPFIND listing is
   // always returned. Deletions are derived by the worker from the listing diff.
-  public async pull(_cursor?: string): Promise<PullResult> {
+  public async pull(cursor?: string): Promise<PullResult> {
+    const probedTag = this.probedTag;
+    this.probedTag = undefined;
+    if (cursor !== undefined) {
+      // A cursor pull (plan L7b) lists nothing: `shouldListFully` has just
+      // asked the vault folder's tag and found it where the last full listing
+      // left it. Nothing is downloaded and nothing deleted on its word.
+      if (cursor !== ROOT_TAG_CURSOR || !this.shortcutUsable()) return { etagMap: new Map(), needsFullListing: true };
+      return { etagMap: new Map(), nextCursor: cursor };
+    }
+    this.wroteSinceListing = false;
+    this.observed = undefined;
+    const result = await this.listFully();
+    if (this.observed) {
+      const listing = this.observed;
+      this.observed = undefined;
+      if (this.folderTags.observe(listing, probedTag) === "contradiction") await this.storeContradiction();
+    }
+    return result;
+  }
+
+  /**
+   * Plan L7b: cursor pulls ask the vault folder's tag alone, at most
+   * `cursorPullsBetween` in a row and for at most `maxAgeMs` since the last
+   * full listing; a foreign change the tag did not show arrives at most one
+   * minute later than with a full listing every cycle.
+   */
+  public readonly fullListingCadence = { cursorPullsBetween: 3, maxAgeMs: 60_000 };
+
+  private folderTags = new FolderTagLedger();
+  private metaStore: SyncMetaStore | undefined;
+  private refutationLoaded: Promise<void> | undefined;
+  private wroteSinceListing = false;
+  /** The vault folder's tag a probe saw in this cycle, for the full listing right after it. */
+  private probedTag: string | undefined;
+  /** The last accepted listing as the ledger compares it (set by `listVault`). */
+  private observed: FolderTagListing | undefined;
+
+  public useSyncMeta(store: SyncMetaStore): void {
+    this.metaStore = store;
+    this.refutationLoaded = undefined;
+  }
+
+  private get refutationKey(): string {
+    let host = this.creds.url;
+    try { host = new URL(this.creds.url).origin; } catch { /* keep the URL */ }
+    return FOLDER_TAGS_REFUTED_KEY + host;
+  }
+
+  /** Reads, once, whether this host contradicted its folder tags before. */
+  private loadRefutation(): Promise<void> {
+    const store = this.metaStore;
+    if (!store) return Promise.resolve();
+    this.refutationLoaded ??= store.get(this.refutationKey).then(
+      (value) => { if (value !== null && !this.folderTags.refuted) this.folderTags = new FolderTagLedger(true); },
+      // A store that cannot be read: no shortcut for as long as this target lives.
+      () => { this.metaStore = undefined; },
+    );
+    return this.refutationLoaded;
+  }
+
+  private async storeContradiction(): Promise<void> {
+    console.warn("[WebDAV] the server's folder tags missed a change; listing in full on every cycle from now on");
+    try {
+      await this.metaStore?.set(this.refutationKey, new Date().toISOString());
+    } catch (e) {
+      console.warn("[WebDAV] could not keep that the folder tags missed a change", e);
+    }
+  }
+
+  /** Whether a cycle may rest on the vault folder's tag (a store must hold any contradiction across restarts). */
+  private shortcutUsable(): boolean {
+    return this.metaStore !== undefined && this.refutationLoaded !== undefined && this.folderTags.trusted && !this.wroteSinceListing;
+  }
+
+  public async getStartCursor(): Promise<string> {
+    await this.loadRefutation();
+    // An empty cursor is none: the worker lists in full next cycle as well.
+    return this.shortcutUsable() ? ROOT_TAG_CURSOR : "";
+  }
+
+  public async shouldListFully(): Promise<boolean> {
+    this.probedTag = undefined;
+    await this.loadRefutation();
+    if (!this.shortcutUsable()) return true;
+    const tag = await this.probeRootTag();
+    this.probedTag = tag;
+    return tag === undefined || tag !== this.folderTags.rootTag;
+  }
+
+  /** The vault folder's tag as the server lists it now; undefined for any answer but a plain one. */
+  private async probeRootTag(): Promise<string | undefined> {
+    const res = await this.request("PROPFIND", this.creds.url, {
+      headers: { ...this.headers, "Depth": "0", "Content-Type": "application/xml; charset=utf-8" },
+      body: ROOT_TAG_PROBE_BODY,
+    });
+    if (res.status !== 207) {
+      discardResponse(res);
+      return undefined;
+    }
+    // Answered from another place than the last listing: list in full.
+    if (typeof res.url === "string" && res.url) {
+      try {
+        const pathname = new URL(res.url).pathname;
+        if ((pathname.endsWith("/") ? pathname : `${pathname}/`) !== this.basePath) return undefined;
+      } catch {
+        return undefined;
+      }
+    }
+    try {
+      const entries = parseMultistatus(await res.text());
+      const own = entries.filter((e) => e.href !== undefined && this.relativeHref(e.href) === "");
+      if (own.length !== 1 || own[0]!.answered.getetag !== "ok") return undefined;
+      return own[0]!.etag;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private async listFully(): Promise<PullResult> {
     const slim = this.slimListing ? await this.listVault(true) : SLIM_INCOMPLETE;
     if (slim !== SLIM_INCOMPLETE) return slim;
     // Asked again in the same pull, so the listing says what `allprop` says;
@@ -535,8 +680,9 @@ export class WebDavSyncTarget implements ISyncTarget {
   }
 
   private propfindInit(depth: string, slim: boolean): RequestInit {
+    const body = this.folderTags.candidate && depth === "infinity" ? SLIM_LISTING_BODY_WITH_MOUNTS : SLIM_LISTING_BODY;
     return slim
-      ? { headers: { ...this.headers, "Depth": depth, "Content-Type": "application/xml; charset=utf-8" }, body: SLIM_LISTING_BODY }
+      ? { headers: { ...this.headers, "Depth": depth, "Content-Type": "application/xml; charset=utf-8" }, body }
       : { headers: { ...this.headers, "Depth": depth } };
   }
 
@@ -552,7 +698,8 @@ export class WebDavSyncTarget implements ISyncTarget {
   }
 
   private async listVault(slim: boolean): Promise<PullResult | typeof SLIM_INCOMPLETE> {
-    const res = await this.request("PROPFIND", this.creds.url, this.propfindInit("infinity", slim));
+    const init = this.propfindInit("infinity", slim);
+    const res = await this.request("PROPFIND", this.creds.url, init);
     // Before the first href is resolved: a redirect moves the base path, and
     // resolving against the typed URL would put every entry outside the vault.
     this.rememberEffectiveBase(res);
@@ -623,6 +770,28 @@ export class WebDavSyncTarget implements ISyncTarget {
     }
 
     console.log(`[WebDAV] PROPFIND ${this.creds.url} -> ${etagMap.size} file(s), ${folders.length} folder(s)`);
+    // What the folder-tag ledger compares (webdavFolderTags.ts): every entry
+    // the listing carries, the vault folder as "". Only a Depth: infinity
+    // listing names the vault folder itself; a walk leaves it out, and such
+    // a server never earns the shortcut.
+    const askedMounts = init.body === SLIM_LISTING_BODY_WITH_MOUNTS;
+    const ledgerFiles = new Map<string, string>();
+    const ledgerFolders = new Map<string, string | undefined>();
+    let mounted = false;
+    let marked = false;
+    for (const resp of responses) {
+      if (!resp.href) continue;
+      const rel = trimEndChars(this.relativeHref(resp.href), "/");
+      const tag = resp.answered.getetag === "ok" ? resp.etag : undefined;
+      if (resp.permissions !== undefined) {
+        marked = true;
+        if (resp.permissions.includes("M")) mounted = true;
+      }
+      if (resp.isCollection) ledgerFolders.set(rel, tag);
+      else if (tag !== undefined) ledgerFiles.set(rel, tag);
+    }
+    this.observed = { files: ledgerFiles, folders: ledgerFolders, mounted: askedMounts || marked ? mounted : undefined };
+
     return { etagMap, folders, mtimeMap };
   }
 

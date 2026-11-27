@@ -56,3 +56,64 @@ for (const files of [1_000, 10_000, 50_000]) {
     out(`${files} | ${nextcloudProps ? "Nextcloud" : "plain"} | ${all.bytes} | ${named.bytes} | ${saved} % | ${all.ms.toFixed(1)} | ${named.ms.toFixed(1)}`);
   }
 }
+
+/**
+ * Plan L7b: an idle vault on a server whose folder tags follow every change
+ * (the stand-in's "subtree" tags, as Nextcloud and ownCloud have them). The
+ * target first earns the trust from its own listings (edits, creations,
+ * deletions and a folder, two levels down and at the deepest level), then
+ * runs twelve idle cycles as the worker runs them: a probe of the vault
+ * folder's tag each cycle, and a full listing after three cycles on the tag
+ * alone. Requests and bytes per cycle, against a full listing every cycle.
+ */
+async function idleCycles(files: number) {
+  const dav = byteExactDav(undefined, { nextcloudProps: true, folderTags: "subtree" });
+  const seeded = vault(files, true);
+  for (const f of seeded.folders) dav.folders.add(f);
+  for (const [p, f] of seeded.files) dav.files.set(p, f);
+  let bytes = 0;
+  let requests = 0;
+  const target = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, async (input, init) => {
+    const res = await dav.fetch(input, init);
+    const text = await res.text();
+    requests++;
+    bytes += new TextEncoder().encode(text).length;
+    return new Response(text, { status: res.status });
+  });
+  const store = new Map<string, string>();
+  target.useSyncMeta({ get: async (k) => store.get(k) ?? null, set: async (k, v) => { store.set(k, v); } });
+  const deep = "Area 0/Topic 0";
+  const steps: Array<() => void> = [
+    () => dav.files.set(`${deep}/Note number 0.md`, { bytes: new Uint8Array([1]), etag: "w1", modified: 1 }),
+    () => dav.files.set(`${deep}/fresh.md`, { bytes: new Uint8Array([2]), etag: "w2", modified: 2 }),
+    () => dav.files.delete(`${deep}/fresh.md`),
+    () => dav.folders.add(`${deep}/New`),
+    () => dav.files.set(`${deep}/Note number 1.md`, { bytes: new Uint8Array([3]), etag: "w3", modified: 3 }),
+  ];
+  await target.pull();
+  for (const step of steps) { step(); await target.pull(); }
+  if ((await target.getStartCursor()) === "") throw new Error("the stand-in did not earn the shortcut");
+  let cursorPulls = 0;
+  bytes = 0;
+  requests = 0;
+  const CYCLES = 12;
+  for (let i = 0; i < CYCLES; i++) {
+    const wantsFull = await target.shouldListFully();
+    if (wantsFull || cursorPulls >= target.fullListingCadence.cursorPullsBetween) {
+      await target.pull();
+      cursorPulls = 0;
+    } else {
+      await target.pull("webdav-root-tag");
+      cursorPulls++;
+    }
+  }
+  return { requests: requests / CYCLES, bytes: bytes / CYCLES };
+}
+
+out("");
+out("L7b idle cycle | requests per cycle | bytes per cycle | a full listing every cycle (bytes)");
+for (const files of [1_000, 10_000, 50_000]) {
+  const idle = await idleCycles(files);
+  const every = await measure(files, true, true);
+  out(`${files} | ${idle.requests.toFixed(2)} | ${Math.round(idle.bytes)} | ${every.bytes}`);
+}

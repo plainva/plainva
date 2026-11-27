@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { SLIM_LISTING_BODY, WebDavSyncTarget } from "../../src/sync/WebDavSyncTarget.js";
+import { SLIM_LISTING_BODY, SLIM_LISTING_BODY_WITH_MOUNTS, WebDavSyncTarget } from "../../src/sync/WebDavSyncTarget.js";
 import type { PullResult } from "../../src/sync/ISyncTarget.js";
 import { byteExactDav, type ByteExactDav, type ByteExactDavOptions } from "../helpers/byteExactDav.js";
 import { device, world } from "../helpers/davDevice.js";
@@ -60,7 +60,7 @@ function recording(dav: ByteExactDav, depths: readonly string[] = ["infinity", "
   const fetch = dav.fetch;
   dav.fetch = async (input, init) => {
     const depth = new Headers(init?.headers as HeadersInit | undefined).get("Depth") ?? "infinity";
-    if ((init?.method ?? "GET").toUpperCase() === "PROPFIND" && depths.includes(depth)) asked.push(init?.body === SLIM_LISTING_BODY ? "named" : "allprop");
+    if ((init?.method ?? "GET").toUpperCase() === "PROPFIND" && depths.includes(depth)) asked.push(init?.body === SLIM_LISTING_BODY || init?.body === SLIM_LISTING_BODY_WITH_MOUNTS ? "named" : "allprop");
     return fetch(input, init);
   };
   return asked;

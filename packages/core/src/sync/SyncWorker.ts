@@ -711,6 +711,11 @@ export class SyncWorker {
     private readonly options: SyncWorkerOptions = {}
   ) {
     this.target = withPathSpellings(rawTarget);
+    // What a target keeps across restarts lives in the vault's sync state.
+    const repo = stateRepo as Partial<SyncStateRepository> | undefined;
+    if (typeof rawTarget.useSyncMeta === "function" && typeof repo?.readTargetMeta === "function" && typeof repo.writeTargetMeta === "function") {
+      rawTarget.useSyncMeta({ get: (key) => repo.readTargetMeta!(key), set: (key, value) => repo.writeTargetMeta!(key, value) });
+    }
     this.settingsSyncRunner = options.settingsSync;
     this.deletionJournal = options.deletionJournal;
   }
@@ -2325,12 +2330,28 @@ export class SyncWorker {
       // changed since the last cursor — a single cheap changes.list instead of walking the
       // whole tree every cycle — with a periodic full listing as a safety net. Every other
       // provider (no getStartCursor) always takes the full-listing path, exactly as before.
+      const cadence = this.target.fullListingCadence;
+      // The target may send this cycle to a full listing before any pull
+      // (WebDAV: the vault folder's tag moved, or this device wrote). Asked
+      // whenever a cursor is held, also before a due full listing: its probe
+      // is what that listing is checked against. A question that fails lists
+      // in full.
+      let targetWantsFull = false;
+      if (this.cursor && this.target.shouldListFully) {
+        try {
+          targetWantsFull = await this.target.shouldListFully();
+        } catch (e) {
+          console.warn("[SyncWorker] the target could not tell whether anything changed; listing in full", e);
+          targetWantsFull = true;
+        }
+      }
       const doFullListing =
         !this.cursor ||
-        this.cyclesSinceFull >= FULL_LISTING_EVERY_N_CYCLES ||
+        targetWantsFull ||
+        this.cyclesSinceFull >= (cadence?.cursorPullsBetween ?? FULL_LISTING_EVERY_N_CYCLES) ||
         // Wall-clock safety net: background pauses freeze the cycle counter,
         // so measure real time too (see FULL_LISTING_MAX_AGE_MS).
-        (this.lastFullListingAt > 0 && Date.now() - this.lastFullListingAt >= FULL_LISTING_MAX_AGE_MS);
+        (this.lastFullListingAt > 0 && Date.now() - this.lastFullListingAt >= (cadence?.maxAgeMs ?? FULL_LISTING_MAX_AGE_MS));
       let seededCursor: string | undefined;
       if (doFullListing && this.target.getStartCursor) {
         // Fetch the change token BEFORE the listing so the next incremental pull OVERLAPS
