@@ -1,6 +1,7 @@
-import { eventSubstanceOf, PimConflictError, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
+import { eventSubstanceOf, PIM_WINDOW_FUTURE_DAYS, PIM_WINDOW_PAST_DAYS, PimConflictError, type PimEvent, type PimEventCreate, type PimEventDraft, type PimEventRef, type PimEventRow, type IPimTarget } from "@plainva/core";
 import { logDiagnostic } from "../services/diagnosticsLog";
-import type { EtagStamp } from "./pendingEventWrites";
+import { createTryFor, forgetCreateUid } from "./createUids";
+import { isPendingEventUid, PENDING_EVENT_UID_PREFIX, type CreatedEventChange, type EtagStamp } from "./pendingEventWrites";
 
 /**
  * Writing a calendar event, in ONE place (S24).
@@ -45,6 +46,59 @@ export function draftToRow(
     ...(draft.blockOf !== undefined ? { blockOf: draft.blockOf ?? undefined } : {}),
     ...(draft.blocks !== undefined ? { blocks: draft.blocks.length > 0 ? draft.blocks : undefined } : {}),
   };
+}
+
+const DAY_MS = 24 * 3600_000;
+
+/**
+ * What the screen holds of a created event until a sync lists it (issue 119).
+ *
+ * A series is drawn by its occurrences, not by one row at its first start -
+ * a new weekly meeting stood on screen once, and the person took the repeat
+ * for lost. The occurrences come from the expansion a pull uses
+ * (`expandEventDraft`), so the sync that follows shows the same ones. They can
+ * be edited where they carry the ids a pull gives them (CalDAV: the object's
+ * address and `uid#<recurrence id>`); elsewhere the provider names its
+ * occurrences itself, so until the sync they are shown, not written against.
+ *
+ * `draft` stays with the change: should the provider turn out not to hold the
+ * event, "Try again" has what the person typed.
+ */
+/**
+ * The expansion of a draft into the occurrences a pull would bring
+ * (`expandEventDraft` of the core). Handed in by the callers that load with
+ * the calendar - it carries the CalDAV adapter and its calendar parser, which
+ * the start does not load. Without it a series is drawn as its first
+ * occurrence until a sync lists it; what is written does not depend on it.
+ */
+export type SeriesExpansion = (
+  draft: PimEventDraft,
+  ids: { uid: string; calendarId: string; href?: string; etag?: string },
+  rangeStartTs: number,
+  rangeEndTs: number,
+) => PimEvent[];
+
+export function createChange(row: PimEventRow, draft: PimEventDraft, expandEventDraft?: SeriesExpansion, now: number = Date.now()): CreatedEventChange {
+  if (!draft.recurrence || !expandEventDraft) return { kind: "create", row, draft };
+  let expanded: PimEvent[];
+  try {
+    // The window a sync fetches (`PimWorker`), not one of its own: the screen
+    // shows the occurrences the sync will bring - no more, no fewer.
+    expanded = expandEventDraft(draft, { uid: row.uid, calendarId: row.calendarId, href: row.href, etag: row.etag }, now - PIM_WINDOW_PAST_DAYS * DAY_MS, now + PIM_WINDOW_FUTURE_DAYS * DAY_MS);
+  } catch {
+    return { kind: "create", row, draft };
+  }
+  const addressed = !!row.href && !isPendingEventUid(row.uid);
+  const occurrences = expanded.map(
+    (occurrence): PimEventRow => ({
+      ...occurrence,
+      accountId: row.accountId,
+      uid: addressed || isPendingEventUid(occurrence.uid) ? occurrence.uid : `${PENDING_EVENT_UID_PREFIX}${occurrence.uid}`,
+      href: row.href,
+      etag: row.etag,
+    }),
+  );
+  return { kind: "create", row, occurrences, draft };
 }
 
 /**
@@ -120,7 +174,7 @@ export async function createCalendarEvent(
   targets: EventTargets,
   accountId: string,
   calendarId: string,
-  draft: PimEventDraft,
+  draft: PimEventCreate,
   // A create cannot conflict: there is nothing there yet to have moved.
 ): Promise<{ kind: "written"; rows: PimEventRow[] }> {
   const res = await timedWrite(targets, accountId, "create", (target) => target.createEvent(calendarId, draft), "no writable target for this account");
@@ -139,7 +193,13 @@ export async function updateCalendarEvent(
 ): Promise<EventWriteOutcome> {
   const moving = !!moveTo && (moveTo.accountId !== event.accountId || moveTo.calendarId !== event.calendarId);
   if (moving) {
-    const res = await timedWrite(targets, moveTo!.accountId, "move/create", (target) => target.createEvent(moveTo!.calendarId, draft), "no writable target for the destination account");
+    // The copy a move makes is named by what it moves and where (issue 119):
+    // the move tried again finds the copy the first try left.
+    const moved = { account: event.accountId, calendar: event.calendarId, uid: event.uid, etag: event.etag ?? null, draft };
+    const where = `${moveTo!.accountId} ${moveTo!.calendarId}`;
+    const create: PimEventCreate = draft.createAs ? { ...draft, createAs: draft.createAs } : { ...draft, ...createTryFor("move", where, moved, draft) };
+    const res = await timedWrite(targets, moveTo!.accountId, "move/create", (target) => target.createEvent(moveTo!.calendarId, create), "no writable target for the destination account");
+    forgetCreateUid("move", where, moved);
     const rows = [{ ...draftToRow(moveTo!.accountId, moveTo!.calendarId, res.uid, draft), etag: res.etag, href: res.href }];
     const removed = { accountId: event.accountId, calendarId: event.calendarId, uid: event.uid };
     try {

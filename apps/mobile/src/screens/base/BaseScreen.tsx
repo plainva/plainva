@@ -1,3 +1,4 @@
+import { usePimTick } from "../../hooks/usePimTick";
 import { BaseConfigChangeRefusedError, composeLineage, lineageBetween, readContentBinary, reportingTo, type ViewLineage, type ViewsChange } from "@plainva/ui";
 import { AreaBoundary, baseDateProperty, clampRating, clampRatingMax, DEFAULT_RATING_GLYPH, FILE_DAY, isReadOnlyDateColumn, pinboardCache } from "@plainva/ui";
 import { useCallback, useEffect, useMemo, useState, useRef, useSyncExternalStore, type ReactNode } from "react";
@@ -307,6 +308,9 @@ export function BaseScreen({
   // looking, not part of the database.
   const [showEvents, setShowEvents] = useState(false);
   const [eventBackdrop, setEventBackdrop] = useState<Map<string, { count: number }>>(new Map());
+  // A sync or a write on its way changes the backdrop, as on the desktop (issue 119):
+  // the phone's runtime sends `m-pim-changed` for both.
+  const pimTick = usePimTick();
   useEffect(() => {
     let alive = true;
     if (!showEvents) {
@@ -330,7 +334,7 @@ export function BaseScreen({
     return () => {
       alive = false;
     };
-  }, [showEvents, calMonth]);
+  }, [showEvents, calMonth, pimTick]);
   const config = loaded?.config;
   // One overdue rule for every view, the desktop's too (issues #83/#84): only a
   // database with a completion model can have overdue rows, and a done row

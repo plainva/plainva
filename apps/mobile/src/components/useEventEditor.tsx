@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AreaBoundary, applyEventChanges, refusalReason, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
-import { parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventDraft, type PimEventRow } from "@plainva/core";
+import { AreaBoundary, applyEventChanges, eventWriteRefusalText, formCreateTries, refusalReason, blockLinkKey, buildBlockDraft, draftToRow, logDiagnostic, pendingEventWrites, showWrittenEvents, describeEventChanges, describeNewStart, eventChangeLabel, eventFormFromEvent, eventFormToDraft, eventStartDayKey, getPlatformServices, isAuthorizationFailure, isPendingEventUid, movedInTime, resolveDefaultCalendarKey, runCalendarBlocks, sourceDraftFromBlockerEdit, toast, undoDraftFor, type BlockFollowReport, type ResolvedBlocker, eventFormFromSeed, type EventFormValues, type ParkedEventSeed } from "@plainva/ui";
+import { newPimCreateUid, parseRRule, PimConflictError, uniqueBlockRefs, type PimBlockRef, type PimEventCreate, type PimEventDraft, type PimEventRow } from "@plainva/core";
 import { getMobileSettings } from "../services/mobileSettings";
 import { mActions, mConfirm, mMultiSelect, mSelect } from "../services/mobileDialogs";
 import {
@@ -122,8 +122,8 @@ export function useEventEditor({
     const reason = refusalReason(err);
     // The same line the desktop writes, so a diagnostics export says why.
     logDiagnostic("calendar", `event ${what === "delete" ? "delete" : "write"} refused: ${reason}`);
-    // A refused deletion said "was not saved" (issue 119).
-    toast.error(t(what === "delete" ? "pim.eventDeleteRefused" : "pim.eventWriteRefused", { reason }), { label: t("pim.eventWriteRetry"), run: retry });
+    // A refused deletion said "was not saved" (issue 119); an event not shown yet says just that.
+    toast.error(eventWriteRefusalText(err, what), { label: t("pim.eventWriteRetry"), run: retry });
   };
 
   /** The names of the calendars some blockers lie in, for a sentence that names them. */
@@ -309,7 +309,7 @@ export function useEventEditor({
       // On screen until the cache has it, as on the desktop (issue 119): the
       // phone showed a new block only after the next cycle.
       onCreated: (accountId, calendarId, res) =>
-        showWrittenEvents(pendingEventWrites, [{ kind: "create", row: { ...draftToRow(accountId, calendarId, res.uid, draft), etag: res.etag, href: res.href } }]),
+        showWrittenEvents(pendingEventWrites, [{ kind: "create", what: "blocker", row: { ...draftToRow(accountId, calendarId, res.uid, draft), etag: res.etag, href: res.href } }]),
     });
     if (ok > 0) {
       toast.info(t("pim.blocked", { n: ok, defaultValue: "In {{n}} Kalender(n) blockiert" }));
@@ -461,8 +461,13 @@ export function useEventEditor({
     // Whoever handed this appointment over hears of it once the calendar took it — not before, and not on a refusal.
     const seeded = sheet?.onSaved;
     setSheet(null);
+    // One uid for this create, kept by "Try again": a create that did land
+    // after all is found under it, never made twice (issue 119).
+    const draft: PimEventCreate = { ...values.draft, createAs: newPimCreateUid() };
+    // "Try again" is a later try of the same create: it names what the try before it sent.
+    const nextTry = formCreateTries(draft);
     const create = () => {
-      void createPimEvent(values.calendarKey, values.draft).then(
+      void createPimEvent(values.calendarKey, nextTry()).then(
         () => seeded?.(),
         (err) => reportRefused(err, create),
       );

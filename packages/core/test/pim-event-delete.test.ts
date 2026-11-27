@@ -1,3 +1,4 @@
+import { newPimCreateUid } from "../src/pim/createUid.ts";
 import { describe, expect, it, vi } from "vitest";
 import { CalDavPimTarget } from "../src/pim/CalDavPimTarget.ts";
 import { GooglePimTarget } from "../src/pim/GooglePimTarget.ts";
@@ -5,6 +6,9 @@ import { GraphPimTarget } from "../src/pim/GraphPimTarget.ts";
 import { eventSubstanceOf, normalizeRRule, sameEventSubstance } from "../src/pim/eventSubstance.ts";
 import { PimConflictError, type PimAuthProvider, type PimEventDraft } from "../src/pim/types.ts";
 import type { FetchFn } from "../src/sync/WebDavSyncTarget.ts";
+
+/** Every create names its uid (issue 119): a fresh one per call here. */
+const withUid = <T extends object>(draft: T): T & { createAs: string } => ({ ...draft, createAs: newPimCreateUid() });
 
 /**
  * Deleting an event the server merely spelled anew (issue 119, plan
@@ -185,7 +189,7 @@ describe("CalDAV: the etag after Plainva's own write", () => {
     const { calls, target } = server((call) =>
       call.method === "GET" ? new Response(single(), { status: 200, headers: { ETag: '"rewritten"' } }) : new Response(null, { status: 201 }),
     );
-    const res = await target.createEvent("https://dav.example.org/cal/home/personal/", draft);
+    const res = await target.createEvent("https://dav.example.org/cal/home/personal/", withUid(draft));
     expect(res.etag).toBe('"rewritten"');
     expect(calls.map((c) => c.method)).toEqual(["PUT", "GET"]);
   });
@@ -203,7 +207,7 @@ describe("CalDAV: the etag after Plainva's own write", () => {
 
   it("an etag the answer names is taken as it is, without a second request", async () => {
     const { calls, target } = server(() => new Response(null, { status: 201, headers: { ETag: '"fresh"' } }));
-    const res = await target.createEvent("https://dav.example.org/cal/home/personal/", draft);
+    const res = await target.createEvent("https://dav.example.org/cal/home/personal/", withUid(draft));
     expect(res.etag).toBe('"fresh"');
     expect(calls).toHaveLength(1);
   });

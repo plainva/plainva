@@ -1,5 +1,8 @@
 import { PimCacheRepository, PimWorker, type IPimTarget, type PimAccountRow, type PimCycleInfo, type PimStatus } from "@plainva/core";
 import { isDevicePimSupported, onDevicePimChanged } from "../../platform/devicePim";
+
+let stopCreatedEventWatch: (() => void) | null = null;
+let clearCreatedEvents: (() => void) | null = null;
 import { startTaskSyncRuntime, stopTaskSyncRuntime, runMobileTaskSync, runMobileEntryEventSync, markPimDataChanged } from "./taskSyncRuntime";
 import type { MobileVault } from "../vaultService";
 
@@ -21,6 +24,14 @@ import type { MobileVault } from "../vaultService";
 /** What the runtime needs from the phone and cannot load itself without the
  * sign-in store and the provider clients (pimService supplies it). */
 export interface PimRuntimeWiring {
+  /**
+   * Settles the created events the screens draw from the overlay, while this
+   * runtime lives (issue 119); returns its stop. Handed in, so this module
+   * stays free of the UI package.
+   */
+  watchCreatedEvents?(cache: PimCacheRepository, targetFor: (accountId: string) => Promise<IPimTarget | null>): () => void;
+  /** Empties what the screens draw from the overlay - when the vault is left (`leavePimVault`), not on a restart in it. */
+  clearCreatedEvents?(): void;
   /** A ready provider target for the account, built per cycle from its stored
    * sign-in — never cached, a rotated token must be read again. */
   buildTarget(vaultId: string, account: PimAccountRow): Promise<IPimTarget | null>;
@@ -131,6 +142,15 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
     },
   });
   runtime = { cache, worker, vaultId: vault.vaultId, buildTarget, syncTarget };
+  // A created event the screens still draw from the overlay is settled with
+  // the runtime, as on the desktop (issue 119); stopping it empties the overlay.
+  stopCreatedEventWatch?.();
+  clearCreatedEvents = wiring.clearCreatedEvents ?? null;
+  stopCreatedEventWatch =
+    wiring.watchCreatedEvents?.(cache, async (accountId) => {
+      const account = (await cache.listAccounts()).find((a) => a.id === accountId);
+      return account ? syncTarget(account) : null;
+    }) ?? null;
   startTaskSyncRuntime({ vault, cache, buildTarget });
   const accounts = await cache.listAccounts();
   if (accounts.some((a) => a.enabled)) {
@@ -166,12 +186,26 @@ export async function startPimRuntime(vault: MobileVault, wiring: PimRuntimeWiri
 }
 
 export function stopPim(): void {
+  stopCreatedEventWatch?.();
+  stopCreatedEventWatch = null;
   runtime?.worker.stop();
   stopDeviceTrigger?.();
   stopDeviceTrigger = null;
   stopTaskSyncRuntime();
   runtime = null;
   setPimState({ status: "off", message: null });
+}
+
+/**
+ * Leaves the vault's calendars: the runtime stops, and the events still drawn
+ * from the overlay go with the vault (issue 119). A restart in the SAME vault
+ * (`restartPimAfterImport`) calls `stopPim` and keeps them: they wait for
+ * their evidence there. Light on purpose - the boot calls it without loading
+ * the calendar service; where that service never loaded, there is no overlay.
+ */
+export function leavePimVault(): void {
+  stopPim();
+  clearCreatedEvents?.();
 }
 
 export function getPimCache(): PimCacheRepository | null {

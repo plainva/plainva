@@ -98,10 +98,10 @@ describe("pending calendar writes (issue 119)", () => {
     expect(conflicted.snapshot()).toEqual([]);
   });
 
-  it("does not leave a ghost when the provider accepted a write the cache never lists", () => {
-    const writes = [{ id: 1, state: "settled" as const, settledAt: 0, kind: "create" as const, row: row("u9") }];
-    expect(unsettledEventWrites([], writes, SETTLED_EVENT_WRITE_TTL_MS)).toHaveLength(1);
-    expect(unsettledEventWrites([], writes, SETTLED_EVENT_WRITE_TTL_MS + 1)).toEqual([]);
+  it("does not leave a ghost when the provider accepted a change the cache never lists", () => {
+    const writes = [{ id: 1, state: "settled" as const, settledAt: 0, kind: "update" as const, ref: ref("u9"), patch: { title: "new" } }];
+    expect(unsettledEventWrites([row("u9")], writes, SETTLED_EVENT_WRITE_TTL_MS)).toHaveLength(1);
+    expect(unsettledEventWrites([row("u9")], writes, SETTLED_EVENT_WRITE_TTL_MS + 1)).toEqual([]);
   });
 
   it("lays over only what a patch sets: a field left undefined keeps its cached value, and the overlay lets go", () => {

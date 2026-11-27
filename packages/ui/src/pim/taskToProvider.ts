@@ -50,7 +50,10 @@ export interface TaskListRuntime {
   createTaskFor(
     accountId: string
   ): Promise<
-    | ((listId: string, draft: { title: string; due?: string; notes?: string; completed: boolean }) => Promise<{ uid: string }>)
+    | ((
+        listId: string,
+        draft: { title: string; due?: string; notes?: string; completed: boolean; createAs: string; createSent?: { title: string; due?: string; notes?: string; completed: boolean }[] },
+      ) => Promise<{ uid: string }>)
     | null
   >;
 }

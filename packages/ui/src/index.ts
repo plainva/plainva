@@ -111,6 +111,8 @@ export * from "./pim/blockCalendars";
 export * from "./pim/blockFollow";
 export * from "./pim/eventWrite";
 export * from "./pim/pendingEventWrites";
+export * from "./pim/createdEventWatch";
+export * from "./pim/createUids";
 export * from "./pim/meetingNote";
 export * from "./pim/calendarForm";
 export * from "./pim/eventSeed";

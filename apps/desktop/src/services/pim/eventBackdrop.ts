@@ -1,4 +1,4 @@
-import { eventDayKeys } from "@plainva/ui";
+import { eventDayKeys, listShownEvents, type ShownEventsCache } from "@plainva/ui";
 import type { PimEventRow } from "@plainva/core";
 
 /**
@@ -19,7 +19,7 @@ export interface BackdropDay {
 }
 
 export interface BackdropRuntime {
-  cache: { listEvents(fromTs: number, toTs: number): Promise<PimEventRow[]> };
+  cache: ShownEventsCache;
 }
 
 /** Loads the events of one month, bucketed by local day key. */
@@ -30,7 +30,8 @@ export async function loadEventBackdrop(
 ): Promise<Map<string, BackdropDay>> {
   const from = new Date(year, month, 1).getTime();
   const to = new Date(year, month + 1, 1).getTime();
-  const rows = await runtime.cache.listEvents(from, to);
+  // With the events on their way, as every calendar surface shows them (issue 119).
+  const rows = await listShownEvents(runtime.cache, from, to);
   return bucketBackdrop(rows);
 }
 
