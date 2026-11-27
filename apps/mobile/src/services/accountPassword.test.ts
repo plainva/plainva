@@ -8,6 +8,8 @@ const state = vi.hoisted(() => ({
   probes: [] as string[], failProbe: "",
   afterProbe: async (_service: string) => {},
   beforeCas: (_key: string) => {},
+  /** How many holds of the vault's sync stand right now. */
+  held: 0,
 }));
 vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true }, registerPlugin: () => ({
   get: async ({key}: {key: string}) => { if (state.unavailable) throw Error("protected storage unavailable"); return {value: state.secrets.get(key) ?? null}; },
@@ -26,7 +28,12 @@ vi.mock("@capacitor/preferences", () => ({Preferences: {get: async () => ({value
 vi.mock("../platform/capacitorPlatform", () => ({capacitorCredentialStore: {}}));
 vi.mock("./syncService", () => ({
   getStoredProvider: async (id: string) => getPlatformServices().credentials.readSecret(syncProviderSlot(id)),
-  stopSyncAndDrain: async () => {}, restartSyncIfActive: async () => {},
+  // The vault's sync held for the step (`withVaultSyncStopped`): counted, so a test can see where a write happens.
+  withVaultSyncStopped: async (_vaultId: string, body: () => Promise<unknown>) => {
+    state.held += 1;
+    try { return await body(); } finally { state.held -= 1; }
+  },
+  restartSyncIfActive: async () => {},
 }));
 vi.mock("./vaultRegistry", () => ({getActiveVaultEntry: async () => ({id:vault})}));
 vi.mock("./pim/pimService", () => ({restartPimAccountAfterLogin: vi.fn(), listPimAccounts: async () => []}));
@@ -35,6 +42,7 @@ vi.mock("../adapters/webdavHttp", () => ({allowHttpOrigin: () => {},webdavFetch:
 vi.mock("@plainva/core", async (original) => ({
   ...(await original<typeof import("@plainva/core")>()),
   WebDavSyncTarget: class {async listFolders() {await probe("files"); return []; }},
+  S3SyncTarget: class {async listFolders() {await probe("files"); return []; }},
   CalDavPimTarget: class {async listCalendars() {await probe("calendar"); return [{id:"calendar"}]; }},
 }));
 
@@ -79,6 +87,31 @@ beforeEach(async () => {
 afterEach(() => { if (previousPlatform) setPlatformServices(previousPlatform); vi.unstubAllGlobals(); });
 
 describe("password repair through actual account and protected credential slots", () => {
+  it("writes the files' new password while the vault's sync is held — the write inside the hold, not after it", async () => {
+    expect.hasAssertions();
+    const heldAtWrite: number[] = [];
+    state.beforeCas = (key) => { if (key === filesKey) heldAtWrite.push(state.held); };
+    await beginPasswordChange(ports(), "new-password");
+    // THE DEFECT (round 6): held only before the write, the sync could start between the hold and the write — with
+    // the old password.
+    expect(heldAtWrite).toEqual([1]);
+    expect(filePassword()).toBe("new-password");
+  });
+
+  it("writes an S3 account's new secret key while the vault's sync is held — the write inside the hold, not after it", async () => {
+    expect.hasAssertions();
+    // An S3 connection: its secret key is its password (`passwordServicesOf`).
+    const s3: CloudAccountRecord = { id: "bucket", family: "s3", label: "Bucket", services: { files: { provider: "s3" } } } as CloudAccountRecord;
+    state.settings.set(cloudAccountsRegistryKey(vault), [structuredClone(s3)]);
+    write(filesKey, { provider: "s3", creds: { endpoint: "https://s3.example.invalid", region: "auto", bucket: "notes", accessKeyId: "key", secretAccessKey: "old-secret" } });
+    const heldAtWrite: number[] = [];
+    state.beforeCas = (key) => { if (key === filesKey) heldAtWrite.push(state.held); };
+    await beginPasswordChange(mobilePasswordChangePorts(vault, s3), "new-secret");
+    // THE DEFECT (review B2, round 7, M4): only the WebDAV target was under a test; S3's write could leave the hold.
+    expect(heldAtWrite).toEqual([1]);
+    expect(read(filesKey).creds.secretAccessKey).toBe("new-secret");
+  });
+
   it("updates all three actual slots even while the calendar vault is closed", async () => {
     await beginPasswordChange(ports(), "new-password");
     expect(state.probes).toEqual(["files", "calendar", "mail"]);

@@ -1,3 +1,5 @@
+import type { VaultCallOff } from "@plainva/core";
+import { reportingTo } from "@plainva/ui";
 import { noteVaultTeardown } from "./vaultTeardown";
 
 /** Something a vault load starts: a sync worker, the PIM worker, the settings-only sync, the index queue. */
@@ -26,6 +28,10 @@ export interface LoadStarted {
  */
 export class LoadStarts {
   private readonly started: LoadStarted[] = [];
+  /** The fence of this load's runtime (`createVaultCallOff`), once it has one. */
+  private runtimeFence: VaultCallOff | null = null;
+  /** What the runtime owes its sync queue (`chain.queueing`), once the chain stands. */
+  private owedEntries: { flush(): Promise<void> } | null = null;
 
   constructor(
     private readonly vaultPath: string,
@@ -38,6 +44,47 @@ export class LoadStarts {
     begin();
     this.started.push(what);
     return true;
+  }
+
+  /** The fence of the runtime this load opens: a called-off load calls it off, and the next open waits for its end. */
+  fence(fence: VaultCallOff): void {
+    this.runtimeFence = fence;
+    if (this.signal.aborted) fence.callOff();
+  }
+
+  /**
+   * What the runtime owes its sync queue: before a called-off load calls its
+   * runtime off, the owed entries get their last attempt (as at a close,
+   * `closeVaultRuntime`) — called off first, they would meet a fenced database.
+   */
+  owes(owed: { flush(): Promise<void> } | null): void {
+    this.owedEntries = owed;
+  }
+
+  /** The owed entries' last attempt, then the call-off. */
+  private async callOff(fence: VaultCallOff | null): Promise<void> {
+    await this.owedEntries?.flush().catch(reportingTo("sync:owed-before-call-off"));
+    fence?.callOff();
+  }
+
+  /**
+   * Something this load started only after it was called off (a worker whose
+   * start was deferred): stopped, drained, and the runtime called off, parked
+   * like the rest — the next open of the vault waits for its end.
+   */
+  late(what: LoadStarted): void {
+    try {
+      what.stop();
+    } catch (e) {
+      console.warn("[VaultContext] stopping what a called-off load started late failed", e);
+    }
+    const fence = this.runtimeFence;
+    const drain = (async () => {
+      await what.stopAndDrain?.().catch((e: unknown) => console.warn("[VaultContext] draining what a called-off load started late failed", e));
+      await this.callOff(fence);
+      await fence?.ended();
+    })();
+    noteVaultTeardown(this.vaultPath, drain);
   }
 
   /** Remembers something that was started elsewhere and belongs to this load. */
@@ -60,12 +107,16 @@ export class LoadStarts {
         console.warn("[VaultContext] stopping what a called-off load started failed", e);
       }
     }
+    const fence = this.runtimeFence;
     const drain = (async () => {
       for (const what of all) {
         await what.stopAndDrain?.().catch((e: unknown) =>
           console.warn("[VaultContext] draining what a called-off load started failed", e),
         );
       }
+      // Never two runtimes at one vault: the called-off load's runtime writes nothing more, and the next open waits for its end.
+      await this.callOff(fence);
+      await fence?.ended();
     })();
     noteVaultTeardown(this.vaultPath, drain);
     return drain;

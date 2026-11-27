@@ -3796,6 +3796,7 @@
   "sync": {
     "error": "Synchronisatiefout – klik voor details en een nieuwe poging",
     "retryingAt": "Geen verbinding — nieuwe poging om {{time}}",
+    "stuck": "De synchronisatie hangt al {{minutes}} minuten. Plainva start hem opnieuw zodra de lopende stap klaar is; de app opnieuw starten beëindigt hem meteen.",
     "retrying": "Plainva probeert de synchronisatie opnieuw…",
     "syncing": "Synchroniseren...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -7248,6 +7249,8 @@
     "decommissionNote": "Wist de lokale sleutels; versleutelde bestanden in de cloud blijven staan — verwijder de map daarna zelf.",
     "decommissionTypeName": "Typ ter bevestiging de naam van de kluis: {{name}}",
     "decommissionNameMismatch": "Dat is niet de naam van de kluis — er is niets gewijzigd.",
+    "decommissionUnfinished": "Buiten gebruik stellen is op dit apparaat niet afgerond. Tot dan synchroniseert deze vault niets; daarna beslis je over de map.",
+    "liftUnfinished": "Versleuteling opheffen is niet afgerond; het eindigt als buiten gebruik stellen. Tot dan synchroniseert niets, daarna kies je de map.",
     "orphanRecovery": "De werkruimte in de cloud ontbreekt of is beschadigd — synchronisatie blijft gestopt. Stel de werkruimte hieronder buiten gebruik om te resetten.",
     "setupTitle": "Versleutelde workspace instellen",
     "setupProgress": "Stap {{step}} van 3",
@@ -8409,5 +8412,21 @@
     "guide": "Handleiding openen",
     "statusNotYet": "nog niet verbonden",
     "stepSetUp": "Instellen"
+  },
+  "closing": {
+    "savingWait": "Plainva slaat ‘{{name}}’ nog op – daarna gaat het verder.",
+    "savingWaitMany_one": "Plainva slaat nog {{count}} notitie op – daarna gaat het verder.",
+    "savingWaitMany_other": "Plainva slaat nog {{count}} notities op – daarna gaat het verder.",
+    "syncWait": "Er loopt nog een synchronisatiestap van ‘{{vault}}’ – daarna gaat het verder.",
+    "openingWait": "‘{{vault}}’ wordt nog geopend – daarna gaat het verder.",
+    "savingGaveUp": "‘{{name}}’ is nog niet helemaal opgeslagen. Plainva gaat verder; het opslaan loopt op de achtergrond af, en de tekst staat ook in het concept.",
+    "savingGaveUpMany_one": "{{count}} notitie is nog niet helemaal opgeslagen. Plainva gaat verder; het opslaan loopt op de achtergrond af, en de tekst staat ook in het concept.",
+    "savingGaveUpMany_other": "{{count}} notities zijn nog niet helemaal opgeslagen. Plainva gaat verder; het opslaan loopt op de achtergrond af, en de teksten staan ook in de concepten.",
+    "syncGaveUp": "De synchronisatiestap van ‘{{vault}}’ is niet afgerond. Plainva stopt hem en gaat verder; er gaat niets verloren – de volgende synchronisatie haalt in wat ontbreekt.",
+    "openingGaveUp": "‘{{vault}}’ is niet helemaal geopend. Plainva sluit hem en verwijdert hem zodra hij antwoordt.",
+    "stillClosing": "‘{{vault}}’ wordt nog gesloten – daarna opent Plainva hem weer.",
+    "stillClosingSameFolder": "‘{{vault}}’ gebruikt dezelfde synchronisatiemap en wordt nog gesloten – daarna start de synchronisatie.",
+    "stepNotRun": "De stap is niet uitgevoerd: ‘{{vault}}’ werd net gesloten of opnieuw geopend, of kon niet opnieuw worden geopend. Er is niets gewijzigd; probeer het opnieuw zodra de vault open is.",
+    "stepInterrupted": "De stap voor ‘{{vault}}’ is niet afgerond: de vault werd gesloten of opnieuw geopend terwijl hij liep. Een deel kan al gedaan zijn; kijk wat er ontbreekt zodra de vault open is."
   }
 }

@@ -28,6 +28,7 @@ import { nextUnsyncableRetry, type UnsyncableEntry } from "./unsyncablePaths.js"
 import { localNameRefusal } from "./localNameRefusal.js";
 import type { DeletionJournal } from "./deletionJournal.js";
 import { withPathMutation } from "../vault/pathMutation.js";
+import { CYCLE_STALE_ABANDON_MS } from "./syncStuck.js";
 import { isMassDeletion as isMassDeletionOf, MASS_DELETE_MIN, MASS_DELETE_SHARE } from "./massDeletion.js";
 import { contentSha256Of } from "../vault/localText.js";
 import { ConflictSessions, conflictDiagnostic, type ConflictSessionGate } from "../vault/conflictSession.js";
@@ -49,7 +50,7 @@ export { classifySyncError, syncErrorMessage, type SyncErrorKind };
  * activity for a while; the cycle goes on (fourth review of O8: the start of
  * an empty vault keeps saying "being loaded" through it).
  */
-export type SyncErrorReason = FatalSyncProtocolError["reason"] | "root-missing" | "stalled";
+export type SyncErrorReason = FatalSyncProtocolError["reason"] | "root-missing" | "stalled" | "stuck";
 
 /**
  * The structured reason of a fatal protocol error, or undefined for ordinary
@@ -235,7 +236,6 @@ const FULL_LISTING_MAX_AGE_MS = 10 * 60 * 1000;
  * its cleanup no-ops, so it cannot double-schedule against the fresh cycle.
  */
 const CYCLE_STALE_WARN_MS = 10 * 60 * 1000;
-const CYCLE_STALE_ABANDON_MS = 15 * 60 * 1000;
 const WATCHDOG_TICK_MS = 60 * 1000;
 /** A tick this much later than scheduled means the process was not running. */
 const SUSPEND_SLACK_MS = 30 * 1000;
@@ -785,6 +785,17 @@ export class SyncWorker {
     return run;
   }
 
+  /**
+   * The status a cycle reports — only while it is the worker's cycle. One the
+   * watchdog abandoned (`armWatchdog`) says nothing more when it ends at last:
+   * the notice of a stuck sync stands until the next cycle runs, as for a
+   * worker that was detached.
+   */
+  private setCycleStatus(gen: number, status: SyncStatus, error?: string, reason?: SyncErrorReason, retryAt?: number) {
+    if (this.activeCycleGen !== gen) return;
+    this.setStatus(status, error, reason, retryAt);
+  }
+
   private setStatus(status: SyncStatus, error?: string, reason?: SyncErrorReason, retryAt?: number) {
     if (this.currentStatus !== status) {
       this.currentStatus = status;
@@ -1068,21 +1079,28 @@ export class SyncWorker {
         console.error(
           `[SyncWorker] abandoning a sync cycle after ${Math.round(idleMs / 60000)} min without activity (a request the platform never answered)`
         );
-        this.activeCycleGen++;
-        this.isSyncing = false;
+        // Abandoned: its generation goes, so it stops at its next look at
+        // `alive()`. But no second cycle starts beside it while it runs — a
+        // request of it that the provider answers late would land over what
+        // the next cycle uploaded (never two cycles at one vault). The next
+        // one is scheduled once this one has ended.
+        const next = ++this.activeCycleGen;
         this.pendingSyncRequest = false;
         this.cursor = undefined; // re-establish ground truth on recovery
+        const abandoned = this.currentCycle;
         // An abandoned cycle is a failure like any other, and its own message
         // says "retrying" — so it follows the same rule: the surfaces say
         // "trying again" until it has failed often enough to be a result.
         this.consecutiveFailures++;
-        const delay = this.nextDelayMs();
-        if (this.consecutiveFailures < TRANSIENT_FAILURES_BEFORE_ERROR) {
-          this.setStatus("retrying", "sync cycle was unresponsive and has been abandoned; retrying", undefined, now + delay);
-        } else {
-          this.setStatus("error", "sync cycle was unresponsive and has been abandoned; retrying");
-        }
-        this.scheduleNext();
+        // `stuck`: no attempt at a time — the next cycle starts when this one's
+        // running step ends. The surfaces say so, in place of the status line,
+        // until the next cycle runs.
+        this.setStatus("retrying", "sync cycle was unresponsive and has been abandoned; the next starts once its running step ends", "stuck");
+        void (abandoned ?? Promise.resolve()).catch(() => undefined).then(() => {
+          if (this.activeCycleGen !== next) return;
+          this.isSyncing = false;
+          if (this.isRunning) this.scheduleNext();
+        });
         return;
       }
       if (idleMs >= CYCLE_STALE_WARN_MS && !this.staleWarned) {
@@ -2294,7 +2312,7 @@ export class SyncWorker {
     };
     try {
       console.log("[SyncWorker] cycle start");
-      this.setStatus("syncing");
+      this.setCycleStatus(gen, "syncing");
 
       // 0. Fail-closed protocol guard (opt-in): inspect the encryption manifest
       // before touching data. A FatalSyncProtocolError here ends the cycle in the
@@ -3165,13 +3183,13 @@ export class SyncWorker {
       if (deletionsHeld) {
         // The user has a pending decision (execute or discard the held remote
         // deletions); keep the error status visible until it is made.
-        this.setStatus("error", deletionsHeld);
+        this.setCycleStatus(gen, "error", deletionsHeld);
       } else if (incompleteNow) {
         // Not a question and not a failure of ours: the remote answered with a
         // listing that its own files contradict. Say so with the numbers; the
         // next cycle lists in full again, a little later each time.
         this.consecutiveFailures++;
-        this.setStatus(
+        this.setCycleStatus(gen, 
           "error",
           `The remote listing is incomplete: ${incompleteNow.missing} of ${incompleteNow.confirmed} synced files are missing from it, but ${incompleteNow.present} of ${incompleteNow.probed} checked directly exist. Nothing was deleted; Plainva will list again.`
         );
@@ -3179,14 +3197,14 @@ export class SyncWorker {
         // Pull/push worked, but the listing looked broken — the user must learn
         // why deletions are not being mirrored (clicking the status opens the
         // sync error dialog). A healthy next cycle clears this automatically.
-        this.setStatus("error", deletionMirroringSuspended);
+        this.setCycleStatus(gen, "error", deletionMirroringSuspended);
       } else if (pullFailureCount === 0 && known.size > 0) {
         // Only files that can never be synced here: the rest is in, those are
         // named - first three, then the count - until a download works.
         const skipped = [...known.values()];
         const names = skipped.slice(0, 3).map((entry) => entry.path).join(", ");
         const more = skipped.length > 3 ? ` and ${skipped.length - 3} more` : "";
-        this.setStatus("error", `${skipped.length} file(s) cannot be synced here and are skipped: ${names}${more} (${skipped[0].reason})`);
+        this.setCycleStatus(gen, "error", `${skipped.length} file(s) cannot be synced here and are skipped: ${names}${more} (${skipped[0].reason})`);
       } else if (pullFailureCount > 0) {
         // The cycle completed, but some files could not be pulled. Surface it (the
         // frozen cursor retries them next cycle) WITHOUT counting toward the
@@ -3196,14 +3214,14 @@ export class SyncWorker {
         // though the cursor still allows the next cycle to try the file again.
         const transient = pullFailure && classifySyncError(pullFailure.error) === "transient";
         const detail = pullFailure ? ` (${pullFailure.path}: ${syncErrorMessage(pullFailure.error)})` : "";
-        this.setStatus(
+        this.setCycleStatus(gen, 
           transient ? "retrying" : "error",
           `${pullFailureCount} file(s) could not be pulled; they will be retried next cycle${detail}`,
           undefined,
           transient ? Date.now() + this.intervalMs : undefined,
         );
       } else {
-        this.setStatus("idle");
+        this.setCycleStatus(gen, "idle");
       }
     } catch (error) {
       // The folder holds an encrypted workspace this device may not sync next
@@ -3217,7 +3235,7 @@ export class SyncWorker {
         this.cursor = undefined;
         this.onProgress?.(null);
         this.stop();
-        this.setStatus("error", syncErrorMessage(error), "encrypted-workspace");
+        this.setCycleStatus(gen, "error", syncErrorMessage(error), "encrypted-workspace");
         return;
       }
       this.consecutiveFailures++;
@@ -3235,14 +3253,14 @@ export class SyncWorker {
       // surfaces say "trying again", with the time the scheduler will use.
       const kind = classifySyncError(error);
       if (kind === "transient" && this.consecutiveFailures < TRANSIENT_FAILURES_BEFORE_ERROR) {
-        this.setStatus(
+        this.setCycleStatus(gen, 
           "retrying",
           syncErrorMessage(error),
           syncErrorReason(error),
           Date.now() + this.nextDelayMs(),
         );
       } else {
-        this.setStatus("error", syncErrorMessage(error), syncErrorReason(error));
+        this.setCycleStatus(gen, "error", syncErrorMessage(error), syncErrorReason(error));
       }
     } finally {
       // Loss-proofing: report files already written this cycle even when the cycle

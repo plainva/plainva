@@ -36,7 +36,7 @@ export function saveRetryDelay(attempt: number, baseMs = SAVE_RETRY_BASE_MS, max
 
 /** Error codes that end the retrying at once. */
 const FINAL_CODES = new Set(["FILE_NOT_FOUND", "NOT_TEXT_FILE", "KEEP_BESIDE_FAILED"]);
-const FINAL_NAMES = new Set(["ConflictError", "VaultFileNotFoundError", "NotTextFileError", "KeepBesideFailedError"]);
+const FINAL_NAMES = new Set(["ConflictError", "VaultFileNotFoundError", "NotTextFileError", "KeepBesideFailedError", "CalledOffError"]);
 
 /**
  * The same said in words, for an error that lost its class on the way: a
@@ -49,6 +49,8 @@ const FINAL_WORDS = [
   /^Cannot automatically merge /,
   /\bconflict working copy\b/,
   /^Resolve the open conflict\b/,
+  // `CalledOffError` (packages/core, `callOff.ts`), as a client window hears it.
+  /: the vault's runtime was called off$/,
 ];
 
 /**
@@ -58,7 +60,13 @@ const FINAL_WORDS = [
  *  - the file is gone while the vault's folder is there (moved or deleted
  *    outside Plainva): a retry would make it again at its old place. A vault
  *    folder that cannot be reached is no such case (`VaultUnreachableError`);
- *  - the file is no text any more, and no copy beside it could be written.
+ *  - the file is no text any more, and no copy beside it could be written;
+ *  - the vault's runtime the save was for was called off (a close gave up
+ *    waiting for its sync): every new call to it is refused, for good, and a
+ *    retry against it would stand pending without end — holding up every
+ *    later close of the vault (review B2, round 7, S4). The text stays in the
+ *    draft journal and is offered when the note opens again; an edit in the
+ *    vault's next runtime saves through that one.
  */
 export function isSaveFailureFinal(error: unknown): boolean {
   if (error === null || typeof error !== "object") return typeof error === "string" && FINAL_WORDS.some((words) => words.test(error));

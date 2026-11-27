@@ -3796,6 +3796,7 @@
   "sync": {
     "error": "Sync error – click for details and retry",
     "retryingAt": "No connection — trying again at {{time}}",
+    "stuck": "Sync has been stuck for {{minutes}} minutes. Plainva starts it again as soon as the running step ends; restarting the app ends it at once.",
     "retrying": "Plainva is trying the synchronization again…",
     "syncing": "Syncing...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -7247,6 +7248,8 @@
     "decommissionNote": "Deletes the local keys; encrypted files in the cloud stay — remove the folder yourself afterwards.",
     "decommissionTypeName": "To confirm, type the vault's name: {{name}}",
     "decommissionNameMismatch": "That is not the vault's name — nothing was changed.",
+    "decommissionUnfinished": "Decommissioning did not finish on this device. Until it does, this vault syncs nothing; then you decide what happens to its folder.",
+    "liftUnfinished": "Lifting the encryption did not finish; it ends as a decommission. Until then nothing syncs; then you decide about the folder.",
     "orphanRecovery": "The workspace in the cloud is missing or damaged — sync stays stopped. Decommission it below to reset.",
     "setupTitle": "Set up encrypted workspace",
     "setupProgress": "Setup step {{step}} of 3",
@@ -8409,5 +8412,21 @@
     "guide": "Open the guide",
     "statusNotYet": "not connected yet",
     "stepSetUp": "Set up"
+  },
+  "closing": {
+    "savingWait": "Plainva is still saving “{{name}}” – then it goes on.",
+    "savingWaitMany_one": "Plainva is still saving {{count}} note – then it goes on.",
+    "savingWaitMany_other": "Plainva is still saving {{count}} notes – then it goes on.",
+    "syncWait": "A sync step of “{{vault}}” is still running – then it goes on.",
+    "openingWait": "“{{vault}}” is still opening – then it goes on.",
+    "savingGaveUp": "“{{name}}” is not saved yet. Plainva goes on; the save finishes in the background, and the text is also kept in the draft.",
+    "savingGaveUpMany_one": "{{count}} note is not saved yet. Plainva goes on; the save finishes in the background, and the text is also kept in the draft.",
+    "savingGaveUpMany_other": "{{count}} notes are not saved yet. Plainva goes on; the saves finish in the background, and the texts are also kept in the drafts.",
+    "syncGaveUp": "The sync step of “{{vault}}” did not finish. Plainva stops it and goes on; nothing is lost – the next sync catches up on what is missing.",
+    "openingGaveUp": "“{{vault}}” did not finish opening. Plainva closes it and removes it as soon as it answers.",
+    "stillClosing": "“{{vault}}” is still closing – then Plainva opens it again.",
+    "stillClosingSameFolder": "“{{vault}}” uses the same sync folder and is still closing – then the sync starts.",
+    "stepNotRun": "The step did not run: “{{vault}}” was being closed or reopened, or could not be opened again. Nothing was changed; try again once the vault is open.",
+    "stepInterrupted": "The step for “{{vault}}” did not finish: the vault was closed or reopened while it ran. Part of it may be done; check what is missing once the vault is open."
   }
 }

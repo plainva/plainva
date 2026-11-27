@@ -407,6 +407,7 @@ export const SETTINGS_SEARCH_INDEX: readonly SettingsIndexEntry[] = [
   {"shell":"mobile","area":"sync","sub":"syncDiagnostics","kind":"card","card":"settings.syncErrorHistory"},
   {"shell":"mobile","area":"sync","sub":"syncDiagnostics","kind":"row","label":"sync.journalCheck","info":["sync.journalCheckHint"]},
   {"shell":"mobile","area":"sync","sub":"syncDiagnostics","kind":"card","card":"settings.syncQueue"},
+  {"shell":"mobile","area":"security","kind":"row","label":"workspaceSecurity.decommission","desc":["workspaceSecurity.liftUnfinished","workspaceSecurity.decommissionUnfinished"]},
   {"shell":"mobile","area":"security","kind":"row","label":"workspaceSecurity.plainFolderAction"},
   {"shell":"mobile","area":"security","kind":"card","card":"workspaceSecurity.currentStatus"},
   {"shell":"mobile","area":"security","kind":"row","card":"workspaceSecurity.currentStatus","label":"workspaceSecurity.unlock"},

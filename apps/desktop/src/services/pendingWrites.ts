@@ -52,6 +52,12 @@ export async function trackPendingWrite(
   }
 }
 
+/** The notes of ONE vault whose write is in flight, for the notice of a close that waits for them (`waitWithDeadline`). */
+export function pendingWritePaths(vaultPath: string): string[] {
+  const prefix = vaultPath + "\u0000";
+  return [...pending.keys()].filter((key) => key.startsWith(prefix)).map((key) => key.slice(prefix.length));
+}
+
 /**
  * Waits for every write of ONE vault to settle - failures included, because a
  * failed write is finished too and its error was reported where it happened.

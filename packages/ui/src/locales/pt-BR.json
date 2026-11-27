@@ -3885,6 +3885,7 @@
   "sync": {
     "error": "Erro de sincronização – clique para ver detalhes e tentar novamente",
     "retryingAt": "Sem conexão — nova tentativa às {{time}}",
+    "stuck": "A sincronização está travada há {{minutes}} minutos. O Plainva a reinicia assim que a etapa em andamento terminar; reiniciar o app a encerra na hora.",
     "retrying": "O Plainva está tentando sincronizar novamente…",
     "syncing": "Sincronizando...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -7394,6 +7395,8 @@
     "decommissionNote": "Apaga as chaves locais; os arquivos criptografados na nuvem permanecem — remova a pasta você mesmo depois.",
     "decommissionTypeName": "Para confirmar, digite o nome do vault: {{name}}",
     "decommissionNameMismatch": "Esse não é o nome do vault — nada foi alterado.",
+    "decommissionUnfinished": "A desativação não terminou neste dispositivo. Até lá, este vault não sincroniza nada; depois você decide o que fazer com a pasta.",
+    "liftUnfinished": "A remoção da criptografia não terminou; ela termina como desativação. Até lá nada sincroniza; depois você decide sobre a pasta.",
     "orphanRecovery": "O espaço de trabalho na nuvem não existe ou está danificado — a sincronização continua parada. Desative-o abaixo para redefinir.",
     "setupTitle": "Configurar workspace criptografado",
     "setupProgress": "Etapa {{step}} de 3",
@@ -8579,5 +8582,23 @@
     "guide": "Abrir o guia",
     "statusNotYet": "ainda não conectado",
     "stepSetUp": "Configurar"
+  },
+  "closing": {
+    "savingWait": "O Plainva ainda está salvando “{{name}}” – depois continua.",
+    "savingWaitMany_one": "O Plainva ainda está salvando {{count}} nota – depois continua.",
+    "savingWaitMany_many": "O Plainva ainda está salvando {{count}} notas – depois continua.",
+    "savingWaitMany_other": "O Plainva ainda está salvando {{count}} notas – depois continua.",
+    "syncWait": "Uma etapa de sincronização de “{{vault}}” ainda está em andamento – depois o Plainva continua.",
+    "openingWait": "“{{vault}}” ainda está abrindo – depois o Plainva continua.",
+    "savingGaveUp": "“{{name}}” ainda não foi salva por completo. O Plainva continua; o salvamento termina em segundo plano, e o texto também fica no rascunho.",
+    "savingGaveUpMany_one": "{{count}} nota ainda não foi salva por completo. O Plainva continua; o salvamento termina em segundo plano, e o texto também fica no rascunho.",
+    "savingGaveUpMany_many": "{{count}} notas ainda não foram salvas por completo. O Plainva continua; os salvamentos terminam em segundo plano, e os textos também ficam nos rascunhos.",
+    "savingGaveUpMany_other": "{{count}} notas ainda não foram salvas por completo. O Plainva continua; os salvamentos terminam em segundo plano, e os textos também ficam nos rascunhos.",
+    "syncGaveUp": "A etapa de sincronização de “{{vault}}” não terminou. O Plainva a interrompe e continua; nada se perde – a próxima sincronização recupera o que falta.",
+    "openingGaveUp": "“{{vault}}” não terminou de abrir. O Plainva o fecha e o remove assim que responder.",
+    "stillClosing": "“{{vault}}” ainda está fechando – depois o Plainva o abre de novo.",
+    "stillClosingSameFolder": "“{{vault}}” usa a mesma pasta de sincronização e ainda está fechando – depois a sincronização começa.",
+    "stepNotRun": "A etapa não foi executada: “{{vault}}” estava sendo fechado ou reaberto, ou não pôde ser aberto de novo. Nada foi alterado; tente de novo quando o vault estiver aberto.",
+    "stepInterrupted": "A etapa de “{{vault}}” não terminou: o vault foi fechado ou reaberto enquanto ela era executada. Uma parte pode já ter sido feita; veja o que falta quando o vault estiver aberto."
   }
 }

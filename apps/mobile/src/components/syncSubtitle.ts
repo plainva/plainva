@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { SYNC_STUCK_AFTER_MINUTES } from "@plainva/core";
 import { useTranslation } from "react-i18next";
 import { familyLabel, familyOfSyncProvider, type SyncProviderId } from "@plainva/ui";
 import { getSyncStatus, subscribeSyncStatus } from "../services/syncService";
@@ -45,10 +46,12 @@ export function useSyncSubtitle(): string {
  * built here rather than in the core, which has no language.
  */
 export function syncStateLabel(
-  status: { status: string; retryAt?: number },
+  status: { status: string; retryAt?: number; reason?: string | null },
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
   if (status.status === "syncing") return t("mobile.syncSyncing");
+  // Given up by the watchdog: it starts again once the running step ends (`stuck`).
+  if (status.status === "retrying" && status.reason === "stuck") return t("sync.stuck", { minutes: SYNC_STUCK_AFTER_MINUTES });
   if (status.status === "retrying") {
     return status.retryAt
       ? t("mobile.syncRetryingAt", {

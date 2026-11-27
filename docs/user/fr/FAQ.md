@@ -1,6 +1,6 @@
 # FAQ & dépannage
 
-Dernière mise à jour : 2026-11-18
+Dernière mise à jour : 2026-11-26
 
 Réponses aux questions les plus courantes — de la compatibilité Obsidian aux fichiers en conflit et aux sauvegardes.
 
@@ -149,6 +149,10 @@ Starfleet ne commente jamais les rumeurs. Mais il paraît que le logo dans la ba
 ### Une partie de la fenêtre indique « Cette zone ne peut pas être affichée »
 
 Une zone n’a pas pu être affichée : un onglet, une section de la barre latérale, une vue de base de données, un e-mail, une page de paramètres, une boîte de dialogue ou, sur le téléphone, un écran ou une feuille. Seule cette zone est remplacée ; tout le reste continue de fonctionner, et une note ouverte garde son texte. **Recharger cette zone** affiche la zone à nouveau. Si elle échoue une deuxième fois, le message le dit et reste affiché : fermez l’onglet (**Fermer l'onglet**) ou, sur le téléphone, touchez **Retour**, et redémarrez Plainva si cela se reproduit. L’erreur est consignée dans **À propos et diagnostic** ; l’export de diagnostic qui s’y trouve ne contient aucun contenu de note et aide à signaler un bug.
+
+### Pourquoi la fermeture d'un vault prend-elle parfois un moment ?
+
+Quand vous fermez, changez, rechargez ou retirez un vault, Plainva attend que les notes soient enregistrées et qu'une étape de synchronisation en cours soit terminée – avec un seul délai pour toute la fermeture. Si cela dure plus de 5 secondes, un message indique ce que Plainva attend. Au bout de 30 secondes, Plainva continue, et rien n'est perdu : un enregistrement pas encore terminé se termine en arrière-plan, et le texte est aussi gardé dans le brouillon ; une étape de synchronisation inachevée est arrêtée, et la synchronisation suivante rattrape ce qui manque. Un vault encore en cours d'ouverture quand vous le retirez est fermé et retiré dès qu'il répond. Si vous rouvrez le même vault pendant qu'il se ferme encore, Plainva le signale et l'ouvre dès qu'il est fermé et qu'aucune de ses requêtes n'est encore en cours chez le fournisseur – jamais deux fois en même temps. Si un autre vault utilise le même dossier de synchronisation, sa synchronisation ne démarre qu'une fois ce vault fermé. Les étapes qui arrêtent la synchronisation – par exemple quand vous configurez un espace chiffré ou changez un mot de passe – attendent elles aussi 30 secondes au plus ; ensuite, Plainva rouvre le vault et y termine l'étape. Si le vault est fermé ou rouvert entre-temps, ou ne peut pas être rouvert, une étape sur l'espace chiffré ou le dossier de synchronisation l'indique quand elle n'a pas été effectuée du tout ou n'a pas été terminée ; un nouveau mot de passe ou une nouvelle connexion n'en est pas bloqué. Si une synchronisation est bloquée depuis 15 minutes, la ligne d'état l'indique ; Plainva la relance dès que l'étape en cours se termine, et redémarrer l'app l'arrête aussitôt.
 
 ## Voir aussi
 

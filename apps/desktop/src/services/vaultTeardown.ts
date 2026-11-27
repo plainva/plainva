@@ -16,20 +16,34 @@
 
 const inFlight = new Map<string, Promise<void>>();
 
+/**
+ * One key per folder, however its path is written: separators, a trailing
+ * one, and the case — the desktop's file systems mostly ignore it, and two
+ * spellings of one folder are one vault. Where two different folders differ
+ * only in case (a case-sensitive file system), the next open waits needlessly
+ * for the other's close: safe, and short.
+ */
+export function vaultPlaceKey(vaultPath: string): string {
+  let key = vaultPath.replace(/\\/g, "/");
+  while (key.length > 1 && key.endsWith("/")) key = key.slice(0, -1);
+  return key.toLowerCase();
+}
+
 /** Parks a teardown so the next open of this vault can wait for it. */
 export function noteVaultTeardown(vaultPath: string, run: Promise<void>): void {
   // Another teardown of the same vault may still be running - a load that was
   // called off parks one too (loadStarts.ts) - so the next open waits for both.
-  const before = inFlight.get(vaultPath);
+  const key = vaultPlaceKey(vaultPath);
+  const before = inFlight.get(key);
   const settled = Promise.all([before, run.catch(() => undefined)]).then(() => {
-    if (inFlight.get(vaultPath) === settled) inFlight.delete(vaultPath);
+    if (inFlight.get(key) === settled) inFlight.delete(key);
   });
-  inFlight.set(vaultPath, settled);
+  inFlight.set(key, settled);
 }
 
 /** Resolves once no teardown of this vault is running (immediately if none is). */
 export async function awaitVaultTeardown(vaultPath: string): Promise<void> {
-  const run = inFlight.get(vaultPath);
+  const run = inFlight.get(vaultPlaceKey(vaultPath));
   if (run) await run;
 }
 

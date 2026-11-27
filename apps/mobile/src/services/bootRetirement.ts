@@ -22,6 +22,13 @@ export async function retiredBoot<V extends RetirableVault>(
   settled: boolean,
   callOff: () => void,
   waitMs: number,
+  /**
+   * A retired start is still a runtime at its vault until it has closed: told
+   * the closing (`left`, which resolves to the vault once it is closed, or
+   * rejects when the start opened nothing), the caller parks its end, and the
+   * next start of the vault waits for it.
+   */
+  leaving: (left: Promise<V>) => void = () => {},
 ): Promise<V | null> {
   if (settled) return pending.catch(() => null);
   callOff();
@@ -31,9 +38,18 @@ export async function retiredBoot<V extends RetirableVault>(
     new Promise<typeof late>((resolve) => setTimeout(() => resolve(late), waitMs)),
   ]);
   if (outcome === late) {
-    void pending.then((vault) => vault.dispose()).catch(() => {});
+    const left = pending.then(async (vault) => {
+      await vault.dispose().catch(() => {});
+      return vault;
+    });
+    left.catch(() => {});
+    leaving(left);
     return null;
   }
-  if (outcome) await outcome.dispose().catch(() => {});
+  if (outcome) {
+    const left = outcome.dispose().catch(() => {}).then(() => outcome);
+    leaving(left);
+    await left;
+  }
   return null;
 }

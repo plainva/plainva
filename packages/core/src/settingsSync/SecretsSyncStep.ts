@@ -26,6 +26,7 @@ import {
 } from "./secretsBundle.js";
 import { SecretPolicyError } from "./secretsBundle.js";
 import { stableStringify } from "./profileFile.js";
+import { CalledOffError } from "../sync/callOff.js";
 
 export type SecretImportStatus = "imported" | "unchanged" | "rejected" | "stale" | "error";
 
@@ -93,6 +94,8 @@ export interface SecretsPort {
 
 export interface SecretsSyncStepOptions {
   port: SecretsPort;
+  /** As for the settings sync (`SettingsSyncStepOptions.allows`): the keychain lies past the fenced storage. */
+  allows?: () => boolean;
   masterKey: MasterKeyBundle;
   now?: () => string;
   /**
@@ -159,6 +162,7 @@ export class SecretsSyncStep {
     // Import into the keychain only when the merge changed the local view, or
     // when the port waits for the document.
     if (stableStringify(merged.entries) !== stableStringify(local.entries) || this.options.port.awaitsDocument?.()) {
+      if (this.options.allows && !this.options.allows()) throw new CalledOffError("secrets sync");
       const result = await this.options.port.importBundle(merged);
       if (!result.settled) {
         if (result.unknownAccounts.length > 0) this.options.onUnknownAccounts?.(result.unknownAccounts);

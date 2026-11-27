@@ -60,6 +60,20 @@ describe("saves of notes the editor left", () => {
     expect(hasLeftNoteSave("/v", "a.md")).toBe(false);
   });
 
+  it("are never tried again through a runtime that was called off — the same rule as the phone's saver (review B2, round 7, S4)", async () => {
+    expect.hasAssertions();
+    vi.useFakeTimers();
+    const { CalledOffError } = await import("@plainva/core");
+    for (const refused of [new CalledOffError("writeEditorText"), "writeEditorText: the vault's runtime was called off"]) {
+      const save = left({ path: typeof refused === "string" ? "as-a-client-window-hears-it.md" : "a.md" });
+      adoptLeftNoteSave(save, refused);
+      await vi.advanceTimersByTimeAsync(60_000);
+      // Its text stays in the draft journal; a retry would meet the fence for good.
+      expect(save.retry).not.toHaveBeenCalled();
+      expect(hasLeftNoteSave("/v", save.path)).toBe(false);
+    }
+  });
+
   it("stop once the note is open again, or the vault closes, and nothing is written after", async () => {
     expect.hasAssertions();
     vi.useFakeTimers();

@@ -3885,6 +3885,7 @@
   "sync": {
     "error": "Erreur de synchronisation – cliquez pour les détails et une nouvelle tentative",
     "retryingAt": "Pas de connexion — nouvelle tentative à {{time}}",
+    "stuck": "La synchronisation est bloquée depuis {{minutes}} minutes. Plainva la relance dès que l'étape en cours se termine ; redémarrer l'app l'arrête aussitôt.",
     "retrying": "Plainva réessaie la synchronisation…",
     "syncing": "Synchronisation...",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -7394,6 +7395,8 @@
     "decommissionNote": "Efface les clés locales ; les fichiers chiffrés du cloud restent — supprimez ensuite le dossier vous-même.",
     "decommissionTypeName": "Pour confirmer, saisis le nom du vault : {{name}}",
     "decommissionNameMismatch": "Ce n'est pas le nom du vault — rien n'a été modifié.",
+    "decommissionUnfinished": "La mise hors service n’est pas terminée sur cet appareil. D’ici là, ce vault ne synchronise rien ; ensuite, vous décidez de son dossier.",
+    "liftUnfinished": "Supprimer le chiffrement n’est pas terminé ; cela finit en mise hors service. D’ici là rien ne se synchronise ; puis choisissez le dossier.",
     "orphanRecovery": "L’espace de travail dans le cloud est absent ou endommagé — la synchronisation reste arrêtée. Mettez-le hors service ci-dessous pour réinitialiser.",
     "setupTitle": "Configurer l’espace chiffré",
     "setupProgress": "Étape {{step}} sur 3",
@@ -8579,5 +8582,23 @@
     "guide": "Ouvrir le guide",
     "statusNotYet": "pas encore connecté",
     "stepSetUp": "Configurer"
+  },
+  "closing": {
+    "savingWait": "Plainva enregistre encore « {{name}} » – ensuite, il continue.",
+    "savingWaitMany_one": "Plainva enregistre encore {{count}} note – ensuite, il continue.",
+    "savingWaitMany_many": "Plainva enregistre encore {{count}} notes – ensuite, il continue.",
+    "savingWaitMany_other": "Plainva enregistre encore {{count}} notes – ensuite, il continue.",
+    "syncWait": "Une étape de synchronisation de « {{vault}} » est encore en cours – ensuite, Plainva continue.",
+    "openingWait": "« {{vault}} » est encore en cours d'ouverture – ensuite, Plainva continue.",
+    "savingGaveUp": "« {{name}} » n'est pas encore entièrement enregistrée. Plainva continue ; l'enregistrement se termine en arrière-plan, et le texte est aussi gardé dans le brouillon.",
+    "savingGaveUpMany_one": "{{count}} note n'est pas encore entièrement enregistrée. Plainva continue ; l'enregistrement se termine en arrière-plan, et le texte est aussi gardé dans le brouillon.",
+    "savingGaveUpMany_many": "{{count}} notes ne sont pas encore entièrement enregistrées. Plainva continue ; les enregistrements se terminent en arrière-plan, et les textes sont aussi gardés dans les brouillons.",
+    "savingGaveUpMany_other": "{{count}} notes ne sont pas encore entièrement enregistrées. Plainva continue ; les enregistrements se terminent en arrière-plan, et les textes sont aussi gardés dans les brouillons.",
+    "syncGaveUp": "L'étape de synchronisation de « {{vault}} » n'a pas abouti. Plainva l'arrête et continue ; rien n'est perdu – la prochaine synchronisation rattrape ce qui manque.",
+    "openingGaveUp": "« {{vault}} » n'a pas fini de s'ouvrir. Plainva le ferme et le supprime dès qu'il répond.",
+    "stillClosing": "« {{vault}} » est encore en cours de fermeture – ensuite, Plainva le rouvre.",
+    "stillClosingSameFolder": "« {{vault}} » utilise le même dossier de synchronisation et est encore en cours de fermeture – ensuite, la synchronisation démarre.",
+    "stepNotRun": "L’étape n’a pas été effectuée : « {{vault}} » était en train d’être fermé ou rouvert, ou n’a pas pu être rouvert. Rien n’a été modifié ; réessayez une fois le vault ouvert.",
+    "stepInterrupted": "L’étape pour « {{vault}} » n’a pas été terminée : le vault a été fermé ou rouvert pendant qu’elle s’exécutait. Une partie peut déjà être faite ; vérifiez ce qui manque une fois le vault ouvert."
   }
 }

@@ -19,7 +19,7 @@ import {
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
 import type { WorkspaceObjectStore } from "@plainva/core/workspace";
-import { assertEndpointConfirmedIn, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
+import { assertEndpointConfirmedIn, isStepNoticeError, StepNoticeError, stepInterrupted, stepNotRun, waitForClosingSyncPlace, waitWithDeadline, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
 import { assertEmptyRemoteVault, firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -44,19 +44,22 @@ function askMassDeletion(worker: MassDeletionAnswers, info: { pendingDeletes: nu
 function askSuspendedDeletions(worker: SuspendedDeletionAnswers, info: SuspendedDeletionInfo): void {
   void askSuspendedDeletionsWith(worker, info, (question) => mConfirm({ ...question, danger: true }));
 }
-import { allowHttpOrigin, webdavFetch } from "../adapters/webdavHttp";
+import { allowHttpOrigin, webdavFetch, webdavFetchCountedIn } from "../adapters/webdavHttp";
 import { createContentRefResolver, mobileSyncUploader } from "../adapters/syncUpload";
 import { fileBrokerTokenProvider, fileGrantProbe } from "./accountBroker";
 import { rotateLegacyFileGrant } from "./accountGrantMigration";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
 import { applyTemplateSettingsTo, getMobileSettings } from "./mobileSettings";
 import { MIN_SYNC_INTERVAL_SECONDS } from "./mobileSettingsScope";
-import { getMobileVault, type MobileVault } from "./vaultService";
+import { reloadActiveMobileVault, renewAfterSyncGaveUp, runtimeOnScreen, transitionsSettled, type MobileVault } from "./vaultService";
+import { registerLoadedSync } from "./loadedSync";
+import { holdVaultSync, registerSyncHolds, vaultSyncHeld } from "./syncHolds";
+import { vaultEntryName } from "./vaultEntryName";
 import { enterMadeVault } from "./flowVault";
 import { mobileSyncDeviceId, prepareMobileSettingsSync } from "./mobileSettingsSync";
 import { notifyPulledFiles } from "./pulledFiles";
 import { FILE_MOVED_EVENT, type FileMovedDetail } from "./fileMoved";
-import { getMobileWorkspaceStatus, loadMobilePublicationRuntime } from "./mobileWorkspaceSecurity";
+import { getMobileWorkspaceStatus, loadMobilePublicationRuntime, mobileDecommissionUnfinished } from "./mobileWorkspaceSecurity";
 import {
   addVault,
   getActiveVaultEntry,
@@ -396,6 +399,15 @@ export function startSyncIfConfigured(v: MobileVault): Promise<void> {
   return inStartChain(() => startSyncDecided(v));
 }
 
+/**
+ * The start after a vault opened (`useVaultBoot`). The same start: where a
+ * step holds this vault's sync (`holdVaultSync`) it puts nothing in place,
+ * and the step's last release starts it.
+ */
+export function startSyncAfterBoot(v: MobileVault): Promise<void> {
+  return inStartChain(() => startSyncDecided(v));
+}
+
 let startChain: Promise<void> = Promise.resolve();
 
 /**
@@ -419,7 +431,39 @@ function inStartChain(step: () => Promise<void>): Promise<void> {
  */
 let startGeneration = 0;
 
+/**
+ * Runtimes a decommission or lift has taken past its gate (`retireWorkspaceRuntime`): whatever follows — the step
+ * failing, its reload put off or failing — none of them gets a sync again (review B2, round 11). The workspace they
+ * carry in memory is half or wholly gone; their encrypted worker would write "joined" over the departure and work
+ * on it. Only the vault opened anew syncs, as its own state has it. Where such a runtime stays on screen — its
+ * step's reload failed — "Sync now", coming back and coming online open it anew, never the sync on it (review B2,
+ * round 12, MG-3; `askHeldAgain`).
+ */
+const retiredWorkspaceRuntimes = new WeakSet<MobileVault>();
+
+/** A decommission's gate opened on this runtime: it never gets a sync again (`retiredWorkspaceRuntimes`). */
+export function retireWorkspaceRuntime(runtime: MobileVault): void {
+  retiredWorkspaceRuntimes.add(runtime);
+}
+
 async function startSyncDecided(v: MobileVault): Promise<void> {
+  // A step holds the vault's sync (`holdVaultSync`): nothing starts before its last release, which starts it. And
+  // no worker is built for a runtime that is not the open one on screen — one a transition is leaving, one still
+  // opening: that start belongs to the next one (the start after its boot, or the release, or `resumeOnScreen`).
+  if (runtimeOnScreen() !== v) return;
+  if (retiredWorkspaceRuntimes.has(v)) {
+    // Its sync stays off until the vault opens anew; the status says so (paused), never the last word of its worker.
+    // Held, so that the triggers that ask a held vault again open it anew (`askHeldAgain`).
+    if (!worker && !settingsOnlySync) {
+      held = { vaultId: v.vaultId, attempt: 0, reopen: v };
+      setState({ status: "off", message: null });
+    }
+    return;
+  }
+  if (syncHeld(v.vaultId)) {
+    sayHeld(v.vaultId);
+    return;
+  }
   if (worker || settingsOnlySync || !syncPossible(v)) return;
   const generation = startGeneration;
   watchFilesSwitch();
@@ -494,14 +538,42 @@ let settingsOnlySync: SettingsOnlySync | null = null;
  * the calendar and mail switches made meanwhile, reach every device. Local
  * changes queue meanwhile (finding 4) and the first-sync deferral holds.
  */
+/** The sync folder of what runs now (`detachSync` parks a closing runtime's end under it). */
+let syncPlace: SyncStateBinding | null = null;
+
+/**
+ * Before a sync starts at its folder: never beside a runtime that closes at the same folder — another vault entry
+ * on it, still draining (`waitForClosingSyncPlace`, text 8). Answers the folder, or null where it cannot be told;
+ * false when a stop came meanwhile.
+ */
+async function waitForSyncPlace(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<SyncStateBinding | null | false> {
+  const signal = startsSignal;
+  const place = await mobileSyncBinding(v, p).catch(() => null);
+  // A stop called meanwhile ends the wait, and its notice (text 8) with it.
+  if (place) await waitForClosingSyncPlace(place, { signal });
+  return generation === startGeneration ? place : false;
+}
+
+/** Aborted by every stop (`startGeneration`): a start still waiting for its folder stops waiting. */
+let startsAbort = new AbortController();
+let startsSignal = startsAbort.signal;
+function stopStarts(): void {
+  startsAbort.abort();
+  startsAbort = new AbortController();
+  startsSignal = startsAbort.signal;
+}
+
 async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generation: number): Promise<void> {
   // The sync's modules load first (review of L5, 2026-11-25): between a check of the generation and what it guards
   // no load of a module may wait — a stop in that wait would let a stale start build its service.
   const sync = await syncModules();
+  // Then the folder: never beside a runtime that still closes at it (text 8).
+  const place = await waitForSyncPlace(v, p, generation);
+  if (place === false) return;
   v.enableSyncEnqueue();
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
-  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
+  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId, undefined, v.countRequest);
   // The profile is plain text: it never goes next to a workspace this device
   // has not joined (R8) - the same gate as the file worker's, before the
   // target is used for anything.
@@ -510,6 +582,7 @@ async function startSettingsOnly(v: MobileVault, p: MobileSyncProvider, generati
   if (worker || settingsOnlySync || generation !== startGeneration) return;
   // No listing shows a genesis here: one look per session, never one per run.
   const sessionCheck = v.workspaceRuntime ? undefined : await mobileSettingsOnlyCheck(v, p, rawTarget).catch(() => undefined);
+  syncPlace = place;
   settingsOnlySync = new sync.SettingsOnlySync(runner, target, v.belowChain, syncIntervalMs(), undefined, sessionCheck, () => {
     setState({ status: "error", message: i18n.t("workspaceSecurity.mobilePairRequired"), errorKind: "pair-required" });
   });
@@ -543,11 +616,15 @@ function watchFilesSwitch(): void {
 function followFilesSwitch(): Promise<void> {
   return inStartChain(async () => {
     if (!worker && !settingsOnlySync) return;
-    const v = await getMobileVault();
+    // The sync that runs is the vault on screen's: the restart is for that runtime.
+    const v = runtimeOnScreen();
+    // A step holds this vault's sync: it starts it with its last release, in the mode the files have then.
+    if (!v || syncHeld(v.vaultId)) return;
     const off = await filesOffForVault(v.vaultId);
     if ((off && worker) || (!off && settingsOnlySync)) {
-      await stopAndDrainNow();
-      await startSyncDecided(v);
+      const renewed = await stopAndDrainNow(v);
+      if (renewed === LEFT) return;
+      await startSyncDecided(renewed ?? v);
     }
   });
 }
@@ -555,9 +632,12 @@ function followFilesSwitch(): Promise<void> {
 /** Stops what runs for the active vault and starts it again, decided as `startSyncIfConfigured` decides - one step. */
 export function restartSyncIfActive(vaultId: string): Promise<void> {
   return inStartChain(async () => {
-    if ((await getActiveVaultEntry()).id !== vaultId) return;
-    await stopAndDrainNow();
-    await startSyncDecided(await getMobileVault());
+    const v = runtimeOnScreen();
+    // A step holds the vault's sync: a restart stops nothing and starts nothing — the step's last release starts it.
+    if (v?.vaultId !== vaultId || syncHeld(vaultId)) return;
+    const renewed = await stopAndDrainNow(v);
+    if (renewed === LEFT) return;
+    await startSyncDecided(renewed ?? v);
   });
 }
 
@@ -751,28 +831,28 @@ export async function switchProviderToAccountBroker(
    */
   adopt?: { clientSecret?: string },
 ): Promise<void> {
-  const stored = await getStoredProvider(vaultId);
   if (!record.services.files) return;
-  if (!stored || stored.provider !== record.services.files.provider
-    || (stored.provider !== "drive" && stored.provider !== "onedrive") || (!adopt && stored.creds.clientId !== clientId)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
-  const existing: MobileSyncProvider = adopt && stored.creds.clientId !== clientId
-    ? (stored.provider === "drive"
-      ? { provider: "drive", creds: { ...stored.creds, clientId, clientSecret: adopt.clientSecret ?? "", refreshToken: "", nativeGoogle: undefined } }
-      : { provider: "onedrive", creds: { ...stored.creds, clientId, refreshToken: "" } })
-    : stored;
-  if (existing !== stored) await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), existing);
-  const probe = await fileGrantProbe(vaultId, record.id, existing.provider === "drive" ? "google" : "microsoft", existing.creds);
-  await probe.getAccessToken();
-  if ((await getActiveVaultEntry()).id === vaultId) await stopSyncAndDrain();
-  if (!sameStoredValue(await getStoredProvider(vaultId), existing)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
-  let merged: MobileSyncProvider;
-  if (existing.provider === "drive") merged = { provider: "drive", creds: { ...existing.creds, refreshToken: "", nativeGoogle: undefined } };
-  else if (existing.provider === "onedrive") merged = { provider: "onedrive", creds: { ...existing.creds, refreshToken: "" } };
-  else return; // password- or key-based providers have nothing to hand over
-  await rotateLegacyFileGrant(credKeyFor(vaultId), existing.provider, existing.creds, "");
-  // Through the one start: a sign-in never undoes "Pause sync" or files off (second review, B2/B4).
-  void merged;
-  await restartSyncIfActive(vaultId);
+  const files = record.services.files;
+  // A step on the vault's sign-in: its sync is held from before the first write to the slot to the last, and what
+  // runs of it is stopped first — no cycle signs in with a slot half handed over.
+  await withVaultSyncStopped(vaultId, async () => {
+    const stored = await getStoredProvider(vaultId);
+    if (!stored || stored.provider !== files.provider
+      || (stored.provider !== "drive" && stored.provider !== "onedrive") || (!adopt && stored.creds.clientId !== clientId)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+    const existing: MobileSyncProvider = adopt && stored.creds.clientId !== clientId
+      ? (stored.provider === "drive"
+        ? { provider: "drive", creds: { ...stored.creds, clientId, clientSecret: adopt.clientSecret ?? "", refreshToken: "", nativeGoogle: undefined } }
+        : { provider: "onedrive", creds: { ...stored.creds, clientId, refreshToken: "" } })
+      : stored;
+    if (existing !== stored) await getPlatformServices().credentials.writeSecret(credKeyFor(vaultId), existing);
+    const probe = await fileGrantProbe(vaultId, record.id, existing.provider === "drive" ? "google" : "microsoft", existing.creds);
+    await probe.getAccessToken();
+    if (!sameStoredValue(await getStoredProvider(vaultId), existing)) throw new Error(i18n.t("cloudAccounts.loginBindingChanged"));
+    // Password- or key-based providers have nothing to hand over.
+    if (existing.provider === "drive" || existing.provider === "onedrive") await rotateLegacyFileGrant(credKeyFor(vaultId), existing.provider, existing.creds, "");
+  });
+  // The hold's release starts the sync through the one start: a sign-in never undoes "Pause sync" or files off
+  // (second review, B2/B4).
 }
 
 /**
@@ -784,15 +864,16 @@ export async function switchProviderToAccountBroker(
  * the vault no longer has.
  */
 export async function disconnectFiles(vaultId: string): Promise<void> {
-  if ((await getActiveVaultEntry()).id === vaultId) {
-    await stopSyncAndDrain();
-    setState({ status: "off", message: null });
-  }
-  // The queue and the per-file records stay: they belong to the folder, not the
-  // account, and the next file sync keeps them for the same folder and drops
-  // them for another (third review, finding 1). The desktop does the same.
-  await purgeCredentials(vaultId);
-  await updateVault(vaultId, { provider: undefined, pausedHere: false });
+  // A step on the vault's sign-in: the vault's sync is held from here to the end, and what runs of it is stopped —
+  // nothing of it starts again for an account the vault no longer has.
+  await withVaultSyncStopped(vaultId, async () => {
+    if (runtimeOnScreen()?.vaultId === vaultId) setState({ status: "off", message: null });
+    // The queue and the per-file records stay: they belong to the folder, not the
+    // account, and the next file sync keeps them for the same folder and drops
+    // them for another (third review, finding 1). The desktop does the same.
+    await purgeCredentials(vaultId);
+    await updateVault(vaultId, { provider: undefined, pausedHere: false });
+  });
 }
 
 /**
@@ -837,14 +918,30 @@ async function mobileSettingsOnlyCheck(v: MobileVault, p: MobileSyncProvider, ta
 
 /**
  * The vault the start is held for, and how often in a row (R8, review point 5):
- * per vault, and forgotten on every stop and switch.
+ * per vault, and forgotten on every stop and switch. `reopen`: the runtime is
+ * no valid one any more (past a decommission's gate) — asked again, it is
+ * opened anew.
  */
-let held: { vaultId: string; attempt: number } | null = null;
+let held: { vaultId: string; attempt: number; reopen?: MobileVault } | null = null;
 
-/** A held vault is asked again at once: "Sync now", the foreground sync, coming online. */
+/**
+ * A held vault is asked again at once: "Sync now", the foreground sync, coming online. A runtime past a
+ * decommission's gate still on screen (its step's reload failed) is not given a sync: it is opened anew (review B2,
+ * round 12, MG-3) — unless something holds the vault's sync, a step still at work or a reload that waits behind
+ * someone's input: theirs is the reload. A trigger is no surface that typed: input on any surface, the Security
+ * area's recovery or invite code included, puts the reload off behind its notice (review B2, round 13, SP-1).
+ */
 function askHeldAgain(): boolean {
   if (worker || settingsOnlySync || !held) return false;
   const vaultId = held.vaultId;
+  const reopen = held.reopen;
+  if (reopen) {
+    // Only that very runtime is reloaded, checked at the reload's turn (`reloadActiveMobileVault` with `runtime`).
+    if (!vaultSyncHeld(vaultId)) {
+      void reloadActiveMobileVault(undefined, { runtime: reopen }).catch((e: unknown) => console.error("[sync] opening the vault anew failed", e));
+    }
+    return true;
+  }
   held = { vaultId, attempt: 0 };
   void restartSyncIfActive(vaultId);
   return true;
@@ -855,12 +952,52 @@ if (typeof window !== "undefined") window.addEventListener("online", () => { ask
  * The gate before the plain sync (R8). Costs a vault that knows nothing about
  * its folder one local read: its worker starts as before, and its listing is
  * the probe. Only a vault that knows something - and a member without its keys
- * - is held, and only for it is the genesis read. Never rejects: a store that
- * fails is "nothing known".
+ * - is held, and only for it is the genesis read. Never rejects. A store that
+ * cannot be read is "nothing known" for a vault without a workspace in memory;
+ * a runtime with one is held and asked again by itself (review B2, round 12).
  */
 async function holdForEncryptedRemote(v: MobileVault, p: MobileSyncProvider, rawTarget: ISyncTarget, generation: number): Promise<boolean> {
   try {
     const ports = await mobileEncryptedRemotePorts(v.vaultId);
+    // A decommission (or a lift) that passed its gate and stopped (review B2, rounds 8 to 10): never a sync on it —
+    // held, and said, until the person finishes it in the Security area. Asked first, before the workspace a runtime
+    // still carries in memory: past the gate that runtime is no valid one any more, and its encrypted worker never
+    // runs again on a workspace half gone. Only that fact holds it, never leftovers.
+    const leaving = await mobileDecommissionUnfinished(v.vaultId).catch(() => "unreadable" as const);
+    // Whether a runtime with a workspace in memory still has its status (`unreadable` where the store fails).
+    const carried = v.workspaceRuntime ? await getMobileWorkspaceStatus(v.vaultId).then((s) => s, () => "unreadable" as const) : null;
+    if (leaving === "unreadable" || carried === "unreadable") {
+      // The store does not answer (review B2, round 12). A runtime with a workspace in memory is held — its status or
+      // the fact of a gate may be gone, and the encrypted worker must not run on a workspace half gone — and asked
+      // again by itself, as a folder that waits is (`encryptedRemoteRetryDelay`), and at "Sync now", coming back and
+      // coming online. Any other vault is "nothing known", as before: its folder's own gate and the plain worker's
+      // listing guard what is beyond.
+      if (v.workspaceRuntime) {
+        const attempt = held?.vaultId === v.vaultId ? held.attempt : 0;
+        held = { vaultId: v.vaultId, attempt: attempt + 1 };
+        setState({ status: "error", message: null });
+        const delay = encryptedRemoteRetryDelay(attempt);
+        encryptedRemoteRetry = setTimeout(() => {
+          encryptedRemoteRetry = null;
+          if (generation === startGeneration) void restartSyncIfActive(v.vaultId);
+        }, delay);
+        return true;
+      }
+    } else if (leaving) {
+      held = { vaultId: v.vaultId, attempt: 0 };
+      setState({ status: "error", message: i18n.t(leaving === "lift" ? "workspaceSecurity.liftUnfinished" : "workspaceSecurity.decommissionUnfinished"), errorKind: "pair-required" });
+      return true;
+    }
+    // A runtime that carries a workspace whose status went after it opened (the start loads the workspace only with
+    // its status) is past a decommission's gate, finished or not (review B2, round 11, SP-A): never its encrypted
+    // worker, and never "joined" over the departure. Only the vault opened anew syncs, as its own state has it — the
+    // step that took it past the gate opens it anew.
+    if (v.workspaceRuntime && carried === null) {
+      // Asked again, it is opened anew (`askHeldAgain`), also where no step retired it (review B2, round 12, H-3).
+      held = { vaultId: v.vaultId, attempt: 0, reopen: v };
+      setState({ status: "off", message: null });
+      return true;
+    }
     if (v.workspaceRuntime) {
       // A member with its keys: the encrypted worker runs. The knowledge stays.
       await markEncryptedRemoteJoined(ports, workspaceDeparture(v.workspaceRuntime).workspace);
@@ -1026,6 +1163,8 @@ export function syncSoon(): void {
 
 export function stopSync(): void {
   startGeneration += 1;
+  stopStarts();
+  syncPlace = null;
   if (encryptedRemoteRetry) { clearTimeout(encryptedRemoteRetry); encryptedRemoteRetry = null; }
   held = null;
   clearMobileCommentWorker();
@@ -1040,18 +1179,237 @@ export function stopSync(): void {
   unverifiedUploader = null;
 }
 
+
+/** The workers a close detached (`detachSync`): what they report while they drain is no longer the sync on screen. */
+const detachedWorkers = new WeakSet<object>();
+
 /**
- * Stops the worker AND waits for a running cycle (P3.4, finding M4): vault
- * switch/delete close or remove the per-vault database right after — a cycle
- * still downloading/writing must finish (or abort) first.
+ * The sync of the vault that closes, taken off at once — synchronously, as
+ * the close begins: its worker, its settings-only sync and its comment
+ * worker are no longer the app's, a start begun before puts nothing in
+ * place, and their clocks are stopped. Answers the drain, which the close
+ * runs once its saves have landed (`settleBeforeClosing`).
+ *
+ * So the sync belongs to the runtime it started for. A close that goes on
+ * while a save still hangs leaves nothing behind that would keep the next
+ * vault's sync from starting (`startSyncDecided` sees no worker), and the
+ * drain, however late it comes, reaches only the workers it took — never the
+ * next vault's.
  */
-export function stopSyncAndDrain(): Promise<void> {
-  return stopAndDrainNow();
+export function detachSync(): DetachedSync {
+  return takeSync(true);
 }
 
-/** The stop itself; inside the chain a restart calls it directly, and waiting on the chain there would wait on itself. */
-async function stopAndDrainNow(): Promise<void> {
+// A close in vaultService takes the sync off at once, before it waits for anything — which a lazily loaded module
+// cannot be asked for: the sync registers its detach there as it loads (performance plan L5).
+registerLoadedSync({ detachSync });
+
+// The holds of a vault's sync (`syncHolds.ts`): what a hold says while the vault is on screen, and what the last
+// release starts — told there as the sync loads.
+registerSyncHolds({
+  held: (vaultId) => sayHeld(vaultId),
+  released: (vaultId) => {
+    const now = runtimeOnScreen();
+    if (now?.vaultId === vaultId) void startSyncIfConfigured(now).catch((e: unknown) => console.error("[sync] start after a step failed", e));
+  },
+});
+
+/** Re-exported for the screens and the tests: whether something holds the vault's sync now. */
+export { vaultSyncHeld };
+
+const syncHeld = vaultSyncHeld;
+
+/**
+ * While something holds the sync of the vault on screen and nothing of its
+ * sync runs any more, its status says so: paused (`mobile.syncDisconnected`),
+ * never the last word of another vault or of the cycle the step stopped
+ * (review B2, round 7, M1). The start after the last release says what
+ * follows.
+ */
+function sayHeld(vaultId: string): void {
+  if (!syncHeld(vaultId) || runtimeOnScreen()?.vaultId !== vaultId || worker || settingsOnlySync) return;
+  setState({ status: "off", message: null });
+}
+
+/**
+ * Stops the sync of the vault on screen for a step that then works on the
+ * vault's runtime — the security wizard, resuming, lifting or leaving a
+ * workspace, a new remote folder — within the close's deadline (texts 2 and
+ * 5), never without end. A cycle that does not end in time is left: the
+ * vault's runtime is called off (after its saves and its owed queue
+ * entries), the vault opens anew, and the step goes on with the new runtime,
+ * whose sync waits for the step (`startSyncAfterBoot`) until it starts it
+ * again. Never two runtimes at one vault: the new one opens once the old one
+ * has ended (text 7).
+ *
+ * Answers the vault the step goes on with: null — the one it has (the sync
+ * ended in time, or none ran); after the deadline, the new runtime. Where the
+ * step's runtime is not on screen — before the call, in the wait, or when the
+ * renew's turn comes — nothing is done and the step did not run (`notRun`).
+ * A step on a vault's sign-ins has no runtime of its own: `withVaultSyncStopped`.
+ */
+export async function stopSyncForStep(step: StepTarget, options: { say?: boolean } = {}): Promise<MobileVault | null> {
+  // The step's vault and runtime come with it, from the press on: nothing here reads "the active vault" to learn
+  // what the step is for. Before the sync is taken (no wait in between), and after every wait, the runtime on screen
+  // is compared with the step's own — the same instance — and a switch, also away and back, never lets the step go
+  // on with another runtime.
+  const { runtime } = step;
+  const onScreen = () => runtime !== null && runtime.vaultId === step.vaultId && runtimeOnScreen() === runtime;
+  const named = async () => vaultEntryName((await getVaultEntry(step.vaultId).catch(() => null))?.name);
+  const notRunIn = (vault: string) => () => (options.say === false ? new StepNoticeError(i18n.t("closing.stepNotRun", { vault }), "not-run") : stepNotRun(vault));
+  if (!onScreen()) throw notRunIn(await named())();
+  const taken = takeSync(false);
+  // Nothing ran: nothing to wait for — the step goes on with its runtime as it is now.
+  if (!taken.running) {
+    sayHeld(step.vaultId);
+    return null;
+  }
+  const drain = taken.drain();
+  const vault = await named();
+  const notRun = notRunIn(vault);
+  const outcome = await waitWithDeadline(drain, () => ({ kind: "sync", vault }));
+  if (!onScreen()) throw notRun();
+  if (outcome === "done") {
+    sayHeld(step.vaultId);
+    return null;
+  }
+  // The one way of leaving the vault and opening it anew (vaultService), for this very runtime only. Its new
+  // runtime's sync waits for the step's hold (`withRuntimeStep`), or, for a restart, for the start chain it runs in.
+  return renewAfterSyncGaveUp({ drain: drain.catch(() => undefined), place: taken.place, runtime: runtime!, vault, notRun });
+}
+
+/**
+ * A step that stops a vault's sync to work on its runtime — the security
+ * wizard, resuming, lifting or leaving a workspace, a new remote folder. It
+ * holds the vault's sync for its whole length (`holdVaultSync`); `work` stops
+ * the sync when it is ready to (`stop`, within the deadline, answering the
+ * runtime it goes on with) and does the step.
+ *
+ * `reload`: the step's own reload, still within the hold — of the runtime
+ * the step went on with, and of that one only (`reloadActiveMobileVault`
+ * with `runtime`, checked at the reload's turn). Where that runtime is not
+ * on screen any more when the reload's turn comes (the person switched away,
+ * or the vault was opened anew), nothing is reloaded: the step's work is
+ * done, and the vault opens in its new state whenever it opens next. A reload
+ * that waits behind someone's input holds the sync from there on itself, so
+ * the step's release starts nothing on the runtime it changed.
+ *
+ * A failure of `work` while the step's runtime is no longer the open one on
+ * screen — once the transitions under way have run (a reload that failed
+ * gives its runtime back) — is that the step did not finish
+ * (`stepInterrupted`), never a raw error.
+ */
+export async function withRuntimeStep<T>(
+  step: StepTarget,
+  run: {
+    work(stop: () => Promise<MobileVault>): Promise<T>;
+    /**
+     * The step's own reload: after it succeeded (`when`), and — `afterFailure` — after a failure that left the
+     * runtime no valid one (a decommission past its gate): that runtime is never given its sync back, it is opened
+     * anew, as the desktop does (`leaveWorkspace`).
+     */
+    reload?: { own: string; when?: (result: T) => boolean; afterFailure?: () => Promise<boolean> };
+  },
+  options: { say?: boolean } = {},
+): Promise<T> {
+  const release = holdVaultSync(step.vaultId);
+  let on: MobileVault | null = step.runtime;
+  try {
+    let result: T;
+    try {
+      result = await run.work(async () => {
+        on = (await stopSyncForStep(step, options)) ?? step.runtime!;
+        return on;
+      });
+    } catch (error) {
+      if (isStepNoticeError(error)) throw error;
+      // Judged once what is under way has run: a transition that failed and gave the runtime back closed nothing.
+      await transitionsSettled();
+      if (runtimeOnScreen() === on) {
+        // The runtime stays, but where the step's failure left it no valid one, it is opened anew before the hold is
+        // given back (review B2, round 10, SP1): the release starts nothing on it.
+        if (run.reload?.afterFailure && on && (await run.reload.afterFailure().catch(() => true))) {
+          await reloadActiveMobileVault(run.reload.own, { runtime: on }).catch((e: unknown) => console.error("[step] reload after a failure failed", e));
+        }
+        throw error;
+      }
+      const vault = vaultEntryName((await getVaultEntry(step.vaultId).catch(() => null))?.name);
+      throw options.say === false ? new StepNoticeError(i18n.t("closing.stepInterrupted", { vault }), "interrupted") : stepInterrupted(vault);
+    }
+    if (run.reload && on && (run.reload.when?.(result) ?? true)) await reloadActiveMobileVault(run.reload.own, { runtime: on });
+    return result;
+  } finally {
+    release();
+  }
+}
+
+/** What a step that stops the sync works on: its vault, and the runtime of it as the step's caller had it. */
+export interface StepTarget {
+  vaultId: string;
+  runtime: MobileVault | null;
+}
+
+/**
+ * A step on a vault's sign-ins — a new password, the broker taking over, the
+ * files taken out — belongs to the vault, not to a runtime of it: it changes
+ * what the vault's sync signs in with. So it holds the vault's sync from the
+ * first line to its end (`holdVaultSync`). What runs for this vault on screen
+ * at that moment is taken, in the same synchronous run as the hold, and
+ * stopped within the close's deadline; a cycle that does not end in time is
+ * left as for any step (`renewAfterSyncGaveUp`, its runtime opened anew).
+ * Where the vault is not on screen nothing of another vault is stopped. The
+ * step never says it did not run: it runs either way, and nothing of this
+ * vault's sync runs meanwhile. Its release starts the sync again as the new
+ * state has it — on success and on failure alike.
+ */
+export async function withVaultSyncStopped<T>(vaultId: string, body: () => Promise<T>): Promise<T> {
+  const release = holdVaultSync(vaultId);
+  try {
+    const runtime = runtimeOnScreen();
+    if (runtime?.vaultId === vaultId) await stopForSignIn(runtime);
+    return await body();
+  } finally {
+    release();
+  }
+}
+
+/** The stop of `withVaultSyncStopped`: taken at once (no wait before it), then drained within the deadline. */
+async function stopForSignIn(runtime: MobileVault): Promise<void> {
+  const taken = takeSync(false);
+  if (!taken.running) {
+    sayHeld(runtime.vaultId);
+    return;
+  }
+  const drain = taken.drain();
+  const vault = vaultEntryName((await getVaultEntry(runtime.vaultId).catch(() => null))?.name);
+  if ((await waitWithDeadline(drain, () => ({ kind: "sync", vault }))) === "done") {
+    sayHeld(runtime.vaultId);
+    return;
+  }
+  // Given up: the runtime is left and opened anew where it is still on screen; its sync stays held by the step.
+  // Where it is not (a switch meanwhile), nothing of it runs either — a quiet notice, never said, is all that comes.
+  const quiet = () => new StepNoticeError(i18n.t("closing.stepNotRun", { vault }), "not-run");
+  await renewAfterSyncGaveUp({ drain: drain.catch(() => undefined), place: taken.place, runtime, vault, notRun: quiet }).catch((error: unknown) => {
+    if (!isStepNoticeError(error)) throw error;
+  });
+}
+
+/** What a close took off (`detachSync`). */
+export interface DetachedSync {
+  /** Stops and waits for the workers it took — only those. */
+  drain: () => Promise<void>;
+  /** The folder they synced with: the close parks its runtime's end under it (`parkClosingSyncPlace`). */
+  place: SyncStateBinding | null;
+  /** Whether it took anything: a close without a sync names no sync step (texts 2 and 5). */
+  running: boolean;
+}
+
+/** Takes the running sync off the app's state; `quiet`: what it reports while it drains is not said any more. */
+function takeSync(quiet: boolean): DetachedSync {
   startGeneration += 1;
+  stopStarts();
+  const place = syncPlace;
+  syncPlace = null;
   if (encryptedRemoteRetry) { clearTimeout(encryptedRemoteRetry); encryptedRemoteRetry = null; }
   held = null;
   clearMobileCommentWorker();
@@ -1060,13 +1418,41 @@ async function stopAndDrainNow(): Promise<void> {
   setFirstPullDone(null);
   const settingsOnly = settingsOnlySync;
   settingsOnlySync = null;
-  await settingsOnly?.stopAndDrain();
   deletionJournal = null;
   journalChecker = null;
   nameTwinResolver = null;
   unverifiedUploader = null;
-  if (w) await w.stopAndDrain();
+  if (w && quiet) detachedWorkers.add(w);
+  w?.stop();
+  settingsOnly?.stop();
+  return {
+    drain: async () => {
+      await settingsOnly?.stopAndDrain();
+      if (w) await w.stopAndDrain();
+    },
+    place: w || settingsOnly ? place : null,
+    running: !!(w || settingsOnly),
+  };
 }
+
+/**
+ * The stop itself; inside the chain a restart calls it directly, and waiting on the chain there would wait on itself.
+ * Within the deadline (`stopSyncForStep`): answers the vault's new runtime where it had to leave the old one.
+ */
+async function stopAndDrainNow(runtime: MobileVault | null): Promise<MobileVault | null | typeof LEFT> {
+  // Inside the start chain the step is a restart of the sync of `runtime`: where that runtime is not on screen any
+  // more there is nothing to restart, and nothing to say.
+  if (!runtime) return LEFT;
+  try {
+    return await stopSyncForStep({ vaultId: runtime.vaultId, runtime }, { say: false });
+  } catch (error) {
+    if (isStepNoticeError(error)) return LEFT;
+    throw error;
+  }
+}
+
+/** A restart whose vault was left meanwhile (`stopAndDrainNow`): it starts nothing. */
+const LEFT = Symbol("left");
 
 /**
  * Per-request timeout handed to every sync target on device. The native
@@ -1095,7 +1481,9 @@ function reportRootFolderCreated(name: string): void {
   });
 }
 
-async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string, context?: ServiceConnectionContext): Promise<ISyncTarget> {
+async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultId?: string, context?: ServiceConnectionContext, counted?: MobileVault["countRequest"]): Promise<ISyncTarget> {
+  // A vault's sync: what it gives up waiting for still counts for its runtime (`webdavFetchCountedIn`).
+  const fetcher = counted ? webdavFetchCountedIn(counted) : webdavFetch;
   // A stored sign-in goes only to an address this phone confirmed (F57); a
   // probe before saving (`credKey === null`) sends what was typed here.
   if (credKey !== null && vaultId) await assertEndpointConfirmedIn(vaultId, storedProviderEndpoint(p));
@@ -1111,7 +1499,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
   };
   switch (p.provider) {
     case "s3":
-      return new (await syncModules()).S3SyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, undefined, mobileSyncUploader);
+      return new (await syncModules()).S3SyncTarget(p.creds, fetcher, MOBILE_REQUEST_TIMEOUT_MS, undefined, mobileSyncUploader);
     case "drive": {
       const destination = credKey === null ? { path: p.creds.rootFolderName, id: undefined } : await readDriveDestination(vaultId ?? "", p);
       const target = new (await syncModules()).DriveSyncTarget(
@@ -1125,7 +1513,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
           rootFolderName: destination.path || undefined,
           rootFolderId: destination.id,
         },
-        webdavFetch,
+        fetcher,
         MOBILE_REQUEST_TIMEOUT_MS,
         mobileSyncUploader,
       );
@@ -1157,7 +1545,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
           refreshToken: p.creds.refreshToken,
           rootFolderName: (credKey === null ? p.creds.rootFolderName : await readSyncRootFolder(vaultId ?? "", "onedrive", p)) || undefined,
         },
-        webdavFetch,
+        fetcher,
         MOBILE_REQUEST_TIMEOUT_MS,
         mobileSyncUploader,
       );
@@ -1188,7 +1576,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
           refreshToken: p.creds.refreshToken,
           rootPath: (credKey === null ? p.creds.rootPath : await readSyncRootFolder(vaultId ?? "", "dropbox", p)) || undefined,
         },
-        webdavFetch,
+        fetcher,
         MOBILE_REQUEST_TIMEOUT_MS,
         undefined,
         mobileSyncUploader,
@@ -1202,7 +1590,7 @@ async function buildTarget(p: MobileSyncProvider, credKey: string | null, vaultI
       return target;
     }
     default:
-      return new (await syncModules()).WebDavSyncTarget(p.creds, webdavFetch, MOBILE_REQUEST_TIMEOUT_MS, mobileSyncUploader);
+      return new (await syncModules()).WebDavSyncTarget(p.creds, fetcher, MOBILE_REQUEST_TIMEOUT_MS, mobileSyncUploader);
   }
 }
 
@@ -1349,20 +1737,23 @@ function withRemoteFolder(p: MobileSyncProvider, folder: string): MobileSyncProv
 }
 
 export async function changeRemoteFolder(v: MobileVault, folder: string, folderId?: string): Promise<void> {
-  if ((await getActiveVaultEntry()).id !== v.vaultId) throw new Error("The active vault changed. Open its current settings.");
   const stored = await getStoredProvider(v.vaultId);
   if (!stored || !canChangeRemoteFolder(stored.provider)) throw new Error("remote folder is not changeable for this provider");
-  await inStartChain(async () => {
-    await stopAndDrainNow();
-    // The three OAuth providers keep the folder in the settings now, so it
-    // survives an account being removed; WebDAV and S3 keep theirs in the
-    // connection, where a reconnect shows it in the form.
-    await writeSyncRootFolder(v.vaultId, stored.provider, folder.trim(), folderId);
-    if (stored.provider === "s3") {
-      await getPlatformServices().credentials.writeSecret(credKeyFor(v.vaultId), withRemoteFolder(stored, folder));
-    }
-    await startSyncDecided(v);
-  });
+  await inStartChain(() => withRuntimeStep({ vaultId: v.vaultId, runtime: v }, {
+    // A step on the runtime it was asked for (`v`): where that is not on screen any more, the folder is not changed,
+    // and the step says so (`closing.stepNotRun`). Its release starts the sync with the new folder, after this link
+    // of the chain.
+    work: async (stop) => {
+      await stop();
+      // The three OAuth providers keep the folder in the settings now, so it
+      // survives an account being removed; WebDAV and S3 keep theirs in the
+      // connection, where a reconnect shows it in the form.
+      await writeSyncRootFolder(v.vaultId, stored.provider, folder.trim(), folderId);
+      if (stored.provider === "s3") {
+        await getPlatformServices().credentials.writeSecret(credKeyFor(v.vaultId), withRemoteFolder(stored, folder));
+      }
+    },
+  }));
 }
 
 export async function openDriveDestination(vaultId: string) {
@@ -1379,13 +1770,16 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
   // check of the generation and what it guards no load of a module may wait.
   const sync = await syncModules();
   const workspace = v.workspaceRuntime || v.workspaceState ? await workspaceModule() : null;
+  // Then the folder: never beside a runtime that still closes at it (text 8).
+  const place = await waitForSyncPlace(v, p, generation);
+  if (place === false) return;
   v.enableSyncEnqueue();
   // Origin policy (P4.3): user-configured servers must be allowed on the
   // native bridge before requests fly. Fire-and-forget is safe — a request
   // racing the registration fails ONE cycle and the next one self-heals.
   if (p.provider === "webdav") void allowHttpOrigin(p.creds.url);
   else if (p.provider === "s3") void allowHttpOrigin(p.creds.endpoint);
-  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId);
+  const rawTarget = await buildTarget(p, credKeyFor(v.vaultId), v.vaultId, undefined, v.countRequest);
   // A vault that has synced before never gets a freshly created remote folder
   // (finding 2026-09-20): not finding it is then an error with a way out, not
   // a reason to compare every known file against an empty one. Probes and
@@ -1435,10 +1829,14 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     // No name-collision channel here on purpose: an encrypted workspace stores
     // sealed objects under content hashes, so the remote never carries a human
     // file name and two Unicode forms of one cannot exist (finding 2026-08-21).
-    encrypted.onStatusChange = (status, errorMsg, _reason, retryAt, failureKind) => setState({
-      status, message: workspaceSyncFailureText(errorMsg, failureKind), retryAt,
-      errorKind: failureKind === "integrity" ? "workspace-integrity" : failureKind === "authentication" ? "authentication" : undefined,
-    });
+    encrypted.onStatusChange = (status, errorMsg, _reason, retryAt, failureKind) => {
+      // A worker a close detached reports nothing over the next vault's sync.
+      if (detachedWorkers.has(encrypted)) return;
+      setState({
+        status, message: workspaceSyncFailureText(errorMsg, failureKind), retryAt,
+        errorKind: failureKind === "integrity" ? "workspace-integrity" : failureKind === "authentication" ? "authentication" : undefined,
+      });
+    };
     encrypted.onProgress = (progress) => setProgress(progress ? { current: progress.current, total: progress.total } : null);
     // The plain sync's question, word for word (release 0.9.0 A4).
     encrypted.onMassDeletionPending = (info) => askMassDeletion(encrypted, info);
@@ -1456,6 +1854,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
       v.sweepOwedToRemote("workspace");
     };
     worker = encrypted;
+    syncPlace = place;
     beginFirstPull(v);
     setMobileCommentWorker(v, encrypted);
     setState({ status: "idle", message: null });
@@ -1507,6 +1906,8 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     workspaceListed: await mobileWorkspaceListed(v, p),
   });
   w.onStatusChange = (status, errorMsg, reason, retryAt) => {
+    // A worker a close detached reports nothing over the next vault's sync.
+    if (detachedWorkers.has(w)) return;
     // The folder became (or was) a workspace this phone has not joined: the
     // worker stops, and the start's gate says what to do (R8).
     if (reason === "encrypted-workspace") {
@@ -1586,6 +1987,7 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
     }
   };
   worker = w;
+  syncPlace = place;
   beginFirstPull(v);
   setState({ status: "idle", message: null });
   w.start();
@@ -1598,7 +2000,9 @@ async function startWorker(v: MobileVault, p: MobileSyncProvider, generation: nu
 /** Rebuilds the worker after unlocking or changing the settings-sync opt-in - stop and start as one step (finding 4). */
 export function restartSync(v: MobileVault): Promise<void> {
   return inStartChain(async () => {
-    await stopAndDrainNow();
-    await startSyncDecided(v);
+    if (syncHeld(v.vaultId)) return;
+    const renewed = await stopAndDrainNow(v);
+    if (renewed === LEFT) return;
+    await startSyncDecided(renewed ?? v);
   });
 }

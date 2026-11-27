@@ -155,6 +155,16 @@ export function forgetDraftMemory(vaultId: string): void {
   void made?.journal.forgetSeen(`drafts/${vaultId}`);
 }
 
+/**
+ * Before a vault closes, switches or reloads: what the journal still buffers
+ * for it goes to disk first, bounded as on the desktop — with the vault gone,
+ * nobody writes it later, and a close that gives up waiting for a save says
+ * that the text lies in the draft (`settleBeforeClosing`).
+ */
+export async function flushDraftsBeforeClosing(v: MobileVault): Promise<void> {
+  await writer().flush((scope) => scope.vaultId === v.vaultId, { waitMs: MOVE_WAIT_MS });
+}
+
 /** Attempt all buffered journal snapshots before the OS suspends timers. */
 export async function flushDrafts(v?: MobileVault): Promise<void> {
   await writer().flush((scope) => !v || scope.vaultId === v.vaultId);

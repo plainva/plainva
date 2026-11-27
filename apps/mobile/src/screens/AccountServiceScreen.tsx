@@ -20,6 +20,7 @@ import { AreaBoundary,
   familyLabel,
   GroupCard,
   ICON,
+  isStepNoticeError,
   Row,
   RowList,
   SectionLabel,
@@ -265,7 +266,11 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
         <InfoTip label={t("cloudAccounts.filesGroup")} info={t("cloudAccounts.filesOffLimit")} testId="account-files-limit-info" />
       </p>
       {drivePicker && <DriveDestinationDialog session={drivePicker} onClose={() => setDrivePicker(null)}
-        onSave={async (selected) => { await changeRemoteFolder(vault, selected.path, selected.id); await reload(); }} />}
+        onSave={async (selected) => {
+          // Where the vault was left meanwhile the step says so itself (`closing.stepNotRun`): nothing more to say here.
+          try { await changeRemoteFolder(vault, selected.path, selected.id); } catch (error) { if (isStepNoticeError(error)) return; throw error; }
+          await reload();
+        }} />}
       {folderPick && (
         <AreaBoundary area="sheet:cloudFolderPicker" size="dialog" exit={{ label: t("common.close"), onExit: () => setFolderPick(null) }}>
         <CloudFolderPickerSheet
@@ -275,7 +280,7 @@ function FilesPart({ vaultId, vault, on }: { vaultId: string; vault: MobileVault
           onClose={() => setFolderPick(null)}
           onPick={(path) => {
             setFolderPick(null);
-            void changeRemoteFolder(vault, path).then(reload).catch((e) => toast.warning(String(e)));
+            void changeRemoteFolder(vault, path).then(reload).catch((e) => { if (!isStepNoticeError(e)) toast.warning(String(e)); });
           }}
         />
         </AreaBoundary>

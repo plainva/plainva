@@ -151,6 +151,9 @@ const handedOut = () => ({
   // Work the next start does again goes past that count, to the same level.
   uncounted: <T,>(adapter: T): T => adapter,
   state: { vaultAdapter: top, backupAdapter: versions, belowChainAdapter: versions },
+  // A step that stopped the sync works on the runtime on screen at that moment (`workspaceSteps.ts`): its lowest
+  // link is the same level — `runtimeRef` keeps `personBelowChain`.
+  on: { belowChain: versions },
   deps: { vaultAdapter: top },
 });
 function named<T>(expression: string): T {
@@ -309,7 +312,9 @@ describe("the desktop's wiring", () => {
     expect(context).toMatch(/const personBelowChain = countWrites\(backupVaultAdapter, "person"\);/);
     expect(context).toMatch(/const syncRepo = chain\.syncRepo!;/);
     expect(context).toMatch(/installOwnerBus\(\{[^}]*?\n\s+vaultAdapter: state\.vaultAdapter,/);
-    expect(all(parsed(CONTEXT), ts.isVariableDeclaration).filter((d) => d.name.getText() === "backupAdapter").map((d) => d.initializer?.getText())).toEqual(["state.belowChainAdapter", "state.belowChainAdapter"]);
+    expect(all(parsed(CONTEXT), ts.isVariableDeclaration).filter((d) => d.name.getText() === "backupAdapter").map((d) => d.initializer?.getText())).toEqual([]);
+    // The steps that stop the sync take the lowest link from the runtime they work on, which the load keeps.
+    expect(context).toMatch(/runtimeRef\.current = \{[^}]*\n\s+belowChain: personBelowChain,/);
     // What a component reads as `vaultAdapter` is the chain's top — the views of the map take it from the vault context.
     expect(context).toMatch(/const vaultAdapter = chain\.files;/);
     for (const rel of GRAPH_VIEWS) expect(sourceFile(rel), rel).toMatch(/const \{[^}]*\bvaultAdapter\b[^}]*\} = useVault\(\);/);

@@ -44,7 +44,7 @@ vi.mock("./services/mobileWorkspaceSecurity", () => ({
 vi.mock("./services/syncService", () => ({
   getMobileWorkspaceObjectStore: vi.fn(),
   remoteSidebandFileExists: vi.fn(async () => false),
-  stopSyncAndDrain: vi.fn(async () => undefined),
+  stopSyncForStep: vi.fn(async () => null),
 }));
 vi.mock("./services/recoveryFile", () => ({ saveRecoveryFile: vi.fn(async () => undefined) }));
 vi.mock("./services/vaultService", () => ({ reloadActiveMobileVault: vi.fn(async () => undefined) }));

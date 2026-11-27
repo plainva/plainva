@@ -14,7 +14,12 @@ export function createPasswordCredentialTarget<T, B>(opts: {
   readBinding(): Promise<B>;
   withPassword(value: T, password: string): T;
   verify(value: T, binding: B, password: string): Promise<void>;
-  beforeWrite?(): Promise<void>;
+  /**
+   * Runs the write — the one step that changes what the credential signs in
+   * with — inside what its owner must hold for it (the phone holds the vault's
+   * sync across it: `withVaultSyncStopped`). Called once per write.
+   */
+  around?(write: () => Promise<void>): Promise<void>;
 }): PasswordChangeTarget {
   const source = async () => {
     const credential = await opts.read();
@@ -36,16 +41,16 @@ export function createPasswordCredentialTarget<T, B>(opts: {
       const value = parse(previous);
       await opts.verify(value.credential, value.binding, password);
     },
-    write: async (expected, next) => {
-      await opts.beforeWrite?.();
-      const current = await source();
-      if (!sameStoredValue(current, parse(expected))) throw new PasswordChangeError("changed", opts.service);
-      const replacement = parse(next);
-      if (!sameStoredValue(current.binding, replacement.binding)) throw new PasswordChangeError("changed", opts.service);
-      const raw = await opts.store.read(opts.key);
-      if (raw === null || !sameStoredValue(JSON.parse(raw), current.credential)
-        || !sameStoredValue(await opts.readBinding(), current.binding)) throw new PasswordChangeError("changed", opts.service);
-      if (!await opts.store.compareAndSet(opts.key, raw, JSON.stringify(replacement.credential))) throw new PasswordChangeError("changed", opts.service);
-    },
+    write: (expected, next) => (opts.around ? opts.around(() => write(expected, next)) : write(expected, next)),
   };
+  async function write(expected: string, next: string): Promise<void> {
+    const current = await source();
+    if (!sameStoredValue(current, parse(expected))) throw new PasswordChangeError("changed", opts.service);
+    const replacement = parse(next);
+    if (!sameStoredValue(current.binding, replacement.binding)) throw new PasswordChangeError("changed", opts.service);
+    const raw = await opts.store.read(opts.key);
+    if (raw === null || !sameStoredValue(JSON.parse(raw), current.credential)
+      || !sameStoredValue(await opts.readBinding(), current.binding)) throw new PasswordChangeError("changed", opts.service);
+    if (!await opts.store.compareAndSet(opts.key, raw, JSON.stringify(replacement.credential))) throw new PasswordChangeError("changed", opts.service);
+  }
 }

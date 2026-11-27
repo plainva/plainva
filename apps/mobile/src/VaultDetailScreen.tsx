@@ -464,7 +464,8 @@ export function VaultDetailScreen({
       try {
         await getVaultFolderPlugin().release({ handle: externalRef.handle }).catch(() => {});
         await updateVault(vaultId, { external: { handle: picked.handle, label: picked.label, platform } });
-        if (isActive) await reloadActiveMobileVault();
+        // The vault this folder is for, and only while it is the one on screen at the reload's turn.
+        if (isActive) await reloadActiveMobileVault(undefined, { vaultId });
         setFolderAccess({ state: "ok", label: picked.label });
       } finally {
         setBusy(false);

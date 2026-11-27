@@ -4,12 +4,15 @@ import { oauthScopeFor, type CloudAccountRecord } from "@plainva/ui";
 import type { MobileVault } from "./vaultService";
 import type { MobileSyncProvider } from "./syncSlot";
 
-const state = vi.hoisted(() => ({ secrets: new Map<string, unknown>(), records: [] as CloudAccountRecord[], resumed: vi.fn() }));
+const state = vi.hoisted(() => ({ secrets: new Map<string, unknown>(), records: [] as CloudAccountRecord[], resumed: vi.fn(), heldAtWrite: [] as Array<[string, boolean]>, held: ((_vaultId: string) => false) as (vaultId: string) => boolean }));
 vi.mock("@plainva/ui", async (original) => ({
   ...await original<typeof import("@plainva/ui")>(),
   getPlatformServices: () => ({ credentials: {
     readSecret: async (key: string) => structuredClone(state.secrets.get(key) ?? null),
-    writeSecret: async (key: string, value: unknown) => { state.secrets.set(key, structuredClone(value)); },
+    writeSecret: async (key: string, value: unknown) => {
+      state.heldAtWrite.push([key, state.held("v")]);
+      state.secrets.set(key, structuredClone(value));
+    },
   } }),
 }));
 vi.mock("../platform/secureStore", () => ({ secureCredentialStore: {
@@ -18,7 +21,7 @@ vi.mock("../platform/secureStore", () => ({ secureCredentialStore: {
 } }));
 vi.mock("./cloudAccountsStore", () => ({ loadCloudAccounts: async () => state.records }));
 vi.mock("./vaultRegistry", async (original) => ({ ...await original<typeof import("./vaultRegistry")>(), getActiveVaultEntry: async () => ({ id: "other-vault" }), updateVault: state.resumed }));
-vi.mock("./vaultService", () => ({ getMobileVault: vi.fn(), switchVault: vi.fn() }));
+vi.mock("./vaultService", () => ({ getMobileVault: vi.fn(), switchVault: vi.fn(), runtimeOnScreen: () => null }));
 vi.mock("./syncRootFolder", () => ({ readSyncRootFolder: async () => "Vault", readDriveDestination: async () => ({ path: "Vault" }) }));
 vi.mock("@plainva/core", async (original) => ({
   ...await original<typeof import("@plainva/core")>(),
@@ -26,7 +29,8 @@ vi.mock("@plainva/core", async (original) => ({
   refreshOneDriveAccessToken: async ({ scope }: { scope: string }) => ({ accessToken: "microsoft-access", scope, expiresIn: 3600 }),
 }));
 vi.mock("../adapters/webdavHttp", () => ({ webdavFetch: async () => new Response(JSON.stringify({ sub: "person", id: "person", email: "person@example.test" })), allowHttpOrigin: vi.fn() }));
-import { switchProviderToAccountBroker, getMobileWorkspaceObjectStore, createProviderVault } from "./syncService";
+import { switchProviderToAccountBroker, getMobileWorkspaceObjectStore, createProviderVault, vaultSyncHeld } from "./syncService";
+state.held = vaultSyncHeld;
 import { accountSecretKey, forgetAccountBroker, googleScopeFor, microsoftScopeFor } from "./accountBroker";
 import { bindRunTokenToAccount } from "./connectConsent";
 
@@ -104,6 +108,17 @@ describe("the real mobile file service respects its account binding", () => {
     await expect(switchProviderToAccountBroker("v", state.records[0], "google-client")).rejects.toThrow();
     await expect(switchProviderToAccountBroker("v", state.records[1], "other-client")).rejects.toThrow();
     expect(state.secrets.get("sync_provider_mobile_v")).toEqual(files);
+  });
+
+  it("holds the vault's sync before its first write to the slot, a new client adopted (round 6)", async () => {
+    expect.hasAssertions();
+    state.secrets.set("sync_provider_mobile_v", { provider: "onedrive", creds: { clientId: "old-client", refreshToken: "old-files", rootFolderName: "Existing" } });
+    state.heldAtWrite.length = 0;
+    await switchProviderToAccountBroker("v", state.records[1], "microsoft-client", {});
+    const slotWrites = state.heldAtWrite.filter(([key]) => key === "sync_provider_mobile_v");
+    // THE DEFECT: the adopted client was written to the slot before the sync was held — a cycle could sign in with it.
+    expect(slotWrites.length).toBeGreaterThan(0);
+    expect(slotWrites.every(([, held]) => held)).toBe(true);
   });
 
   it("clears only a bound slot, and leaves the person's pause alone (second review, B4a)", async () => {

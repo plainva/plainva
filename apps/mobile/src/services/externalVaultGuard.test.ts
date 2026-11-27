@@ -18,7 +18,10 @@ const src = readFileSync(fileURLToPath(new URL("./vaultService.ts", import.meta.
 
 describe("the delete path knows only containers (external vault folder, P6)", () => {
   it("guards the container rmdir with the external check, in that order", () => {
-    const fn = src.slice(src.indexOf("export async function deleteVault("));
+    // The removal runs once nothing of the vault runs or is held any more (`removeVaultAndData`, called from `deleteVault`).
+    const del = src.slice(src.indexOf("export async function deleteVault("));
+    expect(del.slice(0, del.indexOf("\n}\n"))).toContain("await removeVaultAndData(id, entry, pimIds, publicationIds)");
+    const fn = src.slice(src.indexOf("async function removeVaultAndData("));
     const body = fn.slice(0, fn.indexOf("\n}\n"));
     const guard = body.indexOf("if (isExternalVault(entry))");
     // `removeDataFolder` is the rmdir that may find nothing (stability plan R4).

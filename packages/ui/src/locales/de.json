@@ -3796,6 +3796,7 @@
   "sync": {
     "error": "Sync-Fehler – klicken für Details und erneuten Versuch",
     "retryingAt": "Kein Netz — neuer Versuch um {{time}}",
+    "stuck": "Der Abgleich hängt seit {{minutes}} Minuten. Plainva startet ihn neu, sobald der laufende Schritt endet; ein Neustart der App beendet ihn sofort.",
     "retrying": "Plainva versucht die Synchronisierung erneut…",
     "syncing": "Synchronisiert…",
     "syncingCount": "Sync {{current}}/{{total}}",
@@ -7247,6 +7248,8 @@
     "decommissionNote": "Löscht lokale Schlüssel; verschlüsselte Dateien in der Cloud bleiben — entferne den Ordner danach selbst.",
     "decommissionTypeName": "Tippe zur Bestätigung den Namen des Vaults: {{name}}",
     "decommissionNameMismatch": "Das ist nicht der Name des Vaults — es wurde nichts geändert.",
+    "decommissionUnfinished": "Das Stilllegen ist auf diesem Gerät nicht fertig. Bis dahin synchronisiert dieser Vault nichts; danach entscheidest Du über seinen Ordner.",
+    "liftUnfinished": "Das Aufheben der Verschlüsselung ist nicht fertig; es endet als Stilllegen. Bis dahin synchronisiert nichts, dann wählst Du den Ordner.",
     "orphanRecovery": "Workspace in der Cloud fehlt oder ist beschädigt — der Sync bleibt gestoppt. Lege ihn unten still, um zurückzusetzen.",
     "setupTitle": "Verschlüsselten Workspace einrichten",
     "setupProgress": "Einrichtungsschritt {{step}} von 3",
@@ -8409,5 +8412,21 @@
     "guide": "Anleitung öffnen",
     "statusNotYet": "noch nicht verbunden",
     "stepSetUp": "Einrichten"
+  },
+  "closing": {
+    "savingWait": "Plainva speichert noch „{{name}}“ – danach geht es weiter.",
+    "savingWaitMany_one": "Plainva speichert noch {{count}} Notiz – danach geht es weiter.",
+    "savingWaitMany_other": "Plainva speichert noch {{count}} Notizen – danach geht es weiter.",
+    "syncWait": "Ein Sync-Schritt von „{{vault}}“ läuft noch – danach geht es weiter.",
+    "openingWait": "„{{vault}}“ wird noch geöffnet – danach geht es weiter.",
+    "savingGaveUp": "„{{name}}“ ist noch nicht fertig gespeichert. Plainva geht weiter; das Speichern läuft im Hintergrund zu Ende, und der Text liegt zusätzlich im Entwurf.",
+    "savingGaveUpMany_one": "{{count}} Notiz ist noch nicht fertig gespeichert. Plainva geht weiter; das Speichern läuft im Hintergrund zu Ende, und der Text liegt zusätzlich im Entwurf.",
+    "savingGaveUpMany_other": "{{count}} Notizen sind noch nicht fertig gespeichert. Plainva geht weiter; das Speichern läuft im Hintergrund zu Ende, und die Texte liegen zusätzlich im Entwurf.",
+    "syncGaveUp": "Der Sync-Schritt von „{{vault}}“ ist nicht fertig geworden. Plainva hält ihn an und geht weiter; verloren geht nichts – der nächste Abgleich holt nach, was fehlt.",
+    "openingGaveUp": "„{{vault}}“ ist nicht fertig geöffnet worden. Plainva schließt ihn und entfernt ihn, sobald er antwortet.",
+    "stillClosing": "„{{vault}}“ wird noch geschlossen – danach öffnet Plainva ihn wieder.",
+    "stillClosingSameFolder": "„{{vault}}“ nutzt denselben Sync-Ordner und wird noch geschlossen – danach startet der Sync.",
+    "stepNotRun": "Der Schritt ist nicht gelaufen: „{{vault}}“ wurde gerade geschlossen oder neu geöffnet oder ließ sich nicht wieder öffnen. Geändert wurde nichts; versuche es noch einmal, sobald der Vault offen ist.",
+    "stepInterrupted": "Der Schritt für „{{vault}}“ ist nicht fertig geworden: der Vault wurde währenddessen geschlossen oder neu geöffnet. Ein Teil kann schon erledigt sein; sieh nach, was fehlt, sobald der Vault offen ist."
   }
 }

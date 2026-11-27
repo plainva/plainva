@@ -9,14 +9,23 @@ import { describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   request: vi.fn<(o: unknown) => Promise<{ status: number; headers: Record<string, string>; bodyBase64: string }>>(),
   allowOrigin: vi.fn(async () => {}),
+  cancel: vi.fn(async (_o: { id: string }) => {}),
 }));
+
+// A large body is laid out in a file first; here that write takes a moment and keeps nothing.
+vi.mock("../platform/atomicFile", async (original) => ({
+  ...(await original<typeof import("../platform/atomicFile")>()),
+  atomicWriteBytes: () => new Promise<void>((resolve) => setTimeout(resolve, 5)),
+}));
+vi.mock("@capacitor/filesystem", () => ({ Directory: { Data: "DATA" }, Filesystem: { deleteFile: async () => {} } }));
 
 vi.mock("@capacitor/core", () => ({
   Capacitor: { isNativePlatform: () => true },
   registerPlugin: () => mocks,
 }));
 
-import { allowHttpOrigin, webdavFetch } from "./webdavHttp";
+import { allowHttpOrigin, webdavFetch, webdavFetchCountedIn } from "./webdavHttp";
+import { createVaultCallOff } from "@plainva/core";
 import { clearDiagnosticsForTests, getDiagnostics } from "@plainva/ui";
 
 describe("webdavFetch (native bridge)", () => {
@@ -60,6 +69,100 @@ describe("webdavFetch (native bridge)", () => {
 
     const err = (await observed) as Error;
     expect(err.name).toBe("AbortError");
+  });
+
+  it("counts a request of a vault's sync it gave up waiting for in that runtime, until the native call has ended", async () => {
+    expect.hasAssertions();
+    // The bridge cannot cancel: after the request's time limit the JS side goes on, the native call runs on.
+    let answer!: (value: { status: number; headers: Record<string, string>; bodyBase64: string }) => void;
+    mocks.request.mockReturnValueOnce(new Promise((r) => (answer = r)));
+    const fence = createVaultCallOff();
+    const syncFetch = webdavFetchCountedIn((call) => fence.track(call));
+    const controller = new AbortController();
+    const pending = syncFetch("https://example.com/Note.md", { method: "PUT", body: "v1", signal: controller.signal }).catch((e: Error) => e.name);
+    controller.abort();
+    expect(await pending).toBe("AbortError");
+    // The runtime is left: the same vault opens again only once that PUT has ended at the provider.
+    fence.callOff();
+    let ended = false;
+    const ending = fence.ended().then(() => { ended = true; });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(ended).toBe(false);
+    answer({ status: 201, headers: {}, bodyBase64: "" });
+    await ending;
+    expect(ended).toBe(true);
+  });
+
+  it("cancels a request it gives up waiting for in the plugin too, by the request's own id", async () => {
+    expect.hasAssertions();
+    mocks.cancel.mockClear();
+    mocks.request.mockReturnValueOnce(new Promise(() => {}));
+    const controller = new AbortController();
+    const pending = webdavFetch("https://example.com/Note.md", { method: "PUT", body: "v1", signal: controller.signal }).catch((e: Error) => e.name);
+    controller.abort();
+    expect(await pending).toBe("AbortError");
+    const sent = mocks.request.mock.calls[mocks.request.mock.calls.length - 1][0] as { requestId?: string };
+    // THE DEFECT: the plugin was never told; the native call ran on up to the plugin's limit of an hour.
+    expect(sent.requestId).toEqual(expect.any(String));
+    expect(mocks.cancel).toHaveBeenCalledWith({ id: sent.requestId });
+  });
+
+  it("sends nothing where the request was given up while its large body was being laid out", async () => {
+    expect.hasAssertions();
+    mocks.request.mockClear();
+    const controller = new AbortController();
+    // A body over one bridge part is written to a file first; the abort comes during that write.
+    const big = new Uint8Array(8 * 1024 * 1024 + 1);
+    const pending = webdavFetch("https://example.com/Big.bin", { method: "PUT", body: big, signal: controller.signal }).catch((e: Error) => e.name);
+    controller.abort();
+    expect(await pending).toBe("AbortError");
+    // THE DEFECT: the request went out all the same, neither cancelled nor counted.
+    expect(mocks.request).not.toHaveBeenCalled();
+  });
+
+  it("cancels nothing for a request that was answered, and a build without cancel is no failure", async () => {
+    expect.hasAssertions();
+    mocks.cancel.mockClear();
+    mocks.request.mockResolvedValueOnce({ status: 200, headers: {}, bodyBase64: btoa("ok") });
+    const controller = new AbortController();
+    expect((await webdavFetch("https://example.com/x", { method: "GET", signal: controller.signal })).status).toBe(200);
+    controller.abort();
+    expect(mocks.cancel).not.toHaveBeenCalled();
+
+    mocks.cancel.mockRejectedValueOnce(new Error("not implemented"));
+    mocks.request.mockReturnValueOnce(new Promise(() => {}));
+    const second = new AbortController();
+    const pending = webdavFetch("https://example.com/y", { method: "GET", signal: second.signal }).catch((e: Error) => e.name);
+    second.abort();
+    expect(await pending).toBe("AbortError");
+  });
+
+  it("counts nothing for a request that was answered", async () => {
+    expect.hasAssertions();
+    mocks.request.mockResolvedValueOnce({ status: 200, headers: {}, bodyBase64: btoa("ok") });
+    const counted = vi.fn();
+    const controller = new AbortController();
+    const res = await webdavFetchCountedIn(counted)("https://example.com/x", { method: "GET", signal: controller.signal });
+    expect(res.status).toBe(200);
+    controller.abort();
+    expect(counted).not.toHaveBeenCalled();
+  });
+
+  it("counts a request of mail, a calendar or a sign-in for no vault's runtime", async () => {
+    expect.hasAssertions();
+    // A vault runtime that counts its sync's requests is open meanwhile.
+    const fence = createVaultCallOff();
+    void webdavFetchCountedIn((call) => fence.track(call));
+    mocks.request.mockReturnValueOnce(new Promise(() => {}));
+    const controller = new AbortController();
+    const pending = webdavFetch("https://mail.example.com/inbox", { method: "GET", signal: controller.signal }).catch((e: Error) => e.name);
+    controller.abort();
+    expect(await pending).toBe("AbortError");
+    // THE DEFECT: the open runtime counted it, and opening that vault again waited up to the native limit for mail.
+    fence.callOff();
+    let ended = false;
+    await fence.ended().then(() => { ended = true; });
+    expect(ended).toBe(true);
   });
 
   it("rejects immediately on an already-aborted signal without calling the plugin", async () => {

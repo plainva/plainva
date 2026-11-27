@@ -100,10 +100,10 @@ export function useVaultBoot(handlers: VaultBootHandlers): { vault: MobileVault 
         });
         void staggered.then((loaded) => {
         if (!loaded || !current()) return;
-        const [{ startSyncIfConfigured }, { startPim }] = loaded;
+        const [{ startSyncAfterBoot }, { startPim }] = loaded;
         stagger?.cancel();
         stagger = staggerAfterFirstPaint([
-          () => { if (current()) void startSyncIfConfigured(v).catch((e) => console.error("[boot] sync start failed", e)); },
+          () => { if (current()) void startSyncAfterBoot(v).catch((e) => console.error("[boot] sync start failed", e)); },
           () => {
             if (!current()) return;
             const pim = startPim(v);

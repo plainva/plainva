@@ -27,8 +27,16 @@ interface WebDavHttpNative {
     bodyFilePath?: string;
     bodyOffset?: number;
     bodyLength?: number;
+    /** Names the request for `cancel`. */
+    requestId?: string;
   }): Promise<NativeResponse>;
   allowOrigin(options: { origin: string }): Promise<void>;
+  /**
+   * Cancels the named request where it still runs (OkHttp `Call.cancel`,
+   * `URLSessionTask.cancel`): its answer then is a failure. Nothing where it
+   * has ended; a build without the method refuses the call.
+   */
+  cancel(options: { id: string }): Promise<void>;
 }
 
 /**
@@ -94,7 +102,23 @@ async function bodyOf(res: NativeResponse): Promise<Uint8Array> {
 /** Log only a bounded code/method, never the native exception (which may
  * contain credentials, private paths or certificate subject names). */
 async function requestNative(options: Parameters<WebDavHttpNative["request"]>[0], signal?: AbortSignal | null) {
+  // Given up while the body was being laid out (a large one is written to a file first): nothing goes out.
+  if (signal?.aborted) throw abortError(signal);
   void sweepHttpFiles();
+  // A request the app gives up waiting for is cancelled in the plugin as well, so it does not run on until the
+  // plugin's own limit (up to an hour) and reach the provider late; where it ran on all the same — an older build
+  // without `cancel` — the runtime that sent it still counts it (`webdavFetchCountedIn`).
+  let cancel = () => {};
+  if (signal) {
+    const id = crypto.randomUUID();
+    options = { ...options, requestId: id };
+    cancel = () => {
+      void Promise.resolve().then(() => WebDavHttp.cancel({ id })).catch(() => {
+        // silent: an older build has no `cancel`; the request then ends by the plugin's own limit.
+      });
+    };
+    signal.addEventListener("abort", cancel, { once: true });
+  }
   try {
     return await WebDavHttp.request(options);
   } catch (error) {
@@ -103,6 +127,8 @@ async function requestNative(options: Parameters<WebDavHttpNative["request"]>[0]
     const method = /^(GET|HEAD|POST|PUT|DELETE|OPTIONS|PROPFIND|MKCOL|MOVE|COPY|REPORT)$/.test(options.method) ? options.method : "OTHER";
     logDiagnostic("native-http", `${method}: ${code}`);
     throw Object.assign(new Error(code), { code });
+  } finally {
+    signal?.removeEventListener("abort", cancel);
   }
 }
 
@@ -185,7 +211,28 @@ function raceAbort<T>(call: Promise<T>, signal: AbortSignal): Promise<T> {
   });
 }
 
-const nativeFetch: typeof fetch = async (input, init) => {
+/**
+ * Who counts a native request whose answer the app stopped waiting for. The
+ * bridge cannot cancel a call: after the request's own time limit the JS
+ * side goes on (`raceAbort`), while the native call runs on until its plugin
+ * gives up — up to an hour for a large transfer — and may still reach the
+ * provider. A request of a vault's sync belongs to the vault runtime that
+ * sent it: counted there (`VaultCallOff.track`), the same vault opens again
+ * only once it has ended — never two runtimes at one vault, also not at the
+ * provider. Mail, calendars and sign-ins send through `webdavFetch`, which
+ * counts nothing: their calls are no vault runtime's.
+ */
+type RequestCounter = (call: Promise<unknown>) => unknown;
+
+/** The bridge's fetch for one vault runtime's sync: what it gives up waiting for is counted by `count`. */
+export function webdavFetchCountedIn(count: RequestCounter): typeof fetch {
+  if (!Capacitor.isNativePlatform()) return webdavFetch;
+  return (input, init) => nativeFetchCounted(input, init, count);
+}
+
+const nativeFetch: typeof fetch = (input, init) => nativeFetchCounted(input, init, null);
+
+const nativeFetchCounted = async (input: Parameters<typeof fetch>[0], init: Parameters<typeof fetch>[1], count: RequestCounter | null): Promise<Response> => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
   const signal = init?.signal ?? null;
@@ -251,6 +298,14 @@ const nativeFetch: typeof fetch = async (input, init) => {
       }, () => {
         // silent: the request failed; there is no body to remove.
       });
+      // Given up before the plugin answered: the runtime that sent it counts it until the native call has ended.
+      if (count) {
+        let settled = false;
+        void call.then(() => { settled = true; }, () => { settled = true; });
+        signal.addEventListener("abort", () => {
+          if (!settled) count(call.then(() => undefined, () => undefined));
+        }, { once: true });
+      }
     }
     res = signal ? await raceAbort(call, signal) : await call;
     bytes = await bodyOf(res);

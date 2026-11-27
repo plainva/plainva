@@ -354,6 +354,12 @@ export interface DesktopProfileContext {
   pimRuntime?: PimRuntime | null;
   rawVault?: IVaultAdapter | null;
   /**
+   * Whether the vault's runtime may still apply what the steps got
+   * (`VaultCallOff.allows`): the app's settings and the keychain lie past its
+   * fenced storage. Absent: always.
+   */
+  allows?: () => boolean;
+  /**
    * The signed-in member of an encrypted workspace. Present only there; without
    * it the profile stays one shared file, which is the single-person case.
    */
@@ -1259,6 +1265,7 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
       return new SettingsSyncStep({
         port: createDesktopProfilePort(vaultPath, context),
         deviceId,
+        ...(context.allows ? { allows: context.allows } : {}),
         // Once per session and only for a real change (E1): the arrival is a
         // moment, not a state — from then on the diagnostics record names the
         // fields. Before the roundtrip fix this fired on nearly every cycle.
@@ -1302,6 +1309,7 @@ function desktopSidebandSteps(vaultPath: string, deviceId: string, context: Desk
       return new SecretsSyncStep({
         port: createDesktopSecretsPort(vaultPath, context.pimRuntime ?? null),
         masterKey: mk,
+        ...(context.allows ? { allows: context.allows } : {}),
         // Not an error: the account simply has not arrived here yet. Reported
         // once per changed set — it used to fire on every cycle (~30s), because
         // a skipped entry never changes the local view that triggers it.
