@@ -669,7 +669,7 @@ calibration measures the heap: besides the fixed shapes, `--calibrate --search <
 limits of n generated tables (words, numbers, every kind of literal, references with their
 definition, tags, formulas, highlights, entities, CJK, emoji, long words, CRLF, a byte order mark,
 in quotes, lists and callouts) and chooses the weights over all of them, and the performance
-workflow runs `--hunt` on every push: 200 generated tables of a seed drawn anew, each at the budget
+workflow runs `--hunt` daily on `main` and by hand (on every push until 2026-11-27): 200 generated tables of a seed drawn anew, each at the budget
 under 128 MB in every reading, at most 20 minutes; a table that does not pass names its seed and
 shape, and goes into the fixed shapes. `--check` also compares with the scan of `origin/main`
 (read through `git show`): every shape this scan reads as a table at more rows than main does must
@@ -873,8 +873,9 @@ nodes in `readerTableBudget.test.tsx`, not by heap. Not covered: what React and 
 beyond the page, a note embedded in a cell (`![[…]]` expands in the reading view), code blocks
 and Mermaid diagrams in cells, and the memory of a note of many tables (L14). The gauge tests
 against events and nodes catch shapes dense in structure; they do not see memory — the heap
-search does, in `--calibrate --search` and in the performance workflow's `--hunt`, which runs on
-every push and daily on `main`, never cancelled by a push. The hunt holds three more things of each
+search does, in `--calibrate --search` and in the performance workflow's `--hunt`, which runs
+daily on `main` and by hand, never cancelled by a push (on every push as well until 2026-11-27,
+twice up to 20 minutes each; the two gates run on every push). The hunt holds three more things of each
 drawn table (since 2026-11-16): every parse ends within 20 s; where the scan reads a table exactly,
 the parser reads one too (an item from 2 inside an item under a paragraph makes the header text
 of the paragraph, and the scan read it as a table, took its rows out of the paragraph's measure,
@@ -1061,6 +1062,7 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | thematic breaks between blank lines | 39 466 | 18 860 | 2.09 |
 | paragraphs of eighty `[` | 2 638 | 1 239 | 2.13 |
 | nested items | 7 939 | 3 717 | 2.14 |
+| a quote of one paragraph whose depth changes every line | 2 789 | 1 294 | 2.16 |
 | a list under one item (an outline) | 8 356 | 3 821 | 2.19 |
 | paragraphs of `\*` × 40 | 2 009 | 910 | 2.21 |
 | paragraphs of eighty `*` (thematic breaks) | 39 423 | 17 852 | 2.21 |
@@ -1076,6 +1078,7 @@ On the phone (index and note source, 128 MB; `NOTE_BUDGET`, 25 710 000):
 | prose, lines of twelve words | 19 774 | 7 625 | 2.59 |
 | quote lines | 26 507 | 9 875 | 2.68 |
 | lines of two tags | 50 538 | 17 903 | 2.82 |
+| a mail thread as one quote, eight depths of fifty lines | 15 763 | 4 069 | 3.87 |
 
 On the desktop (index, note source and reading view, 512 MB; `DESKTOP_NOTE_BUDGET`, four times
 `NOTE_BUDGET`): the seven forms the reading view could bind and two of definitions and outlines, measured exactly — under 512 MB
@@ -1094,7 +1097,7 @@ times the budget keeps every one at 1.56 or more:
 | journal lines `- 10:00 …` with a link and a tag | 30 972 | 12 663 | 2.45 |
 | a list under one item (an outline) | 37 742 | 15 288 | 2.47 |
 
-The other 38 forms are measured on their safe side alone: `main`'s readers read 1.13 times their
+The other 40 forms are measured on their safe side alone: `main`'s readers read 1.13 times their
 threshold at four times the budget under 512 MB, and `perf:notes -- --check --shell desktop` reads
 them there in three runs whenever the performance workflow runs for a change to what the note's
 budget reads, and on its schedule. A search for their exact limits under 512 MB is out of reach: one
@@ -1106,16 +1109,26 @@ prose of the same length holds a handful: a line that begins with a definition w
 its characters (`NOTE_DEFINITION_WEIGHT`, from the forms `defs` and `footdefs`). A reference —
 `[text][label]`, `[label][]`, `[label]` by their brackets, and a footnote's `[^label]` — weighs 888
 (`NOTE_REFERENCE_WEIGHT`): resolved, it holds what a link holds (`main` reads 9 787 definitions
-alone under 128 MB, 5 742 beside a reference each). And what a definition read as text weighs counts
-again where formatted text refers to it, up to one given line a reference: the note's tree is given
-those definitions back (`givenDefinitions`). Before, the note's budget read the definitions of
-`refsdefs` as text, weighed them gone, and kept the references formatted, which held every
-definition again: on the phone it read the form formatted up to `main`'s own limit (1.00), on the
-desktop, where a block of 30 000 definitions is one paragraph over the paragraph's budget and read
-as written from the start, up to 54 479. The forms of definitions and references are calibrated and
-checked with the rest (`refsdefs` with `[x][d]`, `sharedrefs` with `[d]`); on the desktop `main`
-reads 1.13 times the threshold of footnote definitions, of references and their definitions under
-512 MB (their safe side).
+alone under 128 MB, 5 742 beside a reference each). No reading is given a definition it does not
+see (2026-11-27): where a definition outside a part may change what its brackets are, those places
+of the part are not read (`definitionReach.ts`, `Note_Budget_Readings.md`, "What a definition
+reaches"), so no given line is weighed and none is held. (Until then the note's tree and every piece
+were given the definitions they referred to, as lines of their own, and the budget weighed those
+lines; three reviews in a row found readings that still missed one, and four notes of the hunt ran
+the phone's index out of 128 MB on the lines given.) The forms of definitions and references are
+calibrated and checked with the rest (`refsdefs` with `[x][d]`, `sharedrefs` with `[d]`); on the
+desktop `main` reads 1.13 times the threshold of footnote definitions, of references and their
+definitions under 512 MB (their safe side).
+
+**Quotes whose depth changes (2026-11-27).** A paragraph over the inline budget is read as written,
+and keeps the quote and list markers of its lines: the parser opens their quotes and items on every
+line as anywhere else. Its lines weigh their markers in the note's budget as well (`markerCost`);
+before, they weighed their characters alone, and a quote of one paragraph whose depth changes from
+line to line weighed less the longer it grew — 10 000 lines of depth 1 to 60 weighed 200 M and were
+read as text, 20 000 lines 9.7 M, read formatted, and the phone's index ran out of 128 MB (as on
+`main`, which has no note budget). The forms `quotedepth` (a new depth every line) and `mailthread`
+(eight levels of fifty lines, as long mail threads are pasted) are calibrated and checked with the
+rest, and the hunt draws from them (`mix:<seed>:<k>`).
 
 The editor's own parse is the whole note, whatever the budget (CodeMirror with the app's syntax
 extensions, as both shells build it): measured as a named limit under 128 MB, it reads five to a
@@ -1161,26 +1174,16 @@ of the budget: the tree of a list is built in a pass per list that grows faster 
 a fiftieth, with a third of the heap). Each piece is parsed alone behind a blank line (no properties
 block opens there; in a note that begins with a `---` nothing closes, behind a `---` of its own, so
 that the parser reads it in the mode it reads that note in; a piece that begins with that `---`
-holds it) with the definitions it refers to after it — the note's link and footnote definitions
-whose label stands in brackets in it that run into a `(` (only there does a definition change a
-link; elsewhere a label without its definition is text, and a reference is no link of the index),
-and, read for the note's source, on a line that may be a heading's content (its text is the
-reference's),
-wherever they stand outside it, matched by the parser's own key (behind every piece every
-definition, a note of 5 000 footnotes was quadratic) —, weighed with them (`pieceWeight`), its places moved onto the note, its facts kept — the index's links and
+holds it) as it is written, given nothing of the rest of the note — where the note holds a
+definition outside it, the places of the piece a definition may change are not read
+(`definitionReach.ts`) —, its places moved onto the note, its facts kept — the index's links and
 tags, a rename's links, headings and block ids, "copy link to line" — and its tree let go before the
-next. Pieces side by side that carry a long appendix are read as one, up to what a piece may weigh:
-2 000 definitions that every paragraph refers to took the index 25 s at 3 MB, now 9.4 s at 2.4 MB
-and 18.3 s at 4.8 MB, linear (2026-11-26). The note's tree is given the definitions of blocks read
-as text that its own text refers to (`givenDefinitions`), and so is the reading view: every reading
-knows the note's definitions (`Note_Budget_Readings.md`, table A).
+next. The note's tree and the reading view read their text as it is as well: no reading inserts a
+line, takes a node out again or moves a place back (2026-11-27).
 
-The hunt of 2026-11-26 found four notes of 0.9 to 9.3 MB that ran the phone's index out of 128 MB:
-a piece weighed without the definitions it is read with, a piece of 2 000 definitions read with
-them a second time behind it, pieces read with the definitions of every label in brackets, and a
-definition in a part not read, parsed with the paragraph of megabytes beside it (a part not read is
-now read for definitions only where one may begin, on a line of at most 4 096 characters); a note
-of 9.7 MB took the desktop's index 429 s under 512 MB, at its heap's end, and takes 36 s.
+The hunt of 2026-11-26 found four notes of 0.9 to 9.3 MB that ran the phone's index out of 128 MB,
+each on the definitions a piece was given behind it; nothing is given now, and the four are read
+under 128 MB (`note-budget-found.test.ts`).
 
 Every block read as text is read in pieces, the whole note: there is no cap (2026-11-26). A cap of
 four budgets left half the links of 1 MB of mixed blocks unread on the phone, and saved no time
@@ -1238,12 +1241,16 @@ On the phone (128 MB):
 | a list under one item (an outline) | 3 840 (106 KB) | 8 356, out of memory | 2.18 |
 | lines of a Markdown link and a URL | 8 064 (570 KB) | 9 181 (650 KB), out of memory | 1.14 |
 | a quote of one paragraph | 9 472 (282 KB) | 10 112 (301 KB), paragraph budget | 1.07 |
+| a quote of one paragraph whose depth changes every line | 1 296 (0.10 MB) | 2 789, out of memory | 2.15 |
+| a mail thread as one quote, eight depths of fifty lines | 4 077 (0.28 MB) | 15 763, out of memory | 3.87 |
 | lines of links, of embeds run together | 6 720 | 6 720, paragraph budget | 1.00 |
 | a table in a list item | 59 392 (1.46 MB) | not measured | — |
 | every other form (lists, tasks, journal lines, callouts, tables, footnotes …) | never | from its limit, out of memory | — |
 
 On the desktop (512 MB, four times the budget) a list under one item is not read from 15 360 items
-(431 KB), lines of a mail address from 41 472 against `main`'s 46 810 (1.13); paragraphs of links,
+(431 KB), lines of a mail address from 41 472 against `main`'s 46 810 (1.13), a quote whose depth
+changes every line from 5 140 lines (0.39 MB), a mail thread as one quote where `main`'s paragraph
+budget leaves it (10 031 lines, 0.69 MB); paragraphs of links,
 URLs, sentences and quotes lose their links where `main`'s paragraph budget does (1.00), and every
 other form keeps them. The three largest gaps, on the phone, and what would close them: one
 paragraph heavier than a piece may weigh (sentences, mail addresses) is read alone where the rest of
@@ -1265,7 +1272,7 @@ weighs to the note's budget at most nine tenths of the note's budget at the tabl
 (`NOTE_TABLE_SHARE`): a note of one such table is never read as text for the note's budget, whatever
 stands around it in a few lines. Before this held, 18 of the 200 tables of the table budget's hunt
 with seed 956860 became text that `main` reads as tables; the performance workflow runs those 200
-tables on every push since.
+tables daily on `main` and by hand since.
 
 **One budget a shell.** The note's budget is a value each shell sets at its start (`setNoteBudget`),
 and every reader of that shell — the index, the note-source parse, the editor and the reading view —

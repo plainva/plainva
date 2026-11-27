@@ -63,3 +63,58 @@ for (const [shell, budget] of [["phone", NOTE_BUDGET], ["desktop", DESKTOP_NOTE_
     }, 300_000);
   });
 }
+
+/**
+ * Where the search does not find a name for sure (review of L14, 2026-11-26,
+ * round two): a Markdown link writes a name's `ö` as `%C3%B6`, a name of an
+ * emoji alone gives the search no word, a note not yet in the full-text index
+ * is found by no phrase — each left a link in a part not read without a word.
+ * And the name as a word of the text alone is no link: renaming `a.md` said
+ * links had been left in every large note that held the word "a".
+ */
+describe("a rename and the notes the search may not find", () => {
+  const quote = (lines: number, link: string) => Array.from({ length: lines }, (_, i) => `> quoted ${i} ${i === 7 ? link : ""} [[Other ${i % 7}]] words`).join("\n");
+  const bigNote = (link: string) => {
+    let lines = 2_000;
+    const noteOf = (n: number) => `# Big\n\nintro\n\n${quote(n, link)}\n`;
+    while (readAsTextParts(noteOf(lines)).unread.length === 0) lines *= 2;
+    return noteOf(lines);
+  };
+  const cases: Array<[string, string, string, boolean]> = [
+    // [label, old path, the link in the part not read, whether the note's row in the full-text index is gone]
+    ["a name a Markdown link encodes", "Größe.md", "[t](Gr%C3%B6%C3%9Fe.md)", false],
+    ["a name without a letter or a digit", "🚀.md", "[[🚀]]", false],
+    ["a note without its row in the full-text index", "Zork Note.md", "[[Zork Note]]", true],
+  ];
+  for (const [label, oldPath, link, unfiled] of cases) {
+    it(`says it left a link: ${label}`, async () => {
+      expect.hasAssertions();
+      setNoteBudget(NOTE_BUDGET);
+      const big = bigNote(link);
+      const files = new MemoryVaultAdapter(1_000);
+      await files.writeTextFile("Big.md", big);
+      await files.writeTextFile(oldPath, "# target\n");
+      const db = await realSqlite();
+      await new VaultIndexer(files, db).indexVaultFull();
+      if (unfiled) await db.execute("DELETE FROM fts_notes WHERE path = ?", ["Big.md"]);
+      const result = await renameFileWithLinkUpdates({ adapter: files, queryService: new VaultQueryService(db), oldPath, newPath: "Renamed.md" });
+      expect(result.linkUpdateFailed, "the rename says a link was left").toBe(true);
+      expect(await files.readTextFile("Big.md")).toBe(big);
+    }, 300_000);
+  }
+
+  it("says nothing where the old name stands in large notes as a word, never where a link can name it", async () => {
+    expect.hasAssertions();
+    setNoteBudget(NOTE_BUDGET);
+    let lines = 2_000;
+    const noteOf = (n: number) => `# Big\n\nintro\n\n${Array.from({ length: n }, (_, i) => `> a line ${i} with a word and [[Other ${i % 7}]]`).join("\n")}\n`;
+    while (readAsTextParts(noteOf(lines)).unread.length === 0) lines *= 2;
+    const files = new MemoryVaultAdapter(1_000);
+    for (let i = 0; i < 3; i++) await files.writeTextFile(`Big${i}.md`, noteOf(lines));
+    await files.writeTextFile("a.md", "# a\n");
+    const db = await realSqlite();
+    await new VaultIndexer(files, db).indexVaultFull();
+    const result = await renameFileWithLinkUpdates({ adapter: files, queryService: new VaultQueryService(db), oldPath: "a.md", newPath: "b.md" });
+    expect(result.linkUpdateFailed).toBe(false);
+  }, 300_000);
+});

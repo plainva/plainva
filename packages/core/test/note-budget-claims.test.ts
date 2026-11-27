@@ -22,8 +22,9 @@ import { VaultQueryService } from "../src/vault/VaultQueryService.js";
  * missing from the backlinks and the graph, a rename leaves its links (and
  * counts them as links it could not rewrite), search finds it, its tasks are
  * found; a paragraph's tags are found, a block's not (no tag rather than a
- * wrong one). Split into smaller notes it is read again — a paragraph or a
- * quote also with blank lines, a list under one item with its items a level
+ * wrong one). Split into smaller notes it is read again — a paragraph also
+ * with blank lines, a quote split into several quotes by blank lines (a line
+ * `>` keeps it one paragraph), a list under one item with its items a level
  * up.
  */
 
@@ -96,7 +97,7 @@ for (const [shell, budget] of SHELLS) {
       // One paragraph too large for a piece.
       { name: "a paragraph too large for a piece", make: (n) => `# Big\n\n${paragraph(n)}\n`, again: (n) => `# Big\n\n${paragraph(n, "\n\n")}\n`, how: "split with blank lines", tasks: false, tags: true },
       // A quote of one paragraph: a block that is not cut.
-      { name: "a quote of one paragraph too heavy for a piece", make: (n) => `# Big\n\n${quoted(n)}\n`, again: (n) => `# Big\n\n${quoted(n, "\n\n")}\n`, how: "split with blank lines", tasks: true, tags: true },
+      { name: "a quote of one paragraph too heavy for a piece", make: (n) => `# Big\n\n${quoted(n)}\n`, again: (n) => `# Big\n\n${quoted(n, "\n\n")}\n`, how: "split into several quotes by blank lines", tasks: true, tags: true },
       // A list under one item: cut at the items of its outermost list only, which has one.
       { name: "a list under one item too heavy for a piece", make: (n) => `# Big\n\n- outer\n${nested(n)}\n- [ ] task in the unread part\n`, again: (n) => `# Big\n\n- outer\n${nested(n).replace(/^ {2}- /gm, "- ")}\n- [ ] task in the unread part\n`, how: "its items moved up a level", tasks: true, tags: false },
       // Behind an unclosed `---` in the first line no line opens a list: such a paragraph is not cut either.
@@ -158,6 +159,20 @@ for (const [shell, budget] of SHELLS) {
         expect(await vault.tags()).toContain("onlyunread");
       }, 300 * SECONDS);
     }
+
+    it("a quote is read again once split into several quotes by empty lines; on the phone a line `>` does not split it", () => {
+      expect.hasAssertions();
+      // The handbook named blank lines as what helps a long quote (review of L14, 2026-11-26, M5): a line `>` is a
+      // blank line inside the quote, and the quote stays one paragraph too heavy for a piece; only a wholly empty line
+      // splits it into several quotes.
+      setNoteBudget(budget);
+      const quote = (n: number, every: number) => Array.from({ length: n }, (_, i) => `> quoted ${i} [[Target]] words${i % every === every - 1 ? "\n>" : ""}`).join("\n");
+      const n = Math.ceil(fewest((k) => `# Big\n\n${quote(k, 1e9)}\n`, (text) => readAsTextParts(text).unread.length > 0) * 1.1);
+      // On the phone a line `>` does not help (on the desktop, whose pieces may weigh four times as much, the quote's
+      // paragraphs then fit a piece).
+      if (shell === "phone") expect(readAsTextParts(`# Big\n\n${quote(n, 100)}\n`).unread.length, "split by lines `>`").toBeGreaterThan(0);
+      expect(readAsTextParts(`# Big\n\n${quote(n, 100).replace(/\n>\n/g, "\n\n")}\n`).unread, "split by empty lines").toEqual([]);
+    }, 300 * SECONDS);
 
     it("a list behind an unclosed `---`, read as text, is read in pieces as in the note", async () => {
       expect.hasAssertions();

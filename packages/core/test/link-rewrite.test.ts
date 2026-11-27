@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { within } from "./helpers/timeBudget.js";
 import { extractLinksAndTags } from "../src/ast-scanner.js";
-import { readNoteLinks, renameNoteLinks, rewriteNoteLinks, ROUNDS_PER_CONTAINER, setRenameRounds, wikiLinkCanName } from "../src/linkRewrite.js";
+import { readNoteLinks, renameNoteLinks, rewriteNoteLinks, ROUNDS_PER_CONTAINER, setRenameRounds, unreadNaming, wikiLinkCanName } from "../src/linkRewrite.js";
 import { parseMarkdownAst } from "../src/markdown-parser.js";
 import { serializeMarkdownAst } from "../src/markdown-serializer.js";
 
@@ -636,4 +636,23 @@ describe("the rounds of a rename in one paragraph", () => {
     expect(most).toBeGreaterThan(ROUNDS_PER_CONTAINER);
     expect(differing).toBe(0);
   }, 120_000);
+});
+
+describe("unreadNaming: what a part not read may name", () => {
+  // A link can name a note only inside a wiki link's brackets or in a Markdown link's destination; the name as a word
+  // of the text alone is no link (review of L14, 2026-11-26: renaming `a.md` said links had been left in every
+  // large note that held the word "a").
+  const whole = (text: string) => [{ from: 0, to: text.length }];
+  it("counts a stretch where the name stands where a link can name it", () => {
+    expect.hasAssertions();
+    for (const text of ["see [[a]] here", "see [[folder/a|alias]]", "see [t](a.md)", "see [t](<a b.md>)", "see ![[a]]", "[t](\n  a.md)"]) {
+      expect(unreadNaming(text, whole(text), ["a"]), text).toBe(1);
+    }
+  });
+  it("does not count the name as a word of the text", () => {
+    expect.hasAssertions();
+    for (const text of ["a line with a word", "[a](x.md) and a", "(b) a", "[[x]] a", "<b> a", "(x\n\na"]) {
+      expect(unreadNaming(text, whole(text), ["a"]), text).toBe(0);
+    }
+  });
 });

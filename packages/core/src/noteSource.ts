@@ -135,7 +135,7 @@ export function analyzeNoteSource(raw: string): { headings: NoteHeading[]; block
     }
   };
   walk(root, []);
-  forEachReadPiece(clean.text, parts, root, { places: true }, (piece) => walk(piece as unknown as SourceNode, []));
+  forEachReadPiece(clean.text, parts, { places: true }, (piece) => walk(piece as unknown as SourceNode, []));
   if (parts.pieces.length > 0) {
     headings.sort((a, b) => a.from - b.from);
     blocks.sort((a, b) => a.from - b.from);
@@ -505,7 +505,7 @@ export function planBlockLink(raw: string, offset: number, random: () => number 
   if (inBoundedRanges(parts.ranges.filter((part) => part.block), cleanAt)) {
     const piece = parts.pieces.find((candidate) => candidate.from <= cleanAt && cleanAt <= candidate.to);
     if (!piece) return { kind: "refused", reason: "unsupported" };
-    forEachReadPiece(clean.text, { ...parts, pieces: [piece] }, root, { places: true }, (tree) => (root = tree as unknown as SourceNode));
+    forEachReadPiece(clean.text, { ...parts, pieces: [piece] }, { places: true }, (tree) => (root = tree as unknown as SourceNode));
   }
   // The chain of nodes from the top down to the block-level node on this line.
   const chain: SourceNode[] = [];

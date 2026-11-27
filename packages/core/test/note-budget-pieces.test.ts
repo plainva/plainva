@@ -47,7 +47,7 @@ const RENAMES = new Map([
 ]);
 
 /** The note's facts as the app reads them, with every block over its budget read as text and every cut a piece. */
-function inPieces(note: string): Facts & { unread: number } {
+function inPieces(note: string): Facts & { unread: number; open: Array<{ from: number; to: number }> } {
   setNoteBudget(1);
   setPieceShare(1e12, true);
   try {
@@ -58,6 +58,8 @@ function inPieces(note: string): Facts & { unread: number } {
       rename: renameNoteLinks(note, RENAMES).content,
       source: JSON.stringify(analyzeNoteSource(note)),
       unread: parts.unread.length,
+      // Where a definition a piece does not see may change its brackets (`definitionReach.ts`): not read for links.
+      open: readNoteLinks(note).unread,
     };
   } finally {
     setNoteBudget(NOTE_BUDGET);
@@ -79,6 +81,41 @@ function whole(note: string): Facts {
     setNoteBudget(NOTE_BUDGET);
   }
 }
+
+/**
+ * The pieces' facts against the note read whole: the same, or — where a definition a piece does not see may change
+ * its brackets — a rename that writes nothing there and is the note read whole's everywhere else, byte for byte.
+ */
+function sameAsWhole(note: string, got: ReturnType<typeof inPieces>): string | null {
+  const want = whole(note);
+  if (got.open.length === 0) return got.index === want.index && got.rename === want.rename && got.source === want.source ? null : "differs";
+  // Renames of names as long as the old ones, so that the two compare place by place.
+  const renamed = (budget: number, apart: boolean) => {
+    setNoteBudget(budget);
+    if (apart) setPieceShare(1e12, true);
+    try {
+      return renameNoteLinks(note, SAME_LENGTH).content;
+    } finally {
+      setNoteBudget(NOTE_BUDGET);
+      setPieceShare(PIECE_SHARE);
+    }
+  };
+  const head = renamed(1, true);
+  const read = renamed(Number.MAX_SAFE_INTEGER, false);
+  if (head.length !== note.length || read.length !== note.length) return "the rename changed the note's length";
+  for (let i = 0; i < note.length; i++) {
+    const open = got.open.some((range) => range.from <= i && i < range.to);
+    if (head[i] !== (open ? note[i] : read[i])) return `the rename differs at ${i}`;
+  }
+  return null;
+}
+const SAME_LENGTH = new Map([
+  ["Old", "Olx"],
+  ["Old.md", "Olx.md"],
+  ["B", "C"],
+  ["H", "I"],
+  ["K", "L"],
+]);
 
 /** Every construct the review of the link search read wrong, and the blocks across blank lines a cut may not split. */
 const FORMS: Record<string, string> = {
@@ -139,6 +176,11 @@ describe("a block read as text is read for its facts in pieces, as the note read
     const note = name === "fenceInProperties" ? `---\na: 1\n\`\`\`\n---\n\`\`\`\n\n| [[Old]] |\n\n${filler}\n` : `# T\n\n${filler}\n\n${form}\n\n${filler}\n`;
     const got = inPieces(note);
     expect(got.unread).toBe(0);
+    if (got.open.length > 0) {
+      // A reference whose definition stands in another piece: read in neither, and the rename leaves it.
+      expect(sameAsWhole(note, got)).toBeNull();
+      return;
+    }
     const want = whole(note);
     expect(got.index).toBe(want.index);
     expect(got.rename).toBe(want.rename);
@@ -162,8 +204,7 @@ describe("a block read as text is read for its facts in pieces, as the note read
         expect(note.startsWith("---\n")).toBe(true);
         continue;
       }
-      const want = whole(note);
-      if (got.index !== want.index || got.rename !== want.rename || got.source !== want.source) differing.push(note);
+      if (sameAsWhole(note, got)) differing.push(note);
     }
     expect(differing.slice(0, 3)).toEqual([]);
   }, 300 * SECONDS);
@@ -205,7 +246,8 @@ describe("the cases of the review of the link search (2026-11-19), at the real b
       "- ```",
       "  #fencetag [[FenceLink]]",
       "  ```",
-      "- footnote ref[^1] and #realtag",
+      "- footnote ref[^1]",
+      "- and #realtag",
       "- line with block id ^blk2",
     ];
     const lines = Array.from({ length: 6_000 }, (_, i) => `- item ${i} [[Keep]]`);
@@ -270,7 +312,7 @@ describe("the cases of the review of the link search (2026-11-19), at the real b
       const first = readAsTextParts(note).ranges[0];
       setNoteBudget(NOTE_BUDGET);
       expect(note.slice(first.from, first.from + 3), name).not.toBe("---");
-      expect(got, name).toEqual({ ...whole(note), unread: 0 });
+      expect(got, name).toEqual({ ...whole(note), unread: 0, open: [] });
     }
   });
 });
@@ -320,24 +362,35 @@ describe("a stretch read as text with many callout markers", () => {
     expect(blocks.some((range) => range.from <= item && second < range.to), "with its item").toBe(true);
   });
 
-  it("reads pieces side by side that refer to the same many definitions as one, and as the note read whole", () => {
+  it("reads each piece once and as it is written, where its references' definitions stand elsewhere", () => {
     expect.hasAssertions();
     // 2 000 definitions every paragraph refers to were read again behind every piece: 3 MB took the index 25 s (review
-    // of L14, 2026-11-26, M3). Read together, the pieces are parsed fewer times than there are pieces. A piece is given
-    // the definitions of labels that run into a `(` alone (`[x][s1](u)`: defined, a reference and text; not, a link).
+    // of L14, 2026-11-26, M3). A piece is given nothing of the note now: `[x][s1](u1.md)` reads as a reference where
+    // `s1` is defined and as a link where not, so a piece that does not see the definition names the place as not
+    // read (`definitionReach.ts`) — no link of the index there, and a rename counts it.
     setNoteBudget(NOTE_BUDGET);
     const defs = Array.from({ length: 500 }, (_, i) => `[s${i}]: T${i}.md`).join("\n");
     const para = Array.from({ length: 500 }, (_, i) => `[x][s${i}](u${i}.md)`).join(" ");
     const note = `# Shared\n\n${defs}\n\n${Array.from({ length: 100 }, (_, k) => `${para} [[Link ${k}]]`).join("\n\n")}\n`;
     const parts = readAsTextParts(note);
     expect(parts.pieces.length).toBeGreaterThan(20);
-    const tree = parseMarkdownAst(note, { preserveObsidianSyntax: true });
     let reads = 0;
-    forEachReadPiece(note, parts, tree, { preserveObsidianSyntax: true }, () => reads++);
-    expect(reads).toBeLessThan(parts.pieces.length / 2);
-    const head = extractLinksAndTags(tree, note);
+    forEachReadPiece(note, parts, { preserveObsidianSyntax: true }, () => reads++);
+    expect(reads).toBe(parts.pieces.length);
+    const head = extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note);
+    const unread = readNoteLinks(note).unread;
     setNoteBudget(Number.MAX_SAFE_INTEGER);
-    expect(head).toEqual(extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note));
+    const whole = extractLinksAndTags(parseMarkdownAst(note, { preserveObsidianSyntax: true }), note);
+    setNoteBudget(NOTE_BUDGET);
+    // The note read whole reads references and the text `(u.md)`: no link to `u` anywhere, here neither.
+    expect(whole.links.some((link) => link.target.startsWith("u"))).toBe(false);
+    expect(head.links.some((link) => link.target.startsWith("u"))).toBe(false);
+    // Every link of the index is one of the note read whole's; each paragraph read in pieces is not read from its first reference on.
+    for (const link of head.links) expect(whole.links).toContainEqual(link);
+    for (const piece of parts.pieces) {
+      const at = note.indexOf("[x][s0]", piece.from);
+      if (at >= 0 && at < piece.to) expect(unread.some((range) => range.from <= at && at < range.to)).toBe(true);
+    }
   }, 120 * SECONDS);
 
   it("cuts a list whose items stand up to three blanks in at its items, as the note read whole reads them", () => {

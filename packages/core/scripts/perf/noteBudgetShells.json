@@ -244,6 +244,16 @@
           "main": 8356,
           "branch": 3821,
           "ratio": 2.19
+        },
+        "quotedepth": {
+          "main": 2789,
+          "branch": 1294,
+          "ratio": 2.16
+        },
+        "mailthread": {
+          "main": 15763,
+          "branch": 4069,
+          "ratio": 3.87
         }
       }
     },
@@ -519,14 +529,26 @@
           "lowerBound": true
         },
         "refsdefs": {
-          "main": 21824,
-          "branch": 19313,
+          "main": 61272,
+          "branch": 54223,
           "ratio": 1.13,
           "lowerBound": true
         },
         "sharedrefs": {
-          "main": 22170,
-          "branch": 19619,
+          "main": 64076,
+          "branch": 56704,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "quotedepth": {
+          "main": 5808,
+          "branch": 5139,
+          "ratio": 1.13,
+          "lowerBound": true
+        },
+        "mailthread": {
+          "main": 37011,
+          "branch": 32753,
           "ratio": 1.13,
           "lowerBound": true
         }

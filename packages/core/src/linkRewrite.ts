@@ -1,6 +1,6 @@
 import { decodeMarkdownLinkTarget, encodeMarkdownLinkPath, markdownLinkTarget } from "./linkEncoding.js";
 import { inBoundedRanges, readAsTextParts, type BoundedRange } from "./inlineParseBudget.js";
-import { forEachReadPiece, parseMarkdownAst } from "./markdown-parser.js";
+import { definitionReachOf, forEachReadPiece, parseMarkdownAst } from "./markdown-parser.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 
 /**
@@ -82,9 +82,11 @@ export interface NoteLinks {
   links: NoteLink[];
   unplaced: UnplacedNoteLink[];
   /**
-   * What the parse budget reads as text and leaves unread (`readAsTextParts`,
-   * L14): a link that stands there is none of `links` — a rename cannot
-   * rewrite it, and says so.
+   * What is not read for links: what the parse budget reads as text and
+   * leaves unread (`readAsTextParts`, L14), and where a definition the reading
+   * of a part did not see may change what its brackets are
+   * (`definitionReach.ts`). A link that stands there is none of `links` — a
+   * rename cannot rewrite it, and says so.
    */
   unread: BoundedRange[];
 }
@@ -251,12 +253,28 @@ function markdownLinkOf(text: string, node: TreeNode, inTable: boolean, inLabel:
  * link by reference (`[label][ref]`). A wiki link found below one of them
  * stands in a label, however deep (finding 2026-10-12).
  */
-function collect(text: string, node: TreeNode, inTable: boolean, inLabel: boolean, out: NoteLinks): void {
+function collect(text: string, node: TreeNode, inTable: boolean, inLabel: boolean, out: NoteLinks, open: readonly BoundedRange[]): void {
+  // Where a definition the parse did not see may change what the brackets are, nothing is taken for a link
+  // (`definitionReach.ts`): the place is one the note's readers do not read, and a rename counts it.
+  if ((node.type === "link" || node.type === "wikiLink") && open.length > 0 && inBoundedRanges(open, node.position?.start?.offset)) return;
   if (node.type === "link") markdownLinkOf(text, node, inTable, inLabel, out);
   else if (node.type === "wikiLink") wikiLinkOf(node, inTable, inLabel, out);
   const cell = inTable || node.type === "tableCell";
   const label = inLabel || node.type === "link" || node.type === "linkReference";
-  for (const child of node.children ?? []) collect(text, child, cell, label, out);
+  for (const child of node.children ?? []) collect(text, child, cell, label, out, open);
+}
+
+/** `ranges` and `more`, in text order and apart: where they meet or touch, one stretch. */
+function joined(ranges: readonly BoundedRange[], more: readonly BoundedRange[]): BoundedRange[] {
+  if (more.length === 0) return [...ranges];
+  const all = [...ranges, ...more].map(({ from, to }) => ({ from, to })).sort((a, b) => a.from - b.from);
+  const out: BoundedRange[] = [];
+  for (const range of all) {
+    const last = out[out.length - 1];
+    if (last && range.from <= last.to) last.to = Math.max(last.to, range.to);
+    else out.push(range);
+  }
+  return out;
 }
 
 /**
@@ -271,12 +289,18 @@ function collect(text: string, node: TreeNode, inTable: boolean, inLabel: boolea
 export function readNoteLinks(content: string): NoteLinks {
   const out: NoteLinks = { links: [], unplaced: [], unread: [] };
   const tree = parseMarkdownAst(content);
-  collect(content, tree as unknown as TreeNode, false, false, out);
+  const open: BoundedRange[] = [...(definitionReachOf(tree)?.open ?? [])];
+  collect(content, tree as unknown as TreeNode, false, false, out, open);
   // A block the note's budget reads as text is one paragraph of its characters in the tree: its links are read from
   // its pieces, by the parser itself (`forEachReadPiece`, L14), as the index reads them.
   const parts = readAsTextParts(content);
-  out.unread = parts.unread;
-  forEachReadPiece(content, parts, tree, {}, (piece) => collect(content, piece as unknown as TreeNode, false, false, out));
+  forEachReadPiece(content, parts, {}, (piece) => {
+    const own = definitionReachOf(piece)?.open ?? [];
+    collect(content, piece as unknown as TreeNode, false, false, out, own);
+    open.push(...own);
+  });
+  // What is not read: what the budget leaves, and where a definition the reading did not see may change the brackets.
+  out.unread = joined(parts.unread, open);
   out.links.sort((a, b) => a.start - b.start);
   return out;
 }
@@ -616,7 +640,7 @@ function inlineContainers(content: string): InlineContainers {
     if (inBoundedRanges(blocks, at)) continue;
     walk(node);
   }
-  forEachReadPiece(content, parts, tree, {}, (piece) => walk(piece as unknown as TreeNode));
+  forEachReadPiece(content, parts, {}, (piece) => walk(piece as unknown as TreeNode));
   if (parts.pieces.length > 0) {
     const order = starts.map((_, i) => i).sort((a, b) => starts[a] - starts[b]);
     const sortedStarts = order.map((i) => starts[i]);
@@ -692,12 +716,15 @@ export function renameNoteLinks(content: string, renames: ReadonlyMap<string, st
 }
 
 /**
- * How many of the stretches `unread` the parse budget leaves unread
- * (`readAsTextParts`) hold one of `names` among their characters: a link to
- * it may stand there, which no reading of the note's links reaches — a
- * rename counts it with the links it could not rewrite, so that it says
- * some still name the old file. A count, never a rewrite: nothing in such a
- * stretch is taken for a link.
+ * How many of the stretches `unread` that are not read for links
+ * (`NoteLinks.unread`) hold one of `names` where a link can name it: inside
+ * a wiki link's brackets (`[[…name`), or in a Markdown link's destination
+ * (`(…name`, `<…name`) — a link to it may stand there, which no reading of the
+ * note's links reaches. A rename counts it with the links it could not
+ * rewrite, so that it says some still name the old file. A count, never a
+ * rewrite: nothing in such a stretch is taken for a link. The name as a word
+ * of the text alone is no link (review of L14, 2026-11-26: renaming `a.md`
+ * said links had been left in every large note that held the word "a").
  */
 export function unreadNaming(content: string, unread: readonly BoundedRange[], names: Iterable<string>): number {
   if (unread.length === 0) return 0;
@@ -705,7 +732,24 @@ export function unreadNaming(content: string, unread: readonly BoundedRange[], n
   let count = 0;
   for (const range of unread) {
     const stretch = content.slice(range.from, range.to).toLowerCase();
-    if (wanted.some((name) => stretch.includes(name))) count++;
+    if (wanted.some((name) => namedAsLink(stretch, name))) count++;
   }
   return count;
+}
+
+/** How far back from a name the opening of a link that may hold it is looked for: a path, an anchor, a label. */
+const LINK_OPENING_REACH = 1_000;
+
+/** Whether `stretch` holds `name` behind the opening of a link that may hold it (`unreadNaming`). */
+function namedAsLink(stretch: string, name: string): boolean {
+  for (let at = stretch.indexOf(name); at >= 0; at = stretch.indexOf(name, at + 1)) {
+    for (let i = at - 1; i >= 0 && at - i <= LINK_OPENING_REACH; i--) {
+      const code = stretch.charCodeAt(i);
+      // `[[`, `(` or `<` opens what may hold the name; what closes a link, or a blank line, ends the look.
+      if (code === 0x28 || code === 0x3c || (code === 0x5b && stretch.charCodeAt(i - 1) === 0x5b)) return true;
+      if (code === 0x29 || code === 0x3e || (code === 0x5d && stretch.charCodeAt(i - 1) === 0x5d)) break;
+      if (code === 0x0a && (stretch.charCodeAt(i - 1) === 0x0a || (stretch.charCodeAt(i - 1) === 0x0d && stretch.charCodeAt(i - 2) === 0x0a))) break;
+    }
+  }
+  return false;
 }

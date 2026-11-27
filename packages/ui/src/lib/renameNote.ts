@@ -3,7 +3,8 @@ import {
   explicitLinkPath,
   resolveLinkRow,
   notesThatMayNameUnread,
-  readAsTextParts,
+  encodeMarkdownLinkPath,
+  readNoteLinks,
   rewriteNoteLinks,
   unreadNaming,
   renameFrontmatterWikiLinks,
@@ -159,10 +160,11 @@ export async function planLinkUpdates(
   // path without and with its extension, each also as a Markdown link encodes its blanks.
   const oldStem = oldPath.replace(/\.md$/i, "");
   const oldBase = oldStem.split(/[/\\]/).pop() ?? oldStem;
-  const unreadNames = [...new Set([oldBase, oldStem, oldPath].flatMap((name) => [name, name.replace(/ /g, "%20")]))];
+  // Encoded as a Markdown link writes it: `%20` for a blank, `%C3%B6` for an `ö`.
+  const unreadNames = [...new Set([oldBase, oldStem, oldPath].flatMap((name) => [name, name.replace(/ /g, "%20"), encodeMarkdownLinkPath(name)]))];
   let unreadPaths: string[] = [];
   try {
-    unreadPaths = await notesThatMayNameUnread(queryService.db, [oldBase, oldBase.replace(/ /g, "%20")]);
+    unreadPaths = await notesThatMayNameUnread(queryService.db, [...new Set([oldBase, oldBase.replace(/ /g, "%20"), encodeMarkdownLinkPath(oldBase)])]);
   } catch (e) {
     console.warn("[renameNote] looking for notes with unread parts failed", e);
     failed = true;
@@ -391,7 +393,8 @@ export async function applyLinkUpdates(
   for (const { path, names } of plan.unread ?? []) {
     try {
       const text = await adapter.readTextFile(path);
-      const left = unreadNaming(text, readAsTextParts(text).unread, names);
+      // What is not read for links: what the budget leaves, and where a definition a part does not see may change it.
+      const left = unreadNaming(text, readNoteLinks(text).unread, names);
       if (left > 0) {
         console.warn(`[renameNote] ${left} part(s) of ${path} that are not read name the renamed note: left as they are`);
         failed = true;

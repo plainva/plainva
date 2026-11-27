@@ -705,9 +705,11 @@ export const PARITY_FEATURES: ParityFeatureDef[] = [
       "(one paragraph, a list under one item) is not read for its links and " +
       "tags - on the phone from a quarter of the size the desktop reads so, " +
       "since a piece's share is of each shell's budget. Both say so over the " +
-      "note, and a rename on either says when it left links in such a part " +
+      "note, and a rename on either says when such a part names the renamed " +
+      "note where a link can name it; where a definition a part does not see " +
+      "may change its brackets, both read nothing there, by one rule " +
       "(docs/engineering/Note_Budget_Readings.md).",
-    verified: "2026-11-25",
+    verified: "2026-11-27",
   },
   {
     id: "print-note",

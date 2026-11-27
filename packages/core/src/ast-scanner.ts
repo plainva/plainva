@@ -5,7 +5,8 @@ import { PLAINVA_NAMESPACE_KEY } from "./metadata.js";
 import { findInlineTags } from "./tagRule.js";
 import { wikiLinkInner, wikiLinkParts } from "./wikiLink.js";
 import { inBoundedRanges as inRanges, readAsTextParts, type BoundedRange } from "./inlineParseBudget.js";
-import { forEachReadPiece } from "./markdown-parser.js";
+import { definitionReachOf, forEachReadPiece } from "./markdown-parser.js";
+import type { DefinitionReach } from "./definitionReach.js";
 
 export type TagOccurrence = {
   name: string;
@@ -56,8 +57,20 @@ export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedD
   // With the note: the blocks read as text, whose characters the tree holds as text — their facts come from their pieces.
   const parts = text !== undefined ? readAsTextParts(text) : null;
   const blocks = parts ? parts.ranges.filter((range) => range.block) : [];
-  const walk = (node: any, inPiece = false): void => {
+  // Where a definition the parse did not see may change what brackets are (`definitionReach.ts`): no link there, and
+  // no tag from a paragraph that asks the parser for a label. Set for the tree being walked.
+  let reach: DefinitionReach | null = definitionReachOf(ast);
+  /** Where each link pushed from a piece stands, for the order of the text. */
+  let placed: number[] | null = null;
+  // `untagged`: the walk is inside a paragraph, heading or cell that asks the parser for a label — no tag from any text
+  // below it, whether the text node has a place or not (one a plugin made, as the autolink literals split the text).
+  const walk = (node: any, inPiece = false, untagged = false): void => {
     if (!inPiece && blocks.length > 0 && node.type !== "root" && inRanges(blocks, node.position?.start?.offset)) return;
+    const at = node.position?.start?.offset;
+    if (reach && (node.type === "wikiLink" || node.type === "link") && inRanges(reach.open, at)) return;
+    if (reach && !untagged && (node.type === "paragraph" || node.type === "heading" || node.type === "tableCell") && inRanges(reach.untagged, at)) untagged = true;
+    if (untagged && node.type === "text") return;
+    if (placed && (node.type === "wikiLink" || node.type === "link")) placed.push(at ?? 0);
     if (node.type === "text") {
       // Inline tags: the one rule in tagRule.ts (the task scan, the rename and
       // the editor's pill read the same one).
@@ -95,7 +108,7 @@ export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedD
         line: node.position?.start?.line,
       });
     }
-    for (const child of node.children ?? []) walk(child, inPiece);
+    for (const child of node.children ?? []) walk(child, inPiece, untagged);
   };
   walk(ast);
   // What of a block read as text is not read (`ReadAsTextParts.unread`) gives no link and no tag: the tag rule over its
@@ -105,14 +118,10 @@ export function extractLinksAndTags(ast: MarkdownAst, text?: string): ExtractedD
   if (parts && text !== undefined && parts.pieces.length > 0) {
     // Each piece's links and tags, at its place in the order of the text: the walk lists the tree's in that order.
     const fromTree = result.links.length;
-    const places = placesOf(ast, fromTree, blocks);
-    forEachReadPiece(text, parts, ast, { preserveObsidianSyntax: true }, (tree) => {
-      // The walk and this visit meet the same links in the same order.
-      const visit = (node: any): void => {
-        if (node.type === "wikiLink" || node.type === "link") places.push(node.position?.start?.offset ?? 0);
-        for (const child of node.children ?? []) visit(child);
-      };
-      visit(tree);
+    const places = placesOf(ast, fromTree, blocks, reach);
+    placed = places;
+    forEachReadPiece(text, parts, { preserveObsidianSyntax: true }, (tree) => {
+      reach = definitionReachOf(tree);
       walk(tree, true);
     });
     if (result.links.length > fromTree) {
@@ -201,10 +210,11 @@ function getChildrenText(node: any): string {
 }
 
 /** Where each of the first `count` links of the tree starts, in the order the walk above lists them, outside `blocks`. */
-function placesOf(ast: MarkdownAst, count: number, blocks: BoundedRange[]): number[] {
+function placesOf(ast: MarkdownAst, count: number, blocks: BoundedRange[], reach: DefinitionReach | null): number[] {
   const places: number[] = [];
   const visit = (node: any): void => {
     if (blocks.length > 0 && node.type !== "root" && inRanges(blocks, node.position?.start?.offset)) return;
+    if (reach && (node.type === "wikiLink" || node.type === "link") && inRanges(reach.open, node.position?.start?.offset)) return;
     if (node.type === "wikiLink" || node.type === "link") places.push(node.position?.start?.offset ?? 0);
     for (const child of node.children ?? []) visit(child);
   };

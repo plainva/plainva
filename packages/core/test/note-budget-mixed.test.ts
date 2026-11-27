@@ -129,6 +129,8 @@ function facts(note: string) {
     links: links.map((link) => `${link.type} ${link.target} ${link.anchor ?? ""} @${link.line}`),
     tags: tags.map((tag) => tag.name).sort(),
     places: readNoteLinks(note).links.map((link) => ({ at: link.start, text: `${link.type} ${link.target} ${link.start}-${link.end}` })),
+    // What is not read for links: what the budget leaves, and where a definition a part does not see may change it.
+    unread: readNoteLinks(note).unread,
     renamed: renameNoteLinks(note, RENAMES).content,
     source: analyzeNoteSource(note),
   };
@@ -151,16 +153,25 @@ for (const [shell, budget, notes] of [["phone", NOTE_BUDGET, 6], ["desktop", DES
           // A part formatted, a part read in pieces, and a part not read where there should be one.
           expect(overBudgetInlineRanges(note).filter((range) => range.block).length, `${name}: blocks read as text`).toBeGreaterThan(0);
           expect(parts.pieces.length, `${name}: pieces`).toBeGreaterThan(0);
-          const notRead = parts.unread;
-          if (!unread) expect(notRead, name).toEqual([]);
-          else expect(notRead.length, `${name}: a part not read`).toBeGreaterThan(0);
+          const notRead = head.unread;
+          if (!unread) expect(parts.unread, name).toEqual([]);
+          else expect(parts.unread.length, `${name}: a part not read`).toBeGreaterThan(0);
           // Lines that lie wholly in what is not read.
           // As the parser counts them: a CR alone ends a line too.
           const lineStarts = [0];
           for (const end of note.matchAll(/\r\n|\r|\n/g)) lineStarts.push(end.index + end[0].length);
-          const unreadLine = (line: number) => inAny(notRead, lineStarts[line - 1]);
-          const outside = (text: string) => !unreadLine(Number(text.slice(text.lastIndexOf("@") + 1)));
-          expect(head.links, `${name}: the index`).toEqual(whole.links.filter(outside));
+          // A line that a part not read meets: a link of the note read whole there may be one the head does not read.
+          const unreadLine = (line: number) => notRead.some((range) => range.from < (lineStarts[line] ?? note.length + 1) && range.to > lineStarts[line - 1]);
+          const lineOf = (text: string) => Number(text.slice(text.lastIndexOf("@") + 1));
+          // The index: every link of the note read whole's, in its order; those it lacks stand on a line not read.
+          const lacked = [...whole.links];
+          for (const link of head.links) {
+            const at = lacked.indexOf(link);
+            expect(at, `${name}: the index's ${link}`).toBeGreaterThanOrEqual(0);
+            lacked.splice(at, 1);
+          }
+          for (const link of lacked) expect(unreadLine(lineOf(link)), `${name}: the index lacks ${link}`).toBe(true);
+          if (notRead.length === 0) expect(head.links, `${name}: the index`).toEqual(whole.links);
           expect(head.places.map((link) => link.text), `${name}: a rename's links`).toEqual(whole.places.filter((link) => !inAny(notRead, link.at)).map((link) => link.text));
           // A rename, byte for byte: the note read whole's outside, the note's own inside what is not read.
           expect(head.renamed.length, name).toBe(note.length);
@@ -168,7 +179,8 @@ for (const [shell, budget, notes] of [["phone", NOTE_BUDGET, 6], ["desktop", DES
           for (let i = 0; i < note.length && differs < 0; i++) if (head.renamed[i] !== (inAny(notRead, i) ? note[i] : whole.renamed[i])) differs = i;
           expect(differs, `${name}: the rename differs at ${differs}: ${JSON.stringify(head.renamed.slice(differs - 20, differs + 40))}`).toBe(-1);
           // The note source outside what is not read; slugs count on in the order of the text, so they are compared where nothing is unread.
-          const strip = (items: Array<{ from: number; slug?: string }>) => items.filter((item) => !inAny(notRead, item.from)).map((item) => ({ ...item, slug: notRead.length ? "" : item.slug }));
+          // A heading a part not read meets may read its text otherwise: where a definition elsewhere may change its brackets.
+          const strip = (items: Array<{ from: number; to: number; slug?: string }>) => items.filter((item) => !notRead.some((range) => range.from < Math.max(item.to, item.from + 1) && range.to > item.from)).map((item) => ({ ...item, slug: notRead.length ? "" : item.slug }));
           expect(strip(head.source.headings), `${name}: headings`).toEqual(strip(whole.source.headings));
           expect(strip(head.source.blocks), `${name}: block ids`).toEqual(strip(whole.source.blocks));
           // No tag the note read whole does not have.
@@ -178,7 +190,7 @@ for (const [shell, budget, notes] of [["phone", NOTE_BUDGET, 6], ["desktop", DES
             expect(at, `${name}: the tag ${tag}`).toBeGreaterThanOrEqual(0);
             left.splice(at, 1);
           }
-          if (!unread) expect(head.tags, name).toEqual(whole.tags);
+          if (notRead.length === 0) expect(head.tags, name).toEqual(whole.tags);
         }
       }, 600 * SECONDS);
     }

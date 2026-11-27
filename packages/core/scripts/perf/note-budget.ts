@@ -163,7 +163,18 @@ export const NOTE_FORMS: Record<string, (n: number) => string> = {
   // The performance script's note of many tables (`many-tables.ts`): 50 rows each, prose between them.
   manytables: (n) => tablesNote(n, 50),
   tables50: (n) => Array.from({ length: n }, (_, t) => `| a | b | c |\n|---|---|---|\n${Array.from({ length: 50 }, (_, i) => `| ${i} | [[n${t}]] | some words |`).join("\n")}`).join("\n\nSome prose between the tables.\n\n"),
+  // A quote of one paragraph whose depth changes from line to line, as long mail threads are pasted (review of L14,
+  // 2026-11-26): over the inline budget, such a paragraph keeps its markers, and the parser opens their quotes on every
+  // line. One that changes its depth on every line, and one of eight levels of fifty lines each.
+  quotedepth: (n) => Array.from({ length: n }, (_, i) => `${"> ".repeat(1 + (i % 60))}line ${i} [[A]]`).join("\n"),
+  mailthread: (n) => Array.from({ length: n }, (_, i) => `${"> ".repeat(1 + Math.floor((i % 400) / 50))}On a day someone wrote line ${i} about [[A]] and more words`).join("\n"),
 };
+
+/**
+ * The forms added after the hunt's notes `gen:<seed>:<k>` were first named: such a note is drawn from the forms before
+ * them, so that a note the hunt once found stays the same note; the hunt draws from every form (`mix:<seed>:<k>`).
+ */
+const LATER_FORMS = new Set(["quotedepth", "mailthread"]);
 
 const wrap = (body: string) => `---\ntitle: T\n---\n\n# Title\n\n${body}\n`;
 
@@ -184,9 +195,9 @@ function random(...keys: number[]): () => number {
 }
 
 /** Generated note `k` of `seed` at `scale` (a scale of 8 makes it eight times as long): blocks of every kind, mixed. */
-function generatedNote(seed: number, k: number, scale = 1): string {
+function generatedNote(seed: number, k: number, scale = 1, every = false): string {
   const r = random(seed, k);
-  const kinds = Object.keys(NOTE_FORMS);
+  const kinds = Object.keys(NOTE_FORMS).filter((kind) => every || !LATER_FORMS.has(kind));
   // From a tenth to five times the note's budget, at a weight of about 500 a line.
   const lines = Math.floor(((0.1 + r() * 4.9) * NOTE_BUDGET * budgetFactor) / 500) * scale;
   const blocks: string[] = [];
@@ -207,11 +218,11 @@ function generatedNote(seed: number, k: number, scale = 1): string {
   return wrap(blocks.join(r() < 0.3 ? "\n" : "\n\n"));
 }
 
-/** A form's note, or a generated one as `gen:<seed>:<k>`. */
+/** A form's note, or a generated one as `gen:<seed>:<k>` (the forms before `LATER_FORMS`) or `mix:<seed>:<k>` (every form). */
 export function noteOf(name: string, n: number, scale = 1): string {
-  if (name.startsWith("gen:")) {
-    const [, seed, k] = name.split(":");
-    return generatedNote(Number(seed), Number(k), scale);
+  if (name.startsWith("gen:") || name.startsWith("mix:")) {
+    const [kind, seed, k] = name.split(":");
+    return generatedNote(Number(seed), Number(k), scale, kind === "mix");
   }
   return wrap(NOTE_FORMS[name](n));
 }
@@ -625,7 +636,7 @@ function hunt(args: string[]): boolean {
   let tried = 0;
   console.log(`hunt     ${shell}: ${count} generated notes, seed ${seed}, at most ${minutes} min; note budget ${NOTE_BUDGET * budgetFactor}, ${heapMb} MB, ${shellParses.join(" ")}`);
   for (let k = 0; k < count && performance.now() - started < minutes * 60_000; k++) {
-    const name = `gen:${seed}:${k}`;
+    const name = `mix:${seed}:${k}`;
     // The reading view exists on the desktop only; under 128 MB it is held up to 5 MB of note (`READER_HELD_CHARS`), under a larger heap in proportion.
     const parses = noteOf(name, 0).length > (READER_HELD_CHARS * heapMb) / HEAP_MB ? shellParses.filter((parse) => parse !== "reader") : shellParses;
     const run = passes(name, 0, true, 1, parses);

@@ -13,8 +13,10 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
-  # Daily on main: the search for tables the budget misses runs through
-  # without a push cancelling it (`tables` below).
+  # Daily on main: the searches for tables and notes the budgets miss run
+  # there (and by hand), through, without a push cancelling them (`tables`,
+  # `notes` below); a push runs the two gates and, where it changes what the
+  # note's budget measures, its check.
   schedule:
     - cron: "17 3 * * *"
 
@@ -100,6 +102,7 @@ jobs:
 
   tables:
     name: Table budget search
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -141,11 +144,12 @@ jobs:
       - name: The tables of seed 956860 under a capped heap
         run: pnpm --filter @plainva/core perf:tables -- --hunt 200 --seed 956860 --minutes 20
 
-  # Whether this push changes what the note budget's search and check measure: the modules
-  # `note-budget.ts` reads, the calibration, the dependencies and their patches, this file
-  # (scripts/perf/note-budget-inputs.mjs). They take about four runner hours; they run when it does,
-  # on every scheduled run (daily on main) and by hand. On a branch the push is compared with where
-  # it leaves main, on main and in a pull request with what it builds on.
+  # Whether this push changes what the note budget's check measures: the modules `note-budget.ts`
+  # reads, the calibration, the parser's packages in the dependencies and their patches, this file
+  # (scripts/perf/note-budget-inputs.mjs) — a lockfile that moves other packages alone runs nothing.
+  # The check takes about three runner hours; it runs when it does, on every scheduled run (daily on
+  # main) and by hand. On a branch the push is compared with where it leaves main, on main and in a
+  # pull request with what it builds on.
   note-budget-inputs:
     name: Note budget inputs changed
     runs-on: ubuntu-latest
@@ -180,8 +184,7 @@ jobs:
 
   notes:
     name: Note budget search (${{ matrix.shell }})
-    needs: note-budget-inputs
-    if: needs.note-budget-inputs.outputs.changed == 'true'
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:

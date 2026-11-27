@@ -186,35 +186,40 @@ describe("what of a note is read as text (L14)", () => {
     }
   });
 
-  it("knows in the reading view the definitions of a block read as text, as the note read whole does", async () => {
+  it("gives the reading view's parse the shown text as it is, nothing in front of it", async () => {
     expect.hasAssertions();
-    // A definition in the heaviest block, a reference with a parenthesis behind it in a light one (review of L14,
-    // 2026-11-26, S1): the reading view read `[foo][bar](x.md)` as a link to x.md, the note read whole a reference.
-    // The reading view's own parser: react-markdown's unified and remark-parse, and the desktop's remark-gfm.
+    // The reading view was given the definitions of blocks read as text in front of its text (review of L14,
+    // 2026-11-26, S5 and M3): a footnote given so took a note that begins with indented lines for its own text, and the
+    // first block was gone; and its node taken out again left the reference without its definition. A reading reads
+    // the text it is handed, nothing more: here the indented first line stays the code it is.
     const { createRequire } = await import("node:module");
     const { pathToFileURL } = await import("node:url");
     const fromReader = createRequire(createRequire(import.meta.url).resolve("react-markdown"));
     const { unified } = await import(pathToFileURL(fromReader.resolve("unified")).href);
     const remarkParse = (await import(pathToFileURL(fromReader.resolve("remark-parse")).href)).default;
     const remarkGfm = (await import("remark-gfm")).default;
-    const heavy = (n: number) => `[bar]: def.md\n${Array.from({ length: n }, (_, i) => `- item ${i} [[Note ${i}]]`).join("\n")}`;
-    const note = (n: number) => `# T\n\n${heavy(n)}\n\nSee [foo][bar](x.md) here.\n`;
-    let n = 1_000;
-    while (!readAsTextParts(note(n)).ranges.some((range) => range.block)) n *= 2;
+    // The review's note: a footnote's definition of 3 000 words among heavy blocks, read as text; the note begins
+    // with an indented line and a lazy one that refers to it.
+    const words = Array.from({ length: 3000 }, (_, i) => `w${i}`).join(" ");
+    const heavy = (k: number) => Array.from({ length: 60 }, (_, i) => `**b${i}** _c_ \`d\` [[Other${k}-${i}]] <e> &amp; ~~s~~ words to read here`).join("\n");
+    const note = (n: number) => {
+      const blocks = Array.from({ length: n }, (_, k) => heavy(k));
+      blocks.splice(3, 0, `[^n]: ${words}`);
+      return `    code line\nlazy [[A]] text and a ref[^n]\n\n${blocks.join("\n\n")}\n`;
+    };
+    let n = 20;
+    const definitionAsText = (k: number) => readAsTextParts(note(k)).ranges.some((range) => range.block && note(k).slice(range.from, range.to).includes("[^n]: w0"));
+    while (!definitionAsText(n) && n < 2_000) n *= 2;
+    expect(definitionAsText(n), "the definition stands in a block read as text").toBe(true);
     const text = note(n);
     const source = prepareReaderSource(text);
     const bounded = boundReaderMarkdown(source.text, { original: text, source });
+    expect(bounded.text.length).toBe(source.text.length);
     const tree = unified().use(remarkParse).use(remarkGfm).parse(bounded.text);
     bounded.remarkRestore()(tree);
-    const found: Array<{ type: string; url?: string; at?: number }> = [];
-    const walk = (node: { type: string; url?: string; children?: unknown[]; position?: { start?: { offset?: number } } }) => {
-      if (node.type === "link" || node.type === "linkReference" || node.type === "definition") found.push({ type: node.type, url: node.url, at: node.position?.start?.offset });
-      for (const child of node.children ?? []) walk(child as never);
-    };
-    walk(tree as never);
-    const at = source.text.indexOf("[foo][bar]");
-    expect(found.filter((node) => node.at !== undefined && node.at >= at)).toEqual([{ type: "linkReference", url: undefined, at }]);
-    expect(found.some((node) => node.url === "x.md")).toBe(false);
+    const first = (tree as { children: Array<{ type: string; value?: string; position?: { start?: { offset?: number } } }> }).children[0];
+    expect(first.type).toBe("code");
+    expect(first.position?.start?.offset).toBe(0);
   });
 
   it("is in the editor of both shells, and so is the notice over the note", () => {
