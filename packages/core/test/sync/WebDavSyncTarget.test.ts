@@ -12,6 +12,10 @@ describe("WebDavSyncTarget", () => {
       user: "testuser",
       pass: "testpass"
     }, mockFetch);
+    // These cases answer one request each with a hand-made `allprop` body;
+    // the listing by name and its fallback have their own file
+    // (webdav-slim-listing.test.ts).
+    target.slimListing = false;
   });
 
   afterEach(() => {
@@ -390,6 +394,7 @@ describe("WebDavSyncTarget", () => {
         { url: "https://cloud.example.com/dav/School Term 1", user: "u", pass: "p" },
         mockFetch
       );
+      spaced.slimListing = false;
       mockFetch.mockResolvedValueOnce({
         ok: true,
         text: async () => listing("/dav/School%20Term%201/Note.md")
@@ -405,6 +410,7 @@ describe("WebDavSyncTarget", () => {
         { url: "https://cloud.example.com/dav/Schlüssel", user: "u", pass: "p" },
         mockFetch
       );
+      umlaut.slimListing = false;
       mockFetch.mockResolvedValueOnce({
         ok: true,
         text: async () => listing("/dav/Schl%C3%BCssel/Note.md")

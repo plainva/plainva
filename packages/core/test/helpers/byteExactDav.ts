@@ -29,6 +29,35 @@ export interface ByteExactDavOptions {
   weakEtags?: boolean;
   /** The server's clock: a PUT without `X-OC-Mtime` records this time. Absent: such a PUT records none. */
   clock?: () => number;
+  /**
+   * Lists what Nextcloud adds besides in an `allprop` answer: each entry's
+   * content type, ids, permissions and size, and each folder's tag, time and
+   * quota. Off: an entry lists only what the sync reads.
+   */
+  nextcloudProps?: boolean;
+  /**
+   * How a PROPFIND that names its properties (`<d:prop>`) is answered:
+   * - "honor" (default): as RFC 4918 has it, the named ones the entry has in
+   *   a 200 propstat, the others in a 404 propstat;
+   * - "ignore": the body is not read, the answer is the `allprop` one;
+   * - "refuse" (400), "unsupported" (501), "fail" (500): the request fails;
+   * - "garbage": a 207 whose body is no listing;
+   * - "dropEtag", "dropResourcetype", "dropModified": that property is left
+   *   out without a word, for one entry only (the first file; for
+   *   "dropResourcetype" the first folder below the vault folder);
+   * - "etagNotFound": the first file's tag comes in a 404 propstat, empty.
+   * An `allprop` request (no body) is always answered in full.
+   */
+  propRequests?: "honor" | "ignore" | "refuse" | "unsupported" | "fail" | "garbage" | "dropEtag" | "dropResourcetype" | "dropModified" | "etagNotFound";
+  /** Refuses `Depth: infinity` (403), as Apache mod_dav does by default: the sync walks with `Depth: 1`. */
+  refuseInfinity?: boolean;
+}
+
+/** The properties a `<d:prop>` request names, by local name; null for `allprop` (no body, or `<allprop/>`). */
+function namedProps(body: unknown): Set<string> | null {
+  if (typeof body !== "string" || !/<([\w-]+:)?prop[\s>]/.test(body)) return null;
+  const inner = /<([\w-]+:)?prop[^>]*>([\s\S]*?)<\/([\w-]+:)?prop>/.exec(body)?.[2] ?? "";
+  return new Set([...inner.matchAll(/<(?:[\w-]+:)?([\w-]+)\s*\/>/g)].map((m) => m[1]!));
 }
 
 export function byteExactDav(base = "https://dav.example.com/dav/Vault/", options: ByteExactDavOptions = {}): ByteExactDav {
@@ -48,16 +77,72 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
   };
   const parent = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
   const href = (p: string, collection: boolean) => `${basePath}${enc(p)}${collection && p ? "/" : ""}`;
-  const entry = (p: string) => {
+  /** Every property the entry has, by local name, as XML. */
+  const propsOf = (p: string): Array<[string, string]> => {
+    const id = [...p].reduce((h, ch) => (Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0), 2166136261).toString(16).padStart(8, "0");
     if (folders.has(p)) {
-      return `<d:response><d:href>${href(p, true)}</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>`;
+      const out: Array<[string, string]> = [["resourcetype", "<d:resourcetype><d:collection/></d:resourcetype>"]];
+      if (options.nextcloudProps) {
+        out.push(
+          ["getetag", `<d:getetag>"${id}f"</d:getetag>`],
+          ["getlastmodified", `<d:getlastmodified>${new Date(0).toUTCString()}</d:getlastmodified>`],
+          ["quota-used-bytes", "<d:quota-used-bytes>123456789</d:quota-used-bytes>"],
+          ["quota-available-bytes", "<d:quota-available-bytes>-3</d:quota-available-bytes>"],
+          ["id", `<oc:id>${id}ocabcdef12345</oc:id>`],
+          ["fileid", `<oc:fileid>${parseInt(id.slice(0, 6), 16)}</oc:fileid>`],
+          ["permissions", "<oc:permissions>RGDNVCK</oc:permissions>"],
+          ["size", "<oc:size>123456</oc:size>"],
+        );
+      }
+      return out;
     }
     const f = files.get(p)!;
-    const modified = f.modified === undefined ? "" : `<d:getlastmodified>${new Date(f.modified).toUTCString()}</d:getlastmodified>`;
-    return `<d:response><d:href>${href(p, false)}</d:href><d:propstat><d:prop><d:resourcetype/><d:getetag>${tag(f.etag)}</d:getetag><d:getcontentlength>${f.bytes.length}</d:getcontentlength>${modified}</d:prop></d:propstat></d:response>`;
+    const out: Array<[string, string]> = [
+      ["resourcetype", "<d:resourcetype/>"],
+      ["getetag", `<d:getetag>${tag(f.etag)}</d:getetag>`],
+      ["getcontentlength", `<d:getcontentlength>${f.bytes.length}</d:getcontentlength>`],
+    ];
+    if (f.modified !== undefined) out.push(["getlastmodified", `<d:getlastmodified>${new Date(f.modified).toUTCString()}</d:getlastmodified>`]);
+    if (options.nextcloudProps) {
+      out.push(
+        ["getcontenttype", "<d:getcontenttype>text/markdown</d:getcontenttype>"],
+        ["id", `<oc:id>${id}ocabcdef12345</oc:id>`],
+        ["fileid", `<oc:fileid>${parseInt(id.slice(0, 6), 16)}</oc:fileid>`],
+        ["permissions", "<oc:permissions>RGDNVW</oc:permissions>"],
+        ["size", `<oc:size>${f.bytes.length}</oc:size>`],
+        ["has-preview", "<nc:has-preview>false</nc:has-preview>"],
+      );
+    }
+    return out;
   };
-  const multistatus = (paths: string[]) =>
-    new Response(`<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">${paths.map(entry).join("")}</d:multistatus>`, { status: 207 });
+  const OK = "<d:status>HTTP/1.1 200 OK</d:status>";
+  const NOT_FOUND = "<d:status>HTTP/1.1 404 Not Found</d:status>";
+  const entry = (p: string, named: Set<string> | null, half: { path: string; prop: string } | null) => {
+    const own = propsOf(p);
+    const h = href(p, folders.has(p));
+    if (named === null) return `<d:response><d:href>${h}</d:href><d:propstat><d:prop>${own.map(([, xml]) => xml).join("")}</d:prop>${options.nextcloudProps ? OK : ""}</d:propstat></d:response>`;
+    const dropped = half !== null && half.path === p ? half.prop : null;
+    const found = own.filter(([name]) => named.has(name) && name !== dropped);
+    const missing = [...named].filter((name) => !own.some(([n]) => n === name) && name !== dropped);
+    const etagNotFound = dropped === "getetag" && options.propRequests === "etagNotFound";
+    if (etagNotFound) missing.push("getetag");
+    return `<d:response><d:href>${h}</d:href>` +
+      (found.length > 0 ? `<d:propstat><d:prop>${found.map(([, xml]) => xml).join("")}</d:prop>${OK}</d:propstat>` : "") +
+      (missing.length > 0 ? `<d:propstat><d:prop>${missing.map((name) => `<d:${name}/>`).join("")}</d:prop>${NOT_FOUND}</d:propstat>` : "") +
+      `</d:response>`;
+  };
+  const multistatus = (paths: string[], named: Set<string> | null = null) => {
+    let half: { path: string; prop: string } | null = null;
+    if (named !== null) {
+      const firstFile = paths.find((q) => files.has(q));
+      const firstFolder = paths.find((q) => q !== "" && folders.has(q));
+      if (options.propRequests === "dropEtag" || options.propRequests === "etagNotFound") half = firstFile === undefined ? null : { path: firstFile, prop: "getetag" };
+      if (options.propRequests === "dropModified") half = firstFile === undefined ? null : { path: firstFile, prop: "getlastmodified" };
+      if (options.propRequests === "dropResourcetype") half = firstFolder === undefined ? null : { path: firstFolder, prop: "resourcetype" };
+    }
+    const ns = options.nextcloudProps ? ` xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"` : "";
+    return new Response(`<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"${ns}>${paths.map((q) => entry(q, named, half)).join("")}</d:multistatus>`, { status: 207 });
+  };
   const status = (code: number, headers?: Record<string, string>) =>
     new Response(code === 204 || code === 304 ? null : "", { status: code, headers });
 
@@ -70,12 +155,21 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
     switch (method) {
       case "PROPFIND": {
         const depth = headers.get("Depth") ?? "infinity";
+        const asked = namedProps(init?.body);
+        const named = options.propRequests === "ignore" ? null : asked;
+        if (named !== null) {
+          if (options.propRequests === "refuse") return status(400);
+          if (options.propRequests === "unsupported") return status(501);
+          if (options.propRequests === "fail") return status(500);
+        }
         if (!folders.has(p) && !files.has(p)) return status(404);
-        if (files.has(p) || depth === "0") return multistatus([p]);
+        if (depth === "infinity" && options.refuseInfinity) return status(403);
+        if (named !== null && options.propRequests === "garbage") return new Response("<html><body>Login</body></html>", { status: 207 });
+        if (files.has(p) || depth === "0") return multistatus([p], named);
         const inside = (q: string) => (p === "" ? q !== "" : q.startsWith(`${p}/`));
         const all = [...folders, ...files.keys()].filter(inside);
         const children = depth === "1" ? all.filter((q) => parent(q) === p) : all;
-        return multistatus([p, ...children]);
+        return multistatus([p, ...children], named);
       }
       case "GET": {
         const f = files.get(p);

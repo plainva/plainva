@@ -511,6 +511,23 @@ Linux the first pass one by one paid for the cold start (11.7 s, 4.6 s the secon
 Hashing 75 attachments in Rust took 14–77 ms. That is the reading of a first index of 3 003 notes,
 the part L2 changes; parsing and writing the index are not in it.
 
+## WebDAV full listings by name (performance plan L7a, 2026-11-27)
+
+Every sync cycle lists the whole vault folder (`PROPFIND`, `Depth: infinity`, by default every 15 s). The request used to carry no body, which RFC 4918 reads as `allprop`: a server answers with every property it keeps. Nextcloud adds the content type, two ids, permissions, a size and, for folders, the tag, time and quota. The sync reads three of them (`resourcetype`, `getetag`, `getlastmodified`), so `WebDavSyncTarget.pull` now asks for those by name (`SLIM_LISTING_BODY`).
+
+**What it reads is what `allprop` gives, or the listing is asked again.** An answer is used only where every entry names its resource type in a 2xx propstat, and every file its entity tag there and its time either way (`slimAnswerComplete`). Anything else is asked again without a body in the same pull: a refusal (400, 415, 422, 501, 500, any other error besides 404 and the 403 of a refused infinite depth), a body that is no listing, or a property left out without a word. That last case is why the check exists: a file without a tag drops out of the listing, and a file missing from a listing is what mirrors a deletion. After such a fallback the target lists with `allprop` for as long as it lives. A fallback that fails as well fails as before and leaves the listing by name in place, so a server that was only down is asked by name again. `test/sync/webdav-slim-listing.test.ts` compares the two listings on six server stand-ins (with and without times, Nextcloud's extra properties, weak tags, the `Depth: 1` walk) against ten ways of answering, and runs two devices against the half answers.
+
+Measured against the in-memory stand-in (`pnpm exec tsx scripts/perf/webdav-listing-bytes.ts`, fastest of five, this machine). The time is the device's own (request, parse, map), not the server's:
+
+| Files | Stand-in | `allprop` bytes | By name bytes | Saved | `allprop` pull | By name pull |
+|---|---|---|---|---|---|---|
+| 1 000 | Nextcloud's properties | 582 705 | 314 222 | 46 % | 50 ms | 27 ms |
+| 10 000 | Nextcloud's properties | 5 877 718 | 3 177 231 | 46 % | 457 ms | 258 ms |
+| 50 000 | Nextcloud's properties | 29 563 680 | 16 054 235 | 46 % | 2 350 ms | 1 314 ms |
+| 10 000 | only what the sync reads | 3 170 124 | 3 185 427 | 0 % | 258 ms | 262 ms |
+
+A server that already lists only these properties saves nothing (the 200 status of each propstat adds a few bytes). A real Nextcloud answer differs in detail from the stand-in's; measuring one needs a real account.
+
 ## Budgets of the performance plan (§ 4), measured 2026-11-10
 
 Core numbers from `pnpm perf:core` (10 000-note fixture, this machine, after L1); bundle numbers

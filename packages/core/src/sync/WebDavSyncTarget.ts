@@ -65,6 +65,47 @@ export interface WebDavResponse {
   size?: number;
   /** getlastmodified as epoch ms, when the server reports one. */
   modifiedAt?: number;
+  /**
+   * How the entry answered each property the slim listing asks for
+   * (`SLIM_LISTING_PROPS`): "ok" in a 2xx propstat (or one without a status),
+   * "absent" in another propstat (the server says it has none), and missing
+   * where the entry does not name it at all.
+   */
+  answered: Partial<Record<SlimListingProp, "ok" | "absent">>;
+}
+
+/**
+ * The properties a full listing needs, and nothing else: `pull` reads the
+ * entity tag and the time of each file and which entries are folders. Asking
+ * for them by name (`<d:prop>`) instead of everything (`allprop`, an empty
+ * body) keeps out what a server adds besides — content types, quota, ids,
+ * permissions, sizes of folders — which on a large vault is most of every
+ * listing (plan L7a).
+ */
+export const SLIM_LISTING_PROPS = ["resourcetype", "getetag", "getlastmodified"] as const;
+export type SlimListingProp = (typeof SLIM_LISTING_PROPS)[number];
+
+export const SLIM_LISTING_BODY =
+  `<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop>${SLIM_LISTING_PROPS.map((p) => `<d:${p}/>`).join("")}</d:prop></d:propfind>`;
+
+/** A slim listing the server refused or answered in part: the listing is asked again with `allprop`. */
+const SLIM_INCOMPLETE = Symbol("slim listing incomplete");
+
+/**
+ * Whether a slim listing says all that `allprop` would for `pull`: every
+ * entry names its resource type in a 2xx propstat, and every file its entity
+ * tag there and its time either way (a time the server says it has not is
+ * what `allprop` would leave out too; a folder's tag and time are not read).
+ * An entity tag only in a failed propstat, or a property left out without a
+ * word, is a half answer: a file without a tag drops out of the listing, and
+ * a file missing from a listing is what mirrors a deletion, so such an answer
+ * is never used.
+ */
+export function slimAnswerComplete(responses: readonly WebDavResponse[]): boolean {
+  return responses.every((r) =>
+    r.answered.resourcetype === "ok" &&
+    (r.isCollection || (r.answered.getetag === "ok" && r.answered.getlastmodified !== undefined)),
+  );
 }
 
 /**
@@ -87,10 +128,20 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
     let isCollection = false;
     let size: number | undefined;
     let modifiedAt: number | undefined;
+    let okEtag: string | undefined;
+    const answered: WebDavResponse["answered"] = {};
     const propstats: any[] = Array.isArray(resp?.propstat) ? resp.propstat : [];
     for (const ps of propstats) {
       const prop = ps?.prop;
       if (!prop) continue;
+      const code = typeof ps?.status === "string" ? /^\s*HTTP\/\S+\s+(\d{3})/i.exec(ps.status)?.[1] : undefined;
+      const ok = code === undefined || code.startsWith("2");
+      for (const name of SLIM_LISTING_PROPS) {
+        if (!(name in prop)) continue;
+        if (ok) answered[name] = "ok";
+        else if (answered[name] === undefined) answered[name] = "absent";
+      }
+      if (ok && okEtag === undefined && typeof prop.getetag === "string") okEtag = prop.getetag;
       if (etag === undefined && typeof prop.getetag === "string") etag = prop.getetag;
       if (size === undefined && typeof prop.getcontentlength === "string" && /^\d+$/.test(prop.getcontentlength)) {
         size = Number(prop.getcontentlength);
@@ -104,7 +155,10 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
         isCollection = true;
       }
     }
-    entries.push({ href, etag, isCollection, ...(size === undefined ? {} : { size }), ...(modifiedAt === undefined ? {} : { modifiedAt }) });
+    // A tag in a 2xx propstat wins over one in a failed propstat (often an
+    // empty `<d:getetag/>` the server says it does not have).
+    if (okEtag !== undefined) etag = okEtag;
+    entries.push({ href, etag, isCollection, answered, ...(size === undefined ? {} : { size }), ...(modifiedAt === undefined ? {} : { modifiedAt }) });
   }
   return entries;
 }
@@ -454,23 +508,69 @@ export class WebDavSyncTarget implements ISyncTarget {
    */
   public allowRootCreation = true;
 
+  /**
+   * Whether full listings ask for `SLIM_LISTING_PROPS` alone. Cleared, for as
+   * long as this target lives, by the first slim listing the server refuses
+   * or answers in part; every listing from then on asks `allprop`, as before.
+   */
+  public slimListing = true;
+
   // WebDAV has no incremental change token: the `cursor` argument from the
   // ISyncTarget contract is intentionally ignored and a full PROPFIND listing is
   // always returned. Deletions are derived by the worker from the listing diff.
   public async pull(_cursor?: string): Promise<PullResult> {
-    const res = await this.request("PROPFIND", this.creds.url, {
-      headers: {
-        ...this.headers,
-        "Depth": "infinity"
-      }
-    });
+    const slim = this.slimListing ? await this.listVault(true) : SLIM_INCOMPLETE;
+    if (slim !== SLIM_INCOMPLETE) return slim;
+    // Asked again in the same pull, so the listing says what `allprop` says;
+    // never a listing built from a half answer. An `allprop` listing that
+    // fails as well fails as it always did, and the next pull asks by name
+    // again (the server may just have been down).
+    const full = await this.listVault(false);
+    if (full === SLIM_INCOMPLETE) throw new Error("unreachable: an allprop listing is never incomplete");
+    if (this.slimListing) {
+      this.slimListing = false;
+      console.warn("[WebDAV] the server refused or answered a listing by name in part; listing everything from now on");
+    }
+    return full;
+  }
+
+  private propfindInit(depth: string, slim: boolean): RequestInit {
+    return slim
+      ? { headers: { ...this.headers, "Depth": depth, "Content-Type": "application/xml; charset=utf-8" }, body: SLIM_LISTING_BODY }
+      : { headers: { ...this.headers, "Depth": depth } };
+  }
+
+  /** The slim listing's answer, or `SLIM_INCOMPLETE` where it cannot be used (`slimAnswerComplete`). */
+  private parseSlim(xml: string): WebDavResponse[] | typeof SLIM_INCOMPLETE {
+    let responses: WebDavResponse[];
+    try {
+      responses = parseMultistatus(xml);
+    } catch {
+      return SLIM_INCOMPLETE;
+    }
+    return slimAnswerComplete(responses) ? responses : SLIM_INCOMPLETE;
+  }
+
+  private async listVault(slim: boolean): Promise<PullResult | typeof SLIM_INCOMPLETE> {
+    const res = await this.request("PROPFIND", this.creds.url, this.propfindInit("infinity", slim));
     // Before the first href is resolved: a redirect moves the base path, and
     // resolving against the typed URL would put every entry outside the vault.
     this.rememberEffectiveBase(res);
 
     let responses: WebDavResponse[];
-    if (res.ok) {
-      responses = this.parseListing(await res.text());
+    // Any other answer to a listing by name than a listing, a folder that is
+    // not there, or a refused infinite depth may be about the body (400, 415,
+    // 422, 501, a server that fails on it with a 500): asked again without one.
+    if (slim && !res.ok && res.status !== 404 && res.status !== 403) {
+      return SLIM_INCOMPLETE;
+    } else if (res.ok) {
+      if (slim) {
+        const parsed = this.parseSlim(await res.text());
+        if (parsed === SLIM_INCOMPLETE) return SLIM_INCOMPLETE;
+        responses = parsed;
+      } else {
+        responses = this.parseListing(await res.text());
+      }
     } else if (res.status === 404) {
       // A vault that has synced before and a folder that is gone: say so
       // instead of reporting an empty remote (finding 2026-09-20).
@@ -486,7 +586,9 @@ export class WebDavSyncTarget implements ISyncTarget {
       // mod_dav, webdav-server, ...; Nextcloud permits it). Fall back to a
       // breadth-first walk with Depth: 1 — same listing, one request per
       // collection.
-      responses = await this.listByDepthOne();
+      const walked = await this.listByDepthOne(slim);
+      if (walked === SLIM_INCOMPLETE) return SLIM_INCOMPLETE;
+      responses = walked;
     } else {
       throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
     }
@@ -617,23 +719,27 @@ export class WebDavSyncTarget implements ISyncTarget {
   /** Device-local folders never worth walking (the worker skips their files anyway). */
   private static readonly SKIPPED_COLLECTIONS = new Set([".plainva", ".git", ".trash", ".obsidian", "node_modules"]);
 
-  private async listByDepthOne(): Promise<WebDavResponse[]> {
+  private async listByDepthOne(slim: boolean): Promise<WebDavResponse[] | typeof SLIM_INCOMPLETE> {
     const out: WebDavResponse[] = [];
     const queue: string[] = [""];
     while (queue.length > 0) {
       const rel = queue.shift()!;
       const url = rel ? this.urlForPath(rel) : this.creds.url;
-      const res = await this.request("PROPFIND", url, {
-        headers: {
-          ...this.headers,
-          "Depth": "1"
-        }
-      });
+      const res = await this.request("PROPFIND", url, this.propfindInit("1", slim));
+      if (slim && !res.ok && res.status !== 404) return SLIM_INCOMPLETE;
       if (!res.ok) {
         if (res.status === 404) continue;
         throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
       }
-      for (const resp of this.parseListing(await res.text())) {
+      let level: WebDavResponse[];
+      if (slim) {
+        const parsed = this.parseSlim(await res.text());
+        if (parsed === SLIM_INCOMPLETE) return SLIM_INCOMPLETE;
+        level = parsed;
+      } else {
+        level = this.parseListing(await res.text());
+      }
+      for (const resp of level) {
         if (!resp.href) continue;
         if (!resp.isCollection) {
           out.push(resp);
