@@ -863,7 +863,9 @@
         "scope": "Obowiązuje dla {{provider}} do zamknięcia Plainvy. W Twojej skrzynce pocztowej nic nie jest zmieniane ani oznaczane jako przeczytane.",
         "allow": "Zezwól",
         "deny": "Nie zezwalaj"
-      }
+      },
+      "checking": "Sprawdzanie, które słowa wiadomości widzisz…",
+      "tooLongToCheck": "Ta wiadomość jest za długa, by na czas sprawdzić, które jej słowa widzisz, więc asystent nie przeczytał z niej nic. Możesz ją przeczytać w czytniku poczty."
     },
     "reading": {
       "searches_one": "{{count}} wyszukiwanie w e-mailach",

@@ -779,7 +779,9 @@
         "scope": "Gilt für {{provider}}, bis Du Plainva beendest. In Deinem Postfach wird nichts geändert und nichts als gelesen markiert.",
         "allow": "Erlauben",
         "deny": "Nicht erlauben"
-      }
+      },
+      "checking": "Plainva prüft, welche Wörter der Nachricht Du siehst …",
+      "tooLongToCheck": "Diese Nachricht ist zu lang, um rechtzeitig zu prüfen, welche ihrer Wörter Du siehst; deshalb hat der Assistent nichts von ihr gelesen. Du kannst sie im Mail-Leser lesen."
     },
     "reading": {
       "searches_one": "{{count}} E-Mail-Suche",

@@ -779,7 +779,9 @@
         "scope": "Geldt voor {{provider}}, totdat je Plainva sluit. In je mailbox wordt niets gewijzigd of als gelezen gemarkeerd.",
         "allow": "Toestaan",
         "deny": "Niet toestaan"
-      }
+      },
+      "checking": "Plainva controleert welke woorden van het bericht je ziet…",
+      "tooLongToCheck": "Dit bericht is te lang om op tijd te controleren welke woorden je ervan ziet, dus de assistent heeft er niets van gelezen. Je kunt het in de mailweergave lezen."
     },
     "reading": {
       "searches_one": "{{count}} zoekopdracht in e-mail",

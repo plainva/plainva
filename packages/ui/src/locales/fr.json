@@ -821,7 +821,9 @@
         "scope": "S'applique à {{provider}} jusqu'à ce que vous fermiez Plainva. Rien n'est modifié ni marqué comme lu dans votre boîte aux lettres.",
         "allow": "Autoriser",
         "deny": "Ne pas autoriser"
-      }
+      },
+      "checking": "Vérification des mots du message que vous voyez…",
+      "tooLongToCheck": "Ce message est trop long pour vérifier à temps lesquels de ses mots vous voyez ; l'assistant n'en a donc rien lu. Vous pouvez le lire dans le lecteur de messages."
     },
     "reading": {
       "searches_one": "{{count}} recherche dans les e-mails",

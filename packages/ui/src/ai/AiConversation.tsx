@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeftRight, Ban, Check, ChevronDown, CircleAlert, Copy, Eye, FilePlus2, FileText, Globe, GraduationCap, Languages, ListTodo, LoaderCircle, MessageCircleQuestion, MoreHorizontal, PenLine, Pin, Plug, Plus, Scissors, Send, Signature, Sparkles, Square, Zap } from "lucide-react";
-import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core/ai";
+import { addressOrigin, AI_PROFILE_IDS, answerCoverage, checkWebUrl, choiceOnDevice, comparableAddress, hasImages, hasWebTools, knownAddresses, localAnswerer, providerById, runsOnDevice, type ConversationRecord, type AnswerCoverage, type ModelFailure, type RunMcpQuestions, type RunMeta, type RunStop } from "@plainva/core/ai";
 import { Banner } from "../components/ui/Banner";
 import { Button } from "../components/ui/Button";
 import { Chip } from "../components/ui/Chip";
@@ -27,6 +27,7 @@ import { AiRunWrites, useDraftActions } from "./AiWriteCards";
 import { openLearnSurface } from "./aiLearn";
 import { startAiSkill } from "./aiStart";
 import { conversationFailureText, departureNames, failureRecipient, failureSender } from "./aiSettingsModel";
+import { TOO_LONG_TO_CHECK_BODY } from "./quarantineText";
 import { aiSetupStep, requestAiSettingsIntent } from "./aiSetup";
 import { GROUNDS_NAMED, groundTitles } from "./answerGrounds";
 import type { AiDress, AiSession } from "./aiSession";
@@ -201,6 +202,33 @@ const stopwatch = (seconds: number) => `${Math.floor(seconds / 60)}:${String(sec
  * count is hidden from a screen reader, which would otherwise read a number
  * every second; it hears the line once.
  */
+/**
+ * The mail is being checked (B7, decision (a)): which of its words the reader shows is measured before the assistant
+ * reads it, and a long mail takes a while — said once it takes longer than a moment.
+ */
+function MailChecking() {
+  const { t } = useTranslation();
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setShown(true), 800);
+    return () => clearTimeout(timer);
+  }, []);
+  return shown ? (
+    <span className="pv-ai-overview-hint" role="status" data-testid="ai-mail-checking">
+      {t("ai.mail.checking")}
+    </span>
+  ) : null;
+}
+
+/** Whether a tool's answer since the last question says a mail was too long to check (`TOO_LONG_TO_CHECK_BODY`). */
+export function mailTooLongSinceAsked(record: ConversationRecord | null): boolean {
+  if (!record) return false;
+  const turns = record.conversation.turns;
+  let last = turns.length - 1;
+  while (last >= 0 && !(turns[last]!.role === "user" && turns[last]!.parts.some((part) => part.type === "text" && !("context" in part && part.context)))) last--;
+  return turns.slice(Math.max(0, last)).some((turn) => turn.parts.some((part) => part.type === "tool_result" && JSON.stringify(part).includes(TOO_LONG_TO_CHECK_BODY)));
+}
+
 export function AiWorkingLine({ here }: { here: boolean }) {
   const { t } = useTranslation();
   const [seconds, setSeconds] = useState(0);
@@ -964,6 +992,12 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
           </Banner>
         )}
         {items.map((item, index) => renderItem(item, index))}
+        {/* A mail too long to check which of its words the reader shows was not read (B7, decision (a)): said here, where the question was asked. */}
+        {!live && mailTooLongSinceAsked(active) && (
+          <p className="pv-ai-overview-hint" role="status" data-testid="ai-mail-too-long">
+            {t("ai.mail.tooLongToCheck")}
+          </p>
+        )}
         {/* A skill reads its instructions before anything goes (Befunde 06.11., B6): the conversation says it is on its way. */}
         {state.preparing && !live && (
           <p className="pv-ai-working" role="status" data-testid="ai-preparing">
@@ -982,6 +1016,7 @@ export function AiConversation({ dress, activeNote, onOpenNote, onOpenCreated, o
                   >
                     {stepIcon(tool.state)}
                     <span>{stepText(tool.name, tool.state, tool.effect)}</span>
+                    {tool.name === "read_mail" && tool.state === "running" && <MailChecking />}
                   </li>
                 ))}
               </ul>

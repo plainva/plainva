@@ -821,7 +821,9 @@
         "scope": "Vale per {{provider}} finché non chiudi Plainva. Nella tua casella di posta non cambia nulla e nulla viene contrassegnato come letto.",
         "allow": "Consenti",
         "deny": "Non consentire"
-      }
+      },
+      "checking": "Verifica delle parole del messaggio che vedi…",
+      "tooLongToCheck": "Questo messaggio è troppo lungo per verificare in tempo quali delle sue parole vedi, quindi l'assistente non ne ha letto nulla. Puoi leggerlo nel lettore di posta."
     },
     "reading": {
       "searches_one": "{{count}} ricerca nelle e-mail",

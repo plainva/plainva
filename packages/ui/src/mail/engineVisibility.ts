@@ -48,8 +48,28 @@ export function engineWidths(): number[] {
   return [...new Set([...ENGINE_WIDTHS, ...mailReaderWidths()])].sort((a, b) => a - b);
 }
 
-/** The time the whole pass may take for one mail, all widths together; past it, nothing of the mail is read. */
+/**
+ * The time the pass may take for one mail (B7; the maintainer's decision (a), 27.11.): it ends when it is done, not when
+ * a clock runs out — the budget only guards against a pass that never ends. It grows with the mail: `ENGINE_BUDGET_MS`
+ * and `ENGINE_BUDGET_PER_KB_MS` for each kilobyte of the frame document, for two widths, up to `ENGINE_BUDGET_MAX_MS`;
+ * every further width adds its share. Past it, nothing of the mail is read, and the person is told so.
+ */
 export const ENGINE_BUDGET_MS = 3000;
+export const ENGINE_BUDGET_PER_KB_MS = 500;
+export const ENGINE_BUDGET_MAX_MS = 45_000;
+
+/** A limit the gate sets to have a mail past it without laying out megabytes (`mailFrameProbe`); the app never sets it. */
+let limitForTests: number | null = null;
+export function setEngineBudgetForTests(ms: number | null): void {
+  limitForTests = ms;
+}
+
+/** The budget of the pass for a frame document at these widths. */
+export function engineBudgetFor(frameDoc: string, widths: readonly number[]): number {
+  if (limitForTests !== null) return limitForTests;
+  const kb = frameDoc.length / 1024;
+  return (Math.min(ENGINE_BUDGET_MAX_MS, ENGINE_BUDGET_MS + ENGINE_BUDGET_PER_KB_MS * kb) * Math.max(2, widths.length)) / 2;
+}
 /** The longest the pass holds the interface between two of its turns. */
 const SLICE_MS = 12;
 /** The least height a picture from the network whose height the reader does not fix is measured with (it is not loaded). */
@@ -620,7 +640,7 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
  * The words the engine hides of a reader frame document (`buildMailFrameDoc`), at every reader width; null where
  * there is no engine to ask. Between steps the interface gets its turn.
  */
-export async function engineHiddenWords(frameDoc: string, widths: readonly number[] = engineWidths(), budgetMs: number = ENGINE_BUDGET_MS): Promise<EngineHidden | null> {
+export async function engineHiddenWords(frameDoc: string, widths: readonly number[] = engineWidths(), budgetMs: number = engineBudgetFor(frameDoc, widths)): Promise<EngineHidden | null> {
   // No layout engine at all — the one place the walk's reading stands (a test runner; no runtime of the app).
   if (!hasLayoutEngine()) return null;
   if (!document.body) throw new Error("no document to lay the mail out in");

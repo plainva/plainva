@@ -779,7 +779,9 @@
         "scope": "Applies to {{provider}} until you close Plainva. Nothing in your mailbox is changed or marked as read.",
         "allow": "Allow",
         "deny": "Don't allow"
-      }
+      },
+      "checking": "Checking which words of the message you can see…",
+      "tooLongToCheck": "This message is too long to check in time which of its words you can see, so the assistant read none of it. You can read it in the mail reader."
     },
     "reading": {
       "searches_one": "{{count}} mail search",

@@ -336,7 +336,7 @@ function makePass(raw: string): Pass {
             if (!body || !walked.shows) return walked;
             // Throws where the engine cannot finish: the caller reads nothing then (fail closed). `null` only where
             // there is no layout engine at all (a test runner), and the walk's reading stands.
-            const hidden = await engineHiddenWords(buildMailFrameDoc(markup(false), { canvas: null }), widths);
+            const hidden = await checkedOnce(buildMailFrameDoc(markup(false), { canvas: null }), widths);
             if (!hidden || hidden.parents.size === 0) return walked;
             return visibleDocumentOf(body, withoutHiddenWords(read, reader, body, hidden), { canvas: canvas() });
           })();
@@ -348,6 +348,37 @@ function makePass(raw: string): Pass {
     };
   };
   return { withPictures: view(true), withoutPictures: view(false) };
+}
+
+/**
+ * The engine's answer for a mail, kept (B7, decision (a)): a second question about the same mail is not measured again.
+ * The key is what decides the answer — the frame document as the reader lays it out (its markup without pictures from
+ * the network, the reader's rules) and the widths. A change of either is another key: a new width, another reader
+ * presentation. Loading the pictures changes neither — the assistant reads the view without them. A pass that failed
+ * is not kept. The latest `CHECKED_KEPT` answers are kept, in memory, until the app closes.
+ */
+const CHECKED_KEPT = 20;
+const checked = new Map<string, Promise<EngineHidden | null>>();
+export function checkedOnce(frameDoc: string, widths: readonly number[]): Promise<EngineHidden | null> {
+  const key = `${widths.join(",")}\n${frameDoc}`;
+  const known = checked.get(key);
+  if (known) {
+    checked.delete(key);
+    checked.set(key, known);
+    return known;
+  }
+  const reading = engineHiddenWords(frameDoc, widths);
+  checked.set(key, reading);
+  reading.catch(() => {
+    if (checked.get(key) === reading) checked.delete(key);
+  });
+  while (checked.size > CHECKED_KEPT) checked.delete(checked.keys().next().value!);
+  return reading;
+}
+
+/** How many answers are kept (for tests). */
+export function forgetCheckedMail(): void {
+  checked.clear();
 }
 
 /**

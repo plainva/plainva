@@ -1,7 +1,7 @@
 import { readableBody, readableBodyInEngine } from "../../../../packages/ui/src/ai/quarantineText";
 import { applyFrameFit } from "../../../../packages/ui/src/mail/frameFit";
 import { buildMailFrameDoc, sanitizeEmailHtml } from "../../../../packages/ui/src/mail/mailSanitize";
-import { noteMailReaderWidth } from "../../../../packages/ui/src/mail/engineVisibility";
+import { noteMailReaderWidth, setEngineBudgetForTests } from "../../../../packages/ui/src/mail/engineVisibility";
 import { mailBodyView } from "../../../../packages/ui/src/mail/messageText";
 import { frameScroll, markedFrame, openMarked, runMailCorpus, runMailFrames, type MailCorpusResult, type MailFrameCase, type MailFrameResult, type MarkedFrameResult } from "./mailFrameRun";
 
@@ -17,6 +17,8 @@ export interface MailFrameProbeWindow extends Window {
     readerWidth(width: number): void;
     /** What the assistant reads of a mail, and nothing of the judge's work: the product's way alone. */
     read(html: string): Promise<{ text: string }>;
+    /** A budget for the gate's case past it (`setEngineBudgetForTests`); null for the app's own. */
+    limit(ms: number | null): void;
   };
 }
 
@@ -27,5 +29,6 @@ export interface MailFrameProbeWindow extends Window {
   marked: markedFrame,
   readerWidth: (width) => noteMailReaderWidth(width),
   read: async (html) => ({ text: (await readableBodyInEngine({ html }, 100_000)).text }),
+  limit: (ms) => setEngineBudgetForTests(ms),
   corpus: (cases, width, pictures, mainDocs) => runMailCorpus({ mailBodyView, sanitizeEmailHtml, buildMailFrameDoc, applyFrameFit, readableBody: readableBodyInEngine, readableModel: readableBody }, cases, width, pictures, mainDocs),
 };

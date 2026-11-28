@@ -821,7 +821,9 @@
         "scope": "Aplica-se a {{provider}} até você fechar o Plainva. Nada na sua caixa de correio é alterado nem marcado como lido.",
         "allow": "Permitir",
         "deny": "Não permitir"
-      }
+      },
+      "checking": "Verificando quais palavras da mensagem você vê…",
+      "tooLongToCheck": "Esta mensagem é longa demais para verificar a tempo quais palavras dela você vê, então o assistente não leu nada dela. Você pode lê-la no leitor de e-mail."
     },
     "reading": {
       "searches_one": "{{count}} pesquisa no e-mail",

@@ -75,7 +75,7 @@ describe("the reader's rules for pictures, from one source (review B7-2, S3)", (
     expect(sanitize.replace(/export const MAIL_IMAGE_RULES = "[^"]+";/, "")).not.toMatch(/img\{/);
     // Both shells' readers and the engine's frame are made by that builder.
     for (const file of ["apps/desktop/src/components/mail/MailView.tsx", "apps/mobile/src/screens/MailMessageScreen.tsx"]) expect(read(file), file).toMatch(/buildMailFrameDoc\(/);
-    expect(sanitize).toMatch(/engineHiddenWords\(buildMailFrameDoc\(/);
+    expect(sanitize).toMatch(/checkedOnce\(buildMailFrameDoc\(/);
     // The engine adds no rule of its own for pictures: what the reader leaves to a picture is asked of the layout.
     const engine = read("packages/ui/src/mail/engineVisibility.ts");
     expect(engine).not.toMatch(/img\{|img:not\(\[src\]\):not/);

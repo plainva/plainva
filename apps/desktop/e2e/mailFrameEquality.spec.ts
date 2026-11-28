@@ -549,6 +549,8 @@ test("a mail too long to check in time: the assistant reads none of it, and is t
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 1000, height: 900 });
   await loadProbe(page);
+  // The budget grows with the mail up to 45 s (B7, decision (a)): the gate sets the old 3 s limit to have a mail past it.
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.limit(3000));
   // 20 000 words, each one running into the next box: every one is asked of the engine, past the budget.
   const words = Array.from({ length: 20_000 }, (_, n) => `w${n}`).join(" ");
   const html = `<div style="height:0;white-space:nowrap">${words}</div><div style="height:0;white-space:nowrap">${words}</div><p>VISIBLEend</p>`;
@@ -556,6 +558,7 @@ test("a mail too long to check in time: the assistant reads none of it, and is t
   await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.marked.close());
   expect(open.ai).toEqual([]);
   expect(open.aiText).toContain("too long for Plainva to check in time");
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.limit(null));
 });
 
 /**
