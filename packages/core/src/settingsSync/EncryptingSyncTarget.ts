@@ -72,6 +72,12 @@ export class EncryptingSyncTarget implements ISyncTarget {
     // safeguard off (finding 2026-09-20).
     if (inner.probeExists) this.probeExists = (probe) => inner.probeExists!(probe);
     if (inner.getStartCursor) this.getStartCursor = () => inner.getStartCursor!();
+    // The WebDAV shortcut's three parts (`shouldListFully`, `fullListingCadence`,
+    // `useSyncMeta`, plan L7b) go through a wrapper together or not at all: one
+    // without the others would run cursor pulls without a probe, or at Drive's
+    // pace. None goes through here, so the inner target gets no store, hands out
+    // no cursor, and a vault with content encryption lists in full every cycle,
+    // as before L7b.
     if (inner.listFolders) this.listFolders = (p) => inner.listFolders!(p);
     if (inner.createFolder) this.createFolder = (p) => inner.createFolder!(p);
     // Folder names are never sealed; the sync's own folder creation (issue

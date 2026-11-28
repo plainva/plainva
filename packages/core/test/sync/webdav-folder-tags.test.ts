@@ -574,3 +574,31 @@ describe("only a proven contradiction is kept (decision of 2026-11-27)", () => {
     expect(await t.shouldListFully()).toBe(true);
   });
 });
+
+describe("a wrapper passes the shortcut's three parts together or none (note H-9)", () => {
+  it("the content-encryption wrapper passes none, and a WebDAV target inside it hands out no cursor", async () => {
+    const { EncryptingSyncTarget } = await import("../../src/settingsSync/EncryptingSyncTarget.js");
+    const dav = byteExactDav(undefined, { folderTags: "subtree" });
+    const inner = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, (i, init) => dav.fetch(i, init));
+    const wrapped = new EncryptingSyncTarget(inner, { isStrict: () => false }) as unknown as Record<string, unknown> & { getStartCursor?: () => Promise<string> };
+    const parts = ["shouldListFully", "fullListingCadence", "useSyncMeta"].map((name) => wrapped[name] !== undefined);
+    expect(parts).toEqual([false, false, false]);
+    expect(await wrapped.getStartCursor!()).toBe("");
+  });
+
+  it("the spelling wrapper the worker puts around every target passes all three", async () => {
+    const { withPathSpellings } = await import("../../src/sync/spellingSyncTarget.js");
+    const dav = byteExactDav(undefined, { folderTags: "subtree" });
+    const wrapped = withPathSpellings(new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, (i, init) => dav.fetch(i, init))) as unknown as Record<string, unknown>;
+    expect(["shouldListFully", "fullListingCadence", "useSyncMeta"].map((name) => wrapped[name] !== undefined)).toEqual([true, true, true]);
+  });
+});
+
+describe("the parser takes a tag from a 2xx propstat over one from a failed propstat (note H-1, M5)", () => {
+  it("whichever comes first", async () => {
+    const { parseMultistatus } = await import("../../src/sync/WebDavSyncTarget.js");
+    const [entry] = parseMultistatus(`<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:href>/dav/Vault/a.md</d:href><d:propstat><d:prop><d:getetag/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat><d:propstat><d:prop><d:getetag>"real"</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`);
+    expect(entry!.etag).toBe('"real"');
+    expect(entry!.answered.getetag).toBe("ok");
+  });
+});

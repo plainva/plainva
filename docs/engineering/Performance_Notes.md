@@ -526,7 +526,7 @@ Measured against the in-memory stand-in (`pnpm exec tsx scripts/perf/webdav-list
 | 50 000 | Nextcloud's properties | 29 563 680 | 18 114 275 | 39 % | 2 502 ms | 1 450 ms |
 | 10 000 | only what the sync reads | 3 170 124 | 3 185 427 | 0 % | 284 ms | 278 ms |
 
-A server whose vault folder has a tag is also asked for `oc:permissions` (the mount marks of L7b below); without that property the saving on the Nextcloud stand-in is 46 %. A server that already lists only these properties saves nothing (the 200 status of each propstat adds a few bytes). A real Nextcloud answer differs in detail from the stand-in's; measuring one needs a real account.
+A server whose vault folder has a tag is also asked for `oc:permissions` (the mount marks of L7b below); the numbers above include it. A server that already lists only these properties saves nothing (the 200 status of each propstat adds a few bytes). A real Nextcloud answer differs in detail from the stand-in's; measuring one needs a real account.
 
 ## WebDAV cycles on the vault folder's tag (performance plan L7b, 2026-11-27)
 
