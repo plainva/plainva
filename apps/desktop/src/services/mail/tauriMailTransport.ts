@@ -13,6 +13,7 @@ import type {
 } from "@plainva/ui/mail";
 import { setMailPlatform, setMailTokenResolver } from "@plainva/ui/mail";
 import { microsoftAuthFetch } from "../authFetch";
+import { loadPart } from "@plainva/ui";
 
 /**
  * Desktop half of the mail seam (feinplan G0.1): a thin passthrough to the
@@ -175,7 +176,7 @@ export function registerClientMailPlatform(): void {
     },
   });
   setMailTokenResolver(async (vaultPath, accountId) => async (force: boolean) => {
-    const { getWindowBus } = await import("../windowBus");
+    const { getWindowBus } = await loadPart(() => import("../windowBus"));
     const bus = await getWindowBus();
     return bus.request("mail-token", { vaultPath, accountId, force });
   });

@@ -1,7 +1,7 @@
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getSettingsStore } from "./settingsStore";
-import { logDiagnostic, toast } from "@plainva/ui";
+import { logDiagnostic, toast, loadPart } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 
 /**
@@ -162,7 +162,7 @@ export const UPDATE_WAIT_WORD_MS = 700;
  */
 export async function downloadAndInstallUpdate(update: Update, onWaiting?: (seconds: number) => void, onInstalling?: () => void): Promise<void> {
   await update.download();
-  const { settleEveryWindowBeforeLeaving } = await import("./leaveFlush");
+  const { settleEveryWindowBeforeLeaving } = await loadPart(() => import("./leaveFlush"));
   let said = false;
   const word = setTimeout(() => {
     said = true;

@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { decodeDraftJournal, mergeDraftJournals } from "@plainva/ui";
 import { isExistingDirectory, isMissingFile } from "../adapters/fileErrors";
+import { loadPart } from "@plainva/ui";
 
 /**
  * Where the app keeps the files that belong to it, not to the person
@@ -290,7 +291,7 @@ export const capacitorInternalFolders: InternalFolders = {
   },
   async writeNew(path, text) {
     // Loaded here: `atomicFile` itself asks `internalPlace` where a file lies.
-    const { atomicWriteTextAt } = await import("./atomicFile");
+    const { atomicWriteTextAt } = await loadPart(() => import("./atomicFile"));
     await atomicWriteTextAt({ path: under(path), directory: Directory.Library }, text);
   },
   async makeNewFolder(path) {

@@ -102,7 +102,7 @@ describe("a part that hangs or fails, in its boundary", () => {
     const fallback = view.host.querySelector("[data-testid=area-fallback]");
     expect(fallback).not.toBeNull();
     expect(fallback!.textContent).toContain(i18n.t("errors.partLoadTitle"));
-    expect(fallback!.textContent).toContain(i18n.t("errors.partLoad"));
+    expect(fallback!.textContent).toContain(i18n.t("errors.partLoadArea"));
     quiet.mockRestore();
     act(() => view.root.unmount());
   });

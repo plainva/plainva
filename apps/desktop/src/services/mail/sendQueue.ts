@@ -1,4 +1,4 @@
-import { toast } from "@plainva/ui";
+import { toast, loadPart } from "@plainva/ui";
 import { HeldSends, UndoSendQueue, secondsLeft, listMailAccounts, mailErrorText, sendMail, appendDraft, utf8ToBase64, type MailAttachment } from "@plainva/ui/mail";
 import i18n from "@plainva/ui/i18n";
 import { isOwnerWindow } from "../windowContext";
@@ -83,7 +83,7 @@ function refusedSends(): HeldSends<MailSendRequest> {
       try {
         // Loaded on demand: the window manager is the owner's, and a compose
         // window that only sends has no use for it.
-        const { openComposeWindow } = await import("../windowManager");
+        const { openComposeWindow } = await loadPart(() => import("../windowManager"));
         await openComposeWindow({
           vaultPath: req.vaultPath,
           snapshot: refusedSnapshot(id, req),

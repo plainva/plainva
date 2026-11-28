@@ -288,7 +288,7 @@ function AreaFallback({ area, exit, failedAgain, loadFailed, onDismiss, onReload
         icon={small ? undefined : <AlertCircle size={ICON.empty} />}
         title={size === "dialog" ? undefined : areaTitle}
       >
-        {failedAgain ? t("errors.areaAgain", { place }) : loadFailed ? t("errors.partLoad") : t("errors.areaBody", { place })}
+        {failedAgain ? t("errors.areaAgain", { place }) : loadFailed ? t("errors.partLoadArea") : t("errors.areaBody", { place })}
       </EmptyState>
     </div>
   );

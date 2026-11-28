@@ -5,10 +5,10 @@ import { requestSaveFlush } from "./saveFlush";
 import { getWindowBus, OWNER_LABEL, type BroadcastMap, type RpcMap, type WindowBus } from "./windowBus";
 // The send queue loads with the first message handed over (performance plan L5); until then nothing waits in it.
 let sendQueue: typeof import("./mail/sendQueue") | null = null;
-const loadSendQueue = async () => (sendQueue ??= await import("./mail/sendQueue"));
+const loadSendQueue = async () => (sendQueue ??= await loadPart(() => import("./mail/sendQueue")));
 import { readComposeDraft } from "./mail/composeHandoff";
 import { mailAccessTokenFor } from "@plainva/ui/mail";
-import { parkTreeReveal, toggleBookmarkOnDisk, setBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk } from "@plainva/ui";
+import { parkTreeReveal, toggleBookmarkOnDisk, setBookmarkOnDisk, removeBookmarksOnDisk, renameBookmarksOnDisk, moveBookmarkOnDisk, loadPart } from "@plainva/ui";
 import {
   findWindowForContent,
   focusAuxWindow,

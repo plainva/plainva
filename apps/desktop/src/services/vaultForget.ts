@@ -1,4 +1,4 @@
-import { taskViewStateKey, forgetTaskViewState, SET_ASIDE_MARKER, SET_ASIDE_NOTE } from "@plainva/ui";
+import { taskViewStateKey, forgetTaskViewState, SET_ASIDE_MARKER, SET_ASIDE_NOTE, loadPart } from "@plainva/ui";
 import { appDataDir, join } from "@tauri-apps/api/path";
 import { exists, readDir, remove } from "@tauri-apps/plugin-fs";
 import { getSettingsStore } from "./settingsStore";
@@ -167,7 +167,7 @@ export async function forgetWorkspaceCredentials(vaultPath: string): Promise<voi
   let publicationIds: string[] = [];
   const dbPath = await join(await appDataDir(), "index", await indexDbFileName(vaultPath));
   if (await exists(dbPath)) {
-    const { TauriDatabaseAdapter } = await import("../adapters/TauriDatabaseAdapter");
+    const { TauriDatabaseAdapter } = await loadPart(() => import("../adapters/TauriDatabaseAdapter"));
     const { SqlWorkspaceStateStore } = await import("@plainva/core/workspace");
     const db = new TauriDatabaseAdapter(`sqlite:${dbPath}`);
     try {
@@ -238,8 +238,8 @@ export async function forgetVaultData(
   // Crash-recovery draft journal (P2.4) — note text snapshots live in
   // app-data and must not survive "forget app data".
   await attempt("draft-journal", async () => {
-    const { removeVaultDrafts } = await import("./draftJournal");
-    const { removeLegacyCommentOperations } = await import("./commentOperationLegacy");
+    const { removeVaultDrafts } = await loadPart(() => import("./draftJournal"));
+    const { removeLegacyCommentOperations } = await loadPart(() => import("./commentOperationLegacy"));
     await removeLegacyCommentOperations(vaultPath);
     await removeVaultDrafts(vaultPath);
   });
@@ -259,10 +259,10 @@ export async function forgetVaultData(
   // bricks the sync (maintainer teardown bug, 2026-07-22). Must run BEFORE the
   // settings sweep, which deletes the cloud-account records it reads.
   await attempt("encryption-state", async () => {
-    const { getActiveConnectionId } = await import("./settingsProfile");
+    const { getActiveConnectionId } = await loadPart(() => import("./settingsProfile"));
     const connectionId = await getActiveConnectionId(vaultPath);
     if (connectionId) {
-      const { clearConnectionState } = await import("./encryptionManifest");
+      const { clearConnectionState } = await loadPart(() => import("./encryptionManifest"));
       await clearConnectionState(connectionId);
     }
   });

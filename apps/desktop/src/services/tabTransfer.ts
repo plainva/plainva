@@ -1,5 +1,6 @@
 import type { TabItem } from "../hooks/usePaneLayout";
 import type { TextFileShape } from "@plainva/ui";
+import { loadPart } from "@plainva/ui";
 
 export interface TransferredDocument {
   text: string;
@@ -134,7 +135,7 @@ export async function waitForTabDocument(vault: string, path: string): Promise<T
 export const mainTabTransfers = new TabTransferManager({
   async persist(snapshot) {
     if (snapshot.document) {
-      const { recordDraft } = await import("./draftJournal");
+      const { recordDraft } = await loadPart(() => import("./draftJournal"));
       await recordDraft(snapshot.vaultPath, snapshot.path, snapshot.document.text, 0, `transfer:${snapshot.id}`);
     }
   },

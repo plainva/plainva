@@ -5,7 +5,7 @@ import type { DeletionJournal, DriveSyncTarget, SettingsOnlySync, SyncWorker } f
 // with the start: this module's functions are asked of every screen, its engine only of a vault that syncs
 // (performance plan L5).
 let syncModulesLoaded: typeof import("./syncModules") | null = null;
-const syncModules = async () => (syncModulesLoaded ??= await import("./syncModules"));
+const syncModules = async () => (syncModulesLoaded ??= await loadPart(() => import("./syncModules")));
 let workspaceModuleLoaded: typeof import("@plainva/core/workspace") | null = null;
 const workspaceModule = async () => (workspaceModuleLoaded ??= await import("@plainva/core/workspace"));
 import {
@@ -19,7 +19,7 @@ import {
   DRIVE_DEFAULT_SCOPE,
 } from "@plainva/core";
 import type { WorkspaceObjectStore } from "@plainva/core/workspace";
-import { assertEndpointConfirmedIn, isStepNoticeError, StepNoticeError, stepInterrupted, stepNotRun, waitForClosingSyncPlace, waitWithDeadline, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo } from "@plainva/ui";
+import { assertEndpointConfirmedIn, isStepNoticeError, StepNoticeError, stepInterrupted, stepNotRun, waitForClosingSyncPlace, waitWithDeadline, confirmEndpointsIn, isEndpointConfirmedIn, connectionErrorText, formatListingReport, sayFirstSyncConflictCopies, logDiagnostic, getPlatformServices, type CloudAccountRecord, scaffoldVaultTemplate, toast, type VaultTemplateDefinition, type ServiceConnectionContext, ServiceCheckError, isServiceOff, bindSyncState, rootCreationAllowed, syncStateBindingFor, vaultSyncedBefore, type SyncStateBinding, type SyncStateBindingDecision, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteRetryDelay, encryptedRemoteSettingsPorts, heldFolderMessageKey, markEncryptedRemoteJoined, plainWorkspaceListed, settingsOnlyFolderCheck, workspaceDeparture, type EncryptedRemotePorts, reportingTo, loadPart } from "@plainva/ui";
 import { assertEmptyRemoteVault, firstPullFailedAfter, isFirstPullPending as isCoreFirstPullPending } from "@plainva/core";
 import { syncProviderSlot, type MobileSyncProvider } from "./syncSlot";
 import type { StoredAccountToken } from "@plainva/ui";
@@ -679,7 +679,7 @@ export async function connectProvider(
   const { connectionContextFor } = await import("./connectQueue");
   const context = selectedContext ?? await connectionContextFor("files");
   if (context?.runId) {
-    const { connectAccountFiles } = await import("./accountVaultTransfer");
+    const { connectAccountFiles } = await loadPart(() => import("./accountVaultTransfer"));
     await connectAccountFiles(v, p, context, () => buildTarget(p, null, undefined, context), providerVaultName(p));
     return;
   }

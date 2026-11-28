@@ -75,6 +75,8 @@ async function opened(path: string) {
   /** True where the load found no text in the file — the editor shows "not text". */
   const notText = { current: false };
   const deps = {
+    // The editor loads its modules through loadPart (package B1b); here they are imported as they are.
+    loadPart: <T,>(load: () => Promise<T>) => load(),
     activePath: path, vaultPath: root, vaultAdapter: files, saveState: lifetime, sessionRef: { current: session }, contentRef: { current: loaded.text },
     withPendingWrite: (vault: string, target: string, work: () => Promise<void>) => { const run = withPendingWrite(vault, target, work); runs.push(run.catch(() => {})); return run; },
     decideDirtyExternalUpdate, applyTextShape, editorTextOf, openEditorText, dirtyStore, isNotTextFileError,

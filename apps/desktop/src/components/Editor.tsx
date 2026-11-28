@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from "react";
-import { reportingTo, suggestionRoundEnds, suggestionToSend, type SuggestionToSend } from "@plainva/ui";
+import { reportingTo, suggestionRoundEnds, suggestionToSend, type SuggestionToSend, loadPart } from "@plainva/ui";
 import { BookOpen, Code, Pencil, ArrowLeft, ArrowRight, MoreVertical, Bookmark, Trash2, FoldHorizontal, UnfoldHorizontal, Copy, History, ClipboardCopy, Link2, FolderOpen, FolderTree, Printer, FileDown, ExternalLink, Database, Mail, Paperclip, FileX, FolderInput, MessageSquare, PenLine } from "lucide-react";
 import { printElement } from "../services/printView";
 
@@ -897,7 +897,7 @@ export const Editor: React.FC<{
         dirtyStore.set(path, false, saveState.id);
       }
       if (draftVault) {
-        const { clearDraft } = await import("../services/draftJournal");
+        const { clearDraft } = await loadPart(() => import("../services/draftJournal"));
         await clearDraft(draftVault, path, revAtSave, saveState.id);
         // A draft restored from the journal is in this text now, as on a save.
         const recovered = saveState.recoveredDraft;
@@ -929,7 +929,7 @@ export const Editor: React.FC<{
         // beside a file that is no text —: the snapshot just journaled for it
         // is obsolete as well. Left there, it was offered or kept once more.
         if (draftVault) {
-          const { clearDraft } = await import("../services/draftJournal");
+          const { clearDraft } = await loadPart(() => import("../services/draftJournal"));
           await clearDraft(draftVault, path, revAtSave, saveState.id);
         }
         return;
@@ -985,7 +985,7 @@ export const Editor: React.FC<{
           }
         }
         if (draftVault) {
-          const { clearDraft } = await import("../services/draftJournal");
+          const { clearDraft } = await loadPart(() => import("../services/draftJournal"));
           await clearDraft(draftVault, path, revAtSave, saveState.id);
           const recovered = saveState.recoveredDraft;
           if (recovered && sameRevision) {
@@ -2250,7 +2250,7 @@ export const Editor: React.FC<{
       const vault = vaultPath, files = vaultAdapter;
       void (async () => {
         if (isOwnerWindow()) {
-          const { clearDraft, releaseLeftoverDrafts, takeLeftoverDrafts } = await import("../services/draftJournal");
+          const { clearDraft, releaseLeftoverDrafts, takeLeftoverDrafts } = await loadPart(() => import("../services/draftJournal"));
           const leftovers = await takeLeftoverDrafts(vault, path);
           for (const [at, draft] of leftovers.entries()) {
             try {
@@ -2641,7 +2641,7 @@ export const Editor: React.FC<{
         saveState.update({ dirty: false });
         dirtyStore.set(path, false, saveState.id);
         if (vaultPath) {
-          const { clearDraft } = await import("../services/draftJournal");
+          const { clearDraft } = await loadPart(() => import("../services/draftJournal"));
           await clearDraft(vaultPath, path, revision, saveState.id);
         }
         await vaultAdapter.acknowledgeExternalUpdate?.(path);
@@ -3426,7 +3426,7 @@ export const Editor: React.FC<{
       if (accepted) {
         saveState.update({ dirty: false });
         dirtyStore.set(activePath, false, saveState.id);
-        const { clearDraft } = await import("../services/draftJournal");
+        const { clearDraft } = await loadPart(() => import("../services/draftJournal"));
         await clearDraft(vaultPath, activePath, saveState.revision, saveState.id);
       } else {
         saveState.setTransferFrozen(false);
@@ -3451,7 +3451,7 @@ export const Editor: React.FC<{
         await parkEditorSuggestion(db, { path: activePath, base: proposal.base, copy: proposal.copy, note: proposal.note, savedAt: new Date().toISOString() }, vaultPath);
       }
       const text = proposal ? contentRef.current : session?.view.state.doc.toString() ?? contentRef.current;
-      const { recordDraft } = await import("../services/draftJournal");
+      const { recordDraft } = await loadPart(() => import("../services/draftJournal"));
       await recordDraft(vaultPath, activePath, text, saveState.revision, saveState.id);
       return { document: {
         text, base: saveState.baseInput, shape: saveState.shape, viewMode,
@@ -3513,7 +3513,7 @@ export const Editor: React.FC<{
       saveState.update({ dirty });
       dirtyStore.set(activePath, dirty, saveState.id);
       if (!dirty) {
-        const { clearDraft } = await import("../services/draftJournal");
+        const { clearDraft } = await loadPart(() => import("../services/draftJournal"));
         await clearDraft(vaultPath, activePath, 0, `transfer:${transferId}`);
         saveState.update({ recoveredDraft: null });
       }

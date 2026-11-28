@@ -97,6 +97,8 @@ function harness(path = "Note.md", initial = "base\nmiddle\nend") {
   // A keep beside the file can be held or made to fail.
   const hooks = { beforeKeep: async () => {} };
   const deps = {
+    // The editor loads its modules through loadPart (package B1b); here they are imported as they are.
+    loadPart: <T,>(load: () => Promise<T>) => load(),
     activePath: path, vaultPath: root, vaultAdapter: files, saveState: lifetime, sessionRef, contentRef,
     withPendingWrite, mergeEditorText, containsTextChanges, ConflictError, isNotTextFileError, applyTextShape, editorTextOf, dirtyStore,
     writeEditorSave, KeepBesideFailedError,
@@ -331,6 +333,8 @@ describe("original desktop save completion", () => {
   function restoreDraft(h: ReturnType<typeof harness>, text: string): () => Promise<void> {
     let saving: Promise<void> = Promise.resolve();
     const deps = {
+    // The editor loads its modules through loadPart (package B1b); here they are imported as they are.
+    loadPart: <T,>(load: () => Promise<T>) => load(),
       draftOffer: { text, savedAt: 1, revision: 9, sessionId: "earlier" }, setDraftOffer: vi.fn(), saveState: h.lifetime, sessionRef: { current: null },
       applyNonViewEdit: (next: string) => { h.edit(next); saving = h.persist(next); },
       withPendingWrite, vaultPath: root, activePath: "Note.md",

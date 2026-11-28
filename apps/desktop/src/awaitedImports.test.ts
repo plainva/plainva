@@ -10,11 +10,28 @@ import UNBOUNDED from "./awaitedImports.unbounded.json";
  *
  * An `await import(…)` counts as bounded when it stands inside a `loadPart(` call (the destructuring form
  * `loadPart(async () => { const { x } = await import("@plainva/ui"); return x; })` keeps the build's rewrite of a
- * package entry to the defining module). `awaitedImports.unbounded.json` lists, per file, the awaited imports that
- * were not bounded when the rule came (2026-11-28): they stood on `main` before B1b, most in steps that already report
- * their failure (settings pages, exports, diagnostics), and `packages/core` has no `loadPart` (it has no UI; a shell
- * that calls it bounds the step). The list is a ratchet: a new unbounded wait fails here, and a file whose count fell
- * must lower its entry, so the list only shrinks (follow-up in the maintainer's plan).
+ * package entry to the defining module). `awaitedImports.unbounded.json` lists, per file, the awaited imports that are
+ * not bounded yet (2026-11-28, 158 in 84 files); all stood on `main` before B1b. The list is a ratchet: a new
+ * unbounded wait fails here, and a file whose count fell must lower its entry, so the list only shrinks (follow-up in
+ * the maintainer's plan). What the person meets when such a load fails or hangs, by kind:
+ *
+ * - Platform bindings (`@tauri-apps/*`, `@capacitor/*`, 58): windows, dialogs, files, events of the native shell. A
+ *   failure ends the step with its own message (most steps catch and toast it, through `errorText` the app's words); a
+ *   hang leaves that step waiting — a dialog that does not open, an import or export that does not start. Writes that
+ *   wait on one: the import wizard, the settings and archive export/import and the skill import read or write files
+ *   through `plugin-fs` only after the person started them; no note is saved through them.
+ * - The shells' services (66): account pages, sign-in and sign-out, PIM and widget wiring, window messages, the splash
+ *   screen's window calls, the phone's settings sync. A failure ends the step with its message; a hang leaves it
+ *   waiting. None of them is the save of a note, a send or a deletion: those waits go through `loadPart` since this rule
+ *   (the draft journal in the editor and when a tab moves, the send queue and the mail transport, forgetting a vault,
+ *   leaving before an update, completing a task from a widget or an intent, the phone's atomic file write and its sync
+ *   modules).
+ * - Package entries (`@plainva/core`, `@plainva/ui`, `/workspace`, `/mail`, 18): helpers a step takes on its way; as
+ *   above.
+ * - The AI (10): loads only while the AI is switched on; its surfaces report their failure.
+ * - Diagnostics (4, `perfMetrics`): a measurement that does not come; nothing else depends on it.
+ * - `packages/core` (4) and `packages/ui` (1): the core has no `loadPart` (no UI); the starter template registry.
+ * - Rendering (1, mermaid): the diagram shows its error in place.
  */
 const ROOT = resolve(__dirname, "../../..");
 const DIRS = ["apps/desktop/src", "apps/mobile/src", "packages/ui/src", "packages/core/src"];

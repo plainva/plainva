@@ -36,7 +36,7 @@
     "desktop": {
       "startBytes": 3879893,
       "startGzipBytes": 1178658,
-      "entryBytes": 6099,
+      "entryBytes": 6046,
       "afterStartBytes": 1752289,
       "afterStartGzipBytes": 562060
     },
@@ -44,11 +44,11 @@
       "startBytes": 4074531,
       "startGzipBytes": 1231456,
       "entryBytes": 4543,
-      "afterStartBytes": 950685,
-      "afterStartGzipBytes": 318229
+      "afterStartBytes": 1001507,
+      "afterStartGzipBytes": 337290
     }
   },
-  "recorded": "2026-11-27",
+  "recorded": "2026-11-28",
   "mustStart": [
     {
       "family": "npm:@codemirror/view",

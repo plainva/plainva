@@ -20,6 +20,7 @@ import {
   toast,
   type CloudServiceId,
   type ServiceConnectionOutcome,
+  loadPart,
 } from "@plainva/ui";
 import { AppBar } from "./AppBar";
 import { clearConnectQueue, loadConnectQueue, runServices, skipConnectStep, type ConnectQueue } from "../services/connectQueue";
@@ -221,7 +222,7 @@ let summariesShown = 0;
 
 /** Lets go of a destination the files step prepared; loaded on demand, the copy's module is large. */
 async function abandonPrepared(): Promise<"connected" | "released"> {
-  const { abandonPreparedFiles } = await import("../services/accountVaultTransfer");
+  const { abandonPreparedFiles } = await loadPart(() => import("../services/accountVaultTransfer"));
   return abandonPreparedFiles();
 }
 

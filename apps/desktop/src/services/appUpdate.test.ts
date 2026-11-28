@@ -31,7 +31,7 @@ vi.mock("./leaveFlush", () => ({
   },
 }));
 vi.mock("./settingsStore", () => ({ getSettingsStore: vi.fn() }));
-vi.mock("@plainva/ui", () => ({ logDiagnostic: vi.fn(), toast: { info: vi.fn(), progress: vi.fn(), dismiss: vi.fn(), error: vi.fn() } }));
+vi.mock("@plainva/ui", () => ({ logDiagnostic: vi.fn(), loadPart: <T,>(load: () => Promise<T>) => load(), toast: { info: vi.fn(), progress: vi.fn(), dismiss: vi.fn(), error: vi.fn() } }));
 vi.mock("@plainva/ui/i18n", () => ({ default: { t: (k: string) => k } }));
 
 import { checkForAppUpdate, classifyUpdateFailure, downloadAndInstallUpdate, UPDATE_SETTLE_MS, describeUpdateFailure, getUpdatesManagedBy, resetStartupUpdateCheckForTests, scheduleStartupUpdateCheck } from "./appUpdate";

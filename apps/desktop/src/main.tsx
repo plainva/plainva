@@ -7,7 +7,7 @@ import "@plainva/ui/styles/tokens.css";
 import "@plainva/ui/styles/ui.css";
 import "@plainva/ui/themes/index.css";
 import App from "./App";
-import { TooltipHost, setPlatformServices, keychainSlotName } from "@plainva/ui";
+import { TooltipHost, setPlatformServices, keychainSlotName, loadPart } from "@plainva/ui";
 import { openExternalUrl } from "./services/openExternal";
 import { getSettingsStore } from "./services/settingsStore";
 import { requestSaveFlush } from "./services/saveFlush";
@@ -216,7 +216,7 @@ void i18nReady.then(async () => {
     // Mail reads and writes the mailbox from here too — the message list stayed
     // empty otherwise (finding 2026-08-23). Token refresh is NOT part of that:
     // this registration routes it to the owner, which stays the only refresher.
-    const { registerClientMailPlatform } = await import("./services/mail/tauriMailTransport");
+    const { registerClientMailPlatform } = await loadPart(() => import("./services/mail/tauriMailTransport"));
     registerClientMailPlatform();
     installMailAccountsRelayQuietly();
     installVaultFeaturesRelayQuietly();

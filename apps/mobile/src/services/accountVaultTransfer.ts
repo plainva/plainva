@@ -1,7 +1,7 @@
 import { sameStoredValue, trimEndChars } from "@plainva/core";
 import { settleBeforeTransfer } from "./endpointConfirmationSettle";
 import { commitVaultTransfer, planVaultTransfer, PimCacheRepository, refreshDriveAccessToken, refreshOneDriveAccessToken, refreshDropboxAccessToken, type ISyncTarget } from "@plainva/core";
-import { assertConnectionIdentity, confirmationEndpoint, confirmEndpointsIn, isEndpointConfirmedIn, mailboxEndpoints, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity } from "@plainva/ui";
+import { assertConnectionIdentity, confirmationEndpoint, confirmEndpointsIn, isEndpointConfirmedIn, mailboxEndpoints, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemote, starterFilesToHoldBack, parseGoogleUserInfo, parseMicrosoftMe, verifiedProviderIdentityKey, type CloudAccountRecord, type ServiceConnectionContext, type VerifiedProviderIdentity, loadPart } from "@plainva/ui";
 import { storedProviderEndpoint } from "./fileSyncAccess";
 import { getMailPassword, getMailRefreshToken, listMailAccounts, mailAccountKind, saveMailAccount, saveMicrosoftMailAccount } from "@plainva/ui/mail";
 import { CapacitorVaultAdapter } from "../adapters/CapacitorVaultAdapter";
@@ -47,7 +47,7 @@ async function verifyIdentity(p: MobileSyncProvider, context: ServiceConnectionC
   const tok = probe ? { accessToken: await probe.getAccessToken() } : p.provider === "drive" ? await refreshDriveAccessToken({ ...p.creds, clientSecret: p.creds.clientSecret ?? "" }, webdavFetch) : await refreshOneDriveAccessToken(p.creds, webdavFetch);
   if ("refreshToken" in tok && tok.refreshToken) {
     p.creds.refreshToken = tok.refreshToken;
-    const { persistPendingConnect } = await import("./oauthService");
+    const { persistPendingConnect } = await loadPart(() => import("./oauthService"));
     await persistPendingConnect(p);
   }
   const res = await webdavFetch(p.provider === "drive" ? "https://openidconnect.googleapis.com/v1/userinfo" : "https://graph.microsoft.com/v1.0/me", { headers: { Authorization: `Bearer ${tok.accessToken}` } });

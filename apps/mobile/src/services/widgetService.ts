@@ -12,6 +12,7 @@ import {
   type WidgetEventInput,
   type WidgetLabels,
   type WidgetRowRef,
+  loadPart,
 } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { clearWidgetActions, clearWidgetSnapshot, readWidgetActions, readWidgetSnapshot, widgetsAvailable, writeWidgetSnapshot } from "../platform/widgetBridge";
@@ -239,7 +240,7 @@ export async function redeemWidgetActions(): Promise<number> {
         if ((await vaultOps.update(await getMobileVault(), ref.path, tick)).changed) done += 1;
         continue;
       }
-      const { setTaskDone } = await import("./taskCompletionAction");
+      const { setTaskDone } = await loadPart(() => import("./taskCompletionAction"));
       if ((await setTaskDone(ref.path, true)).changed) done += 1;
     } catch {
       // Gone, moved, or a database that cannot express "done": out it goes.

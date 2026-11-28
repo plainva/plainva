@@ -1592,8 +1592,8 @@ workspace's lock and runtime (`mobileWorkspaceSecurity.ts` without the migration
 
 **A load that fails or hangs** (the rest of L5). Every component loaded on demand goes through `lazyPart`, and it
 through `loadPart` (`packages/ui/src/lib/partLoad.ts`): a load that has not settled after 20 s
-(`PART_LOAD_TIMEOUT_MS`) fails, and a failed one is a `PartLoadError`. The `AreaBoundary` shows either as "This part
-could not be loaded" with its reload; `errorText` says the same sentence for a `PartLoadError` and for the browsers'
+(`PART_LOAD_TIMEOUT_MS`) fails, and a failed one is a `PartLoadError`. The part's own `AreaBoundary` shows either as "This area
+could not be loaded" with its reload (never the app-wide boundary); `errorText` says the same sentence for a `PartLoadError` and for the browsers'
 own messages ("Failed to fetch dynamically imported module …"), so a load that did not go through `loadPart` is
 still said in the app's words. The suggestion mode's word diff loads through it, so a send that waits for it ends.
 The desktop's 40 components behind React's bare `lazy` — which kept a failed load for ever — are `deferredPart`s now,

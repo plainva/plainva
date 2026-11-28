@@ -99,7 +99,7 @@ describe("a part's load failure stays at the part", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(view.host.querySelector("[data-testid=the-shell]")).not.toBeNull();
-    expect(view.host.querySelector("[data-testid=area-fallback]")?.textContent).toContain(i18n.t("errors.partLoad"));
+    expect(view.host.querySelector("[data-testid=area-fallback]")?.textContent).toContain(i18n.t("errors.partLoadArea"));
     expect(view.host.textContent).not.toContain("dynamically imported");
     quiet.mockRestore();
     act(() => view.root.unmount());

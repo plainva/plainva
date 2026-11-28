@@ -20,6 +20,7 @@ import {
   type IntentNavigation,
   type IntentOrder,
   type IntentRefTable,
+  loadPart,
 } from "@plainva/ui";
 import type { AiSession } from "@plainva/ui/ai";
 import { mobileAiLoader, mobileAiSwitch } from "./ai/mobileAiLoader";
@@ -473,7 +474,7 @@ async function writeTask(order: IntentOrder): Promise<void> {
   if (!created.ok) throw new Error(created.reason);
   notifyFileOps([{ type: "create", path: created.notePath }]);
   // The note is the deliverable and exists; the provider's copy is the addition, and reports its own failure.
-  const { providerListLabel, sendTaskToProviderList } = await import("./pim/taskToProvider");
+  const { providerListLabel, sendTaskToProviderList } = await loadPart(() => import("./pim/taskToProvider"));
   if (await providerListLabel(adapter, taskDb).catch(() => null)) await sendTaskToProviderList(adapter, taskDb, created.notePath, title, read.due ?? undefined);
   const { syncSoon } = await import("./syncService");
   syncSoon();
