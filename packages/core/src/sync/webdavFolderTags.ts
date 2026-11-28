@@ -34,10 +34,19 @@
  * contradiction. This also catches a server that notices changes past
  * WebDAV only when listed deeply.
  *
- * **Losing it.** One contradiction takes the trust back for good: it is
- * stored for the host (`store`), survives restarts, and holds for every
- * account and path there. Trust itself is never stored; after a restart it
- * is earned anew.
+ * **Losing it.** Only a proven contradiction takes the trust back for good
+ * (decision of the maintainer, 2026-11-27: "only proven"). A listing is not
+ * one snapshot, and another device may save between a probe and a listing,
+ * so what a listing alone shows is a doubt: the trust is gone and earned
+ * anew from three clean pairs, and nothing is stored. A doubt from the
+ * ancestor test becomes proof only when the folder, asked again on its own
+ * after the listing, still carries its old tag while the change below it
+ * is still there as listed (`Suspect`, checked by the target): an honest
+ * server has moved that folder's tag by then. A probe that saw the old tag
+ * before a listing with changes stays a doubt, since a save in between
+ * explains it. A proven contradiction is stored for the host in the
+ * vault's sync state, survives restarts, and holds for every account and
+ * path of that vault there. Trust itself is never stored.
  */
 
 export const PAIRS_NEEDED = 3;
@@ -56,6 +65,22 @@ export interface FolderTagListing {
 }
 
 type ChangeKind = "edit" | "create" | "delete" | "folder";
+
+/**
+ * A folder above a change that kept its tag in the listing: proof once the
+ * folder, asked again, still has `was` and the changed entry is still as
+ * listed (`entryTag`; null for an entry the listing no longer had).
+ */
+export interface Suspect {
+  folder: string;
+  was: string;
+  entry: string;
+  entryIsFolder: boolean;
+  entryTag: string | null;
+}
+
+/** What a listing told: nothing against the property, a doubt, or suspects to ask again. */
+export type Observation = { kind: "fine" } | { kind: "doubt" } | { kind: "suspect"; suspects: Suspect[] };
 
 const parentOf = (path: string) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
 const depthOf = (path: string) => (path === "" ? 0 : path.split("/").length);
@@ -107,10 +132,10 @@ export class FolderTagLedger {
    * saw right before it, where one was made. Returns "contradiction" where
    * the listing disproves the property (the caller stores it).
    */
-  observe(now: FolderTagListing, probedTag?: string): "contradiction" | undefined {
+  observe(now: FolderTagListing, probedTag?: string): Observation {
     const before = this.last;
     this.last = now;
-    if (this.refutedFlag || !before) return undefined;
+    if (this.refutedFlag || !before) return { kind: "fine" };
     const changed: Array<{ path: string; kind: ChangeKind }> = [];
     for (const [path, tag] of now.files) {
       const was = before.files.get(path);
@@ -122,16 +147,19 @@ export class FolderTagLedger {
     for (const path of before.folders.keys()) if (!now.folders.has(path)) changed.push({ path, kind: "folder" });
 
     if (changed.length > 0 && probedTag !== undefined && probedTag === before.folders.get("")) {
-      return this.refute();
+      // A save between the probe and the listing explains it: a doubt.
+      this.restart();
+      return { kind: "doubt" };
     }
-    // Every folder above a change, in both listings.
-    const affected = new Set<string>();
-    for (const { path } of changed) {
-      for (let folder = parentOf(path); ; folder = parentOf(folder)) {
-        affected.add(folder);
+    // Every folder above a change, in both listings, with a change below it.
+    const affected = new Map<string, { path: string; kind: ChangeKind }>();
+    for (const change of changed) {
+      for (let folder = parentOf(change.path); ; folder = parentOf(folder)) {
+        if (!affected.has(folder)) affected.set(folder, change);
         if (folder === "") break;
       }
     }
+    const suspects: Suspect[] = [];
     let untagged = false;
     let noise = false;
     for (const [folder, tag] of now.folders) {
@@ -141,17 +169,31 @@ export class FolderTagLedger {
         untagged = true;
         continue;
       }
-      if (affected.has(folder)) {
-        if (tag === was) return this.refute();
+      const below = affected.get(folder);
+      if (below) {
+        if (tag === was) {
+          const deleted = below.kind === "delete" || (below.kind === "folder" && !now.folders.has(below.path));
+          suspects.push({
+            folder,
+            was,
+            entry: below.path,
+            entryIsFolder: below.kind === "folder",
+            entryTag: deleted ? null : below.kind === "folder" ? (now.folders.get(below.path) ?? "") : now.files.get(below.path)!,
+          });
+        }
       } else if (tag !== was) {
         noise = true;
       }
     }
+    if (suspects.length > 0) {
+      this.restart();
+      return { kind: "suspect", suspects };
+    }
     if (untagged || noise || now.mounted !== false || before.mounted !== false) {
       this.restart();
-      return undefined;
+      return { kind: "fine" };
     }
-    if (changed.length === 0) return undefined;
+    if (changed.length === 0) return { kind: "fine" };
     const maxDepth = Math.max(0, ...[...now.files.keys(), ...now.folders.keys(), ...before.files.keys()].map(depthOf));
     const inside = Math.min(2, maxDepth);
     for (const { path, kind } of changed) {
@@ -159,12 +201,12 @@ export class FolderTagLedger {
       if (depthOf(path) === maxDepth) this.deepest = true;
     }
     this.pairs++;
-    return undefined;
+    return { kind: "fine" };
   }
 
-  private refute(): "contradiction" {
+  /** A suspect asked again held: the server's tags do not follow every change, for good. */
+  refute(): void {
     this.refutedFlag = true;
     this.restart();
-    return "contradiction";
   }
 }

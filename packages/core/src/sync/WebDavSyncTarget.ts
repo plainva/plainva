@@ -7,7 +7,7 @@ import { fetchWithRetry } from "./httpRetry.js";
 import { streamUpload } from "./streamUpload.js";
 import { trimChars, trimEndChars } from "../textScan.js";
 import { folderSegments } from "./folderIdentity.js";
-import { FOLDER_TAGS_REFUTED_KEY, FolderTagLedger, type FolderTagListing } from "./webdavFolderTags.js";
+import { FOLDER_TAGS_REFUTED_KEY, FolderTagLedger, type FolderTagListing, type Suspect } from "./webdavFolderTags.js";
 import type { SyncMetaStore } from "./ISyncTarget.js";
 
 /**
@@ -576,7 +576,11 @@ export class WebDavSyncTarget implements ISyncTarget {
     if (this.observed) {
       const listing = this.observed;
       this.observed = undefined;
-      if (this.folderTags.observe(listing, probedTag) === "contradiction") await this.storeContradiction();
+      const seen = this.folderTags.observe(listing, probedTag);
+      if (seen.kind === "suspect" && (await this.anyProven(seen.suspects))) {
+        this.folderTags.refute();
+        await this.storeContradiction();
+      }
     }
     return result;
   }
@@ -621,12 +625,47 @@ export class WebDavSyncTarget implements ISyncTarget {
     return this.refutationLoaded;
   }
 
+  /**
+   * Asks each suspect's folder and entry again on their own (at most three):
+   * proof where the folder still carries its old tag and the entry is still
+   * as listed. Any other answer, or none, is a doubt.
+   */
+  private async anyProven(suspects: readonly Suspect[]): Promise<boolean> {
+    for (const suspect of suspects.slice(0, 3)) {
+      const folder = await this.askOne(suspect.folder, true);
+      if (folder.kind !== "tag" || folder.tag !== suspect.was) continue;
+      const entry = await this.askOne(suspect.entry, suspect.entryIsFolder);
+      if (suspect.entryTag === null ? entry.kind === "missing" : entry.kind === "tag" && (suspect.entryIsFolder || entry.tag === suspect.entryTag)) return true;
+    }
+    return false;
+  }
+
+  /** One entry asked on its own (`Depth: 0`): its tag, "missing" for a 404, "unknown" for anything else. */
+  private async askOne(path: string, collection: boolean): Promise<{ kind: "tag"; tag: string } | { kind: "missing" } | { kind: "unknown" }> {
+    const url = path === "" ? this.creds.url : this.urlForPath(path) + (collection ? "/" : "");
+    try {
+      const res = await this.request("PROPFIND", url, {
+        headers: { ...this.headers, "Depth": "0", "Content-Type": "application/xml; charset=utf-8" },
+        body: ROOT_TAG_PROBE_BODY,
+      });
+      if (res.status === 404) { discardResponse(res); return { kind: "missing" }; }
+      if (res.status !== 207) { discardResponse(res); return { kind: "unknown" }; }
+      const own = parseMultistatus(await res.text()).filter((e) => e.href !== undefined && trimEndChars(this.relativeHref(e.href), "/") === path);
+      if (own.length !== 1 || own[0]!.answered.getetag !== "ok" || own[0]!.etag === undefined) return { kind: "unknown" };
+      return { kind: "tag", tag: own[0]!.etag };
+    } catch {
+      return { kind: "unknown" };
+    }
+  }
+
   private async storeContradiction(): Promise<void> {
     console.warn("[WebDAV] the server's folder tags missed a change; listing in full on every cycle from now on");
     try {
-      await this.metaStore?.set(this.refutationKey, new Date().toISOString());
+      if (!this.metaStore) throw new Error("no store");
+      await this.metaStore.set(this.refutationKey, new Date().toISOString());
     } catch (e) {
-      console.warn("[WebDAV] could not keep that the folder tags missed a change", e);
+      // The ledger stays refuted for as long as this target lives; only a restart forgets it.
+      console.warn("[WebDAV] could not keep that the folder tags missed a change; no shortcut until the sync starts again", e);
     }
   }
 

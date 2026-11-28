@@ -60,16 +60,25 @@ describe("the folder-tag ledger", () => {
   it("is refuted for good by one folder above a change that kept its tag", () => {
     const ledger = new FolderTagLedger();
     earn(ledger);
-    expect(ledger.observe(listing({ "A/B/x.md": "3", "A/B/z.md": "1" }, { "": "r5", A: "a4", "A/B": "b5", "A/B/C": "c1" }))).toBe("contradiction");
+    expect(ledger.observe(listing({ "A/B/x.md": "3", "A/B/z.md": "1" }, { "": "r5", A: "a4", "A/B": "b5", "A/B/C": "c1" }))).toEqual({
+      kind: "suspect",
+      suspects: [{ folder: "A", was: "a4", entry: "A/B/x.md", entryIsFolder: false, entryTag: "3" }],
+    });
+    // A suspect alone takes the trust, not for good: the target asks again first.
+    expect(ledger.trusted).toBe(false);
+    expect(ledger.refuted).toBe(false);
+    ledger.refute();
     expect(ledger.refuted).toBe(true);
     earn(ledger);
     expect(ledger.trusted).toBe(false);
   });
 
-  it("is refuted where the probe right before saw the old tag and the listing shows changes", () => {
+  it("only doubts where the probe right before saw the old tag and the listing shows changes (a save in between explains it)", () => {
     const ledger = new FolderTagLedger();
     earn(ledger);
-    expect(ledger.observe(listing({ "A/B/x.md": "3", "A/B/z.md": "1" }, { "": "r5", A: "a5", "A/B": "b5", "A/B/C": "c1" }), "r4")).toBe("contradiction");
+    expect(ledger.observe(listing({ "A/B/x.md": "3", "A/B/z.md": "1" }, { "": "r5", A: "a5", "A/B": "b5", "A/B/C": "c1" }), "r4")).toEqual({ kind: "doubt" });
+    expect(ledger.trusted).toBe(false);
+    expect(ledger.refuted).toBe(false);
   });
 
   it("starts again on noise, a folder without a tag, or a mount; none of them is a contradiction", () => {
@@ -81,7 +90,7 @@ describe("the folder-tag ledger", () => {
     ]) {
       const ledger = new FolderTagLedger();
       earn(ledger);
-      expect(ledger.observe(next)).toBeUndefined();
+      expect(ledger.observe(next)).toEqual({ kind: "fine" });
       expect(ledger.trusted).toBe(false);
       expect(ledger.refuted).toBe(false);
     }
@@ -90,7 +99,7 @@ describe("the folder-tag ledger", () => {
   it("a server whose folder tag follows only its own entries is refuted by the first edit below", () => {
     const ledger = new FolderTagLedger();
     ledger.observe(listing({ "A/x.md": "1" }, { "": "r1", A: "a1" }));
-    expect(ledger.observe(listing({ "A/x.md": "2" }, { "": "r1", A: "a1" }))).toBe("contradiction");
+    expect(ledger.observe(listing({ "A/x.md": "2" }, { "": "r1", A: "a1" })).kind).toBe("suspect");
   });
 });
 
@@ -456,4 +465,112 @@ describe("the minute holds whatever the clock does (finding M-2 of 2026-11-27)",
   it("cycles 30 seconds apart: such a change arrives within the minute (two cycles), not after the three cycles the count allows", async () => {
     expect(await cyclesUntilArrival(30_000, 0)).toBeLessThanOrEqual(2);
   }, 120_000);
+});
+
+describe("only a proven contradiction is kept (decision of 2026-11-27)", () => {
+  function setFile(dav: ByteExactDav, p: string, etag: string) {
+    const segments = p.split("/");
+    for (let i = 1; i < segments.length; i++) dav.folders.add(segments.slice(0, i).join("/"));
+    dav.files.set(p, { bytes: new TextEncoder().encode(etag), etag, modified: 1 });
+  }
+  async function earnOn(dav: ByteExactDav, t: WebDavSyncTarget) {
+    setFile(dav, "A/B/x.md", "1"); setFile(dav, "A/B/y.md", "1");
+    await t.pull();
+    setFile(dav, "A/B/x.md", "2");
+    await t.pull();
+    setFile(dav, "A/B/x.md", "3"); setFile(dav, "A/B/z.md", "1");
+    await t.pull();
+    dav.files.delete("A/B/y.md");
+    await t.pull();
+    dav.folders.add("A/B/C");
+    await t.pull();
+  }
+  const KEY = FOLDER_TAGS_REFUTED_KEY + "https://dav.example.com";
+  const targetOn = (dav: ByteExactDav, store: SyncMetaStore, fetchFn?: (i: RequestInfo | URL, init?: RequestInit) => Promise<Response>) => {
+    const t = new WebDavSyncTarget({ url: dav.url, user: "u", pass: "p" }, fetchFn ?? ((i, init) => dav.fetch(i, init)));
+    t.useSyncMeta(store);
+    return t;
+  };
+
+  it("A1: another device saving between the probe and the due listing is a doubt; the honest server earns the shortcut again", async () => {
+    const dav = byteExactDav(undefined, { folderTags: "subtree" });
+    const store = memoryStore();
+    const t = targetOn(dav, store);
+    await earnOn(dav, t);
+    expect(await t.getStartCursor()).toBe(ROOT_TAG_CURSOR);
+    expect(await t.shouldListFully()).toBe(false);
+    setFile(dav, "A/B/x.md", "4");
+    await t.pull();
+    expect(store.values.has(KEY)).toBe(false);
+    expect(await t.getStartCursor()).toBe("");
+    await earnOn(dav, t);
+    dav.folders.add("A/B/Again");
+    await t.pull();
+    expect(await t.getStartCursor()).toBe(ROOT_TAG_CURSOR);
+  });
+
+  it("A2: a listing that is not one snapshot (the vault folder read before a file another device just saved) is a doubt", async () => {
+    const dav = byteExactDav(undefined, { folderTags: "subtree" });
+    const store = memoryStore();
+    let splice = false;
+    const fetchFn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const depth = new Headers(init?.headers as HeadersInit | undefined).get("Depth");
+      if (!splice || (init?.method ?? "GET") !== "PROPFIND" || depth !== "infinity") return dav.fetch(input, init);
+      splice = false;
+      const before = await (await dav.fetch(input, init)).text();
+      setFile(dav, "A/B/x.md", "5");
+      const after = await (await dav.fetch(input, init)).text();
+      const responses = (xml: string) => xml.match(/<d:response>[\s\S]*?<\/d:response>/g) ?? [];
+      const head = after.slice(0, after.indexOf("<d:response>"));
+      return new Response(`${head}${[responses(before)[0]!, ...responses(after).slice(1)].join("")}</d:multistatus>`, { status: 207 });
+    };
+    const t = targetOn(dav, store, fetchFn);
+    await earnOn(dav, t);
+    expect(await t.getStartCursor()).toBe(ROOT_TAG_CURSOR);
+    splice = true;
+    await t.pull();
+    expect(store.values.has(KEY)).toBe(false);
+    await earnOn(dav, t);
+    dav.folders.add("A/B/Again");
+    await t.pull();
+    expect(await t.getStartCursor()).toBe(ROOT_TAG_CURSOR);
+  });
+
+  for (const kind of ["ownEntries", "twoLevel", "putOnly", "static"] as const) {
+    it(`a server whose tags are "${kind}" is proven wrong by asking again, and that is kept`, async () => {
+      const dav = byteExactDav(undefined, { folderTags: kind });
+      const store = memoryStore();
+      const t = targetOn(dav, store);
+      setFile(dav, "A/B/C/x.md", "1"); setFile(dav, "A/B/C/y.md", "1");
+      await t.pull();
+      // A change three levels down; for "putOnly" a deletion (no PUT moves the tags).
+      if (kind === "putOnly") dav.files.delete("A/B/C/y.md");
+      else setFile(dav, "A/B/C/x.md", "2");
+      await t.pull();
+      expect(store.values.has(KEY)).toBe(true);
+    });
+  }
+
+  it("a proven contradiction whose storing fails keeps the shortcut off for the target's life", async () => {
+    const dav = byteExactDav(undefined, { folderTags: "ownEntries" });
+    const store: SyncMetaStore = { get: async () => null, set: async () => { throw new Error("disk full"); } };
+    const t = targetOn(dav, store);
+    setFile(dav, "A/x.md", "1");
+    await t.pull();
+    setFile(dav, "A/x.md", "2");
+    await t.pull();
+    dav.setFolderTags("subtree");
+    await earnOn(dav, t);
+    expect(await t.getStartCursor()).toBe("");
+    expect(await t.shouldListFully()).toBe(true);
+  });
+
+  it("a store that cannot be read keeps the shortcut off", async () => {
+    const dav = byteExactDav(undefined, { folderTags: "subtree" });
+    const store: SyncMetaStore = { get: async () => { throw new Error("locked"); }, set: async () => undefined };
+    const t = targetOn(dav, store);
+    await earnOn(dav, t);
+    expect(await t.getStartCursor()).toBe("");
+    expect(await t.shouldListFully()).toBe(true);
+  });
 });
