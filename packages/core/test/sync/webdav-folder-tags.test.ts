@@ -167,7 +167,13 @@ describe("a random run: with and without the shortcut against the same history",
       const clock = () => Date.UTC(2026, 10, 1);
       const sides = await Promise.all([true, false].map(async (shortcut) => {
         const { dav } = world({ ...kind.options, clock });
-        return { dav, a: await device(dav, { shortcut }), b: await device(dav, { shortcut }) };
+        // What b alone asks, per cycle.
+        const bAsked: string[] = [];
+        const bView: ByteExactDav = { ...dav, fetch: (input, init) => {
+          if ((init?.method ?? "GET").toUpperCase() === "PROPFIND") bAsked.push(new Headers(init?.headers as HeadersInit | undefined).get("Depth") ?? "infinity");
+          return dav.fetch(input, init);
+        } };
+        return { dav, bAsked, a: await device(dav, { shortcut }), b: await device(bView, { shortcut }) };
       }));
       const [short, full] = sides as [typeof sides[0], typeof sides[0]];
       const rnd = random(0x1a7 + kind.name.length);
@@ -181,6 +187,7 @@ describe("a random run: with and without the shortcut against the same history",
       let streak = 0;
       let maxStreak = 0;
       let streaks = 0;
+      let probeOnlyCycles = 0;
       for (let step = 0; step < STEPS; step++) {
         if (kind.switchAt?.step === step) for (const s of sides) s.dav.setFolderTags(kind.switchAt.to);
         // Half the steps change nothing: an idle vault is where the shortcut saves.
@@ -208,7 +215,11 @@ describe("a random run: with and without the shortcut against the same history",
           for (const s of sides) s.dav.pastWebdav(p, `server ${step}\n`);
         }
         for (const s of sides) await s.a.cycle();
-        for (const s of sides) await s.b.cycle();
+        for (const s of sides) {
+          const from = s.bAsked.length;
+          await s.b.cycle();
+          if (s === short && !s.bAsked.slice(from).includes("infinity")) probeOnlyCycles++;
+        }
         const differs = (await state(short.b)) !== (await state(full.b));
         if (differs) {
           if (streak === 0) streaks++;
@@ -219,15 +230,16 @@ describe("a random run: with and without the shortcut against the same history",
         }
       }
       for (let i = 0; i < 5; i++) for (const s of sides) { await s.a.cycle(); await s.b.cycle(); }
-      process.stdout.write(`L7b ${kind.name}: streaks=${streaks} longest=${maxStreak} probes=${short.dav.propfinds.filter((d) => d === "0").length} full=${short.dav.propfinds.filter((d) => d === "infinity").length} (without: ${full.dav.propfinds.filter((d) => d === "infinity").length})\n`);
+      process.stdout.write(`L7b ${kind.name}: streaks=${streaks} longest=${maxStreak} b's cycles on the tag alone=${probeOnlyCycles}/${STEPS}\n`);
       expect(await state(short.b)).toBe(await state(full.b));
       expect(await state(short.a)).toBe(await state(full.a));
       expect(maxStreak).toBeLessThanOrEqual(3);
       if (kind.expect === "same") expect(streaks).toBe(0);
       if (kind.expect === "once") expect(streaks).toBeLessThanOrEqual(1);
       if (kind.name.startsWith("subtree (")) {
-        // The shortcut did run (both devices counted; the writing one lists after each of its writes).
-        expect(short.dav.propfinds.filter((d) => d === "infinity").length).toBeLessThan(full.dav.propfinds.filter((d) => d === "infinity").length * 0.8);
+        // The shortcut did run: the observing device asked the tag alone in a share of its cycles
+        // (half the steps change something, and trust takes three clean pairs first).
+        expect(probeOnlyCycles).toBeGreaterThan(STEPS * 0.1);
       }
     }, 240_000);
   }
@@ -296,4 +308,103 @@ describe("a cycle on the tag alone", () => {
     expect(dav.propfinds.slice(from).filter((d) => d === "infinity").length).toBe(8);
     expect(dav.propfinds.slice(from)).not.toContain("0");
   });
+});
+
+/** Every text anywhere: both devices (conflict copies included) and the server. */
+async function texts(dav: ByteExactDav, ...devices: Array<Awaited<ReturnType<typeof device>>>) {
+  const out = new Set<string>();
+  for (const d of devices) for (const f of await d.files()) out.add((await d.text(f)).trim());
+  for (const [, f] of dav.files) out.add(new TextDecoder().decode(f.bytes).trim());
+  return out;
+}
+
+describe("a cycle on the tag alone writes nothing (finding S-1 of 2026-11-27)", () => {
+  // A server whose tags follow every WebDAV change, that sees changes made past WebDAV only
+  // on a deep listing and does not mark the mount: its view can be stale, and a write
+  // checked against it (If-Match) would replace a change it has not seen.
+  const stale = () => world({ folderTags: "subtree", lazyScan: true, clock: () => Date.UTC(2026, 10, 1) });
+
+  async function earned(dav: ByteExactDav, shortcut: boolean) {
+    const a = await device(dav, { shortcut });
+    const b = await device(dav, { shortcut });
+    for (const step of [
+      () => a.put("N/D/x.md", "x\n"), () => a.put("N/D/x.md", "x2\n"), () => a.put("N/D/y.md", "y\n"),
+      () => a.remove("N/D/y.md"), () => a.put("N/D/E/z.md", "z\n"), () => a.put("N/D/E/z.md", "z2\n"),
+    ]) { await step(); await a.cycle(); await b.cycle(); }
+    // Into the stretch of cycles on the tag alone.
+    for (let i = 0; i < 4; i++) await b.cycle();
+    return { a, b };
+  }
+
+  for (const variant of ["edit", "delete", "rename"] as const) {
+    it(`a local ${variant} that meets an outside change keeps the outside change, as without the shortcut`, async () => {
+      const kept: Record<string, Set<string>> = {};
+      for (const shortcut of [true, false]) {
+        const { dav } = stale();
+        const { a, b } = await earned(dav, shortcut);
+        dav.pastWebdav("N/D/E/z.md", "OUTSIDE\n");
+        if (variant === "edit") await b.put("N/D/E/z.md", "LOCAL\n");
+        else if (variant === "delete") await b.remove("N/D/E/z.md");
+        else { await b.put("N/D/E/moved.md", await b.text("N/D/E/z.md")); await b.remove("N/D/E/z.md"); }
+        for (let i = 0; i < 6; i++) { await b.cycle(); await a.cycle(); }
+        kept[shortcut ? "with" : "without"] = await texts(dav, a, b);
+      }
+      expect(kept.without!.has("OUTSIDE")).toBe(true);
+      for (const text of kept.without!) expect(kept.with!.has(text)).toBe(true);
+    }, 120_000);
+  }
+
+  it("a local edit in a cycle that would ask the tag alone lists in full first", async () => {
+    const { dav } = world({ folderTags: "subtree", clock: () => Date.UTC(2026, 10, 1) });
+    const { b } = await earned(dav, true);
+    await b.put("N/D/x.md", "local\n");
+    const from = dav.propfinds.length;
+    const log = dav.log.length;
+    await b.cycle();
+    const putAt = dav.log.slice(log).findIndex((l) => l.startsWith("PUT "));
+    expect(putAt).toBeGreaterThanOrEqual(0);
+    expect(dav.propfinds.slice(from)).toContain("infinity");
+    expect(dav.log.slice(log, log + putAt).some((l) => l.startsWith("PROPFIND "))).toBe(true);
+  });
+
+  it("a workspace genesis made past WebDAV stops a plain upload, as without the shortcut", async () => {
+    const remote: Record<string, string> = {};
+    for (const shortcut of [true, false]) {
+      const { dav } = stale();
+      const { b } = await earned(dav, shortcut);
+      dav.pastWebdav(".pvws/genesis.pvgen", "genesis\n");
+      await b.put("N/D/x.md", "plain text that must not go up\n");
+      for (let i = 0; i < 3; i++) await b.cycle().catch(() => undefined);
+      remote[shortcut ? "with" : "without"] = new TextDecoder().decode(dav.files.get("N/D/x.md")!.bytes);
+    }
+    expect(remote.without).toBe("x2\n");
+    expect(remote.with).toBe(remote.without);
+  });
+
+  it("a random run where this device and another program change the same files loses nothing the run without the shortcut keeps", async () => {
+    for (const options of [{ folderTags: "subtree" as const, lazyScan: true }, { folderTags: "subtree" as const }, { folderTags: "ownEntries" as const, lazyScan: true }]) {
+      const sides = await Promise.all([true, false].map(async (shortcut) => {
+        const { dav } = world({ ...options, clock: () => Date.UTC(2026, 10, 1) });
+        return { dav, a: await device(dav, { shortcut }), b: await device(dav, { shortcut }) };
+      }));
+      const rnd = random(0xc0ffee);
+      const paths = ["N/D/x.md", "N/D/E/y.md", "N/z.md"];
+      for (const s of sides) { for (const p of paths) await s.a.put(p, `${p} start\n`); await s.a.cycle(); await s.b.cycle(); }
+      for (let step = 0; step < 60; step++) {
+        const p = paths[Math.floor(rnd() * paths.length)]!;
+        const r = rnd();
+        for (const s of sides) {
+          if (r < 0.3) s.dav.pastWebdav(p, `outside ${step}\n`);
+          else if (r < 0.55 && (await s.b.exists(p))) await s.b.put(p, `local ${step}\n`);
+          else if (r < 0.65 && (await s.b.exists(p))) await s.b.remove(p);
+          else if (r < 0.75) s.dav.pastWebdav(p, null);
+          else if (r < 0.85) await s.a.put(p, `other device ${step}\n`).catch(() => undefined);
+        }
+        for (const s of sides) { await s.a.cycle(); await s.b.cycle(); }
+      }
+      for (let i = 0; i < 6; i++) for (const s of sides) { await s.a.cycle(); await s.b.cycle(); }
+      const [withShortcut, without] = await Promise.all(sides.map((s) => texts(s.dav, s.a, s.b)));
+      for (const text of without!) expect(withShortcut!.has(text)).toBe(true);
+    }
+  }, 240_000);
 });

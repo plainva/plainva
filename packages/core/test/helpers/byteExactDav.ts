@@ -221,6 +221,11 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
     const url = String(input);
     const p = rel(url);
     log.push(`${method} ${p}`);
+    // A write reaches the disk: a change made there past WebDAV and not yet
+    // scanned is overwritten with it, as a real server's would be.
+    if (method === "PUT" || method === "DELETE") {
+      for (const q of [...staged.keys()]) if (q === p || q.startsWith(`${p}/`)) staged.delete(q);
+    }
     const headers = new Headers(init?.headers as HeadersInit | undefined);
     switch (method) {
       case "PROPFIND": {

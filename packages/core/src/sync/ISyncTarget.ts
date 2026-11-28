@@ -144,6 +144,15 @@ export interface PullResult {
    */
   needsFullListing?: boolean;
   /**
+   * Optional: the pull listed nothing at all (WebDAV on the vault folder's
+   * tag alone, plan L7b). Such a cycle writes nothing - no push, no deletion
+   * journal, no settings - since the remote may hold a change the tag did
+   * not show, and a write on that view could replace it (finding S-1 of
+   * 2026-11-27). Anything left to write sends the next cycle to a full
+   * listing at once.
+   */
+  listedNothing?: boolean;
+  /**
    * Optional: vault-relative FOLDER paths seen in a FULL listing (2026-07-17,
    * empty-folder sync). The worker creates locally missing ones so empty
    * remote folders appear without waiting for their first file. Cursor pulls

@@ -442,6 +442,20 @@ export class SyncQueue {
   }
 
   /**
+   * Whether any operation would be pushed now: not held for a person, and
+   * not waiting for a later retry. A WebDAV cycle on the vault folder's tag
+   * alone writes nothing, so such an operation sends the cycle to a full
+   * listing first (plan L7b, finding S-1 of 2026-11-27).
+   */
+  async hasOperationDue(now: number = Date.now()): Promise<boolean> {
+    const row = await this.db.queryOne<{ id: number }>(
+      `SELECT id FROM offline_queue WHERE COALESCE(requires_manual_intervention, 0) = 0 AND COALESCE(next_retry_at, 0) <= ? LIMIT 1`,
+      [now]
+    );
+    return !!row;
+  }
+
+  /**
    * Whether the given path currently has any queued operation (matched as either the
    * source path or a rename target).
    */

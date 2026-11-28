@@ -552,7 +552,7 @@ export class WebDavSyncTarget implements ISyncTarget {
       // asked the vault folder's tag and found it where the last full listing
       // left it. Nothing is downloaded and nothing deleted on its word.
       if (cursor !== ROOT_TAG_CURSOR || !this.shortcutUsable()) return { etagMap: new Map(), needsFullListing: true };
-      return { etagMap: new Map(), nextCursor: cursor };
+      return { etagMap: new Map(), nextCursor: cursor, listedNothing: true };
     }
     this.wroteSinceListing = false;
     this.observed = undefined;

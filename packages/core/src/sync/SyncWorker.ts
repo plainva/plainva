@@ -1704,6 +1704,16 @@ export class SyncWorker {
     return queued;
   }
 
+  /**
+   * Whether this cycle has something to write: a queued operation that is
+   * due, or settings to push. A queue that cannot say counts as one.
+   */
+  private async writesWaiting(): Promise<boolean> {
+    if (this.settingsPushPending) return true;
+    const queue = this.queue as Partial<SyncQueue>;
+    return typeof queue.hasOperationDue === "function" ? await queue.hasOperationDue() : true;
+  }
+
   /** Keeps `remoteView` in step with a listing (see there). */
   private updateRemoteView(result: PullResult, full: boolean): void {
     if (full) this.remoteView.clear();
@@ -2339,7 +2349,9 @@ export class SyncWorker {
       let targetWantsFull = false;
       if (this.cursor && this.target.shouldListFully) {
         try {
-          targetWantsFull = await this.target.shouldListFully();
+          // Anything to write lists first, as every cycle did before: a
+          // cycle on the tag alone writes nothing (`listedNothing`).
+          targetWantsFull = (await this.writesWaiting()) || (await this.target.shouldListFully());
         } catch (e) {
           console.warn("[SyncWorker] the target could not tell whether anything changed; listing in full", e);
           targetWantsFull = true;
@@ -2390,7 +2402,7 @@ export class SyncWorker {
       // `recordQueuedDeletionIntents` belongs to the journal step and goes
       // with it: the deletes it would record are still queued, and the full
       // cycle right after records them before its own journal merge.
-      const writesDeferred = !doFullListing && !!pullResult.needsFullListing;
+      const writesDeferred = !doFullListing && (!!pullResult.needsFullListing || !!pullResult.listedNothing);
       if (!writesDeferred) this.sessionListingClear = true;
 
       // 0b. Deletion journal (P1): merged right after the listing (R8: nothing
@@ -3151,6 +3163,11 @@ export class SyncWorker {
       // the change invisible until the periodic safety net.
       if (!doFullListing && pullResult.needsFullListing) {
         console.log("[SyncWorker] cursor pull could not resolve every change; scheduling a full listing");
+        this.cursor = undefined;
+        this.pendingSyncRequest = true;
+      } else if (!doFullListing && pullResult.listedNothing && (await this.writesWaiting())) {
+        // Something to write came in while this cycle asked the tag alone:
+        // it goes out after a full listing, at once.
         this.cursor = undefined;
         this.pendingSyncRequest = true;
       }
