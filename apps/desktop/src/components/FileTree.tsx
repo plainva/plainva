@@ -36,7 +36,7 @@ import { flushUnsavedBeforeMove } from "../services/moveFlush";
 import { serializeBaseConfig } from "@plainva/ui";
 // Lazily loaded (P2.9 "wizards"): the creation wizard is a rarely-opened
 // surface and must not sit in the initial bundle.
-const BaseCreateWizard = deferredPart(() => import("./base/BaseCreateWizard").then((m) => m.BaseCreateWizard));
+const BaseCreateWizard = deferredPart(() => import("./base/BaseCreateWizard").then((m) => m.BaseCreateWizard), { boundary: "dialog" });
 import {
   ancestorsOf,
   applyClickSelection,
@@ -55,8 +55,7 @@ import { DEFAULT_FOLDER_SORT, type FolderSort, type SearchSort } from "@plainva/
 import { newNoteOpensInNewTab } from "../services/newNoteTab";
 import { useVaultLabels, vaultAppName } from "../services/vaultNames";
 import { FullTextDamageNotice, useSearchDamageNotice } from "./FullTextDamageNotice";
-import { deferredAiPart } from "../lib/deferredParts";
-import { deferredPart } from "../lib/deferredParts";
+import { deferredAiPart, deferredPart } from "../lib/deferredParts";
 
 // Parts of search by meaning: drawn by the harness once it is loaded; nothing before, as while no model is active (performance plan L5).
 const ActiveSemanticCoverage = deferredAiPart("ActiveSemanticCoverage");

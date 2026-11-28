@@ -65,7 +65,7 @@ import {
   type WorkspaceRole,
   type WorkspaceStateStore,
 } from "@plainva/core/workspace";
-import { createLimiter, encryptedRemoteDepartureNoted, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemoteDeparted, workspaceDeparture } from "@plainva/ui";
+import { createLimiter, encryptedRemoteDepartureNoted, loadPart, encryptedRemoteSettingsPorts, getPlatformServices, markEncryptedRemoteDeparted, workspaceDeparture } from "@plainva/ui";
 import { Preferences } from "@capacitor/preferences";
 import { WorkspaceQuarantineService, type QuarantineRetryOutcome, type QuarantineSync } from "@plainva/core/workspace";
 import type { MobileVault } from "./vaultService";
@@ -75,12 +75,17 @@ import { secureCredentialStore } from "../platform/secureStore";
 /**
  * The migration of a vault into its encrypted workspace and its worker (about 240 KB) load when a setup is activated
  * or resumed — a step the person takes —, not with the workspace lock the start reads (package B1b). A load that fails
- * fails the step before anything is written, and the step can be taken again.
+ * or hangs fails the migration step: the runtime the activation stored before it stays, the setup is left
+ * `setup-incomplete`, and the step can be resumed — as when the migration itself fails.
  */
 async function runWorkspaceMigration(
   ...args: Parameters<typeof import("@plainva/core/workspace").initializePersonalWorkspaceMigration>
 ): ReturnType<typeof import("@plainva/core/workspace").initializePersonalWorkspaceMigration> {
-  const { initializePersonalWorkspaceMigration } = await import("@plainva/core/workspace");
+  // Bounded (`loadPart`); the destructuring form lets the build point the import at the defining module.
+  const initializePersonalWorkspaceMigration = await loadPart(async () => {
+    const { initializePersonalWorkspaceMigration } = await import("@plainva/core/workspace");
+    return initializePersonalWorkspaceMigration;
+  });
   return initializePersonalWorkspaceMigration(...args);
 }
 

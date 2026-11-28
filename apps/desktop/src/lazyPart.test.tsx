@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, Component, Suspense, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { FAILED_LOAD_HELD_MS, lazyPart, preloadLazyPart } from "@plainva/ui";
+import { lazyPart, preloadLazyPart } from "@plainva/ui";
 
 /**
  * A part of the app loaded on demand (performance plan L5): a part loaded ahead draws at once, without a frame of
@@ -53,9 +53,10 @@ describe("a part loaded on demand", () => {
       const first = mount(<Catch><Suspense fallback={null}><Part /></Suspense></Catch>);
       await first.render();
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
-      await vi.waitFor(() => expect(first.host.querySelector('[data-testid="failed"]')).not.toBeNull());
+      // The part's own boundary shows its load failure; it never reaches the boundary above.
+      await vi.waitFor(() => expect(first.host.querySelector('[data-testid="area-fallback"]')).not.toBeNull());
+      expect(first.host.querySelector('[data-testid="failed"]')).toBeNull();
       act(() => first.root.unmount());
-      await new Promise((resolve) => setTimeout(resolve, FAILED_LOAD_HELD_MS + 50));
       const again = mount(<Catch><Suspense fallback={null}><Part /></Suspense></Catch>);
       await again.render();
       await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });

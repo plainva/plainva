@@ -1,5 +1,5 @@
 import { createElement, type ComponentProps, type ComponentType, type ReactElement } from "react";
-import { aiComponent, lazyPart, preloadLazyPart, type AiComponentName, type AiModule } from "@plainva/ui";
+import { aiComponent, lazyPart, preloadLazyPart, type AiComponentName, type AiModule, type AreaBoundarySize } from "@plainva/ui";
 
 /*
  * The shell's parts that load on demand (performance plan L5), declared at module level and made where they render:
@@ -14,10 +14,13 @@ const ahead: Array<() => Promise<ComponentType<never>>> = [];
  * likely to open soon, loaded while the app idles after the start (`prefetchDeferredParts`), so its first use does
  * not wait. Never for a part of the AI: the AI loads only when its switch is on.
  */
-export function deferredPart<P extends object>(load: () => Promise<ComponentType<P>>, options: { prefetch?: boolean } = {}): ComponentType<P> {
+export function deferredPart<P extends object>(
+  load: () => Promise<ComponentType<P>>,
+  options: { prefetch?: boolean; /** How its load failure is drawn where it stands: a dialog's or sheet's as a dialog. */ boundary?: AreaBoundarySize } = {},
+): ComponentType<P> {
   if (options.prefetch) ahead.push(load as unknown as () => Promise<ComponentType<never>>);
   function DeferredPart(props: P): ReactElement {
-    return createElement(lazyPart(load), props);
+    return createElement(lazyPart(load, { size: options.boundary }), props);
   }
   return DeferredPart;
 }

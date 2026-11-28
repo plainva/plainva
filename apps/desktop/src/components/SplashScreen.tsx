@@ -26,7 +26,7 @@ import { deferredPart } from "../lib/deferredParts";
 // wizard, and the catalogue of vault templates in every language — the catalogue right after the first
 // picture, so the list is there when "Create" is pressed.
 const OnlineVaultSetup = deferredPart(() => import("./OnlineVaultSetup").then((m) => m.OnlineVaultSetup));
-const ImportWizardModal = deferredPart(() => import("./import/ImportWizardModal").then((m) => m.ImportWizardModal));
+const ImportWizardModal = deferredPart(() => import("./import/ImportWizardModal").then((m) => m.ImportWizardModal), { boundary: "dialog" });
 type VaultTemplates = typeof import("../services/vaultTemplates");
 const loadVaultTemplates = (): Promise<VaultTemplates> => import("../services/vaultTemplates");
 function useVaultTemplates(): VaultTemplates | null {

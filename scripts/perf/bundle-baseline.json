@@ -43,7 +43,7 @@
     "mobile": {
       "startBytes": 4074531,
       "startGzipBytes": 1231456,
-      "entryBytes": 4472,
+      "entryBytes": 4543,
       "afterStartBytes": 950685,
       "afterStartGzipBytes": 318229
     }

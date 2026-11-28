@@ -21,7 +21,7 @@ export { ShellProviders } from "./ShellProviders";
 export { withoutAiArea } from "../services/ai/mobileAiPorts";
 export { useMobileAiHosted } from "./MobileAiHosted";
 
-const AiSheets = deferredPart(() => import("./MobileAiShell").then((m) => m.MobileAiShell));
+const AiSheets = deferredPart(() => import("./MobileAiShell").then((m) => m.MobileAiShell), { boundary: "dialog" });
 
 /**
  * Where the assistant's surfaces lead in the shell — every step through

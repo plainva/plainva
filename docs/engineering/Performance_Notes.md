@@ -1536,6 +1536,10 @@ that much growth through without failing — a branch that was red on the machin
 files were otherwise the same by name. The page's language is now `en-US` on every machine, and the baselines are
 recorded anew; CI's and a machine's run agree to the byte for "shortly after".
 
+**Every language but English loads its locale file on top of the English one**, which stays as the fallback: German
+adds 465 942 bytes (and date-fns' German locale, 7 517), so a German desktop loads 2.23 MB shortly after the start
+and a German phone 1.42 MB. The gate measures English, the cheapest case; the other languages' files differ in size.
+
 **How it was measured.** A build with a plugin that dumps each chunk's modules and the static module graph, then the
 dominator tree of the start's modules from `main.tsx`: a module's "retained" size is what would leave the start if
 its import(s) were made dynamic. That finds the cheap cases — a small import that holds a large module in the start.
@@ -1555,6 +1559,15 @@ fast-xml-parser into the start). Desktop: S3 and WebDAV load at the open only fo
 shells, `editorTriggers.ts`). Phone: the note's context sheet (loads with its first opening), the ```tasks block's
 view (with the first block), the settings search's highlight (with a search hit), the workspace migration and its
 worker (when a setup is activated or resumed).
+
+**What loads ahead on the phone, and why.** The context sheet loads ahead in the idle time, like the frequent screens:
+it is opened often, and its first opening should not wait. The ```tasks block's view loads with the first block a note
+shows (a block is rare, and the note around it draws at once). The emoji catalogue loads with the first `:name` typed
+(the list follows the typing anyway). The settings search's highlight loads with a hit (the page it opens draws at
+once; only the mark follows). The workspace migration loads when a setup is activated or resumed (rare, and the step
+shows its progress). S3 and WebDAV still load with every phone vault that syncs: the phone's account password check
+(`apps/mobile/src/services/accountPassword.ts`) builds those targets statically, and the phone's sync service loads
+all targets together; bringing that apart is left for the next pass (the result for the person is the same).
 
 **Why "shortly after" grew.** The desktop's CalDAV calendar target reads XML too; it found the parser in the start
 before and brings it along now, and the gate's vault has a calendar account (+92 KB with fast-xml-parser and

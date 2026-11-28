@@ -66,6 +66,13 @@ export interface AreaBoundaryProps {
    * expression evaluated in the parent's own render would throw past it.
    * As a function, the area is built inside the boundary.
    */
+  /**
+   * Only these errors stop here; any other goes on to the boundary above, as if this one were not there. A part
+   * loaded on demand catches its load failure this way and nothing else (`lazyPart`).
+   */
+  only?: (error: unknown) => boolean;
+  /** Called once the boundary has shown its failure (`componentDidCatch`). */
+  onCaught?: () => void;
   children: ReactNode | (() => ReactNode);
   testId?: string;
 }
@@ -122,6 +129,8 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
   }
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
+    if (this.props.only && !this.props.only(error)) return; // passed on in `render`, logged where it lands
+    this.props.onCaught?.();
     logDiagnostic(`area:${this.props.area}`, describeAreaError(error, info.componentStack));
     console.error(`[area ${this.props.area}] could not be shown`, error);
     if (this.props.size === "quiet") toastQuietFailure(this.props.area, isPartLoadFailure(error));
@@ -145,6 +154,8 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
 
   render() {
     const { area, children, exit, placeClassName, size = "pane", testId } = this.props;
+    // Not ours: on to the boundary above (`only`).
+    if (this.state.error && this.props.only && !this.props.only(this.state.error)) throw this.state.error;
     if (this.state.error) {
       if (this.state.dismissed || size === "quiet") return null;
       return (

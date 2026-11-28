@@ -15,8 +15,8 @@ import { useVault } from "./contexts/VaultContext";
 // paint the first frame, and each becomes its own chunk that only ever
 // downloads when the user opens it.
 import type { CompareSubject } from "./components/CompareModal";
-const CompareModal = deferredPart(() => import("./components/CompareModal").then((m) => m.CompareModal));
-const DeletedFilesModal = deferredPart(() => import("./components/DeletedFilesModal").then((m) => m.DeletedFilesModal));
+const CompareModal = deferredPart(() => import("./components/CompareModal").then((m) => m.CompareModal), { boundary: "dialog" });
+const DeletedFilesModal = deferredPart(() => import("./components/DeletedFilesModal").then((m) => m.DeletedFilesModal), { boundary: "dialog" });
 const ImageViewer = deferredPart(() => import("./components/ImageViewer").then((m) => m.ImageViewer));
 import { RecentSearchesPopover } from "./components/RecentSearchesPopover";
 import { VaultSwitcher } from "./components/VaultSwitcher";
@@ -40,11 +40,11 @@ const CommentsOverview = deferredPart(() => import('./components/comments/Commen
 const JournalView = deferredPart(() => import('./components/journal/JournalView').then((m) => m.JournalView));
 const AiTabView = deferredPart(() => import('./components/ai/AiTabView').then((m) => m.AiTabView));
 const AiCompanion = deferredPart(() => import('./components/ai/AiCompanion').then((m) => m.AiCompanion));
-const McpPairing = deferredPart(() => import('./components/ai/McpPairing').then((m) => m.McpPairing));
-const McpPlanDialog = deferredPart(() => import('./components/ai/McpPlanDialog').then((m) => m.McpPlanDialog));
-const LearnDialogs = deferredPart(() => import('./components/ai/LearnDialogs').then((m) => m.LearnDialogs));
-const VaultFindReplaceModal = deferredPart(() => import('./components/VaultFindReplaceModal').then((m) => m.VaultFindReplaceModal));
-const JournalCaptureDialog = deferredPart(() => import('./components/journal/JournalCaptureDialog').then((m) => m.JournalCaptureDialog));
+const McpPairing = deferredPart(() => import('./components/ai/McpPairing').then((m) => m.McpPairing), { boundary: "dialog" });
+const McpPlanDialog = deferredPart(() => import('./components/ai/McpPlanDialog').then((m) => m.McpPlanDialog), { boundary: "dialog" });
+const LearnDialogs = deferredPart(() => import('./components/ai/LearnDialogs').then((m) => m.LearnDialogs), { boundary: "dialog" });
+const VaultFindReplaceModal = deferredPart(() => import('./components/VaultFindReplaceModal').then((m) => m.VaultFindReplaceModal), { boundary: "dialog" });
+const JournalCaptureDialog = deferredPart(() => import('./components/journal/JournalCaptureDialog').then((m) => m.JournalCaptureDialog), { boundary: "dialog" });
 import { GRAPH_TAB_PATH, TASKS_TAB_PATH, CALENDAR_TAB_PATH, MAIL_TAB_PATH, COMMENTS_TAB_PATH, JOURNAL_TAB_PATH, AI_TAB_PATH, isVirtualPath, tabAreaName } from "./components/graph/virtualPaths";
 // The AI (performance plan L5): its host and its surfaces load once the AI was asked for, never with the start.
 const AiSelectionMenu = deferredPart(() => import("./components/ai/AiSelectionButton").then((m) => m.AiSelectionMenu));
@@ -90,7 +90,7 @@ import { nextFolderSort, readStoredFolderSort, writeStoredFolderSort, type Folde
   SEARCH_SORT_KEYS, listSortLabelKey, nextSearchSort, readStoredSearchSort, writeStoredSearchSort, type SearchSort, type SearchSortKey } from "@plainva/ui";
 import { useDebouncedValue } from "@plainva/ui";
 import { stripFrontmatter, frontmatterToAddress } from "@plainva/ui";
-const ShortcutsModal = deferredPart(() => import("./components/ShortcutsModal").then((m) => m.ShortcutsModal));
+const ShortcutsModal = deferredPart(() => import("./components/ShortcutsModal").then((m) => m.ShortcutsModal), { boundary: "dialog" });
 import {
   openOrFocusContent,
   openPresetWindow,

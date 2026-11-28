@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { rememberSearchSession, taskViewStore, toast, type SettingsSearchHit } from "@plainva/ui";
+import { loadPart, rememberSearchSession, taskViewStore, toast, type SettingsSearchHit } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
 import { COMMAND_PREFIX } from "./lib/searchMode";
 import { connectDevicePimAccount } from "./services/pim/pimService";
@@ -199,7 +199,10 @@ async function openSettingsHit(hit: SettingsSearchHit, c: RouteContext): Promise
     // The settings search and its index (about 100 KB) load with the search, not with the start (package B1b). The
     // highlight of the row is a drawing: if the module cannot load, the page the hit named is open all the same.
     try {
-      const { revealSetting } = await import("@plainva/ui");
+      const revealSetting = await loadPart(async () => {
+        const { revealSetting } = await import("@plainva/ui");
+        return revealSetting;
+      });
       void revealSetting(() => document, { title: hit.kind === "row" ? hit.title : undefined, cardText: hit.cardText });
     } catch {
       // the page is open; only the highlight is missing

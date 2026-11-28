@@ -5,7 +5,7 @@ import { useComposeHost } from "../../services/mail/composeHost";
 import { popOutCompose } from "../../services/mail/composeWindow";
 import { deferredPart } from "../../lib/deferredParts";
 
-const MailDraftModal = deferredPart(() => import("./MailDraftModal").then((m) => m.MailDraftModal));
+const MailDraftModal = deferredPart(() => import("./MailDraftModal").then((m) => m.MailDraftModal), { boundary: "dialog" });
 
 /**
  * The floating composer of a window that draws the whole shell — the central

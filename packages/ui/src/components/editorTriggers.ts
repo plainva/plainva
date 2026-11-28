@@ -4,6 +4,7 @@ import i18n from "../i18n";
 import { analyzeNoteSource, visiblePathSql } from "@plainva/core";
 import { parseHeadings } from "../lib/outline";
 import { searchLinkTargets, searchTags } from "../lib/inlineTriggers";
+import { loadPart } from "../lib/partLoad";
 
 // `[[` note-link and `#` tag autocomplete (#10), combined into the editor's
 // single autocompletion (see editorCompletion.ts). Both are completion *sources*.
@@ -251,21 +252,24 @@ export function tagCompletionSource(deps: EditorTriggerDeps) {
 // typed, not with the editor (package B1b); until it is there, and if it cannot
 // load, no list is offered, and nothing is inserted that the person did not pick.
 type EmojiCatalog = typeof import("./emojiData");
-let emojiCatalog: EmojiCatalog | null = null;
-let emojiLoading: Promise<EmojiCatalog | null> | null = null;
 
-function loadEmojiCatalog(): Promise<EmojiCatalog | null> {
-  emojiLoading ??= import("./emojiData").then(
-    (catalog) => (emojiCatalog = catalog),
-    () => {
-      emojiLoading = null; // the next `:name` tries again
-      return null;
-    },
-  );
-  return emojiLoading;
-}
-
-export function emojiColonCompletionSource() {
+/**
+ * `load` is the catalog's chunk (a test hands another). The catalog is kept once it is there; a load that fails or
+ * does not arrive in time (`loadPart`) is let go, so the next `:name` tries again.
+ */
+export function emojiColonCompletionSource(load: () => Promise<EmojiCatalog> = () => import("./emojiData")) {
+  let emojiCatalog: EmojiCatalog | null = null;
+  let emojiLoading: Promise<EmojiCatalog | null> | null = null;
+  const loadEmojiCatalog = (): Promise<EmojiCatalog | null> => {
+    emojiLoading ??= loadPart(load).then(
+      (catalog) => (emojiCatalog = catalog),
+      () => {
+        emojiLoading = null; // the next `:name` tries again
+        return null;
+      },
+    );
+    return emojiLoading;
+  };
   return (context: CompletionContext): CompletionResult | null | Promise<CompletionResult | null> => {
     const word = context.matchBefore(/:[\p{L}\p{N}_+-]{2,}/u);
     if (!word) return null;

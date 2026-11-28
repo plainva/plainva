@@ -78,10 +78,11 @@ import { FILE_MOVED_EVENT, type FileMovedDetail } from "../services/fileMoved";
 import { NOTE_HISTORY_EVENT, takeNoteHistoryRequest } from "../services/noteHistoryRequest";
 
 // The note's context (properties, links, history, graph …) opens on a tap, or docks beside a wide note; it is no part
-// of the first picture of a phone. It loads with its first opening (package B1b; not ahead in the idle time, which the
-// bundle gate counts as "shortly after the start"). A failed load shows in its AreaBoundary, and the next opening loads
-// again.
-const NoteContextSheet = deferredPart(() => import("../components/NoteContextSheet").then((m) => m.NoteContextSheet));
+// of the first picture of a phone (package B1b). It is opened often, so it loads ahead while the app idles after the
+// start, like the frequent screens, and its first opening does not wait. A failed load shows where it stands, and the
+// next opening loads again.
+// Its load failure draws as a section where it stands, as a sheet and docked alike (one part, one component).
+const NoteContextSheet = deferredPart(() => import("../components/NoteContextSheet").then((m) => m.NoteContextSheet), { prefetch: true });
 
 /** A property value as the anchor quote carries it (desktop parity). */
 function propertyValueText(value: unknown): string {

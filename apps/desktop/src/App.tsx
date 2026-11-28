@@ -12,7 +12,7 @@ import { scanVaultOkf, pendingOkfRun } from "./services/okfConversion";
 import { AlertTriangle } from "lucide-react";
 import { AreaBoundary, Button, EndpointConfirmBlock, ICON, migrateLegacyBarLayouts, Modal, toast, useEndpointConfirmation, useStableHandler } from "@plainva/ui";
 // The import wizard loads when it opens (performance plan L5).
-const ImportWizardModal = deferredPart(() => import("./components/import/ImportWizardModal").then((m) => m.ImportWizardModal));
+const ImportWizardModal = deferredPart(() => import("./components/import/ImportWizardModal").then((m) => m.ImportWizardModal), { boundary: "dialog" });
 import { setNoteLinksVaultLoading } from "@plainva/ui";
 import { requestAiSettingsIntent, type AiSettingsIntent } from "@plainva/ui";
 import { WorkspaceActivationOverlay } from "./components/security/WorkspaceActivationOverlay";
@@ -30,8 +30,8 @@ import { deferredPart } from "./lib/deferredParts";
 // Rarely-shown surfaces load lazily (P2.9): none of these are needed to paint
 // the first frame, and each becomes its own chunk that only ever downloads
 // when the user opens it.
-const SettingsModal = deferredPart(() => import("./components/SettingsModal").then((m) => m.SettingsModal));
-const OkfConversionModal = deferredPart(() => import("./components/OkfConversionModal").then((m) => m.OkfConversionModal));
+const SettingsModal = deferredPart(() => import("./components/SettingsModal").then((m) => m.SettingsModal), { boundary: "dialog" });
+const OkfConversionModal = deferredPart(() => import("./components/OkfConversionModal").then((m) => m.OkfConversionModal), { boundary: "dialog" });
 
 /**
  * The central window (multi-window P0; shell split out in stage C0).

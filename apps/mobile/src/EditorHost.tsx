@@ -76,7 +76,7 @@ import { flushDraftOf } from "./services/draftJournal";
 import { deferredPart } from "./lib/deferredParts";
 
 // The emoji and icon picker loads when it opens (performance plan L5).
-const EmojiPickSheet = deferredPart(() => import("./components/EmojiPickSheet").then((m) => m.EmojiPickSheet));
+const EmojiPickSheet = deferredPart(() => import("./components/EmojiPickSheet").then((m) => m.EmojiPickSheet), { boundary: "dialog" });
 
 /**
  * Mounts the SHARED CodeMirror session (@plainva/ui, ADR 0011) against the

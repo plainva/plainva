@@ -1,6 +1,6 @@
 import { afterTaskSyncResume, clearPinboardCache, confirmationEndpoint, decideHeldFolder, encryptedRemoteFactFor, encryptedRemoteFilePorts, filesRunState, heldFolderMessageKey, holdBackStartersAtFirstListing, markEncryptedRemoteDeparted, markEncryptedRemoteJoined, plainWorkspaceListed, sayFirstSyncConflictCopies, settingsOnlyFolderCheck, filesStoppedStatus, InlineSuggestProvider, rootCreationAllowed, syncStateBindingFor, workspaceDeparture, type EncryptedRemoteFact } from "@plainva/ui";
 import { countWrites, uncounted } from "../services/inflightWrites";
-import { errorText, isStepNoticeError, reportBackground, reportingTo, waitForClosingVault, type SyncStateBinding, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
+import { errorText, isStepNoticeError, loadPart, reportBackground, reportingTo, waitForClosingVault, type SyncStateBinding, reportTaskListsBlocked, resetTaskDbHint, taskSyncHasNews, parseFolderTemplateRules, parseTypeTemplateRules, templateNotesOf, followTemplateNotes, type TemplateNoteSettings } from "@plainva/ui";
 import { FEATURES_SAVED_EVENT, featuresSavedFor } from "../services/vaultFeaturesRelay";
 import { indexDatabaseFailureKind, indexDatabaseFailureMessage, indexDatabaseRebuildOffered, indexDatabaseWorkspace, type IndexDatabaseFailureKind, type IndexDatabaseWorkspace } from "@plainva/ui";
 import { CLOUD_ACCOUNTS_EVENT } from "../services/cloudAccounts";
@@ -19,11 +19,12 @@ import type { SqlWorkspaceStateStore, EncryptedWorkspaceWorker, QuarantineRetryO
 import type { SettingsOnlySync, SyncWorker } from "../services/syncModules";
 // The sync loads with the first vault that syncs (performance plan L5).
 let syncModulesLoaded: typeof import("../services/syncModules") | null = null;
-const syncModules = async () => (syncModulesLoaded ??= await import("../services/syncModules"));
+// Bounded (`loadPart`, package B1b): a module that hangs or fails ends the open with the app's words.
+const syncModules = async () => (syncModulesLoaded ??= await loadPart(() => import("../services/syncModules")));
 // The encrypted workspace loads with the first vault that is one, or with the first step towards one (pairing,
 // joining, recovery), not with the start (performance plan L5).
 let workspaceModuleLoaded: typeof import("@plainva/core/workspace") | null = null;
-const workspaceModule = async () => (workspaceModuleLoaded ??= await import("@plainva/core/workspace"));
+const workspaceModule = async () => (workspaceModuleLoaded ??= await loadPart(() => import("@plainva/core/workspace")));
 /**
  * The workspace's module where a workspace is open on this device — its runtime exists only after the load (the vault
  * open loads it with the workspace's status). Only for code behind a runtime check (`workspaceControlPlane`);
@@ -121,6 +122,7 @@ import {
   resolveTaskDeletion,
   type TaskDeletionOrder,
 } from "../services/pim/taskDeletion";
+import { loadSyncXmlTargets, requireSyncXmlTargets } from "../services/syncXmlTargetsLoad";
 
 /** Provider ids match the settings form selection (SettingsModal/Splash deep link). */
 export type SyncProviderId = "webdav" | "drive" | "onedrive" | "dropbox" | "s3";
@@ -1047,7 +1049,7 @@ export const VaultProvider: React.FC<{
       const webdavReady = !filesStopped && fileAccess.ready.webdav;
       // S3 and WebDAV read their listings as XML (about 100 KB with the parser): their module loads only for a vault that
       // uses one — here, with the open's other modules and before any check of its abort (package B1b).
-      const xmlTargets = (s3Ready && s3Creds) || (webdavReady && webdavCreds?.url) ? await import("../services/syncXmlTargets") : null;
+      const xmlTargets = await loadSyncXmlTargets(Boolean((s3Ready && s3Creds) || (webdavReady && webdavCreds?.url)));
       /**
        * A provider IS configured for this vault, but nothing can open it.
        * Without saying so the load ended as plain "idle" with no provider: the
@@ -1382,7 +1384,7 @@ export const VaultProvider: React.FC<{
         console.error("[VaultContext] moving sign-ins to their accounts failed", e),
       );
       // The calendars, mailboxes and task lists load with the first vault, not with the start (performance plan L5).
-      const { createPimRuntime } = await import("../services/pim/pimRuntime");
+      const { createPimRuntime } = await loadPart(() => import("../services/pim/pimRuntime"));
       const pimRuntime = createPimRuntime({ db: dbAdapter, vaultPath: path, onCycleEnd: () => void runTaskSyncNow() });
       try {
         if ((await pimRuntime.cache.listAccounts()).length > 0) loadStarts.start(pimRuntime, () => pimRuntime.worker.start());
@@ -1562,14 +1564,17 @@ export const VaultProvider: React.FC<{
           dropboxTarget.onRootFolderCreated = (name) => reportRootFolderCreated(name);
           dropboxTarget.allowRootCreation = !hasSyncedBefore;
           target = dropboxTarget;
-        } else if (s3Ready && s3Creds && xmlTargets) {
+        } else if (s3Ready && s3Creds) {
+          // Loaded above for exactly this case; a vault that syncs through S3 never goes on without its target.
+          const xml = requireSyncXmlTargets(xmlTargets, "s3");
           syncProvider = "s3";
-          target = new xmlTargets.S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
-        } else if (webdavReady && webdavCreds && webdavCreds.url && xmlTargets) {
+          target = new xml.S3SyncTarget(s3Creds, fetch, undefined, undefined, tauriSyncUploader);
+        } else if (webdavReady && webdavCreds && webdavCreds.url) {
+          const xml = requireSyncXmlTargets(xmlTargets, "webdav");
           syncProvider = "webdav";
           // The fourth argument makes large writes stream from disk instead of
           // travelling through the webview (issue #48).
-          const webdavTarget = new xmlTargets.WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
+          const webdavTarget = new xml.WebDavSyncTarget(webdavCreds, fetch, undefined, tauriSyncUploader);
           webdavTarget.allowRootCreation = !hasSyncedBefore;
           target = webdavTarget;
         }
@@ -2065,7 +2070,8 @@ export const VaultProvider: React.FC<{
           loadingProgress: undefined,
         }));
       } else {
-        setState(s => ({ ...s, isLoading: false, error: error.message || String(error), loadingProgress: undefined }));
+        // In the app's words (`errorText`): a module of the open that could not be loaded is not the browser's sentence.
+        setState(s => ({ ...s, isLoading: false, error: errorText(error), loadingProgress: undefined }));
       }
       if (activeLoadPathRef.current === path) {
         activeLoadPathRef.current = null;
