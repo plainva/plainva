@@ -79,7 +79,7 @@ export interface MailHtmlView extends SanitizedEmail {
    * and painted over, or off the frame's edge (`engineVisibility.ts`). The assistant reads this. Where there is no
    * engine to ask (a test runner's DOM), `document()`.
    */
-  engineDocument(widths?: readonly number[]): Promise<VisibleDocument>;
+  engineDocument(widths?: readonly number[], signal?: AbortSignal): Promise<VisibleDocument>;
   /**
    * Set where the pass could not make the HTML part safe — it threw, or the
    * parse left no body (a `<frameset>`): nothing of the part is given to
@@ -327,20 +327,20 @@ function makePass(raw: string): Pass {
       // may not show makes no link visible, so the assistant reads no more than either shows.
       document: () => (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false }),
       // One reading for both views too: the one without pictures, laid out as its frame is (F23).
-      engineDocument: (widths = engineWidths()) => {
+      engineDocument: (widths = engineWidths(), signal?: AbortSignal) => {
         const key = widths.join(",");
-        let reading = engine.get(key);
+        let reading = signal ? undefined : engine.get(key);
         if (!reading) {
           reading = (async () => {
             const walked = (document ??= body ? visibleDocumentOf(body, reader, { canvas: canvas() }) : { text: "", links: [], shows: false });
             if (!body || !walked.shows) return walked;
             // Throws where the engine cannot finish: the caller reads nothing then (fail closed). `null` only where
             // there is no layout engine at all (a test runner), and the walk's reading stands.
-            const hidden = await checkedOnce(buildMailFrameDoc(markup(false), { canvas: null }), widths);
+            const hidden = await checkedOnce(buildMailFrameDoc(markup(false), { canvas: null }), widths, signal);
             if (!hidden || hidden.parents.size === 0) return walked;
             return visibleDocumentOf(body, withoutHiddenWords(read, reader, body, hidden), { canvas: canvas() });
           })();
-          engine.set(key, reading);
+          if (!signal) engine.set(key, reading);
         }
         return reading;
       },
@@ -360,7 +360,7 @@ function makePass(raw: string): Pass {
  */
 const CHECKED_KEPT = 20;
 const checked = new Map<string, Promise<EngineHidden | null>>();
-export function checkedOnce(frameDoc: string, widths: readonly number[]): Promise<EngineHidden | null> {
+export function checkedOnce(frameDoc: string, widths: readonly number[], signal?: AbortSignal): Promise<EngineHidden | null> {
   const key = `${widths.join(",")}\n${frameDoc}`;
   const known = checked.get(key);
   if (known) {
@@ -368,7 +368,7 @@ export function checkedOnce(frameDoc: string, widths: readonly number[]): Promis
     checked.set(key, known);
     return known;
   }
-  const reading = engineHiddenWords(frameDoc, widths);
+  const reading = engineHiddenWords(frameDoc, widths, undefined, signal);
   checked.set(key, reading);
   reading.catch((error: unknown) => {
     if (!(error instanceof EngineBudgetError) && checked.get(key) === reading) checked.delete(key);

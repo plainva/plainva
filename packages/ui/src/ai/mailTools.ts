@@ -163,8 +163,8 @@ export function mailDocument(message: MailMessage): { title: string; text: strin
  * `mailDocument` as the assistant reads it (plan Umsetzung 0.9.x, B7; F23): what the reader shows judged by this
  * device's engine too, so that no word is read that only the place of another box hides.
  */
-export async function mailDocumentInEngine(message: MailMessage): Promise<ReturnType<typeof mailDocument>> {
-  return documentOf(message, await readableBodyInEngine(message, MAIL_TEXT_MAX));
+export async function mailDocumentInEngine(message: MailMessage, signal?: AbortSignal): Promise<ReturnType<typeof mailDocument>> {
+  return documentOf(message, await readableBodyInEngine(message, MAIL_TEXT_MAX, undefined, signal));
 }
 
 function documentOf(message: MailMessage, body: ReadableBody): ReturnType<typeof mailDocument> {
@@ -251,7 +251,7 @@ async function searchMail(source: MailSource, a: Record<string, unknown>): Promi
   return { content: [body, ...notes].join("\n\n"), origin: { kind: "mail" }, ...(failedAll ? { isError: true } : {}) };
 }
 
-async function readMail(source: MailSource, a: Record<string, unknown>): Promise<ToolOutcome> {
+async function readMail(source: MailSource, a: Record<string, unknown>, signal?: AbortSignal): Promise<ToolOutcome> {
   const accounts = await source.accounts();
   if (!accounts.length) return { content: NO_ACCOUNT };
   const at = typeof a.message === "string" ? parseMailHandle(a.message, accounts) : null;
@@ -267,7 +267,7 @@ async function readMail(source: MailSource, a: Record<string, unknown>): Promise
   // interface gets its turn first, so reading many mails one after another
   // never holds it for longer than one (review of 2026-11-17).
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
-  const document = await mailDocumentInEngine(message);
+  const document = await mailDocumentInEngine(message, signal);
   const origin = { kind: "mail" as const, account: inertLine(at.account.label, 80) };
   const quarantine: QuarantinedText = {
     title: document.title,
@@ -281,9 +281,9 @@ async function readMail(source: MailSource, a: Record<string, unknown>): Promise
 }
 
 /** Runs one of the two mail tools; `null` for any other tool. A shell without mail answers that there is none. */
-export async function mailToolOutcome(source: MailSource | undefined, tool: ToolManifest, args: unknown): Promise<ToolOutcome | null> {
+export async function mailToolOutcome(source: MailSource | undefined, tool: ToolManifest, args: unknown, signal?: AbortSignal): Promise<ToolOutcome | null> {
   if (tool.name !== "search_mail" && tool.name !== "read_mail") return null;
   if (!source) return { content: NO_ACCOUNT };
   const a = (args ?? {}) as Record<string, unknown>;
-  return tool.name === "search_mail" ? searchMail(source, a) : readMail(source, a);
+  return tool.name === "search_mail" ? searchMail(source, a) : readMail(source, a, signal);
 }

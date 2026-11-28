@@ -111,7 +111,8 @@ const turn = () =>
   });
 
 /** The path of an element from the body: its index among element children at each step. */
-export function elementPath(element: Element, body: Element): string | null {
+export function elementPath(element: Element, body: Element, known?: PathCache): string | null {
+  if (known) return cachedPath(element, body, known);
   const steps: number[] = [];
   for (let at: Element | null = element; at && at !== body; at = at.parentElement) {
     const parent: Element | null = at.parentElement;
@@ -527,8 +528,15 @@ export class EngineBudgetError extends Error {
 /** The pass's clock (B7, review M4): it gives the interface its turn every few milliseconds and stops at its budget. */
 class Pace {
   private slice = now();
-  constructor(private readonly deadline: number) {}
+  constructor(
+    private readonly deadline: number,
+    private readonly signal?: AbortSignal,
+  ) {}
+  /** Steps past a stop of the person (B7): what the person stops computes no further. */
+  steps = 0;
   async step(): Promise<void> {
+    if (this.signal?.aborted) throw this.signal.reason ?? new DOMException("stopped", "AbortError");
+    this.steps++;
     const at = now();
     if (at > this.deadline) throw new EngineBudgetError();
     if (at - this.slice >= SLICE_MS) {
@@ -536,6 +544,58 @@ class Pace {
       this.slice = now();
     }
   }
+}
+
+/**
+ * The paths of a pass, each element's index among its siblings found once (B7, review B7-7): a mail of thousands of
+ * blocks side by side asked each one's place by searching all its siblings — thousands times thousands of steps in one
+ * task, seconds under throttling.
+ */
+interface PathCache {
+  paths: Map<Element, string | null>;
+  indexes: Map<Element, Map<Element, number>>;
+}
+function newPathCache(): PathCache {
+  return { paths: new Map(), indexes: new Map() };
+}
+function cachedPath(element: Element, body: Element, known: PathCache): string | null {
+  if (element === body) return "";
+  const hit = known.paths.get(element);
+  if (hit !== undefined) return hit;
+  const parent = element.parentElement;
+  let path: string | null = null;
+  if (parent) {
+    let indexes = known.indexes.get(parent);
+    if (!indexes) {
+      indexes = new Map(Array.from(parent.children, (child, n) => [child, n] as const));
+      known.indexes.set(parent, indexes);
+    }
+    const up = cachedPath(parent, body, known);
+    path = up === null ? null : up === "" ? String(indexes.get(element)) : `${up}/${indexes.get(element)}`;
+  }
+  known.paths.set(element, path);
+  return path;
+}
+
+/** The latest pass's clock, for the gate to count steps after a stop (`mailFrameProbe`). */
+let lastPace: Pace | null = null;
+/** The gate compares the cheaper measurement with asking every word (`mailFrameProbe`); the app never sets it. */
+let wordWiseForTests = false;
+export function setWordWiseForTests(on: boolean): void {
+  wordWiseForTests = on;
+}
+/** How many texts each condition decided, since the last `resetPassTrace` (the gate reads it). */
+export const passTrace: Record<string, number> = {};
+export function resetPassTrace(): void {
+  for (const key of Object.keys(passTrace)) delete passTrace[key];
+}
+/** How many passes ran since the app started (the gate counts them to see a kept answer). */
+let passes = 0;
+export function enginePasses(): number {
+  return passes;
+}
+export function lastPassSteps(): number {
+  return lastPace?.steps ?? 0;
 }
 
 const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
@@ -551,6 +611,7 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
     if (body.getBoundingClientRect().width <= 0) throw new Error("the mail's frame laid nothing out");
     win.scrollTo(0, 0);
     const reachX = reachOf(frame);
+    const pathCache = newPathCache();
     const hide = (path: string, from: number, to: number) => {
       let entry = out.parents.get(path);
       if (!entry) out.parents.set(path, (entry = { text: "", hidden: [] }));
@@ -572,7 +633,7 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
       const start = offsets.get(parent) ?? 0;
       offsets.set(parent, start + text.data.length);
       if (NOT_WORDS.has(parent.localName) || !/\S/.test(text.data)) continue;
-      const path = elementPath(parent, body);
+      const path = elementPath(parent, body, pathCache);
       if (path === null) continue;
       const range = doc.createRange();
       range.selectNodeContents(text);
@@ -593,12 +654,28 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
       // Its own later lines over its earlier ones (lines laid on top of each other) count as well.
       const own = new LaterWords();
       lines.forEach((line, n) => own.add(n, line));
-      const plain =
-        lines.length > 0 &&
-        !lines.some((line) => line.left < 0 || line.top < 0 || line.right > reachX) &&
-        !clipped(text, lines, win) &&
-        !painters.over(text, lines) &&
-        !lines.some((line, n) => laterText.meets(k, line) || own.meets(n, line));
+      // Which condition decided it, counted (`passTrace`): what makes a mail expensive is seen, not guessed (review B7-7).
+      const why =
+        lines.length === 0
+          ? "noLines"
+          : lines.some((line) => line.left < 0 || line.top < 0 || line.right > reachX)
+            ? "outOfReach"
+            : clipped(text, lines, win)
+              ? "clipped"
+              : painters.over(text, lines)
+                ? "painted"
+                : lines.some((line) => laterText.meets(k, line))
+                  ? "laterText"
+                  : lines.some((line, n) => own.meets(n, line))
+                    ? "ownLines"
+                    : "plain";
+      passTrace[why] = (passTrace[why] ?? 0) + 1;
+      const plain = why === "plain";
+      // Out of the frame's reach and nothing else (review B7-7, part 6 — what makes a reply chain expensive): no box,
+      // no later text, no clip and none of its own lines lie over it, so a word wholly inside the reach is seen and one
+      // wholly outside is not; only a word on the edge is asked of the engine point by point.
+      const onlyReach = why === "outOfReach" && !wordWiseForTests && !clipped(text, lines, win) && !painters.over(text, lines) && !lines.some((line, n) => laterText.meets(k, line) || own.meets(n, line));
+      if (onlyReach) passTrace.reachOnly = (passTrace.reachOnly ?? 0) + 1;
       if (plain) {
         await pace.step();
         continue;
@@ -618,6 +695,15 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
       measured.forEach((word, n) => word.boxes.forEach((box) => laterWords.add(n, box)));
       for (let n = 0; n < measured.length; n++) {
         const { index, length, boxes } = measured[n]!;
+        if (onlyReach) {
+          const inside = boxes.length > 0 && boxes.every((box) => box.left >= 0 && box.top >= 0 && box.right <= reachX);
+          const outside = boxes.every((box) => box.right <= 0 || box.bottom <= 0 || box.left >= reachX);
+          if (inside || outside) {
+            if (outside) hide(path, offset + index, offset + index + length);
+            await pace.step();
+            continue;
+          }
+        }
         const seen = wordSeen(frame, { text, start: index, end: index + length, boxes }, (x, y) => laterText.over(k, x, y) || laterWords.over(n, x, y));
         if (!seen) hide(path, offset + index, offset + index + length);
         await pace.step();
@@ -625,7 +711,8 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
     }
     // The parents' own texts, for the check that the reader's tree is the frame's.
     for (const [element, length] of offsets) {
-      const path = elementPath(element, body);
+      await pace.step();
+      const path = elementPath(element, body, pathCache);
       const entry = path === null ? undefined : out.parents.get(path);
       if (!entry || entry.text) continue;
       entry.text = Array.from(element.childNodes).filter((child) => child.nodeType === 3).map((child) => (child as Text).data).join("");
@@ -640,12 +727,14 @@ async function hiddenAt(frameDoc: string, width: number, out: EngineHidden, pace
  * The words the engine hides of a reader frame document (`buildMailFrameDoc`), at every reader width; null where
  * there is no engine to ask. Between steps the interface gets its turn.
  */
-export async function engineHiddenWords(frameDoc: string, widths: readonly number[] = engineWidths(), budgetMs: number = engineBudgetFor(frameDoc, widths)): Promise<EngineHidden | null> {
+export async function engineHiddenWords(frameDoc: string, widths: readonly number[] = engineWidths(), budgetMs: number = engineBudgetFor(frameDoc, widths), signal?: AbortSignal): Promise<EngineHidden | null> {
   // No layout engine at all — the one place the walk's reading stands (a test runner; no runtime of the app).
   if (!hasLayoutEngine()) return null;
   if (!document.body) throw new Error("no document to lay the mail out in");
   const out: EngineHidden = { parents: new Map() };
-  const pace = new Pace(now() + budgetMs);
+  const pace = new Pace(now() + budgetMs, signal);
+  lastPace = pace;
+  passes++;
   for (const width of widths) {
     await hiddenAt(frameDoc, width, out, pace);
     await pace.step();

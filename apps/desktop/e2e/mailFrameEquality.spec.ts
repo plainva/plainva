@@ -561,6 +561,109 @@ test("a mail too long to check in time: the assistant reads none of it, and is t
   await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.limit(null));
 });
 
+test("a stop of the person ends a pass under way, and a mail past the budget is told at once the next time", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 1000, height: 900 });
+  await loadProbe(page);
+  // Long enough to run for seconds: every word runs into the next box and is asked of the engine.
+  const words = Array.from({ length: 20_000 }, (_, n) => `w${n}`).join(" ");
+  const html = `<div style="height:0;white-space:nowrap">${words}</div><div style="height:0;white-space:nowrap">${words}</div><p>VISIBLEend</p>`;
+  // What the person stops computes no further (B7): stopped after a second, no step of the pass runs after it.
+  const stopped = await page.evaluate(([h]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.readStopped(h, 1000), [html] as const);
+  expect(stopped.threw).toBe(true);
+  expect(stopped.atStop).toBeGreaterThan(0);
+  expect(stopped.later).toBe(stopped.atStop);
+  // A stopped pass is not kept: the same mail is measured again.
+  const before = await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.passes());
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.limit(3000));
+  const first = await page.evaluate(([h]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.read(h), [html] as const);
+  expect(first.text).toContain("too long for Plainva to check in time");
+  const measured = await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.passes());
+  expect(measured).toBeGreaterThan(before);
+  // Past the budget, kept as that: the second question about the same mail is told at once, with no new pass.
+  const second = await page.evaluate(async ([h]) => {
+    const at = performance.now();
+    const read = await (window as unknown as MailFrameProbeWindow).mailFrameProbe.read(h);
+    return { text: read.text, took: performance.now() - at };
+  }, [html] as const);
+  expect(second.text).toContain("too long for Plainva to check in time");
+  expect(await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.passes())).toBe(measured);
+  expect(second.took).toBeLessThan(1000);
+  // Another width is another answer: measured anew.
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.readerWidth(500));
+  await page.evaluate(([h]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.read(h), [html] as const);
+  expect(await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.passes())).toBeGreaterThan(measured);
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.limit(null));
+});
+
+/**
+ * The cheaper measurement of a text that only runs out of the frame's reach (review B7-7, part 6): it never lets a word
+ * be read that asking every word of the engine hides. Compared over reply chains, the gate's cases and seeded random
+ * nests of boxes, at both widths.
+ */
+test("the cheaper measurement of what runs out of reach reads no word that asking every word hides", async ({ page }) => {
+  test.setTimeout(600_000);
+  await page.setViewportSize({ width: 1300, height: 900 });
+  await loadProbe(page);
+  const P = "Thanks for being with us this year; here is what changed in the service and what comes next for you.";
+  const chain = (n: number) => {
+    let inner = "";
+    for (let k = n; k >= 1; k--) inner = `<div>On Mon, Nov ${(k % 28) + 1}, 2026 Person ${k} wrote:</div><blockquote style="margin:0 0 0 .8ex;border-left:1px #cccccc solid;padding-left:1ex"><p>${P} r${k}</p>${inner}</blockquote>`;
+    return `<p>Latest reply.</p>${inner}`;
+  };
+  let seed = 7;
+  const rand = (n: number) => ((seed = (seed * 1103515245 + 12345) % 2147483648) % n);
+  const random = () => {
+    let html = "";
+    const depth = 3 + rand(30);
+    for (let d = 0; d < depth; d++) {
+      const pad = rand(40);
+      const words = Array.from({ length: 1 + rand(12) }, (_, w) => `x${d}w${w}${"a".repeat(rand(14))}`).join(" ");
+      const nowrap = rand(4) === 0 ? "white-space:nowrap;" : "";
+      html = `<div style="margin-left:${pad}px;padding-left:${rand(20)}px;${nowrap}">${words}${html}</div>`;
+    }
+    return html;
+  };
+  const cases = [chain(20), chain(40), chain(80), ...RTL_MAIL.map((c) => c.html), ...DIRECTION.hidden.map((c) => c.html), ...Array.from({ length: 30 }, random)];
+  const wrong: string[] = [];
+  let same = 0;
+  let cheaper = 0;
+  for (const [n, html] of cases.entries()) {
+    for (const width of [343, 760]) {
+      const read = await page.evaluate(
+        async ([h, w]) => {
+          const probe = (window as unknown as MailFrameProbeWindow).mailFrameProbe;
+          probe.readerWidth(w);
+          probe.forget();
+          probe.wordWise(true);
+          // A comment of its own for each reading: the reader keeps its view per markup, the sanitizer drops comments.
+          const every = (await probe.read(`<!--every ${w}-->${h}`)).text;
+          probe.forget();
+          probe.wordWise(false);
+          probe.resetTrace();
+          const lines = (await probe.read(`<!--lines ${w}-->${h}`)).text;
+          return { every, lines, reachOnly: probe.trace().reachOnly ?? 0 };
+        },
+        [html, width] as const,
+      );
+      const words = (t: string) => t.split(/\s+/).filter(Boolean);
+      const allowed = new Map<string, number>();
+      for (const w of words(read.every)) allowed.set(w, (allowed.get(w) ?? 0) + 1);
+      for (const w of words(read.lines)) {
+        const left = allowed.get(w) ?? 0;
+        if (left === 0) wrong.push(`case ${n} at ${width} px: the cheaper measurement reads "${w}", asking every word hides it`);
+        else allowed.set(w, left - 1);
+      }
+      if (read.every === read.lines) same++;
+      if (read.reachOnly > 0) cheaper++;
+    }
+  }
+  await page.evaluate(() => (window as unknown as MailFrameProbeWindow).mailFrameProbe.forget());
+  test.info().annotations.push({ type: "compared", description: `${cases.length * 2} readings, ${same} identical, ${cheaper} took the cheaper way` });
+  expect(cheaper).toBeGreaterThan(0);
+  expect(wrong).toEqual([]);
+});
+
 /**
  * The pass in step with the interface (review B7-2, H14/H15): a mail of 3 000 boxes that paint holds the interface no
  * longer than a slice at a time, and in a hidden window — whose timers the engine throttles — an ordinary mail is

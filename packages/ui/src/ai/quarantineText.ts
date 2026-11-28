@@ -75,13 +75,15 @@ export const TOO_LONG_TO_CHECK_BODY = "[This message is too long for Plainva to 
  * F23): words that only the place of other boxes hides — run out of their box and painted over, or off the frame's
  * edge — are not read. What the assistant reads of a mail comes from here.
  */
-export async function readableBodyInEngine(input: { html?: string | null; text?: string | null }, max: number, widths?: readonly number[]): Promise<ReadableBody> {
+export async function readableBodyInEngine(input: { html?: string | null; text?: string | null }, max: number, widths?: readonly number[], signal?: AbortSignal): Promise<ReadableBody> {
   const view = mailBodyView({ html: input.html ?? null, text: input.text ?? null });
   if (!view || view.unreadable) return readableBody(input, max);
   let shown: Awaited<ReturnType<typeof view.engineDocument>>;
   try {
-    shown = await view.engineDocument(widths);
+    shown = await view.engineDocument(widths, signal);
   } catch (error) {
+    // Stopped by the person (B7): nothing is read, and the stop goes on to the run.
+    if (signal?.aborted) throw error;
     // The engine could not say what the reader shows (B7, review): nothing of it is read — never the walk's reading in
     // its stead. A mail too long to check in time is said as that, not as one that cannot be shown safely.
     return { text: error instanceof EngineBudgetError ? TOO_LONG_TO_CHECK_BODY : UNREADABLE_BODY, links: [], truncated: false };

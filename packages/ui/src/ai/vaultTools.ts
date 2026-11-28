@@ -739,7 +739,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
   const unavailable = (tool: ToolManifest): ToolOutcome => ({ content: `The tool ${tool.name} is not available here.`, isError: true });
 
   return {
-    async execute(tool: ToolManifest, args: unknown, call?: { id: string }): Promise<ToolOutcome> {
+    async execute(tool: ToolManifest, args: unknown, call?: { id: string }, signal?: AbortSignal): Promise<ToolOutcome> {
       const a = (args ?? {}) as Record<string, unknown>;
       switch (tool.name) {
         case "search_vault": {
@@ -1238,7 +1238,7 @@ export function createVaultToolExecutor(deps: VaultToolDeps, run: GateRun, scope
         }
         case "search_mail":
         case "read_mail":
-          return (await mailToolOutcome(deps.mail, tool, a)) ?? unavailable(tool);
+          return (await mailToolOutcome(deps.mail, tool, a, signal)) ?? unavailable(tool);
         case "find_tools": {
           // While a loaded skill narrows the run, the search lists only what that skill leaves.
           const narrowed = further?.narrowed?.() ?? null;
