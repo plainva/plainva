@@ -536,6 +536,29 @@ describe("only a proven contradiction is kept (decision of 2026-11-27)", () => {
     expect(await t.getStartCursor()).toBe(ROOT_TAG_CURSOR);
   });
 
+  it("a file that came during the listing and is gone again when the folder is asked is a doubt, though the folder's tag is back", async () => {
+    const dav = byteExactDav(undefined, { folderTags: "subtree" });
+    const store = memoryStore();
+    let stage: "off" | "listing" | "reask" = "off";
+    const fetchFn = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const depth = new Headers(init?.headers as HeadersInit | undefined).get("Depth");
+      if (stage === "reask" && depth === "0") { stage = "off"; dav.files.delete("A/B/new.md"); }
+      if (stage !== "listing" || (init?.method ?? "GET") !== "PROPFIND" || depth !== "infinity") return dav.fetch(input, init);
+      stage = "reask";
+      const before = await (await dav.fetch(input, init)).text();
+      setFile(dav, "A/B/new.md", "n1");
+      const after = await (await dav.fetch(input, init)).text();
+      const responses = (xml: string) => xml.match(/<d:response>[\s\S]*?<\/d:response>/g) ?? [];
+      const head = after.slice(0, after.indexOf("<d:response>"));
+      return new Response(`${head}${[responses(before)[0]!, ...responses(after).slice(1)].join("")}</d:multistatus>`, { status: 207 });
+    };
+    const t = targetOn(dav, store, fetchFn);
+    await earnOn(dav, t);
+    stage = "listing";
+    await t.pull();
+    expect(store.values.has(KEY)).toBe(false);
+  });
+
   for (const kind of ["ownEntries", "twoLevel", "putOnly", "static"] as const) {
     it(`a server whose tags are "${kind}" is proven wrong by asking again, and that is kept`, async () => {
       const dav = byteExactDav(undefined, { folderTags: kind });
@@ -600,5 +623,181 @@ describe("the parser takes a tag from a 2xx propstat over one from a failed prop
     const [entry] = parseMultistatus(`<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:href>/dav/Vault/a.md</d:href><d:propstat><d:prop><d:getetag/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat><d:propstat><d:prop><d:getetag>"real"</d:getetag></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`);
     expect(entry!.etag).toBe('"real"');
     expect(entry!.answered.getetag).toBe("ok");
+  });
+});
+
+describe("the guards the review's mutations passed (note H-1: M7, M10, M11)", () => {
+  it("M7: changes right inside the vault folder earn nothing where the vault has folders", () => {
+    const ledger = new FolderTagLedger();
+    ledger.observe(listing({ "r.md": "1", "s.md": "1", "A/B/x.md": "1" }, { "": "r1", A: "a1", "A/B": "b1" }));
+    ledger.observe(listing({ "r.md": "2", "s.md": "1", "A/B/x.md": "1" }, { "": "r2", A: "a1", "A/B": "b1" }));
+    ledger.observe(listing({ "r.md": "2", "t.md": "1", "A/B/x.md": "1" }, { "": "r3", A: "a1", "A/B": "b1" }));
+    ledger.observe(listing({ "r.md": "3", "t.md": "1", "A/B/x.md": "1" }, { "": "r4", A: "a1", "A/B": "b1", F: "f1" }));
+    ledger.observe(listing({ "r.md": "4", "A/B/x.md": "2", "t.md": "1" }, { "": "r5", A: "a2", "A/B": "b2", F: "f1" }));
+    expect(ledger.trusted).toBe(false);
+  });
+
+  async function trusted(options: ByteExactDavOptions = {}) {
+    const { dav } = world({ folderTags: "subtree", clock: () => Date.UTC(2026, 10, 1), ...options });
+    const fetch = dav.fetch;
+    const failProbes = { on: false };
+    const view: ByteExactDav = { ...dav, fetch: async (input, init) => {
+      const depth = new Headers(init?.headers as HeadersInit | undefined).get("Depth");
+      if (failProbes.on && depth === "0" && typeof init?.body === "string" && init.body.includes("<d:getetag/></d:prop>")) throw new TypeError("network error");
+      return fetch(input, init);
+    } };
+    const a = await device(dav);
+    const b = await device(view);
+    for (const step of [
+      () => a.put("N/D/x.md", "x\n"), () => a.put("N/D/x.md", "x2\n"), () => a.put("N/D/y.md", "y\n"),
+      () => a.remove("N/D/y.md"), () => a.put("N/D/E/z.md", "z\n"), () => a.put("N/D/E/z.md", "z2\n"),
+    ]) { await step(); await a.cycle(); await b.cycle(); }
+    for (let i = 0; i < 4; i++) await b.cycle();
+    return { dav, a, b, failProbes };
+  }
+
+  it("M10: a probe that fails sends the cycle to a full listing", async () => {
+    const { dav, b, failProbes } = await trusted();
+    failProbes.on = true;
+    for (let i = 0; i < 3; i++) {
+      const from = dav.propfinds.length;
+      await b.cycle();
+      expect(dav.propfinds.slice(from)).toContain("infinity");
+    }
+  });
+
+  it("M11: a full listing due by the cadence is asked about first, the probe right before it", async () => {
+    const { dav, b } = await trusted();
+    let seen = false;
+    for (let i = 0; i < 6 && !seen; i++) {
+      const from = dav.propfinds.length;
+      await b.cycle();
+      const asked = dav.propfinds.slice(from);
+      if (asked.includes("infinity")) {
+        expect(asked.slice(0, 2)).toEqual(["0", "infinity"]);
+        seen = true;
+      }
+    }
+    expect(seen).toBe(true);
+  });
+});
+
+describe("a random run where another device saves during b's listing or between its probe and its listing", () => {
+  const KINDS: Array<{ name: string; options: ByteExactDavOptions; honest: boolean }> = [
+    { name: "subtree (honest)", options: { folderTags: "subtree" }, honest: true },
+    { name: "subtree, lazily scanned, no mark", options: { folderTags: "subtree", lazyScan: true }, honest: false },
+    { name: "own entries only", options: { folderTags: "ownEntries" }, honest: false },
+    { name: "two levels only", options: { folderTags: "twoLevel" }, honest: false },
+    { name: "PUT only", options: { folderTags: "putOnly" }, honest: false },
+  ];
+  for (const kind of KINDS) {
+    it(kind.name, async () => {
+      const rnd = random(0x5a4e + kind.name.length);
+      // One schedule for both sides: in which steps a save comes in during b's first request of the cycle.
+      const schedule = Array.from({ length: 80 }, () => rnd());
+      const sides = await Promise.all([true, false].map(async (shortcut) => {
+        const { dav } = world({ ...kind.options, clock: () => Date.UTC(2026, 10, 1) });
+        const pending: { save?: () => void } = {};
+        const view: ByteExactDav = { ...dav, fetch: async (input, init) => {
+          const save = pending.save;
+          if (!save || (init?.method ?? "GET").toUpperCase() !== "PROPFIND") return dav.fetch(input, init);
+          pending.save = undefined;
+          const depth = new Headers(init?.headers as HeadersInit | undefined).get("Depth") ?? "infinity";
+          if (depth !== "infinity") {
+            // Between the probe and whatever follows it.
+            const res = await dav.fetch(input, init);
+            save();
+            return res;
+          }
+          // During the listing: the vault folder read before the save, the rest after it.
+          const before = await (await dav.fetch(input, init)).text();
+          save();
+          const after = await (await dav.fetch(input, init)).text();
+          const responses = (xml: string) => xml.match(/<d:response>[\s\S]*?<\/d:response>/g) ?? [];
+          const head = after.slice(0, after.indexOf("<d:response>"));
+          return new Response(`${head}${[responses(before)[0]!, ...responses(after).slice(1)].join("")}</d:multistatus>`, { status: 207 });
+        } };
+        return { dav, pending, a: await device(dav, { shortcut }), b: await device(view, { shortcut }) };
+      }));
+      const [short, full] = sides as [typeof sides[0], typeof sides[0]];
+      const paths = ["N/D/x.md", "N/D/E/y.md", "N/z.md", "N/D/E/F/w.md"];
+      for (const s of sides) { for (const p of paths) await s.a.put(p, `${p} start\n`); await s.a.cycle(); await s.b.cycle(); }
+      let streak = 0;
+      let longest = 0;
+      for (let step = 0; step < schedule.length; step++) {
+        const r = schedule[step]!;
+        const p = paths[step % paths.length]!;
+        for (const s of sides) {
+          if (r < 0.35) {
+            // Another device's save, through WebDAV, landing in b's next request.
+            s.pending.save = () => { const f = s.dav.files.get(p); s.dav.files.set(p, { bytes: new TextEncoder().encode(`saved ${step}\n`), etag: `s${step}`, ...(f?.modified !== undefined ? { modified: f.modified } : {}) }); };
+          } else if (r < 0.55) {
+            s.dav.pastWebdav(p, `outside ${step}\n`);
+          } else if (r < 0.7) {
+            await s.a.put(p, `a ${step}\n`);
+          }
+        }
+        for (const s of sides) await s.a.cycle();
+        for (const s of sides) await s.b.cycle();
+        if ((await state(short.b)) !== (await state(full.b))) { streak++; longest = Math.max(longest, streak); } else streak = 0;
+      }
+      for (let i = 0; i < 6; i++) for (const s of sides) { await s.a.cycle(); await s.b.cycle(); }
+      const [withShortcut, without] = await Promise.all(sides.map((s) => texts(s.dav, s.a, s.b)));
+      for (const text of without!) expect(withShortcut!.has(text)).toBe(true);
+      expect(await state(short.b)).toBe(await state(full.b));
+      // At most three cycles (one minute at the 15 s default) later than without the shortcut.
+      expect(longest).toBeLessThanOrEqual(3);
+      const stored = await short.b.repo.readTargetMeta(FOLDER_TAGS_REFUTED_KEY + "https://dav.example.com");
+      process.stdout.write(`L7b saves during listings, ${kind.name}: longest=${longest} stored=${stored !== null}\n`);
+      if (kind.honest) expect(stored).toBeNull();
+    }, 240_000);
+  }
+});
+
+describe("a write queued while a cycle asks the tag alone waits for a full listing (S-1, N2)", () => {
+  it("no PUT in that cycle; the next one lists before it", async () => {
+    const { dav } = world({ folderTags: "subtree", clock: () => Date.UTC(2026, 10, 1) });
+    let onProbe: (() => Promise<void>) | undefined;
+    const view: ByteExactDav = { ...dav, fetch: async (input, init) => {
+      const res = await dav.fetch(input, init);
+      const depth = new Headers(init?.headers as HeadersInit | undefined).get("Depth");
+      if (onProbe && depth === "0" && typeof init?.body === "string") { const run = onProbe; onProbe = undefined; await run(); }
+      return res;
+    } };
+    const a = await device(dav);
+    const b = await device(view);
+    for (const step of [
+      () => a.put("N/D/x.md", "x\n"), () => a.put("N/D/x.md", "x2\n"), () => a.put("N/D/y.md", "y\n"),
+      () => a.remove("N/D/y.md"), () => a.put("N/D/E/z.md", "z\n"), () => a.put("N/D/E/z.md", "z2\n"),
+    ]) { await step(); await a.cycle(); await b.cycle(); }
+    for (let i = 0; i < 4; i++) await b.cycle();
+    // Find a cycle that asks the tag alone, and queue a write while it does.
+    let found = false;
+    for (let i = 0; i < 6 && !found; i++) {
+      // A text of its own each time: a cycle that lists after its probe may push it at once.
+      const text = `late local ${i}\n`;
+      onProbe = async () => {
+        await b.put("N/D/x.md", text);
+        await b.queue.queueWrite("N/D/x.md");
+      };
+      const from = dav.propfinds.length;
+      const log = dav.log.length;
+      await b.cycle();
+      if (dav.propfinds.slice(from).join() === "0") {
+        found = true;
+        expect(dav.log.slice(log).some((l) => l.startsWith("PUT "))).toBe(false);
+        const next = dav.log.length;
+        await b.cycle();
+        const after = dav.log.slice(next);
+        const put = after.findIndex((l) => l.startsWith("PUT N/D/x.md"));
+        expect(put).toBeGreaterThan(0);
+        expect(after.slice(0, put).some((l) => l.startsWith("PROPFIND ") && l !== "PROPFIND N/D/x.md")).toBe(true);
+        expect(dav.propfinds.slice(from)).toContain("infinity");
+        expect(new TextDecoder().decode(dav.files.get("N/D/x.md")!.bytes)).toBe(text);
+      } else {
+        onProbe = undefined;
+      }
+    }
+    expect(found).toBe(true);
   });
 });

@@ -177,6 +177,14 @@ describe("a full listing by name reads what allprop reads", () => {
     expect(slim.slimListing).toBe(true);
   });
 
+  it("a 404 to both questions, on a vault that may still be made, keeps listings by name on", async () => {
+    const dav = byteExactDav();
+    dav.folders.clear();
+    const slim = target(dav, true);
+    expect(view(await slim.pull())).toEqual({ etags: [], times: [], folders: [] });
+    expect(slim.slimListing).toBe(true);
+  });
+
   it("a 403 on a folder inside a Depth: 1 walk fails as before, once per pull, and leaves listings by name on", async () => {
     const dav = byteExactDav(undefined, { refuseInfinity: true });
     seed(dav, true);
@@ -295,5 +303,49 @@ describe("two devices against a server that answers a listing by name in part", 
     expect(await b.text("Notes/Deep/a.md")).toBe("a, edited\n");
     expect(asked.length).toBeGreaterThan(0);
     expect(asked.every((a) => a === "named")).toBe(true);
+  });
+});
+
+describe("hrefs that need care, read by name as by allprop (note H-2)", () => {
+  const BASES = ["https://dav.example.com/dav/School Term 1/", "https://dav.example.com/dav/Schlüssel/"];
+  for (const base of BASES) {
+    it(`a vault folder at ${decodeURIComponent(new URL(base).pathname)}, names with & and #`, async () => {
+      const dav = byteExactDav(base, { clock: () => Date.UTC(2026, 10, 1) });
+      for (const name of ["a&b.md", "Draft #1.md", "Ünïcode/Ö & Ä.md"]) {
+        const segments = name.split("/");
+        for (let i = 1; i < segments.length; i++) dav.folders.add(segments.slice(0, i).join("/"));
+        dav.files.set(name, { bytes: new Uint8Array([1]), etag: `t-${name.length}`, modified: Date.UTC(2026, 10, 1) });
+      }
+      const read = async (slim: boolean) => {
+        const t = new WebDavSyncTarget({ url: base, user: "u", pass: "p" }, (i, init) => dav.fetch(i, init));
+        t.slimListing = slim;
+        const r = view(await t.pull());
+        expect(t.slimListing).toBe(slim);
+        return r;
+      };
+      const named = await read(true);
+      expect(named).toEqual(await read(false));
+      expect(named.etags.map(([p]) => p)).toEqual(["Draft #1.md", "a&b.md", "Ünïcode/Ö & Ä.md"]);
+    });
+  }
+
+  it("a server that redirects to another base path: the hrefs resolve against where it answered from", async () => {
+    const dav = byteExactDav("https://dav.example.com/remote.php/dav/files/u/Vault/", { clock: () => Date.UTC(2026, 10, 1) });
+    dav.folders.add("N");
+    dav.files.set("N/a&b.md", { bytes: new Uint8Array([1]), etag: "e1", modified: Date.UTC(2026, 10, 1) });
+    const redirecting = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const moved = String(input).replace("https://dav.example.com/Vault/", "https://dav.example.com/remote.php/dav/files/u/Vault/");
+      const res = await dav.fetch(moved, init);
+      Object.defineProperty(res, "url", { value: moved });
+      return res;
+    };
+    const read = async (slim: boolean) => {
+      const t = new WebDavSyncTarget({ url: "https://dav.example.com/Vault/", user: "u", pass: "p" }, redirecting);
+      t.slimListing = slim;
+      return view(await t.pull());
+    };
+    const named = await read(true);
+    expect(named).toEqual(await read(false));
+    expect(named.etags).toEqual([["N/a&b.md", "e1"]]);
   });
 });
