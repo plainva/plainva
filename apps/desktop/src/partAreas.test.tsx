@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, Suspense, useState, type ReactNode } from "react";
+import { act, Suspense, useEffect, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { AreaBoundary, PART_LOAD_TIMEOUT_MS, toast } from "@plainva/ui";
 import i18n from "@plainva/ui/i18n";
@@ -24,12 +24,15 @@ const dialogShown = () => !!document.querySelector("[data-testid=area-fallback-d
 const refused = () => Promise.reject(new TypeError("Failed to fetch dynamically imported module: /assets/SettingsModal-x.js"));
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-let reopen: () => void = () => undefined;
-let isOpen = () => false;
+const host = { reopen: () => undefined as void, open: false };
+const reopen = () => host.reopen();
+const isOpen = () => host.open;
 function DialogHost({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(true);
-  reopen = () => setOpen(true);
-  isOpen = () => open;
+  useEffect(() => {
+    host.reopen = () => setOpen(true);
+    host.open = open;
+  }, [open]);
   return (
     <div>
       <p data-testid="shell">shell</p>
