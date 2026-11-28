@@ -269,6 +269,43 @@ test("text under a direction override is not read; right-to-left text, embedding
       if (!turned && open.frame.seen.includes(word) && !open.ai.includes(word)) wrong.push(`${entry.name}: at ${width} px the assistant leaves out ${word}, drawn plainly`);
     }
   }
+  // A Latin word with a Hebrew letter after each of its letters (review B7-8, S-1): mirrored on screen, never read —
+  // under an override, in a bdo, and across a <b>. Judged against the screen in the reader, letter by letter of the
+  // Latin letters alone, not with the product's rule.
+  const INTERLEAVED = "I\u05D0\u05D0G\u05D0N\u05D0O\u05D0R\u05D0E\u05D0X";
+  for (const html of [`<p>VISIBLEs1</p><p>&#x202E;${INTERLEAVED}&#x202C;</p>`, `<p>VISIBLEs2</p><p><bdo dir="rtl">${INTERLEAVED}</bdo></p>`, `<p>VISIBLEs3</p><p>&#x202E;<b>I\u05D0\u05D0G\u05D0N</b>\u05D0O\u05D0R\u05D0E\u05D0X&#x202C;</p>`]) {
+    for (const width of [343, 760]) {
+      const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [html, width] as const);
+      const latin = await page.evaluate(() => {
+        const doc = (document.getElementById("pv-marked-frame") as HTMLIFrameElement).contentDocument!;
+        const at: number[] = [];
+        const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          const data = n.textContent ?? "";
+          for (let i = 0; i < data.length; i++) {
+            if (!/[GNORX]/.test(data[i]!)) continue;
+            const range = doc.createRange();
+            range.setStart(n, i);
+            range.setEnd(n, i + 1);
+            const b = range.getBoundingClientRect();
+            at.push((b.left + b.right) / 2);
+          }
+        }
+        return at;
+      });
+      const mirrored = latin.some((x, k) => k > 0 && x < latin[k - 1]!);
+      if (!mirrored) wrong.push(`${html}: at ${width} px the case is not drawn mirrored`);
+      if (open.aiText.includes("X") || open.aiText.includes("G")) wrong.push(`${html}: at ${width} px the assistant reads the mirrored word`);
+    }
+  }
+  // One character cannot be mirrored (review B7-8, M-1): in a block with a direction control it is read — a digit, "a",
+  // "I", a Chinese word.
+  for (const width of [343, 760]) {
+    const html = `<p>VISIBLEm1 &#x2066;Anna&#x2069; 5 a I \u4E2D VISIBLEm1b</p>`;
+    const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [html, width] as const);
+    const read = open.aiText.split(/[\s\u2066-\u2069]+/);
+    for (const word of ["5", "a", "I", "\u4E2D", "Anna", "VISIBLEm1", "VISIBLEm1b"]) if (!read.includes(word)) wrong.push(`m1: at ${width} px the assistant leaves out "${word}"`);
+  }
   for (const entry of DIRECTION.order) {
     const open = await page.evaluate(([h, w]) => (window as unknown as MailFrameProbeWindow).mailFrameProbe.open(h, w), [entry.html, 760] as const);
     const all = Array.from(entry.html.matchAll(/VISIBLE[a-z0-9]+/g), (m) => m[0]);

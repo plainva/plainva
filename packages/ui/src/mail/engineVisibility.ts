@@ -482,36 +482,48 @@ function mayMirror(text: Text, win: Window, state: { blocks: Map<Element, Elemen
 
 /**
  * The words of a text a person sees mirrored (review B7-7: measured, not computed — the engines and their sheets do not
- * do what one rebuilds from the characters alone). A word is mirrored where, on one line, of two neighbouring letters
- * of the same script direction the later stands before the earlier: for a script written left to right (and for
- * digits) to its left, for one written right to left to its right. A word with no such pair to measure — one letter,
- * no box — is left out too: in doubt, it is not read.
+ * do what one rebuilds from the characters alone). A word is mirrored where, on one line, a letter stands before the
+ * previous letter of its own script direction: for a script written left to right (and for digits) to its left, for one
+ * written right to left to its right. A word of several letters with no such pair to measure, or a letter without a
+ * box, is left out too — in doubt, it is not read; a word of one character cannot be mirrored and is read.
  */
 async function mirroredWords(text: Text, doc: Document, win: Window, pace: Pace): Promise<Array<[number, number]>> {
   const out: Array<[number, number]> = [];
   const range = doc.createRange();
   for (const { index, word } of wordsOf(text.data)) {
-    const placed: Array<{ rtl: boolean; x: number; top: number; height: number }> = [];
+    // Each letter against the previous one of its own direction on its line (review B7-8, S-1): a Latin word with a
+    // Hebrew letter after each of its letters is mirrored all the same. Read only where the measure shows it the right
+    // way round; one character cannot be mirrored and is read (M-1).
+    const last: { ltr: { x: number; top: number; height: number } | null; rtl: { x: number; top: number; height: number } | null } = { ltr: null, rtl: null };
+    let letters = 0;
+    let boxed = 0;
+    let pairs = 0;
+    let turned = false;
     let at = index;
     for (const ch of word) {
       if (LETTER_OR_DIGIT.test(ch)) {
+        letters++;
+        const dir = RTL_LETTER.test(ch) && !/\p{N}/u.test(ch) ? "rtl" : "ltr";
         range.setStart(text, at);
         range.setEnd(text, at + ch.length);
         const box = boxesOf(range, win)[0];
-        if (box) placed.push({ rtl: RTL_LETTER.test(ch) && !/\p{N}/u.test(ch), x: (box.left + box.right) / 2, top: box.top, height: box.bottom - box.top });
+        if (box) {
+          boxed++;
+          const here = { x: (box.left + box.right) / 2, top: box.top, height: box.bottom - box.top };
+          const before = last[dir];
+          if (before && Math.abs(before.top - here.top) <= 0.5 * Math.min(before.height, here.height)) {
+            pairs++;
+            if (dir === "rtl" ? here.x > before.x + 0.5 : here.x < before.x - 0.5) turned = true;
+          }
+          last[dir] = here;
+        }
+        // A word of a hundred thousand letters is no one task, and a stop holds inside it too (review B7-8, S-2).
+        if (letters % 64 === 0) await pace.step();
       }
       at += ch.length;
     }
-    let pairs = 0;
-    let turned = false;
-    for (let k = 0; k + 1 < placed.length; k++) {
-      const a = placed[k]!;
-      const b = placed[k + 1]!;
-      if (a.rtl !== b.rtl || Math.abs(a.top - b.top) > 0.5 * Math.min(a.height, b.height)) continue;
-      pairs++;
-      if (a.rtl ? b.x > a.x + 0.5 : b.x < a.x - 0.5) turned = true;
-    }
-    if (turned || pairs === 0) out.push([index, index + word.length]);
+    const doubt = letters > 1 && (pairs === 0 || boxed < letters);
+    if (turned || doubt) out.push([index, index + word.length]);
     await pace.step();
   }
   return out;
