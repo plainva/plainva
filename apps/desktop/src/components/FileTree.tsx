@@ -36,7 +36,7 @@ import { flushUnsavedBeforeMove } from "../services/moveFlush";
 import { serializeBaseConfig } from "@plainva/ui";
 // Lazily loaded (P2.9 "wizards"): the creation wizard is a rarely-opened
 // surface and must not sit in the initial bundle.
-const BaseCreateWizard = deferredPart(() => import("./base/BaseCreateWizard").then((m) => m.BaseCreateWizard), { boundary: "dialog" });
+const BaseCreateWizard = deferredPart(() => import("./base/BaseCreateWizard").then((m) => m.BaseCreateWizard));
 import {
   ancestorsOf,
   applyClickSelection,

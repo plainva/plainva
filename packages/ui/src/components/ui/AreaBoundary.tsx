@@ -1,4 +1,4 @@
-import { Component, Fragment, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, createContext, Fragment, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { AlertCircle, RotateCw } from "lucide-react";
 import { Button } from "./Button";
@@ -11,7 +11,7 @@ import { logDiagnostic } from "../../services/diagnosticsLog";
 import { getPlatformServices, hasPlatformServices } from "../../platform/services";
 import { toast } from "../../services/toastStore";
 import i18n from "../../i18n";
-import { isPartLoadFailure } from "../../lib/partLoad";
+import { isPartLoadFailure, releaseShownLoadFailure } from "../../lib/partLoad";
 
 /**
  * A way out of a failed area that does not depend on the area itself: close
@@ -115,6 +115,12 @@ interface State {
   dismissed: boolean;
 }
 
+/**
+ * True below an `AreaBoundary`: a part loaded on demand (`lazyPart`) hands its load failure to that boundary, which
+ * knows the area's size and way out, instead of catching it itself (review of B1b, round 2).
+ */
+export const InsideAreaBoundary = createContext(false);
+
 class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
   state: State = { resetKey: this.props.resetKey, error: null, reloads: 0, generation: 0, dismissed: false };
 
@@ -130,6 +136,8 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
 
   componentDidCatch(error: unknown, info: ErrorInfo) {
     if (this.props.only && !this.props.only(error)) return; // passed on in `render`, logged where it lands
+    // A part's failed load is let go now that it is shown: the reload, or the area opened anew, loads again.
+    releaseShownLoadFailure(error);
     this.props.onCaught?.();
     logDiagnostic(`area:${this.props.area}`, describeAreaError(error, info.componentStack));
     console.error(`[area ${this.props.area}] could not be shown`, error);
@@ -174,8 +182,10 @@ class AreaBoundaryState extends Component<AreaBoundaryProps, State> {
     }
     return (
       <Fragment key={this.state.generation}>
-        {TEST_SEAM ? <AreaCrashProbe area={area} /> : null}
-        {typeof children === "function" ? <RenderArea build={children} /> : children}
+        <InsideAreaBoundary.Provider value={true}>
+          {TEST_SEAM ? <AreaCrashProbe area={area} /> : null}
+          {typeof children === "function" ? <RenderArea build={children} /> : children}
+        </InsideAreaBoundary.Provider>
       </Fragment>
     );
   }

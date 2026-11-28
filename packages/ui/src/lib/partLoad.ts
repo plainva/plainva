@@ -89,3 +89,22 @@ export function loadPart<T>(load: () => Promise<T>, options: { timeoutMs?: numbe
     );
   });
 }
+
+/** What lets a failed part load go, by its error (`lazyPart`): run by the boundary that showed it. */
+const releases = new WeakMap<object, () => void>();
+
+/** Ties `release` to `error`: the first boundary that shows the error runs it (`releaseShownLoadFailure`). */
+export function releaseWhenShown(error: unknown, release: () => void): void {
+  if (error !== null && typeof error === "object") releases.set(error, release);
+}
+
+/**
+ * Called by a boundary once it has shown `error` (`componentDidCatch`, after React's own retry): a part whose load
+ * failed loads anew at its next render — the reload, the dialog opened anew (review of B1b, round 2).
+ */
+export function releaseShownLoadFailure(error: unknown): void {
+  if (error === null || typeof error !== "object") return;
+  const release = releases.get(error);
+  releases.delete(error);
+  release?.();
+}

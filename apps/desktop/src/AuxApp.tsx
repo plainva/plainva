@@ -36,8 +36,8 @@ const AUX_RIGHT_WIDTH = 300;
 const ComposeWindow = deferredPart(() => import("./components/mail/ComposeWindow").then((m) => m.ComposeWindow));
 // The surfaces the aux bridge opens (finding 2026-09-07) — the same lazy
 // chunks the central window mounts, loaded on first use.
-const CompareModal = deferredPart(() => import("./components/CompareModal").then((m) => m.CompareModal), { boundary: "dialog" });
-const MailDraftModal = deferredPart(() => import("./components/mail/MailDraftModal").then((m) => m.MailDraftModal), { boundary: "dialog" });
+const CompareModal = deferredPart(() => import("./components/CompareModal").then((m) => m.CompareModal));
+const MailDraftModal = deferredPart(() => import("./components/mail/MailDraftModal").then((m) => m.MailDraftModal));
 
 /**
  * The shell of an auxiliary window (multi-window P0/P1, panes since P4).

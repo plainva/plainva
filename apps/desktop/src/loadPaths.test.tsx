@@ -115,7 +115,7 @@ describe("the words for a load that failed", () => {
     expect.hasAssertions();
     const warning = vi.spyOn(toast, "warning");
     const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const Part = lazyPart(() => Promise.reject(new TypeError("Failed to fetch dynamically imported module")), { size: "quiet" });
+    const Part = lazyPart(() => Promise.reject(new TypeError("Failed to fetch dynamically imported module")));
     const host = document.createElement("div");
     const root = createRoot(host);
     await act(async () => root.render(<AreaBoundary area="test:quietOuter" size="quiet"><Suspense fallback={null}><Part /></Suspense></AreaBoundary>));

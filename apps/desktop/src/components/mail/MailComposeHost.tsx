@@ -1,11 +1,13 @@
 import { Suspense, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { AreaBoundary } from "@plainva/ui";
 import type { ForwardSource, MailAttachment } from "@plainva/ui/mail";
 import { useVault } from "../../contexts/VaultContext";
 import { useComposeHost } from "../../services/mail/composeHost";
 import { popOutCompose } from "../../services/mail/composeWindow";
 import { deferredPart } from "../../lib/deferredParts";
 
-const MailDraftModal = deferredPart(() => import("./MailDraftModal").then((m) => m.MailDraftModal), { boundary: "dialog" });
+const MailDraftModal = deferredPart(() => import("./MailDraftModal").then((m) => m.MailDraftModal));
 
 /**
  * The floating composer of a window that draws the whole shell — the central
@@ -36,6 +38,7 @@ const MailDraftModal = deferredPart(() => import("./MailDraftModal").then((m) =>
  * loading screen to outlive.
  */
 export function MailComposeHost() {
+  const { t } = useTranslation();
   const { vaultPath, isLoading } = useVault();
   // Mail-raus (stage 6) / compose (mail-client E5): the composer is prefilled
   // from what asked for it — a note, a reply, an invitation —, optionally with
@@ -61,7 +64,10 @@ export function MailComposeHost() {
   }, [setMailDraft]);
 
   if (!mailDraft || !vaultPath) return null;
+  // The composer is a dialog: if its part does not load, its boundary draws as one, and Escape or the way out closes
+  // it as the composer would (review of B1b, round 2); the draft stays with the host.
   return (
+    <AreaBoundary area="dialog:mailDraft" size="dialog" exit={{ label: t("common.close"), onExit: closeMailDraft }}>
     <Suspense fallback={null}>
       <MailDraftModal
         key={mailDraftKey}
@@ -80,5 +86,6 @@ export function MailComposeHost() {
         onClose={closeMailDraft}
       />
     </Suspense>
+    </AreaBoundary>
   );
 }
