@@ -1,6 +1,6 @@
 import createDOMPurify from "dompurify";
 import { keptMailStyle, MailShaper, ownsLineHeight, visibleDocumentOf, WHITE_SHEET, type MarkupReader, type ShapeState, type VisibleDocument } from "@plainva/core";
-import { blanked, engineHiddenWords, engineWidths, type EngineHidden } from "./engineVisibility";
+import { blanked, EngineBudgetError, engineHiddenWords, engineWidths, type EngineHidden } from "./engineVisibility";
 import { domReader, treeAccess, type TreeAccess } from "./mailTree";
 
 // The package's default export is a FACTORY in module environments — bind it
@@ -354,7 +354,8 @@ function makePass(raw: string): Pass {
  * The engine's answer for a mail, kept (B7, decision (a)): a second question about the same mail is not measured again.
  * The key is what decides the answer — the frame document as the reader lays it out (its markup without pictures from
  * the network, the reader's rules) and the widths. A change of either is another key: a new width, another reader
- * presentation. Loading the pictures changes neither — the assistant reads the view without them. A pass that failed
+ * presentation. Loading the pictures changes neither — the assistant reads the view without them. A mail past the
+ * budget is kept as that: the next question about it is told at once, not after the whole time again. Any other failure
  * is not kept. The latest `CHECKED_KEPT` answers are kept, in memory, until the app closes.
  */
 const CHECKED_KEPT = 20;
@@ -369,8 +370,8 @@ export function checkedOnce(frameDoc: string, widths: readonly number[]): Promis
   }
   const reading = engineHiddenWords(frameDoc, widths);
   checked.set(key, reading);
-  reading.catch(() => {
-    if (checked.get(key) === reading) checked.delete(key);
+  reading.catch((error: unknown) => {
+    if (!(error instanceof EngineBudgetError) && checked.get(key) === reading) checked.delete(key);
   });
   while (checked.size > CHECKED_KEPT) checked.delete(checked.keys().next().value!);
   return reading;
