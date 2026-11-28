@@ -46,7 +46,7 @@ export interface ByteExactDavOptions {
    * - "honor" (default): as RFC 4918 has it, the named ones the entry has in
    *   a 200 propstat, the others in a 404 propstat;
    * - "ignore": the body is not read, the answer is the `allprop` one;
-   * - "refuse" (400), "unsupported" (501), "fail" (500): the request fails;
+   * - "refuse" (400), "unsupported" (501), "fail" (500), "notFound" (404): the request fails;
    * - "garbage": a 207 whose body is no listing;
    * - "dropEtag", "dropResourcetype", "dropModified": that property is left
    *   out without a word, for one entry only (the first file; for
@@ -54,7 +54,7 @@ export interface ByteExactDavOptions {
    * - "etagNotFound": the first file's tag comes in a 404 propstat, empty.
    * An `allprop` request (no body) is always answered in full.
    */
-  propRequests?: "honor" | "ignore" | "refuse" | "unsupported" | "fail" | "garbage" | "dropEtag" | "dropResourcetype" | "dropModified" | "etagNotFound";
+  propRequests?: "honor" | "ignore" | "refuse" | "unsupported" | "fail" | "notFound" | "garbage" | "dropEtag" | "dropResourcetype" | "dropModified" | "etagNotFound";
   /** Refuses `Depth: infinity` (403), as Apache mod_dav does by default: the sync walks with `Depth: 1`. */
   refuseInfinity?: boolean;
   /**
@@ -238,6 +238,8 @@ export function byteExactDav(base = "https://dav.example.com/dav/Vault/", option
           if (options.propRequests === "refuse") return status(400);
           if (options.propRequests === "unsupported") return status(501);
           if (options.propRequests === "fail") return status(500);
+          // A proxy that answers any PROPFIND with a body with 404.
+          if (options.propRequests === "notFound") return status(404);
         }
         if (!folders.has(p) && !files.has(p)) return status(404);
         if (depth === "infinity" && options.refuseInfinity) return status(403);

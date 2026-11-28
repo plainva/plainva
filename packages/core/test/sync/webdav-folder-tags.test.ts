@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FolderTagLedger, FOLDER_TAGS_REFUTED_KEY, type FolderTagListing } from "../../src/sync/webdavFolderTags.js";
 import { ROOT_TAG_CURSOR, WebDavSyncTarget } from "../../src/sync/WebDavSyncTarget.js";
 import type { SyncMetaStore } from "../../src/sync/ISyncTarget.js";
@@ -407,4 +407,53 @@ describe("a cycle on the tag alone writes nothing (finding S-1 of 2026-11-27)", 
       for (const text of without!) expect(withShortcut!.has(text)).toBe(true);
     }
   }, 240_000);
+});
+
+describe("the minute holds whatever the clock does (finding M-2 of 2026-11-27)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Cycles of b, `stepMs` apart on both clocks (the wall clock set back by `backMs` once trusted), until an outside change arrives. */
+  async function cyclesUntilArrival(stepMs: number, backMs: number) {
+    let wall = Date.UTC(2026, 10, 1);
+    let mono = 1_000;
+    vi.spyOn(Date, "now").mockImplementation(() => wall);
+    vi.spyOn(performance, "now").mockImplementation(() => mono);
+    const { dav } = world({ folderTags: "subtree", lazyScan: true, clock: () => Date.UTC(2026, 10, 1) });
+    const a = await device(dav);
+    const b = await device(dav);
+    const tick = () => { wall += stepMs; mono += stepMs; };
+    for (const step of [
+      () => a.put("N/D/x.md", "x\n"), () => a.put("N/D/x.md", "x2\n"), () => a.put("N/D/y.md", "y\n"),
+      () => a.remove("N/D/y.md"), () => a.put("N/D/E/z.md", "z\n"), () => a.put("N/D/E/z.md", "z2\n"),
+    ]) { await step(); tick(); await a.cycle(); await b.cycle(); }
+    for (let i = 0; i < 4; i++) { tick(); await b.cycle(); }
+    wall -= backMs;
+    dav.pastWebdav("N/D/E/z.md", "OUTSIDE\n");
+    let cycles = 0;
+    while (cycles < 12) {
+      tick();
+      await b.cycle();
+      cycles++;
+      if ((await b.text("N/D/E/z.md")).includes("OUTSIDE")) break;
+    }
+    return cycles;
+  }
+
+  for (const minutes of [5, 15]) {
+    it(`cycles ${minutes} minutes apart: a change the tag did not show arrives in the next cycle, also with the clock set back an hour`, async () => {
+      expect(await cyclesUntilArrival(minutes * 60_000, 0)).toBe(1);
+      expect(await cyclesUntilArrival(minutes * 60_000, 3_600_000)).toBe(1);
+    }, 120_000);
+  }
+
+  it("cycles 15 seconds apart: such a change arrives within the minute (four cycles), also with the clock set back", async () => {
+    expect(await cyclesUntilArrival(15_000, 0)).toBeLessThanOrEqual(4);
+    expect(await cyclesUntilArrival(15_000, 3_600_000)).toBeLessThanOrEqual(4);
+  }, 120_000);
+
+  it("cycles 30 seconds apart: such a change arrives within the minute (two cycles), not after the three cycles the count allows", async () => {
+    expect(await cyclesUntilArrival(30_000, 0)).toBeLessThanOrEqual(2);
+  }, 120_000);
 });

@@ -108,8 +108,22 @@ const ROOT_TAG_PROBE_BODY = `<?xml version="1.0" encoding="utf-8"?><d:propfind x
 /** The cursor the target hands the worker while the vault folder's tag is trusted (`getStartCursor`). */
 export const ROOT_TAG_CURSOR = "webdav-root-tag";
 
-/** A slim listing the server refused or answered in part: the listing is asked again with `allprop`. */
+/** A slim listing the server refused or answered in part: the listing is asked again with `allprop`, and listings by name stop. */
 const SLIM_INCOMPLETE = Symbol("slim listing incomplete");
+/** A listing by name that got a 500: asked again with `allprop`; listings by name stop only at the second one in a row. */
+const SLIM_FAILED_500 = Symbol("slim listing failed with 500");
+/** A listing by name that got a 404: believed only where the same question without a body gets one too. */
+const SLIM_NOT_FOUND = Symbol("slim listing not found");
+type SlimMiss = typeof SLIM_INCOMPLETE | typeof SLIM_FAILED_500 | typeof SLIM_NOT_FOUND;
+const isSlimMiss = (value: unknown): value is SlimMiss => value === SLIM_INCOMPLETE || value === SLIM_FAILED_500 || value === SLIM_NOT_FOUND;
+
+/**
+ * Answers that can be about the body of a listing by name (finding M-4 of
+ * 2026-11-27): only these, and a 207 that is no usable listing, stop
+ * listings by name. A rate limit (429), a gateway (502, 503, 504) or a lost
+ * connection fails the pull as before and leaves them on.
+ */
+const BODY_DEPENDENT_STATUSES = new Set([400, 415, 422, 501]);
 
 /**
  * Whether a slim listing says all that `allprop` would for `pull`: every
@@ -155,10 +169,12 @@ export function parseMultistatus(xml: string): WebDavResponse[] {
     for (const ps of propstats) {
       const prop = ps?.prop;
       if (!prop) continue;
+      // A prop that holds only text names no property (and `in` would throw on it).
+      const named: Record<string, unknown> = typeof prop === "object" ? prop : {};
       const code = typeof ps?.status === "string" ? /^\s*HTTP\/\S+\s+(\d{3})/i.exec(ps.status)?.[1] : undefined;
       const ok = code === undefined || code.startsWith("2");
       for (const name of SLIM_LISTING_PROPS) {
-        if (!(name in prop)) continue;
+        if (!(name in named)) continue;
         if (ok) answered[name] = "ok";
         else if (answered[name] === undefined) answered[name] = "absent";
       }
@@ -663,16 +679,31 @@ export class WebDavSyncTarget implements ISyncTarget {
     }
   }
 
+  /** A listing by name got a 500 and the `allprop` one right after it did not: one more 500 stops listings by name. */
+  private slimFailedWith500 = false;
+  /** The last `allprop` listing found no vault folder (404). */
+  private allpropFoundNoFolder = false;
+
   private async listFully(): Promise<PullResult> {
     const slim = this.slimListing ? await this.listVault(true) : SLIM_INCOMPLETE;
-    if (slim !== SLIM_INCOMPLETE) return slim;
+    if (!isSlimMiss(slim)) {
+      this.slimFailedWith500 = false;
+      return slim;
+    }
     // Asked again in the same pull, so the listing says what `allprop` says;
     // never a listing built from a half answer. An `allprop` listing that
     // fails as well fails as it always did, and the next pull asks by name
     // again (the server may just have been down).
+    this.allpropFoundNoFolder = false;
     const full = await this.listVault(false);
-    if (full === SLIM_INCOMPLETE) throw new Error("unreachable: an allprop listing is never incomplete");
-    if (this.slimListing) {
+    if (isSlimMiss(full)) throw new Error("unreachable: an allprop listing is never a miss");
+    if (!this.slimListing) return full;
+    const stop =
+      slim === SLIM_INCOMPLETE ||
+      (slim === SLIM_NOT_FOUND && !this.allpropFoundNoFolder) ||
+      (slim === SLIM_FAILED_500 && this.slimFailedWith500);
+    if (slim === SLIM_FAILED_500) this.slimFailedWith500 = true;
+    if (stop) {
       this.slimListing = false;
       console.warn("[WebDAV] the server refused or answered a listing by name in part; listing everything from now on");
     }
@@ -697,7 +728,7 @@ export class WebDavSyncTarget implements ISyncTarget {
     return slimAnswerComplete(responses) ? responses : SLIM_INCOMPLETE;
   }
 
-  private async listVault(slim: boolean): Promise<PullResult | typeof SLIM_INCOMPLETE> {
+  private async listVault(slim: boolean): Promise<PullResult | SlimMiss> {
     const init = this.propfindInit("infinity", slim);
     const res = await this.request("PROPFIND", this.creds.url, init);
     // Before the first href is resolved: a redirect moves the base path, and
@@ -705,11 +736,18 @@ export class WebDavSyncTarget implements ISyncTarget {
     this.rememberEffectiveBase(res);
 
     let responses: WebDavResponse[];
-    // Any other answer to a listing by name than a listing, a folder that is
-    // not there, or a refused infinite depth may be about the body (400, 415,
-    // 422, 501, a server that fails on it with a 500): asked again without one.
-    if (slim && !res.ok && res.status !== 404 && res.status !== 403) {
+    // A listing by name refused for what may be its body is asked again
+    // without one (`BODY_DEPENDENT_STATUSES`, a 500, a 404 that only the
+    // question with a body gets); any other failure fails as it always did.
+    if (slim && BODY_DEPENDENT_STATUSES.has(res.status)) {
+      discardResponse(res);
       return SLIM_INCOMPLETE;
+    } else if (slim && res.status === 500) {
+      discardResponse(res);
+      return SLIM_FAILED_500;
+    } else if (slim && res.status === 404) {
+      discardResponse(res);
+      return SLIM_NOT_FOUND;
     } else if (res.ok) {
       if (slim) {
         const parsed = this.parseSlim(await res.text());
@@ -719,6 +757,7 @@ export class WebDavSyncTarget implements ISyncTarget {
         responses = this.parseListing(await res.text());
       }
     } else if (res.status === 404) {
+      this.allpropFoundNoFolder = true;
       // A vault that has synced before and a folder that is gone: say so
       // instead of reporting an empty remote (finding 2026-09-20).
       if (!this.allowRootCreation) {
@@ -734,7 +773,7 @@ export class WebDavSyncTarget implements ISyncTarget {
       // breadth-first walk with Depth: 1 — same listing, one request per
       // collection.
       const walked = await this.listByDepthOne(slim);
-      if (walked === SLIM_INCOMPLETE) return SLIM_INCOMPLETE;
+      if (isSlimMiss(walked)) return walked;
       responses = walked;
     } else {
       throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);
@@ -888,14 +927,18 @@ export class WebDavSyncTarget implements ISyncTarget {
   /** Device-local folders never worth walking (the worker skips their files anyway). */
   private static readonly SKIPPED_COLLECTIONS = new Set([".plainva", ".git", ".trash", ".obsidian", "node_modules"]);
 
-  private async listByDepthOne(slim: boolean): Promise<WebDavResponse[] | typeof SLIM_INCOMPLETE> {
+  private async listByDepthOne(slim: boolean): Promise<WebDavResponse[] | SlimMiss> {
     const out: WebDavResponse[] = [];
     const queue: string[] = [""];
     while (queue.length > 0) {
       const rel = queue.shift()!;
       const url = rel ? this.urlForPath(rel) : this.creds.url;
       const res = await this.request("PROPFIND", url, this.propfindInit("1", slim));
-      if (slim && !res.ok && res.status !== 404) return SLIM_INCOMPLETE;
+      // As on the vault folder: only what may be about the body is asked
+      // again without one. A 403 on a folder inside fails as it always did,
+      // and does not send every cycle round twice.
+      if (slim && BODY_DEPENDENT_STATUSES.has(res.status)) { discardResponse(res); return SLIM_INCOMPLETE; }
+      if (slim && res.status === 500) { discardResponse(res); return SLIM_FAILED_500; }
       if (!res.ok) {
         if (res.status === 404) continue;
         throw syncHttpError(`WebDAV PROPFIND failed: ${res.status} ${res.statusText}`, res);

@@ -222,6 +222,9 @@ const FULL_LISTING_EVERY_N_CYCLES = 20;
  */
 const FULL_LISTING_MAX_AGE_MS = 10 * 60 * 1000;
 
+/** Milliseconds on a clock no change of the wall clock moves. */
+const monotonicNow = (): number => (typeof performance !== "undefined" && typeof performance.now === "function" ? performance.now() : Date.now());
+
 /**
  * Stale-cycle watchdog (defense in depth behind the per-request timeouts): a
  * cycle whose awaited work stops making progress — a platform bridge that
@@ -660,6 +663,8 @@ export class SyncWorker {
   private cyclesSinceFull = 0;
   /** Wall-clock time of the last successful full listing (see FULL_LISTING_MAX_AGE_MS). */
   private lastFullListingAt = 0;
+  /** The same moment on the monotonic clock (`performance.now()`), which no clock change moves. */
+  private lastFullListingMono = 0;
   /**
    * Monotonic cycle generation. Each executeCycle() claims the next value; the
    * watchdog invalidates a stale cycle by bumping it, which turns the zombie's
@@ -1714,6 +1719,20 @@ export class SyncWorker {
     return typeof queue.hasOperationDue === "function" ? await queue.hasOperationDue() : true;
   }
 
+  /**
+   * Whether the last full listing is `maxAgeMs` old. Measured on both
+   * clocks: the wall clock runs on while the app sleeps in the background
+   * (the monotonic one may not), and the monotonic one runs on when the wall
+   * clock is set back. A wall clock that went back past the last listing
+   * counts as due (plan L7b, finding M-2 of 2026-11-27: the minute of the
+   * WebDAV shortcut must hold whatever the clock does).
+   */
+  private fullListingDue(maxAgeMs: number): boolean {
+    const wall = Date.now() - this.lastFullListingAt;
+    const mono = this.lastFullListingMono > 0 ? monotonicNow() - this.lastFullListingMono : 0;
+    return wall < 0 || wall >= maxAgeMs || mono >= maxAgeMs;
+  }
+
   /** Keeps `remoteView` in step with a listing (see there). */
   private updateRemoteView(result: PullResult, full: boolean): void {
     if (full) this.remoteView.clear();
@@ -2363,7 +2382,7 @@ export class SyncWorker {
         this.cyclesSinceFull >= (cadence?.cursorPullsBetween ?? FULL_LISTING_EVERY_N_CYCLES) ||
         // Wall-clock safety net: background pauses freeze the cycle counter,
         // so measure real time too (see FULL_LISTING_MAX_AGE_MS).
-        (this.lastFullListingAt > 0 && Date.now() - this.lastFullListingAt >= (cadence?.maxAgeMs ?? FULL_LISTING_MAX_AGE_MS));
+        (this.lastFullListingAt > 0 && this.fullListingDue(cadence?.maxAgeMs ?? FULL_LISTING_MAX_AGE_MS));
       let seededCursor: string | undefined;
       if (doFullListing && this.target.getStartCursor) {
         // Fetch the change token BEFORE the listing so the next incremental pull OVERLAPS
@@ -3142,6 +3161,7 @@ export class SyncWorker {
           this.cursor = seededCursor;
           this.cyclesSinceFull = 0;
           this.lastFullListingAt = Date.now();
+          this.lastFullListingMono = monotonicNow();
           // A refused file a whole listing no longer holds is gone remotely.
           for (const path of [...known.keys()]) if (!remotePaths.has(path)) await clearRefused(path);
           if (!deletionMirroringSuspended) {

@@ -82,6 +82,7 @@ const MODES: Array<{ mode: NonNullable<ByteExactDavOptions["propRequests"]>; usa
   { mode: "refuse", usable: false },
   { mode: "unsupported", usable: false },
   { mode: "fail", usable: false },
+  { mode: "notFound", usable: false },
   { mode: "garbage", usable: false },
   { mode: "dropEtag", usable: false },
   { mode: "etagNotFound", usable: false },
@@ -105,9 +106,13 @@ describe("a full listing by name reads what allprop reads", () => {
         expect(first).toEqual(asAllprop);
         // Without the .CONFLICT file; the Depth: 1 walk does not enter .plainva either.
         expect(first.etags.length).toBe(NAMES.length - (kind.options.refuseInfinity ? 2 : 1));
-        expect(slim.slimListing).toBe(expectUsable);
+        // A 500 may be a hiccup: listings by name stop only at the second in a row.
+        const strikes = mode === "fail" ? 2 : 1;
+        expect(slim.slimListing).toBe(expectUsable || strikes > 1);
         if (expectUsable) expect(asked.every((a) => a === "named")).toBe(true);
         else expect(asked).toContain("allprop");
+        if (strikes > 1) expect(view(await slim.pull())).toEqual(asAllprop);
+        expect(slim.slimListing).toBe(expectUsable);
         // The next pull asks by name only where the first could use it.
         asked.length = 0;
         expect(view(await slim.pull())).toEqual(asAllprop);
@@ -115,6 +120,96 @@ describe("a full listing by name reads what allprop reads", () => {
       });
     }
   }
+
+  for (const status of [429, 502, 503, 504]) {
+    it(`a ${status} on a listing by name fails the pull as before and leaves listings by name on`, async () => {
+      const dav = byteExactDav();
+      seed(dav, true);
+      const fetch = dav.fetch;
+      let failures = 6;
+      dav.fetch = async (input, init) => (failures-- > 0 ? new Response("", { status, headers: { "Retry-After": "0" } }) : fetch(input, init));
+      const slim = target(dav, true);
+      await expect(slim.pull()).rejects.toThrow(new RegExp(String(status)));
+      expect(slim.slimListing).toBe(true);
+      failures = 0;
+      const asked = recording(dav);
+      expect(view(await slim.pull())).toEqual(view(await target(dav, false).pull()));
+      expect(asked[0]).toBe("named");
+    }, 60_000);
+  }
+
+  it("a lost connection fails the pull and leaves listings by name on", async () => {
+    const dav = byteExactDav();
+    seed(dav, true);
+    const fetch = dav.fetch;
+    let down = true;
+    dav.fetch = async (input, init) => { if (down) throw new TypeError("network error"); return fetch(input, init); };
+    const slim = target(dav, true);
+    await expect(slim.pull()).rejects.toThrow();
+    expect(slim.slimListing).toBe(true);
+    down = false;
+    expect(view(await slim.pull())).toEqual(view(await target(dav, false).pull()));
+  }, 60_000);
+
+  it("a 500 once, then a listing by name that works, keeps listings by name on", async () => {
+    const dav = byteExactDav();
+    seed(dav, true);
+    const fetch = dav.fetch;
+    let once = true;
+    dav.fetch = async (input, init) => {
+      if (once && init?.body !== undefined) { once = false; return new Response("", { status: 500 }); }
+      return fetch(input, init);
+    };
+    const slim = target(dav, true);
+    const asAllprop = view(await target(dav, false).pull());
+    expect(view(await slim.pull())).toEqual(asAllprop);
+    expect(view(await slim.pull())).toEqual(asAllprop);
+    expect(view(await slim.pull())).toEqual(asAllprop);
+    expect(slim.slimListing).toBe(true);
+  }, 60_000);
+
+  it("a 404 to a listing by name is believed only where the question without a body gets one too", async () => {
+    const dav = byteExactDav();
+    dav.folders.clear();
+    const slim = target(dav, true);
+    slim.allowRootCreation = false;
+    await expect(slim.pull()).rejects.toThrow(/WebDAV server/);
+    expect(slim.slimListing).toBe(true);
+  });
+
+  it("a 403 on a folder inside a Depth: 1 walk fails as before, once per pull, and leaves listings by name on", async () => {
+    const dav = byteExactDav(undefined, { refuseInfinity: true });
+    seed(dav, true);
+    const fetch = dav.fetch;
+    let propfinds = 0;
+    dav.fetch = async (input, init) => {
+      if ((init?.method ?? "GET").toUpperCase() === "PROPFIND") {
+        propfinds++;
+        if (/\/Notes\/Deep\/?$/.test(decodeURIComponent(String(input)))) return new Response("", { status: 403 });
+      }
+      return fetch(input, init);
+    };
+    const old = target(dav, false);
+    await expect(old.pull()).rejects.toThrow(/403/);
+    const asAllpropRequests = propfinds;
+    propfinds = 0;
+    const slim = target(dav, true);
+    await expect(slim.pull()).rejects.toThrow(/403/);
+    expect(propfinds).toBe(asAllpropRequests);
+    expect(slim.slimListing).toBe(true);
+  });
+
+  it("a prop that holds only text is read as allprop reads it, by name or not", async () => {
+    const body = `<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:href>/dav/Vault/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response><d:response><d:href>/dav/Vault/odd.md</d:href><d:propstat><d:prop>x</d:prop></d:propstat></d:response><d:response><d:href>/dav/Vault/a.md</d:href><d:propstat><d:prop><d:resourcetype/><d:getetag>"1"</d:getetag><d:getlastmodified>Sun, 01 Nov 2026 12:00:00 GMT</d:getlastmodified></d:prop></d:propstat></d:response></d:multistatus>`;
+    const results = [];
+    for (const slim of [false, true]) {
+      const t = new WebDavSyncTarget({ url: "https://dav.example.com/dav/Vault/", user: "u", pass: "p" }, async () => new Response(body, { status: 207 }));
+      t.slimListing = slim;
+      results.push(view(await t.pull()));
+    }
+    expect(results[1]).toEqual(results[0]);
+    expect(results[0]!.etags).toEqual([["a.md", "1"]]);
+  });
 
   it("a server that is down fails the pull as before, and the next pull asks by name again", async () => {
     const dav = byteExactDav();
